@@ -491,4 +491,60 @@ Untuk pertanyaan atau bantuan, silakan hubungi tim development atau buat issue d
 
 ---
 
+## 📋 Roadmap Improvement
+
+Daftar improvement yang direncanakan untuk pengembangan chatbot ini:
+
+### 🔴 High Priority (Security & Performance)
+
+| # | Improvement | Deskripsi | Status |
+|---|-------------|-----------|--------|
+| 1 | **Parameterized Queries** | Fix SQL injection risk di `ChatbotController.php` - gunakan prepared statements untuk `$wilayahFilter` | ⏳ Pending |
+| 2 | **Rate Limiting** | Tambahkan rate limiting ke endpoint `/chatbot/send` untuk mencegah abuse | ⏳ Pending |
+| 3 | **Environment Credentials** | Pindahkan hardcoded ERP credentials ke `.env` | ⏳ Pending |
+| 4 | **Response Caching** | Cache AI responses untuk query yang sering ditanyakan | ⏳ Pending |
+| 5 | **Query Optimization** | Add index pada kolom yang sering di-query (tanggal, id_pembeli, id_produk) | ⏳ Pending |
+
+### 🟡 Medium Priority (Code Quality & Features)
+
+| # | Improvement | Deskripsi | Status |
+|---|-------------|-----------|--------|
+| 6 | **Refactor Controller** | Split `ChatbotController.php` (827 lines) menjadi services: `AIService`, `QueryService`, `DocumentService` | ⏳ Pending |
+| 7 | **AI Config File** | Buat `config/ai.php` untuk model list & settings (jangan hardcode) | ⏳ Pending |
+| 8 | **Chat History DB** | Simpan conversation history ke database, bukan client-side only | ⏳ Pending |
+| 9 | **Streaming SSE** | Implementasi Server-Sent Events untuk streaming response real-time | ⏳ Pending |
+| 10 | **Export Feature** | Export chat ke PDF/CSV | ⏳ Pending |
+| 11 | **Full-text Search** | Full-text search untuk dokumentasi ERP | ⏳ Pending |
+| 12 | **MCP Tools Enhancement** | Tambah tools: `get_business_metrics()`, `search_documentation()`, `validate_query()` | ⏳ Pending |
+
+### 🟢 Low Priority (UX & DevOps)
+
+| # | Improvement | Deskripsi | Status |
+|---|-------------|-----------|--------|
+| 13 | **Admin Audit Log** | Log perubahan role & permissions di admin panel | ⏳ Pending |
+| 14 | **User Activity Dashboard** | Dashboard untuk tracking user activity & usage stats | ⏳ Pending |
+| 15 | **Dark Mode Toggle** | Toggle dark/light mode untuk UI | ⏳ Pending |
+| 16 | **Mobile Responsive** | Improve responsive design untuk mobile | ⏳ Pending |
+| 17 | **Docker Support** | Tambahkan Docker & docker-compose untuk easy deployment | ⏳ Pending |
+| 18 | **CI/CD Pipeline** | Setup GitHub Actions/GitLab CI untuk auto-test & deploy | ⏳ Pending |
+| 19 | **Health Check Endpoint** | Endpoint `/health` untuk monitoring | ⏳ Pending |
+| 20 | **Error Tracking** | Integrasi Sentry/Bugsnag untuk error monitoring | ⏳ Pending |
+
+### 🧪 Testing Roadmap
+
+- [ ] Unit tests untuk `QueryService`
+- [ ] Integration tests untuk chatbot responses
+- [ ] Feature tests untuk RBAC permissions
+- [ ] MCP tool tests
+- [ ] Load testing untuk concurrent users
+
+### 📊 Monitoring Roadmap
+
+- [ ] Request logging middleware
+- [ ] AI response time tracking
+- [ ] Query performance monitoring
+- [ ] Usage analytics dashboard
+
+---
+
 **Last Updated**: March 2026
