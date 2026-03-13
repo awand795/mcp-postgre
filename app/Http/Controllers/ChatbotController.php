@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Role;
+use App\Models\RolePermission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +24,20 @@ class ChatbotController extends Controller
 
     // Cache nama kolom tanggal di tabel transaksi (auto-detect)
     private ?string $colTanggal = null;
+
+    /**
+     * Mendapatkan daftar tabel yang boleh diakses berdasarkan role user
+     */
+    private function getAllowedTables(): array
+    {
+        if (!Auth::check()) return [];
+        
+        $roleId = Auth::user()->role;
+
+        return cache()->remember("allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
+            return RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
+        });
+    }
 
     public function index()
     {
@@ -240,15 +257,34 @@ class ChatbotController extends Controller
         $hasW    = !empty($wilayahFilter);
         $safe    = $hasW ? addslashes($wilayahFilter) : '';
 
+        $allowedTables = $this->getAllowedTables();
+
+        // Helper untuk cek apakah tabel dikuasai/diizinkan
+        $isAllowed = function($table) use ($allowedTables) {
+            return in_array($table, $allowedTables);
+        };
+
         // WHERE clause untuk filter wilayah (digunakan bersama WHERE lain)
         $wAnd = $hasW ? "AND (LOWER(pb.provinsi) LIKE '%{$safe}%' OR LOWER(pb.kota) LIKE '%{$safe}%')" : '';
         // WHERE clause untuk filter wilayah (standalone, tanpa kondisi lain)
         $wWhere = $hasW ? "WHERE (LOWER(pb.provinsi) LIKE '%{$safe}%' OR LOWER(pb.kota) LIKE '%{$safe}%')" : '';
 
         // ── Produk terlaris ──────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'paling laku', 'banyak terjual', 'laris'])) {
-            $join  = $hasW ? "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli" : "";
-            $where = $hasW ? "WHERE 1=1 {$wAnd}" : "";
+        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'paling laku', 'banyak terjual', 'laris']) 
+            && $isAllowed('produk') && $isAllowed('kategori') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
+            
+            $join = "";
+            $where = "";
+            if ($hasW && $isAllowed('pembeli')) {
+                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
+                $where = "WHERE 1=1 {$wAnd}";
+            } elseif (!$hasW) {
+                $where = "";
+            } else {
+                // User minta wilayah tapi ga punya akses tabel pembeli
+                $hasW = false;
+            }
+
             $label = $hasW ? "Produk Terlaris di " . ucwords($wilayahFilter) : "Produk Terlaris";
             $queries[$label] = "
                 SELECT p.nama_produk, k.nama_kategori,
@@ -266,7 +302,8 @@ class ChatbotController extends Controller
         }
 
         // ── Pelanggan terbaik / terloyal ─────────────────────────────────────
-        if ($this->hasKeyword($lower, ['pelanggan', 'pembeli', 'customer', 'loyal', 'setia', 'terbaik', 'terloyal'])) {
+        if ($this->hasKeyword($lower, ['pelanggan', 'pembeli', 'customer', 'loyal', 'setia', 'terbaik', 'terloyal'])
+            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
             $label = $hasW ? "Pelanggan Terbaik di " . ucwords($wilayahFilter) : "Pelanggan Terbaik";
             $queries[$label] = "
                 SELECT pb.nama_pembeli, pb.kota, pb.provinsi,
@@ -282,7 +319,8 @@ class ChatbotController extends Controller
         }
 
         // ── Revenue per wilayah ──────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['wilayah', 'provinsi', 'kota', 'daerah', 'region', 'area'])) {
+        if ($this->hasKeyword($lower, ['wilayah', 'provinsi', 'kota', 'daerah', 'region', 'area'])
+            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
             $queries['Revenue per Wilayah'] = "
                 SELECT pb.provinsi,
                     COUNT(DISTINCT pb.id_pembeli) as jumlah_pelanggan,
@@ -296,8 +334,9 @@ class ChatbotController extends Controller
         }
 
         // ── Revenue trend / bulanan ──────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['tren', 'trend', 'revenue', 'pendapatan', 'omzet', 'per bulan', 'bulanan', 'penjualan bulan'])) {
-            if ($hasW) {
+        if ($this->hasKeyword($lower, ['tren', 'trend', 'revenue', 'pendapatan', 'omzet', 'per bulan', 'bulanan', 'penjualan bulan'])
+            && $isAllowed('transaksi')) {
+            if ($hasW && $isAllowed('pembeli')) {
                 $label = "Revenue Bulanan di " . ucwords($wilayahFilter);
                 $queries[$label] = "
                     SELECT TO_CHAR(tr.{$tgl}, 'YYYY-MM') as bulan,
@@ -323,9 +362,16 @@ class ChatbotController extends Controller
         }
 
         // ── Kategori ─────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['kategori', 'category', 'jenis produk'])) {
-            $join  = $hasW ? "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli" : "";
-            $where = $hasW ? "WHERE 1=1 {$wAnd}" : "";
+        if ($this->hasKeyword($lower, ['kategori', 'category', 'jenis produk'])
+            && $isAllowed('kategori') && $isAllowed('produk') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
+            
+            $join = "";
+            $where = "";
+            if ($hasW && $isAllowed('pembeli')) {
+                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
+                $where = "WHERE 1=1 {$wAnd}";
+            }
+
             $label = $hasW ? "Kategori Terlaris di " . ucwords($wilayahFilter) : "Penjualan per Kategori";
             $queries[$label] = "
                 SELECT k.nama_kategori,
@@ -343,7 +389,8 @@ class ChatbotController extends Controller
         }
 
         // ── RFM ──────────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['rfm', 'recency', 'frequency', 'monetary', 'segmen pelanggan', 'segmentasi'])) {
+        if ($this->hasKeyword($lower, ['rfm', 'recency', 'frequency', 'monetary', 'segmen pelanggan', 'segmentasi'])
+            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
             $label = $hasW ? "RFM di " . ucwords($wilayahFilter) : "Analisis RFM";
             $queries[$label] = "
                 SELECT pb.nama_pembeli,
@@ -365,9 +412,16 @@ class ChatbotController extends Controller
         }
 
         // ── Metode pembayaran ─────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['metode bayar', 'pembayaran', 'payment', 'cara bayar', 'transfer', 'tunai', 'kredit'])) {
-            $join  = $hasW ? "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli" : "";
-            $where = $hasW ? "WHERE 1=1 {$wAnd}" : "";
+        if ($this->hasKeyword($lower, ['metode bayar', 'pembayaran', 'payment', 'cara bayar', 'transfer', 'tunai', 'kredit'])
+            && $isAllowed('transaksi')) {
+            
+            $join = "";
+            $where = "";
+            if ($hasW && $isAllowed('pembeli')) {
+                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
+                $where = "WHERE 1=1 {$wAnd}";
+            }
+
             $label = $hasW ? "Metode Pembayaran di " . ucwords($wilayahFilter) : "Metode Pembayaran";
             $queries[$label] = "
                 SELECT tr.metode_bayar,
@@ -383,7 +437,8 @@ class ChatbotController extends Controller
         }
 
         // ── Diskon ───────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['diskon', 'discount', 'promo', 'potongan'])) {
+        if ($this->hasKeyword($lower, ['diskon', 'discount', 'promo', 'potongan'])
+            && $isAllowed('transaksi')) {
             // Cek apakah kolom diskon ada
             $queries['Efektivitas Diskon'] = "
                 SELECT CASE WHEN diskon > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END as status_diskon,
@@ -396,7 +451,8 @@ class ChatbotController extends Controller
         }
 
         // ── Dead stock ────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['dead stock', 'tidak laku', 'stok mati', 'tidak terjual', 'slow moving'])) {
+        if ($this->hasKeyword($lower, ['dead stock', 'tidak laku', 'stok mati', 'tidak terjual', 'slow moving'])
+            && $isAllowed('produk') && $isAllowed('kategori') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
             $queries['Dead Stock'] = "
                 SELECT p.nama_produk, k.nama_kategori, p.harga,
                     COALESCE(SUM(dt.qty), 0) as total_terjual,
@@ -412,7 +468,8 @@ class ChatbotController extends Controller
         }
 
         // ── Cross-sell ────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['cross sell', 'cross-sell', 'kombinasi', 'sering dibeli bersama', 'bundle'])) {
+        if ($this->hasKeyword($lower, ['cross sell', 'cross-sell', 'kombinasi', 'sering dibeli bersama', 'bundle'])
+            && $isAllowed('detail_transaksi') && $isAllowed('produk')) {
             $queries['Cross-Sell'] = "
                 SELECT p1.nama_produk as produk_a, p2.nama_produk as produk_b,
                     COUNT(*) as frekuensi_bersamaan
@@ -425,7 +482,8 @@ class ChatbotController extends Controller
         }
 
         // ── ABC Analysis ──────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['abc', 'pareto', '80/20'])) {
+        if ($this->hasKeyword($lower, ['abc', 'pareto', '80/20'])
+            && $isAllowed('produk') && $isAllowed('detail_transaksi')) {
             $queries['ABC Analysis'] = "
                 SELECT nama_produk, total_pendapatan,
                     ROUND(total_pendapatan * 100.0 / SUM(total_pendapatan) OVER (), 2) as persen,
@@ -443,7 +501,8 @@ class ChatbotController extends Controller
         }
 
         // ── Customer Retention ────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['retention', 'pelanggan baru', 'pelanggan kembali', 'repeat order', 'repeat buyer'])) {
+        if ($this->hasKeyword($lower, ['retention', 'pelanggan baru', 'pelanggan kembali', 'repeat order', 'repeat buyer'])
+            && $isAllowed('transaksi')) {
             $queries['Customer Retention'] = "
                 SELECT TO_CHAR(tr.{$tgl}, 'YYYY-MM') as bulan,
                     COUNT(DISTINCT CASE WHEN fb.bulan_pertama = TO_CHAR(tr.{$tgl}, 'YYYY-MM') THEN tr.id_pembeli END) as pelanggan_baru,
@@ -459,7 +518,7 @@ class ChatbotController extends Controller
 
         // ── Fallback: ringkasan umum ──────────────────────────────────────────
         if (empty($queries)) {
-            if ($hasW) {
+            if ($hasW && $isAllowed('transaksi') && $isAllowed('pembeli')) {
                 $queries["Ringkasan di " . ucwords($wilayahFilter)] = "
                     SELECT COUNT(DISTINCT tr.id_transaksi) as total_transaksi,
                         COALESCE(SUM(tr.{$bayar}), 0) as total_revenue,
@@ -468,13 +527,13 @@ class ChatbotController extends Controller
                     FROM transaksi tr
                     JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli
                     WHERE 1=1 {$wAnd}";
-            } else {
+            } elseif ($isAllowed('transaksi')) {
                 $queries['Ringkasan Bisnis'] = "
                     SELECT
                         (SELECT COUNT(*) FROM transaksi) as total_transaksi,
                         (SELECT COALESCE(SUM({$bayar}), 0) FROM transaksi) as total_revenue,
-                        (SELECT COUNT(*) FROM pembeli) as total_pelanggan,
-                        (SELECT COUNT(*) FROM produk) as total_produk,
+                        " . ($isAllowed('pembeli') ? "(SELECT COUNT(*) FROM pembeli) as total_pelanggan," : "") . "
+                        " . ($isAllowed('produk') ? "(SELECT COUNT(*) FROM produk) as total_produk," : "") . "
                         (SELECT ROUND(AVG({$bayar}), 0) FROM transaksi) as avg_order_value";
             }
         }
@@ -635,25 +694,29 @@ class ChatbotController extends Controller
             ? "\n\n{$docContext}\nGUNAKAN PANDUAN DI ATAS untuk memberikan instruksi kepada pengguna.\n"
             : '';
 
-        return "Kamu adalah asisten AI yang ramah, cerdas, dan ahli sebagai Senior Data Analyst sekaligus Konsultan ERP.
-Nama panggilanmu adalah DataBot.
+        return "### ATURAN UTAMA (WAJIB DIPATUHI)
+1. JIKA USER BERTANYA TENTANG DATA DARI TABEL YANG TIDAK ADA DI 'TABEL YANG DAPAT ANDA AKSES' DI BAWAH, KAMU WAJIB MENJAWAB HANYA DENGAN SATU KALIMAT INI: 'Mohon maaf, saya tidak memiliki hak akses untuk menampilkan data [nama informasi] untuk akun Anda.'
+2. DILARANG KERAS MEMBERIKAN ALASAN, DILARANG MEMBERIKAN SOLUSI ALTERNATIF, DAN DILARANG MEMBERIKAN CONTOH QUERY JIKA AKSES DITOLAK. CUKUP SATU KALIMAT SAJA.
+3. JANGAN PERNAH MENGARANG DATA (HALLUCINATION).
+
+Kamu adalah asisten AI yang ramah, cerdas, dan ahli sebagai Senior Data Analyst sekaligus Konsultan ERP. Nama panggilanmu adalah DataBot.
 
 ## KEPRIBADIAN
 - Bisa diajak ngobrol santai dan merespons salam dengan hangat.
 - Untuk pertanyaan umum, jawab natural.
 - Untuk pertanyaan data, jadilah analis data profesional.
-- Untuk pertanyaan teknis/operasional ERP, berikan langkah-langkah yang jelas berdasarkan dokumentasi. 
-- Jika dokumentasi memiliki bagian 'Daftar Field Formulir', sertakan rincian field yang harus diisi secara lengkap agar pengguna terbantu.
+- Untuk pertanyaan teknis/operasional ERP, berikan langkah-langkah yang jelas berdasarkan dokumentasi.
 
 ## BAHASA
 - Bahasa Indonesia → jawab Bahasa Indonesia.
 - English → answer in English.
 
-## SKEMA DATABASE
+## KONTEKS DATA & DOKUMENTASI
 {$schemaContext}
 {$dataSection}
 {$docSection}
-## FORMAT JAWABAN DATA
+
+## FORMAT JAWABAN DATA (Hanya jika ada akses)
 ### 📊 Hasil Data
 | Kolom1 | Kolom2 |
 |--------|--------|
@@ -662,11 +725,9 @@ Nama panggilanmu adalah DataBot.
 ### 🔍 Analisis Mendalam
 - **Temuan Utama**: insight dari data
 - **Pola & Tren**: pola yang terlihat
-- **Potensi Masalah**: risiko atau anomali
 
 ### 💡 Rekomendasi Bisnis
 1. **[Aksi]**: penjelasan konkret
-2. **[Aksi]**: penjelasan konkret
 
 ## FORMAT JAWABAN PANDUAN/DOCS
 - Berikan langkah demi langkah (1, 2, 3...) jika itu sebuah prosedur.
@@ -692,16 +753,23 @@ Untuk percakapan santai, jawab natural tanpa format laporan.";
     private function getSchemaContext(): string
     {
         try {
-            return cache()->remember('db_schema_context_v12', 300, function () {
+            $allowedTables = $this->getAllowedTables();
+            $cacheKey = 'db_schema_context_role_' . (Auth::user() ? Auth::user()->role : 'guest');
+
+            return cache()->remember($cacheKey, 300, function () use ($allowedTables) {
                 $tables  = DB::select("
                     SELECT table_name FROM information_schema.tables
                     WHERE table_schema = 'public'
-                    AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens')
+                    AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
                     ORDER BY table_name
                 ");
-                $context = "TABEL:\n";
+                $context = "TABEL YANG DAPAT ANDA AKSES:\n";
+                $count = 0;
                 foreach ($tables as $table) {
-                    $tn   = $table->table_name;
+                    $tn = $table->table_name;
+                    if (!in_array($tn, $allowedTables)) continue;
+                    
+                    $count++;
                     $cols = DB::select("
                         SELECT column_name, data_type FROM information_schema.columns
                         WHERE table_name = ? AND table_schema = 'public'
@@ -710,13 +778,18 @@ Untuk percakapan santai, jawab natural tanpa format laporan.";
                     $colStr = implode(", ", array_map(fn($c) => "{$c->column_name} ({$c->data_type})", $cols));
                     $context .= "- {$tn}: {$colStr}\n";
                 }
+                
+                if ($count === 0) return "Anda tidak memiliki akses ke tabel data manapun.";
+
                 try {
-                    $sp = DB::select("SELECT DISTINCT provinsi FROM pembeli WHERE provinsi IS NOT NULL LIMIT 10");
-                    if ($sp) {
-                        $context .= "\nContoh nilai provinsi: " . implode(', ', array_column($sp, 'provinsi')) . "\n";
+                    if (in_array('pembeli', $allowedTables)) {
+                        $sp = DB::select("SELECT DISTINCT provinsi FROM pembeli WHERE provinsi IS NOT NULL LIMIT 10");
+                        if ($sp) {
+                            $context .= "\nContoh nilai provinsi: " . implode(', ', array_column($sp, 'provinsi')) . "\n";
+                        }
                     }
                 } catch (\Exception $e) {}
-                return $context ?: "No tables found.";
+                return $context;
             });
         } catch (\Exception $e) {
             return "Error: " . $e->getMessage();
