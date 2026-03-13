@@ -21,10 +21,27 @@ class AdminController extends Controller
         return view('admin.dashboard', compact('stats'));
     }
 
-    public function users()
+    public function users(Request $request)
     {
-        $users = User::with('roleModel')->orderBy('id', 'desc')->get();
+        $query = User::with('roleModel');
+        
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+        
+        // Filter by role
+        if ($request->filled('role_filter')) {
+            $query->where('role', $request->role_filter);
+        }
+        
+        $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         $roles = Role::all();
+        
         return view('admin.users', compact('users', 'roles'));
     }
 
@@ -45,7 +62,8 @@ class AdminController extends Controller
             'is_admin' => $request->has('is_admin'),
         ]);
 
-        return back()->with('success', 'User berhasil ditambahkan.');
+        $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
+        return $redirect->with('success', 'User berhasil ditambahkan.');
     }
 
     public function userUpdate(Request $request, User $user)
@@ -69,7 +87,8 @@ class AdminController extends Controller
 
         $user->update($data);
 
-        return back()->with('success', 'User berhasil diperbarui.');
+        $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
+        return $redirect->with('success', 'User berhasil diperbarui.');
     }
 
     public function userDelete(User $user)
