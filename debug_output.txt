@@ -1,0 +1,99 @@
+ID: 41 | Title: Klaim Barang
+Link: https://erp-guidance.online/inventory/o6hln4f1ux-7898a3c623fd9944cb4f5311e7fec166/
+--- CONTENT ---
+Fungsi : Untuk mengajukan klaim barang kepada supplier, baik untuk barang dalam kondisi baik maupun rusak. Proses klaim ini bertujuan untuk menyelesaikan permasalahan terkait barang yang tidak sesuai, rusak, atau memerlukan penggantian berdasarkan kesepakatan dengan supplier.
+
+Klaim barang ini bersumber dari data Tanda Terima Barang (TTB) yang telah diterima sebelumnya. Dalam prosesnya, pengguna dapat menentukan Qty.Klaim, yaitu jumlah barang yang akan diklaim, dan Qty.Kirim, yaitu jumlah barang yang dikirim secara fisik kepada supplier. Selain itu, fitur ini memungkinkan pengguna untuk melengkapi data berupa Faktur Beli sebagai dasar pengajuan klaim serta menentukan nilai klaim yang diajukan.
+
+Persyaratan Data :
+
+Sebelum melakukan input klaim barang, pastikan data TTB untuk supplier tersebut sudah terinput ke dalam ERP, dan Qty TTB Belum Proses / Qty Tersedia mencukupi untuk melakukan klaim barang.
+
+Petunjuk Pemakaian :
+
+Input Menu ini dapat diakses melalui modul Inventory, lalu pilih Transaksi, Klaim Supplier & Barang Rusak, Klaim Barang, seperti ditunjukkan pada gambar berikut: Setelah menu berhasil dibuka, halaman Klaim Barang akan ditampilkan, seperti yang terlihat pada gambar berikut : Untuk menambahkan atau memasukkan data baru, klik tombol navigasi ‘Tambah’. Selanjutnya, pilih jenis klaim, lalu isi data sesuai dengan form yang tersedia pada menu Klaim Barang. Nomor transaksi akan secara otomatis dibuat oleh sistem ERP, sementara pengisian detail form lainnya dilakukan oleh user. Selanjutnya Klik ‘Tambah Detail’ untuk memasukkan informasi mengenai transaksi yang akan diklaim. Pilih No. Transaksi TTB, kemudian masukkan jumlah Qty Klaim & Qty Kirim. Klik ‘Simpan dan Lanjut’ jika ingin menambahkan barang lainnya. Jika sudah selesai, klik ‘Simpan dan Tutup’ untuk menyelesaikan proses input detail. Setelah semua data diinputkan, klik tombol navigasi ‘Simpan’ untuk menyimpan transaksi pada sistem ERP. Update Jika ingin melakukan perubahan data, klik tombol ‘Browse’, lalu pilih transaksi yang ingin di update. Klik detail klaim yang ingin dihapus atau diedit, kemudian tambah detail untuk menambahkan data klaim barang yang baru. Setelah selesai melakukan perubahan data, klik tombol navigasi ‘Simpan’ untuk menyimpan perubahan.
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/1-28.png]
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/2-29.png]
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/3-22.png]
+
+Catatan :
+
+Dalam satu transaksi klaim, dapat menginputkan lebih dari satu detail klaim barang pada supplier yang sama. Input klaim akan mengurangi Qty Barang Rusak atau dianggap sebagai barang yang keluar.
+
+Video :
+
+[VIDEO: URL: https://erp-guidance.online/wp-content/uploads/2026/01/Klaim-Barang.mp4?_=1]
+
+[VIDEO: URL: https://erp-guidance.online/wp-content/uploads/2026/01/Klaim-Barang.mp4?_=1]
+
+====================================
+
+ID: 68 | Title: Order Pembelian / PO
+Link: https://erp-guidance.online/inventory/dhquc8yrcg-7898a3c623fd9944cb4f5311e7fec166/
+--- CONTENT ---
+Fungsi : Untuk mengelola transaksi pembelian barang yang merupakan kelanjutan opsional dari Purchase Requisition (PR), jika menu PR digunakan. Sistem memungkinkan untuk membuat order secara manual atau mengimpor data dari file Excel untuk efisiensi. Transaksi ini mendukung penggunaan berbagai mata uang untuk memenuhi kebutuhan pembelian internasional. Prosesnya memerlukan persetujuan (approval). Selain itu, Order Pembelian ini dapat di cetak dan juga sistem dapat menghasilkan laporan Outstanding PO, yaitu daftar pesanan pembelian yang belum selesai diproses atau diterima.
+
+Persyaratan Data :
+
+Pastikan kode cabang, kode gudang, kode supplier/agen, dan kode barang sudah terdaftar dalam sistem ERP sebelum melanjutkan.
+
+Petunjuk Pemakaian :
+
+Input Menu ini dapat diakses melalui modul Inventory, lalu pilih Transaksi, Pembelian, dan klik menu Order Pembelian (PO), seperti ditunjukkan pada gambar berikut : Setelah menu berhasil dibuka, halaman Order Pembelian (PO) akan ditampilkan, seperti yang terlihat pada gambar berikut Untuk menambahkan data baru, pilih tombol navigasi ‘Tambah’. Isi data sesuai form yang tersedia pada menu Order Pembelian. Nomor transaksi akan secara otomatis dihasilkan oleh sistem ERP, sedangkan form lainnya diisi secara manual. Jika transaksi Permintaan Pembelian (PR) sudah dibuat sebelumnya, gunakan tombol ‘Ambil Data PR’. Jika data tersedia fitur import pilih tombol ‘Import File Excel’ untuk mengimport data ke sistem. Jika data belum tersedia, tambahkan secara manual melalui tombol ‘Tambah Detail’. Selanjutnya, pilih barang yang akan dimasukkan ke dalam transaksi Order Pembelian (PO). Isikan jumlah barang (quantity), harga, diskon per item, diskon nominal, serta pembulatan sesuai kebutuhan. Setelah selesai, klik ‘Simpan & Tutup’. Jika terdapat kesalahan data barang, Anda dapat menghapusnya dengan mengklik tombol ‘Hapus Detail’. Setelah semua data diinputkan, klik tombol navigasi ‘Simpan’ untuk menyimpan transaksi pada sistem ERP. Update Jika user ingin melakukan perubahan data, klik tombol ‘Browse’, lalu pilih transaksi yang ingin di update. Setelah selesai melakukan perubahan data, klik tombol navigasi ‘Simpan’ untuk menyimpan perubahan.
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/1.png]
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/2-1.png]
+
+Jika transaksi Permintaan Pembelian (PR) sudah dibuat sebelumnya, gunakan tombol ‘Ambil Data PR’. Jika data tersedia fitur import pilih tombol ‘Import File Excel’ untuk mengimport data ke sistem. Jika data belum tersedia, tambahkan secara manual melalui tombol ‘Tambah Detail’.
+
+[GAMBAR: Gambar - URL: https://erp-guidance.online/wp-content/uploads/2026/01/3-1.png]
+
+Catatan : 
+
+Dapat menginputkan lebih dari satu detail barang dalam satu transaksi Order Pembelian. Update dapat dilakukan jika status transaksi PO belum disetujui (In-Progress).
+
+Video :
+
+[VIDEO: URL: https://erp-guidance.online/wp-content/uploads/2026/01/Video_Order_Pembelian_PO.mp4?_=1]
+
+[VIDEO: URL: https://erp-guidance.online/wp-content/uploads/2026/01/Video_Order_Pembelian_PO.mp4?_=1]
+
+### Daftar Field Formulir Lengkap (Hasil Analisis Gambar):
+
+#### 1. Bagian Header (Informasi Utama):
+- **No. Transaksi**: Otomatis dihasilkan sistem.
+- **Tgl. Transaksi**: Tanggal pencatatan.
+- **Tgl. PO**: Tanggal Order Pembelian.
+- **T.O.P Hari**: Jangka waktu pembayaran.
+- **Cabang**: Cabang pembuat pesanan.
+- **Gudang Tujuan**: Gudang penerima barang.
+- **Cabang Tujuan**: Cabang penerima barang.
+- **Supplier**: Nama pemasok.
+- **Agen**: Nama agen.
+- **Mata Uang**: IDR atau mata uang asing lainnya.
+- **Nilai Kurs Rp**: Kurs mata uang.
+- **Jenis PPN**: Include, Exclude, atau Non PPN.
+- **% PPN**: Persentase pajak.
+- **No. Transaksi PR**: Referensi Permintaan Pembelian.
+- **Keterangan**: Catatan tambahan.
+
+#### 2. Detail Barang (Grid/Modal):
+- **Kode Barang**: ID unik produk.
+- **Nama Barang**: Deskripsi produk.
+- **Qty Order**: Jumlah pesanan.
+- **Satuan**: Satuan barang (Pcs, Box, dll).
+- **Harga [Kurs] / [Rp]**: Harga satuan.
+- **Disc Item % (1-5)**: Diskon bertingkat.
+- **Disc Item Nom. Rp**: Diskon per item.
+- **Netto Rp**: Harga bersih per item.
+
+#### 3. Ringkasan (Grand Total):
+- **DPP, PPN, dan Netto (Total)**: Rekapitulasi nilai transaksi.
+- **Tombol 'Ambil Data PR'**: Gunakan jika data berasal dari PR.
+
+====================================
+

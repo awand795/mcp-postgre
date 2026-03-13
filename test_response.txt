@@ -1,0 +1,45 @@
+**Cara Klaim Barang melalui Sistem ERP**
+
+Berikut adalah langkah-langkah untuk melakukan klaim barang melalui sistem ERP, berdasarkan dokumentasi yang tersedia:
+
+### **Prasyarat:**
+Pastikan data Tanda Terima Barang (TTB) untuk supplier tersebut sudah terinput ke dalam ERP, dan Qty TTB Belum Proses / Qty Tersedia mencukupi untuk melakukan klaim barang.
+
+### **Langkah-langkah Klaim Barang:**
+
+1. **Akses Menu Klaim Barang:**
+   - Masuk ke modul **Inventory**.
+   - Pilih **Transaksi** > **Klaim Supplier & Barang Rusak** > **Klaim Barang**.
+
+2. **Tambah Transaksi Klaim Baru:**
+   - Klik tombol navigasi **‘Tambah’** untuk memulai proses klaim baru.
+   - Sistem ERP akan secara otomatis menghasilkan **No. Transaksi**.
+
+3. **Isi Informasi Utama:**
+   - **Tgl. Transaksi:** Tanggal pengajuan klaim.
+   - **No. Referensi:** Nomor referensi eksternal atau internal (jika ada).
+   - **Tgl. Referensi:** Tanggal referensi tersebut (jika ada).
+   - **Jenis Klaim:** Pilih jenis klaim yang sesuai (contoh: Barang Rusak, Barang Kurang, dll.).
+   - **Cabang:** Pilih cabang yang melakukan klaim.
+   - **Supplier:** Pilih supplier tujuan klaim.
+   - **Keterangan:** Masukkan catatan umum untuk transaksi klaim ini (jika perlu).
+
+4. **Tambah Detail Klaim:**
+   - Klik **‘Tambah Detail’** untuk memasukkan informasi mengenai transaksi yang akan diklaim.
+   - **No. Transaksi TTB:** Pilih referensi nomor TTB yang akan diklaim.
+   - **Qty. Klaim:** Masukkan jumlah qty yang secara administrasi diklaim.
+   - **Qty. Kirim:** Masukkan jumlah qty barang yang secara fisik dikirim balik (jika ada).
+   - Ulangi langkah ini jika ingin menambahkan barang lainnya dengan klik **‘Simpan dan Lanjut’**.
+   - Setelah selesai, klik **‘Simpan dan Tutup’**.
+
+5. **Simpan Transaksi:**
+   - Setelah semua data diinputkan, klik tombol navigasi **‘Simpan’** untuk menyimpan transaksi pada sistem ERP.
+
+### **Update Klaim (Jika Diperlukan):**
+- Klik tombol **‘Browse’**, lalu pilih transaksi yang ingin di-update.
+- Klik detail klaim yang ingin dihapus atau diedit, kemudian tambah detail untuk menambahkan data klaim barang yang baru.
+- Setelah selesai melakukan perubahan data, klik tombol navigasi **‘Simpan’** untuk menyimpan perubahan.
+
+**Referensi Dokumentasi:** [https://erp-guidance.online/inventory/o6hln4f1ux-7898a3c623fd9944cb4f5311e7fec166/](https://erp-guidance.online/inventory/o6hln4f1ux-7898a3c623fd9944cb4f5311e7fec166/)
+
+**Video Panduan:** [https://erp-guidance.online/wp-content/uploads/2026/01/Klaim-Barang.mp4?_=1](https://erp-guidance.online/wp-content/uploads/2026/01/Klaim-Barang.mp4?_=1)
