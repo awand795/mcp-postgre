@@ -94,6 +94,140 @@
 
         .btn-clear { transition: all 0.2s; }
         .btn-clear:hover { background: rgba(245,48,3,0.15); color: #ff4433; }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .glass-panel {
+                border-radius: 20px !important;
+            }
+
+            .header-actions .btn-text {
+                display: none;
+            }
+
+            .header-actions a,
+            .header-actions button {
+                padding: 0.5rem !important;
+                min-width: 40px;
+                justify-content: center;
+            }
+
+            .chat-bubble-user,
+            .chat-bubble-ai {
+                max-width: 90% !important;
+            }
+
+            .markdown-body p,
+            .markdown-body li {
+                font-size: 12px;
+            }
+
+            .markdown-body h1,
+            .markdown-body h2 {
+                font-size: 14px;
+            }
+
+            .markdown-body h3 {
+                font-size: 13px;
+            }
+
+            .markdown-body code {
+                font-size: 10px;
+                padding: 1px 4px;
+            }
+
+            .markdown-body pre {
+                padding: 8px;
+            }
+
+            .markdown-body table {
+                font-size: 11px;
+            }
+
+            .markdown-body table th,
+            .markdown-body table td {
+                padding: 6px 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0 !important;
+            }
+
+            .glass-panel {
+                height: 100vh !important;
+                max-height: 100vh !important;
+                border-radius: 0 !important;
+                border: none !important;
+            }
+
+            .p-5 {
+                padding: 0.75rem !important;
+            }
+
+            .p-6 {
+                padding: 1rem !important;
+            }
+
+            .w-10 {
+                width: 2.25rem !important;
+                height: 2.25rem !important;
+            }
+
+            .header-actions {
+                gap: 0.25rem !important;
+            }
+
+            .chat-bubble-user,
+            .chat-bubble-ai {
+                max-width: 95% !important;
+            }
+
+            .chat-bubble-ai {
+                max-width: 98% !important;
+            }
+
+            .markdown-body p,
+            .markdown-body li {
+                font-size: 11px;
+            }
+
+            .markdown-body h1,
+            .markdown-body h2 {
+                font-size: 13px;
+            }
+
+            .markdown-body h3 {
+                font-size: 12px;
+            }
+
+            .markdown-body code {
+                font-size: 9px;
+            }
+
+            .markdown-body table {
+                font-size: 10px;
+            }
+
+            .markdown-body table th,
+            .markdown-body table td {
+                padding: 5px 8px;
+            }
+
+            #message-input {
+                font-size: 14px !important;
+                padding-left: 12px !important;
+            }
+
+            #send-btn {
+                width: 36px !important;
+            }
+
+            .text-\[10px\] {
+                font-size: 9px !important;
+            }
+        }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
@@ -116,18 +250,18 @@
                 </div>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 header-actions">
             @if(auth()->user()->is_admin)
                 <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
                     class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#818cf8] text-xs border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    Admin Dashboard
+                    <span class="btn-text">Admin Dashboard</span>
                 </a>
             @endif
             <button id="btn-clear-chat" title="Hapus riwayat"
                 class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-                Hapus Riwayat
+                <span class="btn-text">Hapus Riwayat</span>
             </button>
             <form action="{{ route('logout') }}" method="POST" class="inline">
                 @csrf
@@ -136,7 +270,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
-                    Logout
+                    <span class="btn-text">Logout</span>
                 </button>
             </form>
         </div>

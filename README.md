@@ -388,6 +388,15 @@ Admin panel tersedia untuk manajemen user, role, dan permissions.
   - **Clear All**: Pindahkan semua tabel ke "Tersedia"
   - **Indikator Perubahan**: Warning jika ada perubahan yang belum disimpan
 
+#### Manajemen User - Import/Export Excel (`/admin/users`)
+- **Export Excel**: Download data semua user ke file Excel (.xlsx)
+- **Import Excel**: Upload file Excel untuk menambah user secara batch
+- **Download Template**: Download template Excel dengan format dan instruksi
+- **Format Template**:
+  - Kolom: Name, Email, Password, Role (ID or Name), Is Admin (Yes/No)
+  - Termasuk contoh data dan instruksi lengkap
+  - Validasi otomatis saat import (email unik, field required)
+
 ### Fitur Drag & Drop Role
 
 1. **Pilih Role** dari daftar di sebelah kiri
@@ -513,7 +522,7 @@ Daftar improvement yang direncanakan untuk pengembangan chatbot ini:
 | 7 | **AI Config File** | Buat `config/ai.php` untuk model list & settings (jangan hardcode) | ⏳ Pending |
 | 8 | **Chat History DB** | Simpan conversation history ke database, bukan client-side only | ⏳ Pending |
 | 9 | **Streaming SSE** | Implementasi Server-Sent Events untuk streaming response real-time | ⏳ Pending |
-| 10 | **Export Feature** | Export chat ke PDF/CSV | ⏳ Pending |
+| 10 | **Export Feature** | Export chat ke PDF/CSV | ✅ Done |
 | 11 | **Full-text Search** | Full-text search untuk dokumentasi ERP | ⏳ Pending |
 | 12 | **MCP Tools Enhancement** | Tambah tools: `get_business_metrics()`, `search_documentation()`, `validate_query()` | ⏳ Pending |
 

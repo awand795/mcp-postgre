@@ -29,12 +29,17 @@ Route::middleware('auth')->group(function () {
     // Admin Routes
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('dashboard');
-        
+
         // User Management
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
         Route::put('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
         Route::delete('/users/{user}', [AdminController::class, 'userDelete'])->name('users.delete');
+        
+        // User Import/Export
+        Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');
+        Route::post('/users/import', [AdminController::class, 'usersImport'])->name('users.import');
+        Route::get('/users/template', [AdminController::class, 'userTemplate'])->name('users.template');
 
         // Role Management
         Route::get('/roles', [AdminController::class, 'roles'])->name('roles');

@@ -43,6 +43,42 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 15px rgba(245, 48, 3, 0.4);
         }
+
+        /* Mobile Responsive */
+        @media (max-width: 480px) {
+            body {
+                padding: 0 !important;
+                align-items: flex-start;
+            }
+
+            .glass-panel {
+                border-radius: 0 !important;
+                min-height: 100vh;
+                padding: 1.5rem !important;
+            }
+
+            .w-16 {
+                width: 3rem !important;
+                height: 3rem !important;
+            }
+
+            .w-10 {
+                width: 2rem !important;
+                height: 2rem !important;
+            }
+
+            .text-2xl {
+                font-size: 1.5rem !important;
+            }
+
+            .input-glass {
+                padding: 0.75rem !important;
+            }
+
+            button[type="submit"] {
+                padding: 0.875rem !important;
+            }
+        }
     </style>
 </head>
 <body class="p-6">

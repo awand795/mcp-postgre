@@ -3,12 +3,12 @@
 @section('content')
     <div class="header">
         <h1>Management Role & Permissions</h1>
-        <button class="btn btn-primary" onclick="showRoleModal('create')"><i class="fas fa-plus"></i> Tambah Role</button>
+        <button class="btn btn-primary" onclick="showRoleModal('create')"><i class="fas fa-plus"></i> <span>Tambah Role</span></button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 350px 1fr; gap: 2rem; align-items: start;">
+    <div class="roles-container">
         <!-- Role List -->
-        <div class="glass-card" style="padding: 1.5rem;">
+        <div class="glass-card role-list-card">
             <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; color: #94a3b8;">Daftar Role</h3>
             <ul style="list-style: none;">
                 @foreach($roles as $role)
@@ -32,8 +32,8 @@
         </div>
 
         <!-- Drag & Drop Permissions -->
-        <div class="glass-card" id="permissions-area">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <div class="glass-card permissions-card" id="permissions-area">
+            <div class="permissions-header">
                 <div>
                     <h2 id="selected-role-name">{{ $roles[0]->name ?? 'Select Role' }}</h2>
                     <p id="selected-role-desc" style="color: #94a3b8; font-size: 0.9rem;">{{ $roles[0]->description ?? '' }}
@@ -43,18 +43,17 @@
                         <i class="fas fa-exclamation-triangle"></i> Ada perubahan yang belum disimpan
                     </span>
                 </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn" onclick="selectAll()"><i class="fas fa-check-double"></i> Pilih Semua</button>
-                    <button class="btn" onclick="clearAll()"><i class="fas fa-times-circle"></i> Hapus Semua</button>
-                    <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> Simpan
-                        Akses</button>
+                <div class="permissions-actions">
+                    <button class="btn" onclick="selectAll()"><i class="fas fa-check-double"></i> <span class="btn-text">Pilih Semua</span></button>
+                    <button class="btn" onclick="clearAll()"><i class="fas fa-times-circle"></i> <span class="btn-text">Hapus Semua</span></button>
+                    <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> <span class="btn-text">Simpan Akses</span></button>
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div class="tables-grid">
                 <!-- Available Tables -->
                 <div>
-                    <h4 style="margin-bottom: 1rem; color: #94a3b8;"><i class="fas fa-list"></i> Tabel Tersedia</h4>
+                    <h4 style="margin-bottom: 1rem; color: #94a3b8;"><i class="fas fa-table"></i> Tabel Tersedia</h4>
                     <div id="available-tables"
                         style="min-height: 300px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 2px dashed var(--glass-border);">
                     </div>
@@ -80,8 +79,8 @@
 
     <!-- Role Modal -->
     <div id="roleModal"
-        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
-        <div class="glass-card" style="width: 100%; max-width: 400px;">
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+        <div class="glass-card modal-content">
             <h3 id="roleModalTitle">Tambah Role</h3>
             <form id="roleForm" method="POST" style="margin-top: 1.5rem;">
                 @csrf
@@ -98,7 +97,7 @@
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; resize: none;"
                         rows="3"></textarea>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
                     <button type="button" class="btn"
                         onclick="document.getElementById('roleModal').style.display='none'">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
@@ -108,6 +107,45 @@
     </div>
 
     <style>
+        .roles-container {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .role-list-card {
+            padding: 1.5rem;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .permissions-card {
+            padding: 1.5rem;
+        }
+
+        .permissions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .permissions-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .tables-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
         .role-item.active {
             background: var(--primary) !important;
             color: white !important;
@@ -130,6 +168,77 @@
         .sortable-ghost {
             opacity: 0.4;
             background: var(--primary);
+        }
+
+        /* Modal responsive */
+        .modal-content {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 1024px) {
+            .roles-container {
+                grid-template-columns: 1fr;
+            }
+
+            .role-list-card {
+                max-height: 250px;
+            }
+
+            .tables-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .permissions-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .permissions-actions {
+                width: 100%;
+                justify-content: stretch;
+            }
+
+            .permissions-actions .btn {
+                flex: 1;
+                justify-content: center;
+                min-width: 120px;
+            }
+
+            .btn-text {
+                display: none;
+            }
+
+            .tables-grid {
+                gap: 1rem;
+            }
+
+            #available-tables,
+            #allowed-tables {
+                min-height: 200px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .glass-card {
+                padding: 1rem !important;
+            }
+
+            .permissions-actions .btn {
+                padding: 0.6rem 0.8rem;
+                font-size: 0.85rem;
+            }
+
+            h2 {
+                font-size: 1.2rem !important;
+            }
+
+            h4 {
+                font-size: 0.95rem !important;
+            }
         }
     </style>
 @endsection

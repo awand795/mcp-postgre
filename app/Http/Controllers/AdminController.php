@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\RolePermission;
+use App\Imports\UserImport;
+use App\Exports\UsersExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Validators\ValidationException;
 
 class AdminController extends Controller
 {
@@ -95,6 +99,40 @@ class AdminController extends Controller
     {
         $user->delete();
         return back()->with('success', 'User berhasil dihapus.');
+    }
+
+    public function usersExport()
+    {
+        return Excel::download(new UsersExport, 'users-' . date('Y-m-d') . '.xlsx');
+    }
+
+    public function usersImport(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        try {
+            Excel::import(new UserImport, $request->file('file'));
+            return back()->with('success', 'User berhasil diimport.');
+        } catch (ValidationException $e) {
+            $failures = $e->failures();
+            $errors = [];
+            foreach ($failures as $failure) {
+                $row = $failure->row();
+                foreach ($failure->errors() as $error) {
+                    $errors[] = "Baris {$row}: {$error}";
+                }
+            }
+            return back()->withErrors(['file' => $errors])->withInput();
+        } catch (\Exception $e) {
+            return back()->withErrors(['file' => 'Error: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    public function userTemplate()
+    {
+        return Excel::download(new UsersExport(null, true), 'user-template.xlsx');
     }
 
     public function roles()
