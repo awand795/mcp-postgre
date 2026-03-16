@@ -110,10 +110,8 @@ class ChatbotController extends Controller
 
         $needsDocs = $this->messageNeedsDocs($message);
 
-        // Prioritaskan dokumen jika user secara eksplisit menanyakan tutorial/panduan
         if ($needsDocs) {
             $docContext = $this->fetchRelevantDocs($message);
-            // Jika dokumen ditemukan, abaikan pencarian database untuk menghindari kebingungan model
             if (!empty($docContext)) {
                 $needsData = false;
             }
@@ -135,62 +133,114 @@ class ChatbotController extends Controller
         }
         $messages[] = ['role' => 'user', 'content' => $message];
 
-        $aiResponse = $this->callAI($messages, $apiKey);
+        // Ensure session is written and closed before streaming to avoid blocking other requests
+        session_write_close();
 
-        if ($aiResponse === null) {
-            // Jika AI gagal tapi ada data, format langsung dari data
-            if ($dbContext) {
-                return response()->json([
-                    'response' => $this->formatContextAsResponse($dbContext),
-                    'history'  => [],
-                ]);
-            }
-            return response()->json([
-                'response' => "Maaf, semua model AI sedang tidak tersedia. Coba beberapa saat lagi.",
-                'history'  => [],
-            ]);
-        }
-
-        $messages[] = ['role' => 'assistant', 'content' => $aiResponse];
-
-        return response()->json([
-            'response' => $aiResponse,
-            'history'  => $this->extractHistoryForClient($messages),
+        return response()->stream(function () use ($messages, $apiKey, $dbContext) {
+            $this->streamAIResponse($messages, $apiKey, $dbContext);
+        }, 200, [
+            'Cache-Control' => 'no-cache',
+            'Content-Type' => 'text/event-stream',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
         ]);
     }
 
-    // ── Panggil AI dengan auto-fallback ───────────────────────────────────────
-    private function callAI(array $messages, string $apiKey): ?string
+    // ── Panggil AI dengan auto-fallback (Streaming SSE) ───────────────────────
+    private function streamAIResponse(array $messages, string $apiKey, string $dbContext): void
     {
+        $success = false;
+        $fullContent = '';
+
         foreach ($this->models as $model) {
             try {
-                Log::info("Trying model: {$model}");
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $apiKey,
-                    'Accept'        => 'application/json',
-                ])
-                ->timeout(90)
-                ->post($this->apiUrl, [
+                Log::info("Trying model (stream): {$model}");
+                $ch = curl_init($this->apiUrl);
+                
+                $payload = json_encode([
                     'model'       => $model,
                     'messages'    => $messages,
                     'max_tokens'  => 4096,
                     'temperature' => 0.3,
                     'top_p'       => 0.90,
+                    'stream'      => true,
                 ]);
 
-                if ($response->successful()) {
-                    $content = $response->json()['choices'][0]['message']['content'] ?? null;
-                    if (!empty($content)) {
-                        Log::info("Model {$model} succeeded.");
-                        return $content;
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, false);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'Accept: application/json'
+                ]);
+
+                $httpCode = 0;
+                curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($curl, $header) use (&$httpCode) {
+                    if (preg_match('/^HTTP\/1\.[01] (\d+)/', $header, $matches)) {
+                        $httpCode = (int)$matches[1];
                     }
+                    return strlen($header);
+                });
+
+                $streamBuffer = '';
+                curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use (&$fullContent, &$streamBuffer) {
+                    $streamBuffer .= $data;
+                    $lines = explode("\n", $streamBuffer);
+                    $streamBuffer = array_pop($lines); // Simpan potongan line terakhir yang belum selesai ke buffer
+
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if (str_starts_with($line, 'data: ')) {
+                            $jsonStr = trim(substr($line, 6));
+                            if ($jsonStr === '[DONE]') continue;
+                            
+                            $json = json_decode($jsonStr, true);
+                            if (isset($json['choices'][0]['delta']['content'])) {
+                                $content = $json['choices'][0]['delta']['content'];
+                                $fullContent .= $content;
+                                echo "data: " . json_encode(['chunk' => $content]) . "\n\n";
+                                ob_flush();
+                                flush();
+                            }
+                        }
+                    }
+                    return strlen($data);
+                });
+
+                curl_exec($ch);
+                $err = curl_error($ch);
+                curl_close($ch);
+
+                if ((!$err && $httpCode >= 200 && $httpCode < 300) || !empty($fullContent)) {
+                    $success = true;
+                    Log::info("Model {$model} stream succeeded (or partially succeeded).");
+                    break;
                 }
-                Log::warning("Model {$model} failed: " . $response->status());
+                
+                Log::warning("Model {$model} stream failed: HTTP {$httpCode}. Error: {$err}");
             } catch (\Exception $e) {
-                Log::warning("Model {$model} exception: " . $e->getMessage());
+                Log::warning("Model {$model} stream exception: " . $e->getMessage());
             }
         }
-        return null;
+
+        if (!$success) {
+            if ($dbContext) {
+                $fallback = $this->formatContextAsResponse($dbContext);
+                echo "data: " . json_encode(['fallback' => true, 'response' => $fallback]) . "\n\n";
+            } else {
+                echo "data: " . json_encode(['error' => true, 'response' => "Maaf, semua model AI sedang tidak tersedia. Coba beberapa saat lagi."]) . "\n\n";
+            }
+            ob_flush(); flush();
+        } else {
+            $messages[] = ['role' => 'assistant', 'content' => $fullContent];
+            $history = $this->extractHistoryForClient($messages);
+            echo "data: " . json_encode(['history' => $history]) . "\n\n";
+            ob_flush(); flush();
+        }
+
+        echo "data: [DONE]\n\n";
+        ob_flush(); flush();
     }
 
     // ── Query database & kembalikan sebagai konteks ───────────────────────────

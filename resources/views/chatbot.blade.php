@@ -430,17 +430,63 @@
                 body: JSON.stringify({ message, history: conversationHistory })
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error("HTTP Error " + response.status);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let aiResponseText = '';
+            
+            const { bubble, wrapper } = createStreamBubble();
+            chatMessages.appendChild(wrapper);
+            requestAnimationFrame(() => {
+                chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+            });
+
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split(/\r?\n/);
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    
+                    if (trimmed.startsWith('data:')) {
+                        const dataStr = trimmed.substring(5).trim();
+                        if (dataStr === '[DONE]') continue;
+
+                        try {
+                            const parsed = JSON.parse(dataStr);
+                            
+                            if (parsed.chunk !== undefined) {
+                                aiResponseText += parsed.chunk;
+                                renderStreamToBubble(bubble, aiResponseText);
+                            } else if (parsed.response !== undefined) { // fallback or error
+                                aiResponseText += parsed.response;
+                                renderStreamToBubble(bubble, aiResponseText);
+                            } else if (parsed.history && Array.isArray(parsed.history)) {
+                                conversationHistory = parsed.history;
+                            }
+                        } catch (e) {
+                            console.error("SSE parse error", e, dataStr);
+                        }
+                    }
+                }
+                
+                // Keep scrolled to bottom during streaming
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
 
             clearInterval(stateInterval);
             setLoading(false);
             typingText.textContent = "AI sedang berpikir...";
-
-            addMessage(data.response, 'ai');
-
-            if (data.history && Array.isArray(data.history)) {
-                conversationHistory = data.history;
-            }
 
         } catch (error) {
             clearInterval(stateInterval);
@@ -457,6 +503,29 @@
         chatMessages.innerHTML = '';
         addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
     });
+
+    // ── Helper Streaming UI ───────────────────────────────────────────────────
+    function createStreamBubble() {
+        const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const wrap = document.createElement('div');
+        wrap.className = 'flex flex-col gap-1.5 items-start max-w-[95%]';
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
+        bubble.innerHTML = '<span class="animate-pulse">...</span>';
+        const timeEl = document.createElement('span');
+        timeEl.className = 'text-[10px] text-[#706f6c] ml-1';
+        timeEl.textContent = time;
+        wrap.appendChild(bubble);
+        wrap.appendChild(timeEl);
+        return { bubble, wrapper: wrap };
+    }
+
+    function renderStreamToBubble(bubble, text) {
+        bubble.innerHTML = renderMarkdown(text);
+        bubble.querySelectorAll('pre code').forEach(b => {
+            try { hljs.highlightElement(b); } catch(e) {}
+        });
+    }
 
     // ── Render pesan ──────────────────────────────────────────────────────────
     function addMessage(text, sender) {
