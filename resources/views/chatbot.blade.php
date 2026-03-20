@@ -282,14 +282,7 @@
             <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                 <p>Halo! Saya <strong>MCP Server</strong> 👋</p>
                 <p style="margin-top:6px">Saya bisa diajak ngobrol santai <em>dan</em> membantu analisis data bisnis dari database kamu.</p>
-                <p style="margin-top:6px">Coba tanya:</p>
-                <ul style="margin-top:4px">
-                    <li>💬 "Halo, apa kabar?"</li>
-                    <li>📊 "Tampilkan produk terlaris"</li>
-                    <li>📍 "Produk terlaris di Jawa Barat"</li>
-                    <li>📈 "Analisis RFM pelanggan"</li>
-                    <li>💰 "Revenue per bulan"</li>
-                </ul>
+                <p style="margin-top:6px">Coba tanya saya:</p>
             </div>
             <span class="text-[10px] text-[#706f6c] ml-1">{{ now()->format('H:i') }}</span>
         </div>
