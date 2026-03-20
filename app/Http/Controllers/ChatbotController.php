@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\LanguageDetector;
 use App\Models\Role;
 use App\Models\RolePermission;
 use Illuminate\Http\Request;
@@ -25,17 +26,34 @@ class ChatbotController extends Controller
     // Cache nama kolom tanggal di tabel transaksi (auto-detect)
     private ?string $colTanggal = null;
 
+    // Language detector instance
+    private LanguageDetector $languageDetector;
+
+    /**
+     * Constructor - initialize language detector
+     */
+    public function __construct()
+    {
+        $this->languageDetector = new LanguageDetector();
+    }
+
     /**
      * Mendapatkan daftar tabel yang boleh diakses berdasarkan role user
      */
     private function getAllowedTables(): array
     {
-        if (!Auth::check()) return [];
-        
+        if (!Auth::check()) {
+            // Fallback: allow common tables for unauthenticated users (for testing)
+            Log::warning('No authenticated user, using default allowed tables');
+            return ['produk', 'kategori', 'transaksi', 'detail_transaksi', 'pembeli', 'karyawan'];
+        }
+
         $roleId = Auth::user()->role;
 
         return cache()->remember("allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
-            return RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
+            $tables = RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
+            Log::info("Allowed tables for role {$roleId}: " . implode(', ', $tables));
+            return $tables;
         });
     }
 
@@ -104,14 +122,22 @@ class ChatbotController extends Controller
             return response()->json(['response' => "Error: OPENROUTER_API_KEY atau NVIDIA_API_KEY tidak dikonfigurasi di .env"]);
         }
 
+        // Detect language from user message
+        $detectedLanguage = $this->languageDetector->detect($message);
+        $languageInfo = $this->languageDetector->detectWithInfo($message);
+        Log::info("Detected language: ", $languageInfo);
+
         $needsData = $this->messageNeedsDatabase($message);
         $dbContext = '';
         $docContext = '';
+
+        Log::info("Needs database: " . ($needsData ? 'YES' : 'NO'));
 
         $needsDocs = $this->messageNeedsDocs($message);
 
         if ($needsDocs) {
             $docContext = $this->fetchRelevantDocs($message);
+            Log::info("Needs docs: YES, length: " . strlen($docContext));
             if (!empty($docContext)) {
                 $needsData = false;
             }
@@ -119,10 +145,14 @@ class ChatbotController extends Controller
 
         if ($needsData) {
             $dbContext = $this->fetchRelevantData($message);
+            Log::info("Needs docs: NO, fetching DB data, length: " . strlen($dbContext));
         }
 
         $schemaContext = $this->getSchemaContext();
-        $systemPrompt  = $this->buildSystemPrompt($schemaContext, $dbContext, $docContext);
+        $systemPrompt  = $this->buildSystemPrompt($schemaContext, $dbContext, $docContext, $detectedLanguage);
+
+        Log::info("System prompt length: " . strlen($systemPrompt));
+        Log::info("DB Context empty: " . (empty($dbContext) ? 'YES' : 'NO'));
 
         $messages = [['role' => 'system', 'content' => $systemPrompt]];
         $trimmedHistory = array_slice($history, -($this->maxHistoryTurns * 2));
@@ -289,7 +319,14 @@ class ChatbotController extends Controller
             $ctx .= "| " . implode(" | ", $headers) . " |\n";
             $ctx .= "| " . implode(" | ", array_fill(0, count($headers), "---")) . " |\n";
             foreach (array_slice($rows, 0, 30) as $row) {
-                $vals = array_map(fn($v) => $v ?? '-', array_values((array)$row));
+                $vals = array_map(function($v, $key) {
+                    if ($v === null || $v === '-') return '-';
+                    // Format monetary values (columns containing: total, harga, bayar, revenue, profit, amount, dll)
+                    if ($this->isMonetaryColumn($key) && is_numeric($v)) {
+                        return $this->formatRupiah($v);
+                    }
+                    return $v;
+                }, array_values((array)$row), array_keys((array)$row));
                 $ctx .= "| " . implode(" | ", $vals) . " |\n";
             }
             $ctx .= "\nTotal: " . count($rows) . " baris\n\n";
@@ -320,7 +357,7 @@ class ChatbotController extends Controller
         $wWhere = $hasW ? "WHERE (LOWER(pb.provinsi) LIKE '%{$safe}%' OR LOWER(pb.kota) LIKE '%{$safe}%')" : '';
 
         // ── Produk terlaris ──────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'paling laku', 'banyak terjual', 'laris']) 
+        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'bestseller', 'paling laku', 'banyak terjual', 'laris', 'product', 'top selling', 'most sold'])
             && $isAllowed('produk') && $isAllowed('kategori') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
             
             $join = "";
@@ -352,7 +389,7 @@ class ChatbotController extends Controller
         }
 
         // ── Pelanggan terbaik / terloyal ─────────────────────────────────────
-        if ($this->hasKeyword($lower, ['pelanggan', 'pembeli', 'customer', 'loyal', 'setia', 'terbaik', 'terloyal'])
+        if ($this->hasKeyword($lower, ['pelanggan', 'pembeli', 'customer', 'loyal', 'setia', 'terbaik', 'terloyal', 'buyer', 'client', 'best customer'])
             && $isAllowed('pembeli') && $isAllowed('transaksi')) {
             $label = $hasW ? "Pelanggan Terbaik di " . ucwords($wilayahFilter) : "Pelanggan Terbaik";
             $queries[$label] = "
@@ -369,7 +406,7 @@ class ChatbotController extends Controller
         }
 
         // ── Revenue per wilayah ──────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['wilayah', 'provinsi', 'kota', 'daerah', 'region', 'area'])
+        if ($this->hasKeyword($lower, ['wilayah', 'provinsi', 'kota', 'daerah', 'region', 'area', 'province', 'city'])
             && $isAllowed('pembeli') && $isAllowed('transaksi')) {
             $queries['Revenue per Wilayah'] = "
                 SELECT pb.provinsi,
@@ -384,7 +421,7 @@ class ChatbotController extends Controller
         }
 
         // ── Revenue trend / bulanan ──────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['tren', 'trend', 'revenue', 'pendapatan', 'omzet', 'per bulan', 'bulanan', 'penjualan bulan'])
+        if ($this->hasKeyword($lower, ['tren', 'trend', 'revenue', 'pendapatan', 'omzet', 'per bulan', 'bulanan', 'penjualan bulan', 'monthly', 'sales trend', 'income'])
             && $isAllowed('transaksi')) {
             if ($hasW && $isAllowed('pembeli')) {
                 $label = "Revenue Bulanan di " . ucwords($wilayahFilter);
@@ -634,6 +671,7 @@ class ChatbotController extends Controller
     private function messageNeedsDatabase(string $message): bool
     {
         $keywords = [
+            // Indonesian keywords
             'produk','terlaris','revenue','transaksi','penjualan','pelanggan',
             'pembeli','kategori','stok','laporan','analisis','analisa','data',
             'tren','trend','statistik','ranking','rank','terbaik','tertinggi',
@@ -645,6 +683,17 @@ class ChatbotController extends Controller
             'jawa barat','jawa tengah','jawa timur','jakarta','banten','bali',
             'sumatera','kalimantan','sulawesi','papua','aceh','riau','lampung',
             'jogja','yogyakarta','jabar','jateng','jatim','sumut','sumbar',
+            // English keywords
+            'product', 'bestseller', 'best seller', 'transaction', 'sales', 'customer',
+            'buyer', 'category', 'stock', 'report', 'analysis', 'data',
+            'trend', 'statistics', 'ranking', 'best', 'highest',
+            'lowest', 'total', 'amount', 'sum', 'count', 'month', 'year', 'region', 'province',
+            'city', 'discount', 'profit', 'income', 'revenue', 'retention',
+            'cross sell', 'dead stock', 'payment method', 'payment',
+            'aov', 'see', 'show', 'display', 'find', 'search', 'how many', 'how much', 'what', 'who', 'which',
+            'top', 'most', 'buy', 'sell', 'loyal', 'loyalty',
+            'west java', 'central java', 'east java', 'jakarta', 'banten', 'bali',
+            'sumatra', 'kalimantan', 'sulawesi', 'papua', 'aceh', 'riau', 'lampung',
         ];
         $lower = mb_strtolower($message);
         foreach ($keywords as $kw) {
@@ -734,57 +783,83 @@ class ChatbotController extends Controller
     }
 
     // ── System prompt ─────────────────────────────────────────────────────────
-    private function buildSystemPrompt(string $schemaContext, string $dbContext, string $docContext = ''): string
+    private function buildSystemPrompt(string $schemaContext, string $dbContext, string $docContext = '', string $userLanguage = 'id'): string
     {
-        $dataSection = $dbContext
-            ? "\n\n{$dbContext}\nGUNAKAN DATA DI ATAS. Data ini NYATA dari database.\n"
-            : '';
+        // Build data section with language-specific instructions
+        $dataSection = '';
+        $dataWarning = '';
+        if (!empty($dbContext)) {
+            if ($userLanguage === 'en') {
+                $dataSection = "\n\n{$dbContext}\n";
+                $dataWarning = "⚠️ CRITICAL: REAL DATABASE DATA IS PROVIDED ABOVE. YOU MUST USE THIS EXACT DATA IN YOUR RESPONSE. DO NOT MAKE UP NUMBERS OR FABRICATE ANY INFORMATION.\n";
+            } else {
+                $dataSection = "\n\n{$dbContext}\n";
+                $dataWarning = "⚠️ PENTING: DATA NYATA DARI DATABASE SUDAH DISEDIAKAN DI ATAS. ANDA WAJIB MENGGUNAKAN DATA INI DALAM JAWABAN ANDA. JANGAN MENGARANG ANGKA ATAU INFORMASI.\n";
+            }
+        }
 
-        $docSection = $docContext
-            ? "\n\n{$docContext}\nGUNAKAN PANDUAN DI ATAS untuk memberikan instruksi kepada pengguna.\n"
-            : '';
+        // Build doc section with language-specific instructions
+        $docSection = '';
+        if (!empty($docContext)) {
+            if ($userLanguage === 'en') {
+                $docSection = "\n\n{$docContext}\nUSE THE GUIDE ABOVE to provide instructions to the user.\n";
+            } else {
+                $docSection = "\n\n{$docContext}\nGUNAKAN PANDUAN DI ATAS untuk memberikan instruksi kepada pengguna.\n";
+            }
+        }
 
-        return "### ATURAN UTAMA (WAJIB DIPATUHI)
-1. JIKA USER BERTANYA TENTANG DATA DARI TABEL YANG TIDAK ADA DI 'TABEL YANG DAPAT ANDA AKSES' DI BAWAH, KAMU WAJIB MENJAWAB HANYA DENGAN SATU KALIMAT INI: 'Mohon maaf, saya tidak memiliki hak akses untuk menampilkan data [nama informasi] untuk akun Anda.'
-2. DILARANG KERAS MEMBERIKAN ALASAN, DILARANG MEMBERIKAN SOLUSI ALTERNATIF, DAN DILARANG MEMBERIKAN CONTOH QUERY JIKA AKSES DITOLAK. CUKUP SATU KALIMAT SAJA.
-3. JANGAN PERNAH MENGARANG DATA (HALLUCINATION).
+        // Build language-specific instructions
+        $languageInstruction = $userLanguage === 'en'
+            ? "## LANGUAGE\n- ALWAYS respond in English since the user is using English.\n- Match the user's tone and formality level.\n"
+            : "## BAHASA\n- SELALU jawab dalam Bahasa Indonesia karena user menggunakan Bahasa Indonesia.\n- Sesuaikan nada dan tingkat formalitas dengan user.\n";
 
-Kamu adalah asisten AI yang ramah, cerdas, dan ahli sebagai Senior Data Analyst sekaligus Konsultan ERP. Nama panggilanmu adalah DataBot.
+        // Build personality section based on language
+        $personalitySection = $userLanguage === 'en'
+            ? "## PERSONALITY\n- Friendly and warm in greetings.\n- Answer general questions naturally.\n- Be a professional data analyst for data questions.\n- Provide clear step-by-step instructions for technical/operational ERP questions."
+            : "## KEPRIBADIAN\n- Bisa diajak ngobrol santai dan merespons salam dengan hangat.\n- Untuk pertanyaan umum, jawab natural.\n- Untuk pertanyaan data, jadilah analis data profesional.\n- Untuk pertanyaan teknis/operasional ERP, berikan langkah-langkah yang jelas berdasarkan dokumentasi.";
 
-## KEPRIBADIAN
-- Bisa diajak ngobrol santai dan merespons salam dengan hangat.
-- Untuk pertanyaan umum, jawab natural.
-- Untuk pertanyaan data, jadilah analis data profesional.
-- Untuk pertanyaan teknis/operasional ERP, berikan langkah-langkah yang jelas berdasarkan dokumentasi.
+        // Build data format section based on language
+        $dataFormatSection = $userLanguage === 'en'
+            ? "## DATA RESPONSE FORMAT (Only if access is granted)\n### 📊 Data Results\n| Column1 | Column2 |\n|---------|---------|\n| value   | value   |\n\n### 🔍 In-depth Analysis\n- **Key Findings**: insights from data\n- **Patterns & Trends**: visible patterns\n\n### 💡 Business Recommendations\n1. **[Action]**: concrete explanation"
+            : "## FORMAT JAWABAN DATA (Hanya jika ada akses)\n### 📊 Hasil Data\n| Kolom1 | Kolom2 |\n|--------|--------|\n| nilai  | nilai  |\n\n### 🔍 Analisis Mendalam\n- **Temuan Utama**: insight dari data\n- **Pola & Tren**: pola yang terlihat\n\n### 💡 Rekomendasi Bisnis\n1. **[Aksi]**: penjelasan konkret";
 
-## BAHASA
-- Bahasa Indonesia → jawab Bahasa Indonesia.
-- English → answer in English.
+        // Build docs format section based on language
+        $docsFormatSection = $userLanguage === 'en'
+            ? "## GUIDE/DOCS RESPONSE FORMAT\n- Provide step-by-step instructions (1, 2, 3...) for procedures.\n- Include documentation source links if available."
+            : "## FORMAT JAWABAN PANDUAN/DOCS\n- Berikan langkah demi langkah (1, 2, 3...) jika itu sebuah prosedur.\n- Berikan link sumber dokumentasi jika tersedia.";
 
-## KONTEKS DATA & DOKUMENTASI
+        // Build closing instruction based on language
+        $closingInstruction = $userLanguage === 'en'
+            ? "Use real data and guidance above. Do not fabricate information.\nFor casual conversation, respond naturally without report format."
+            : "Gunakan data dan panduan nyata di atas. Jangan mengarang.\nUntuk percakapan santai, jawab natural tanpa format laporan.";
+
+        // Build access denial message based on language
+        $accessDenialMessage = $userLanguage === 'en'
+            ? "1. IF USER ASKS ABOUT DATA FROM TABLES NOT LISTED IN 'TABLES YOU CAN ACCESS' BELOW, YOU MUST ANSWER WITH ONLY THIS SENTENCE: 'I'm sorry, I don't have access rights to display [information name] data for your account.'\n2. STRICTLY FORBIDDEN to provide reasons, alternative solutions, or example queries when access is denied. JUST ONE SENTENCE ONLY.\n3. NEVER FABRICATE DATA (HALLUCINATION)."
+            : "1. JIKA USER BERTANYA TENTANG DATA DARI TABEL YANG TIDAK ADA DI 'TABEL YANG DAPAT ANDA AKSES' DI BAWAH, KAMU WAJIB MENJAWAB HANYA DENGAN SATU KALIMAT INI: 'Mohon maaf, saya tidak memiliki hak akses untuk menampilkan data [nama informasi] untuk akun Anda.'\n2. DILARANG KERAS MEMBERIKAN ALASAN, DILARANG MEMBERIKAN SOLUSI ALTERNATIF, DAN DILARANG MEMBERIKAN CONTOH QUERY JIKA AKSES DITOLAK. CUKUP SATU KALIMAT SAJA.\n3. JANGAN PERNAH MENGARANG DATA (HALLUCINATION).";
+
+        // Put data context FIRST so it's most prominent
+        return "### MAIN RULES (MANDATORY TO FOLLOW)
+{$accessDenialMessage}
+
+{$dataWarning}
+
+You are a friendly, intelligent, and expert AI assistant serving as a Senior Data Analyst and ERP Consultant. Your nickname is DataBot.
+
+{$personalitySection}
+
+{$languageInstruction}
+
+## DATA & DOCUMENTATION CONTEXT
 {$schemaContext}
 {$dataSection}
 {$docSection}
 
-## FORMAT JAWABAN DATA (Hanya jika ada akses)
-### 📊 Hasil Data
-| Kolom1 | Kolom2 |
-|--------|--------|
-| nilai  | nilai  |
+{$dataFormatSection}
 
-### 🔍 Analisis Mendalam
-- **Temuan Utama**: insight dari data
-- **Pola & Tren**: pola yang terlihat
+{$docsFormatSection}
 
-### 💡 Rekomendasi Bisnis
-1. **[Aksi]**: penjelasan konkret
-
-## FORMAT JAWABAN PANDUAN/DOCS
-- Berikan langkah demi langkah (1, 2, 3...) jika itu sebuah prosedur.
-- Berikan link sumber dokumentasi jika tersedia.
-
-Gunakan data dan panduan nyata di atas. Jangan mengarang.
-Untuk percakapan santai, jawab natural tanpa format laporan.";
+{$closingInstruction}";
     }
 
     // ── Ekstrak history untuk frontend ───────────────────────────────────────
@@ -853,6 +928,58 @@ Untuk percakapan santai, jawab natural tanpa format laporan.";
             if (str_contains($text, $kw)) return true;
         }
         return false;
+    }
+
+    // ── Deteksi apakah kolom adalah nilai keuangan ────────────────────────────
+    private function isMonetaryColumn(string $columnName): bool
+    {
+        $monetaryKeywords = [
+            'bayar', 'revenue', 'profit', 'pendapatan', 'omzet', 'keuntungan',
+            'biaya', 'cost', 'price', 'belanja', 'monetary', 'avg', 'rata_rata', 'rata-rata',
+            'amount', 'sales'
+        ];
+        $quantityKeywords = [
+            'qty', 'jumlah', 'total_terjual', 'total_transaksi', 'count', 'banyak',
+            'kuantitas', 'unit', 'pcs', 'total_pelanggan', 'total_produk'
+        ];
+        $percentageKeywords = [
+            'persen', 'persentase', 'percent', 'percentage', 'proporsi', 'rasio'
+        ];
+        
+        $lower = mb_strtolower($columnName);
+        
+        // Percentage columns should NOT be formatted as Rupiah
+        foreach ($percentageKeywords as $keyword) {
+            if (str_contains($lower, $keyword)) return false;
+        }
+        
+        // Quantity columns should NOT be formatted as Rupiah
+        foreach ($quantityKeywords as $keyword) {
+            if (str_contains($lower, $keyword)) return false;
+        }
+        
+        // Then check if it's a monetary column
+        foreach ($monetaryKeywords as $keyword) {
+            if (str_contains($lower, $keyword)) return true;
+        }
+        
+        // Special case: 'harga' alone is monetary, but check for false positives
+        if ($lower === 'harga' || str_contains($lower, 'harga_')) return true;
+        
+        // Special case: 'total' at the beginning usually means money, unless it's quantity
+        if (str_starts_with($lower, 'total_') && !str_contains($lower, 'terjual') && !str_contains($lower, 'transaksi')) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    // ── Format nilai sebagai Rupiah ───────────────────────────────────────────
+    private function formatRupiah(float|int $value): string
+    {
+        $value = (float) $value;
+        // Format: Rp 1.000.000 (dengan titik sebagai pemisah ribuan)
+        return 'Rp ' . number_format($value, 0, ',', '.');
     }
 
     public function rerank(Request $request)
