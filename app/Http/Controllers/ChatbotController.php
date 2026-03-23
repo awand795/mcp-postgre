@@ -45,7 +45,12 @@ class ChatbotController extends Controller
         if (!Auth::check()) {
             // Fallback: allow common tables for unauthenticated users (for testing)
             Log::warning('No authenticated user, using default allowed tables');
-            return ['produk', 'kategori', 'transaksi', 'detail_transaksi', 'pembeli', 'karyawan'];
+            return [
+                'produk', 'kategori', 'transaksi', 'detail_transaksi', 'pembeli', 'karyawan',
+                'view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi',
+                'view_data_target_realisasi_mbi', 'view_target_unit_mbi', 'view_master_barang_mbi',
+                'view_data_kartu_stock_mbi', 'view_master_provinsi_mbi', 'view_master_kabupaten_mbi'
+            ];
         }
 
         $user = Auth::user();
@@ -150,7 +155,7 @@ class ChatbotController extends Controller
             }
         }
 
-        $schemaContext = $this->getSchemaContext();
+        $schemaContext = $this->getSchemaContext($message);
 
         if ($needsData) {
             $dbContext = $this->fetchRelevantData($message, $schemaContext, $apiKey);
@@ -195,8 +200,10 @@ class ChatbotController extends Controller
 RULES:
 - Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
 - Use 'sch_mbi.' prefix.
-- Use ILIKE (e.g. nama_cabang ILIKE '%riau%').
-- Match columns EXACTLY from SCHEMA (e.g. use nama_kabupaten_cabang for cities, NOT nama_kota).
+- User may request to view, filter, sort, or base on ANY specific column or table. Construct the correct SQL dynamically.
+- User may request complex data (regions, targets, joins). Construct valid PostgreSQL.
+- Use ILIKE for text filters (e.g. column ILIKE '%value%').
+- CRITICAL: Match table and column names EXACTLY as written in SCHEMA. Do NOT guess.
 - Limit 50 rows.
 - No explanation. No semicolon.";
 
@@ -742,6 +749,7 @@ RULES:
             'cross-sell','cross sell','dead stock','metode bayar','metode pembayaran',
             'aov','lihat','tampilkan','tunjukkan','cari','berapa','siapa','mana',
             'show','display','top','paling','laku','laris','beli','jual','loyal','terloyal',
+            'kolom','tabel','semua','berdasarkan','urutkan','filter','sort',
             'jawa barat','jawa tengah','jawa timur','jakarta','banten','bali',
             'sumatera','kalimantan','sulawesi','papua','aceh','riau','lampung',
             'jogja','yogyakarta','jabar','jateng','jatim','sumut','sumbar',
@@ -753,7 +761,7 @@ RULES:
             'city', 'branch', 'discount', 'profit', 'income', 'revenue', 'retention',
             'cross sell', 'dead stock', 'payment method', 'payment',
             'aov', 'see', 'show', 'display', 'find', 'search', 'how many', 'how much', 'what', 'who', 'which',
-            'top', 'most', 'buy', 'sell', 'loyal', 'loyalty',
+            'top', 'most', 'buy', 'sell', 'loyal', 'loyalty', 'column', 'table', 'based on',
             'west java', 'central java', 'east java', 'jakarta', 'banten', 'bali',
             'sumatra', 'kalimantan', 'sulawesi', 'papua', 'aceh', 'riau', 'lampung',
         ];
@@ -931,7 +939,7 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
             // and columns for top 5 most common tables.
             $commonTables = ['view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi', 'produk', 'transaksi'];
             
-            $cacheKey = 'db_schema_context_v3_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
+            $cacheKey = 'db_schema_context_v4_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
                 $tables = DB::connection('pgsql_mbi')->select("
@@ -944,7 +952,7 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                 $context = "";
                 $count = 0;
                 
-                // Emergency: If we have priority tables, ONLY show those to save tokens
+                // Emergency: If we have priority tables, show those FIRST
                 if (!empty($priorityTables)) {
                     foreach ($priorityTables as $tn) {
                         if (!in_array($tn, $allowedTables)) continue;
@@ -952,14 +960,17 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                         $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
                         $count++;
                     }
-                    return $context;
                 }
 
+                // Show all other allowed tables so LLM can reason about dynamically requested tables/columns
                 foreach ($tables as $table) {
                     $tn = $table->table_name;
                     if (!in_array($tn, $allowedTables)) continue;
+                    if (in_array($tn, $priorityTables)) continue; // Already added
+                    
                     $count++;
-                    $context .= "{$tn}\n";
+                    $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
+                    $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
                 }
                 
                 if ($count === 0) return "No access to data.";
