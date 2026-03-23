@@ -404,12 +404,15 @@ EXAMPLE CORRECT QUERIES:
         if (!$success) {
             // AI failed, but we have data from database queries
             if ($dbContext) {
-                $fallback = $this->formatContextAsResponse($dbContext);
+                $fallback = $this->formatContextAsResponse($dbContext, $detectedLanguage);
                 echo "data: " . json_encode(['fallback' => true, 'response' => $fallback]) . "\n\n";
-                Log::info("AI unavailable, showing data with auto-generated insights");
+                Log::info("AI unavailable, showing data with auto-generated insights in language: {$detectedLanguage}");
             } else {
-                // No data at all
-                echo "data: " . json_encode(['error' => true, 'response' => "Maaf, tidak ada data yang tersedia untuk pertanyaan ini. Silakan coba dengan pertanyaan lain atau hubungi admin."]) . "\n\n";
+                // No data at all - use detected language for error message
+                $errorMsg = $detectedLanguage === 'en' 
+                    ? "Sorry, no data is available for this question. Please try a different question or contact admin."
+                    : "Maaf, tidak ada data yang tersedia untuk pertanyaan ini. Silakan coba dengan pertanyaan lain atau hubungi admin.";
+                echo "data: " . json_encode(['error' => true, 'response' => $errorMsg]) . "\n\n";
                 Log::warning("AI unavailable AND no data context");
             }
             ob_flush(); flush();
@@ -840,20 +843,37 @@ EXAMPLE CORRECT QUERIES:
     }
 
     // ── Format data sebagai respons langsung (fallback jika AI gagal) ─────────
-    private function formatContextAsResponse(string $ctx): string
+    private function formatContextAsResponse(string $ctx, string $language = 'id'): string
     {
         // Extract data from context
         $dataSection = preg_replace('/^=== DATA NYATA.*?\n.*?\n\n/s', '', $ctx);
         
         // Parse data untuk generate insight
-        $insights = $this->generateAutoInsights($ctx);
+        $insights = $this->generateAutoInsights($ctx, $language);
         
-        $response = "### 📊 Hasil Data\n\n";
+        // Language-specific headers
+        $headers = $language === 'en' ? [
+            'data' => '### 📊 Data Results',
+            'summary' => '### 📈 Statistical Summary',
+            'insights' => '### 🔍 Deep Insights',
+            'recommendations' => '### 💡 Strategic Recommendations',
+            'action' => '### ✅ Action Plan',
+            'footer' => '> ℹ️ Data and insights above are auto-generated from database. Contact admin for further discussion.'
+        ] : [
+            'data' => '### 📊 Hasil Data',
+            'summary' => '### 📈 Ringkasan Statistik',
+            'insights' => '### 🔍 Insight Mendalam',
+            'recommendations' => '### 💡 Rekomendasi Strategis',
+            'action' => '### ✅ Action Plan',
+            'footer' => '> ℹ️ Data dan insight di atas digenerate otomatis dari database. Hubungi admin untuk diskusi lebih lanjut.'
+        ];
+        
+        $response = "{$headers['data']}\n\n";
         $response .= $dataSection . "\n\n";
         
         // Add auto-generated insights
         if (!empty($insights['summary'])) {
-            $response .= "### 📈 Ringkasan Statistik\n\n";
+            $response .= "{$headers['summary']}\n\n";
             foreach ($insights['summary'] as $insight) {
                 $response .= "- {$insight}\n";
             }
@@ -862,7 +882,7 @@ EXAMPLE CORRECT QUERIES:
         
         // Add detailed insights
         if (!empty($insights['detailed_insights'])) {
-            $response .= "### 🔍 Insight Mendalam\n\n";
+            $response .= "{$headers['insights']}\n\n";
             foreach ($insights['detailed_insights'] as $insight) {
                 $response .= "{$insight}\n";
             }
@@ -871,7 +891,7 @@ EXAMPLE CORRECT QUERIES:
         
         // Add recommendations
         if (!empty($insights['recommendations'])) {
-            $response .= "### 💡 Rekomendasi Strategis\n\n";
+            $response .= "{$headers['recommendations']}\n\n";
             foreach ($insights['recommendations'] as $rec) {
                 $response .= "{$rec}\n\n";
             }
@@ -879,20 +899,20 @@ EXAMPLE CORRECT QUERIES:
         
         // Add action items
         if (!empty($insights['action_items'])) {
-            $response .= "### ✅ Action Plan\n\n";
+            $response .= "{$headers['action']}\n\n";
             foreach ($insights['action_items'] as $action) {
                 $response .= "{$action}\n";
             }
             $response .= "\n";
         }
         
-        $response .= "> ℹ️ Data dan insight di atas digenerate otomatis dari database. Hubungi admin untuk diskusi lebih lanjut.";
+        $response .= $headers['footer'];
         
         return $response;
     }
     
     // ── Generate auto insights dari data ──────────────────────────────────────
-    private function generateAutoInsights(string $ctx): array
+    private function generateAutoInsights(string $ctx, string $language = 'id'): array
     {
         $insights = ['summary' => [], 'detailed_insights' => [], 'recommendations' => [], 'action_items' => []];
         
@@ -919,20 +939,35 @@ EXAMPLE CORRECT QUERIES:
             $min = min($values);
             $median = $this->calculateMedian($values);
             
-            $insights['summary'][] = "Total {$colName}: " . $this->formatRupiah($total);
-            $insights['summary'][] = "Rata-rata {$colName}: " . $this->formatRupiah($avg);
-            
-            if (count($values) > 1) {
-                $insights['summary'][] = "Median {$colName}: " . $this->formatRupiah($median);
-                $insights['summary'][] = "Range {$colName}: " . $this->formatRupiah($min) . " - " . $this->formatRupiah($max);
-                
-                // Coefficient of Variation (untuk ukur dispersi)
-                $stdDev = $this->calculateStdDev($values, $avg);
-                $cv = ($avg > 0) ? ($stdDev / $avg) * 100 : 0;
-                if ($cv > 50) {
-                    $insights['detailed_insights'][] = "⚠️ Dispersi data {$colName} tinggi (CV: " . number_format($cv, 1) . "%). Ada ketimpangan signifikan antara nilai tertinggi dan terendah.";
-                } else {
-                    $insights['detailed_insights'][] = "✅ Distribusi {$colName} relatif merata (CV: " . number_format($cv, 1) . "%).";
+            if ($language === 'en') {
+                $insights['summary'][] = "Total {$colName}: " . $this->formatRupiah($total);
+                $insights['summary'][] = "Average {$colName}: " . $this->formatRupiah($avg);
+                if (count($values) > 1) {
+                    $insights['summary'][] = "Median {$colName}: " . $this->formatRupiah($median);
+                    $insights['summary'][] = "Range {$colName}: " . $this->formatRupiah($min) . " - " . $this->formatRupiah($max);
+                    
+                    $stdDev = $this->calculateStdDev($values, $avg);
+                    $cv = ($avg > 0) ? ($stdDev / $avg) * 100 : 0;
+                    if ($cv > 50) {
+                        $insights['detailed_insights'][] = "⚠️ High data dispersion for {$colName} (CV: " . number_format($cv, 1) . "%). Significant gap between highest and lowest values.";
+                    } else {
+                        $insights['detailed_insights'][] = "✅ {$colName} distribution is relatively even (CV: " . number_format($cv, 1) . "%).";
+                    }
+                }
+            } else {
+                $insights['summary'][] = "Total {$colName}: " . $this->formatRupiah($total);
+                $insights['summary'][] = "Rata-rata {$colName}: " . $this->formatRupiah($avg);
+                if (count($values) > 1) {
+                    $insights['summary'][] = "Median {$colName}: " . $this->formatRupiah($median);
+                    $insights['summary'][] = "Range {$colName}: " . $this->formatRupiah($min) . " - " . $this->formatRupiah($max);
+                    
+                    $stdDev = $this->calculateStdDev($values, $avg);
+                    $cv = ($avg > 0) ? ($stdDev / $avg) * 100 : 0;
+                    if ($cv > 50) {
+                        $insights['detailed_insights'][] = "⚠️ Dispersi data {$colName} tinggi (CV: " . number_format($cv, 1) . "%). Ada ketimpangan signifikan antara nilai tertinggi dan terendah.";
+                    } else {
+                        $insights['detailed_insights'][] = "✅ Distribusi {$colName} relatif merata (CV: " . number_format($cv, 1) . "%).";
+                    }
                 }
             }
         }
@@ -941,27 +976,35 @@ EXAMPLE CORRECT QUERIES:
         // Top performers
         $topItems = $this->getTopPerformers($dataRows, $numericColumns, 3);
         if (!empty($topItems)) {
-            $insights['detailed_insights'][] = "🏆 Top Performers: " . implode(', ', $topItems);
+            if ($language === 'en') {
+                $insights['detailed_insights'][] = "🏆 Top Performers: " . implode(', ', $topItems);
+            } else {
+                $insights['detailed_insights'][] = "🏆 Top Performers: " . implode(', ', $topItems);
+            }
         }
         
         // Bottom performers
         $bottomItems = $this->getBottomPerformers($dataRows, $numericColumns, 3);
         if (!empty($bottomItems)) {
-            $insights['detailed_insights'][] = "📉 Perlu Perhatian: " . implode(', ', $bottomItems);
+            if ($language === 'en') {
+                $insights['detailed_insights'][] = "📉 Needs Attention: " . implode(', ', $bottomItems);
+            } else {
+                $insights['detailed_insights'][] = "📉 Perlu Perhatian: " . implode(', ', $bottomItems);
+            }
         }
         
         // Percentage analysis
-        $percentageInsights = $this->analyzePercentages($dataRows, $numericColumns);
+        $percentageInsights = $this->analyzePercentages($dataRows, $numericColumns, $language);
         foreach ($percentageInsights as $pi) {
             $insights['detailed_insights'][] = $pi;
         }
         
         // === RECOMMENDATIONS (Specific & Actionable) ===
-        $recommendations = $this->generateRecommendations($dataType, $dataRows, $numericColumns, $ctx);
+        $recommendations = $this->generateRecommendations($dataType, $dataRows, $numericColumns, $ctx, $language);
         $insights['recommendations'] = $recommendations;
         
         // === ACTION ITEMS (Immediate Actions) ===
-        $actionItems = $this->generateActionItems($dataType, $dataRows, $numericColumns);
+        $actionItems = $this->generateActionItems($language);
         $insights['action_items'] = $actionItems;
         
         return $insights;
@@ -1172,7 +1215,7 @@ EXAMPLE CORRECT QUERIES:
     }
     
     // ── Analyze percentages ───────────────────────────────────────────────────
-    private function analyzePercentages(array $dataRows, array $numericColumns): array
+    private function analyzePercentages(array $dataRows, array $numericColumns, string $language = 'id'): array
     {
         $insights = [];
         
@@ -1192,8 +1235,14 @@ EXAMPLE CORRECT QUERIES:
         if ($pctCol !== null) {
             $values = $numericColumns[$pctCol];
             $topPct = max($values);
-            if ($topPct > 20) {
-                $insights[] = "📊 Konsentrasi tinggi: Item teratas menguasai " . number_format($topPct, 1) . "% dari total. Pertimbangkan diversifikasi.";
+            if ($language === 'en') {
+                if ($topPct > 20) {
+                    $insights[] = "📊 High concentration: Top item controls " . number_format($topPct, 1) . "% of total. Consider diversification.";
+                }
+            } else {
+                if ($topPct > 20) {
+                    $insights[] = "📊 Konsentrasi tinggi: Item teratas menguasai " . number_format($topPct, 1) . "% dari total. Pertimbangkan diversifikasi.";
+                }
             }
         }
         
@@ -1201,73 +1250,134 @@ EXAMPLE CORRECT QUERIES:
     }
     
     // ── Generate recommendations based on data type ───────────────────────────
-    private function generateRecommendations(string $dataType, array $dataRows, array $numericColumns, string $ctx): array
+    private function generateRecommendations(string $dataType, array $dataRows, array $numericColumns, string $ctx, string $language = 'id'): array
     {
         $recommendations = [];
-        
-        switch ($dataType) {
-            case 'produk':
-                $recommendations[] = "🎯 **Strategi Produk**: Fokuskan inventory dan marketing pada produk top performer yang menyumbang >60% dari total penjualan";
-                $recommendations[] = "📦 **Manajemen Stok**: Lakukan review mingguan untuk produk dengan pergerakan lambat. Pertimbangkan bundle promotion atau clearance sale";
-                $recommendations[] = "💰 **Pricing Strategy**: Analisis margin produk terlaris. Jika volume tinggi tapi margin rendah, pertimbangkan penyesuaian harga bertahap";
-                $recommendations[] = "🔄 **Product Lifecycle**: Identifikasi produk di fase decline (penjualan turun 3 bulan berturut-turut). Siapkan produk pengganti atau inovasi baru";
-                break;
-                
-            case 'pelanggan':
-                $recommendations[] = "👑 **Customer Retention**: Implementasi VIP program untuk top 20% pelanggan yang menyumbang >50% revenue. Berikan exclusive benefits dan early access";
-                $recommendations[] = "📈 **Upselling Strategy**: Analisis purchase pattern pelanggan terbaik. Tawarkan produk komplementer atau upgrade dengan personalized recommendation";
-                $recommendations[] = "⚠️ **Churn Prevention**: Monitor pelanggan dengan penurunan frekuensi belanja >30%. Lakukan proactive outreach dengan special offer";
-                $recommendations[] = "🎁 **Loyalty Program**: Buat tier-based reward system (Silver, Gold, Platinum) untuk incentivize repeat purchase dan increase customer lifetime value";
-                break;
-                
-            case 'cabang':
-                $recommendations[] = "🏢 **Performance Optimization**: Cabang top performer bisa jadi model best practice. Dokumentasikan strategi mereka dan replicate ke cabang lain";
-                $recommendations[] = "📊 **Resource Allocation**: Alokasikan budget marketing dan inventory lebih besar ke cabang dengan ROI tertinggi. Review cabang underperformer untuk turnaround strategy";
-                $recommendations[] = "👥 **Talent Management**: Pertimbangkan rotation atau knowledge sharing antara manager cabang sukses dan cabang yang perlu improvement";
-                $recommendations[] = "🎯 **Market Penetration**: Analisis market potential di wilayah cabang underperformer. Mungkin perlu adjustment product mix atau pricing strategy lokal";
-                break;
-                
-            case 'penjualan':
-                $recommendations[] = "📈 **Revenue Growth**: Identifikasi pattern penjualan (harian, mingguan, bulanan). Optimize staffing dan inventory berdasarkan peak periods";
-                $recommendations[] = "💡 **Sales Drivers**: Analisis produk/kategori dengan growth tertinggi. Double down pada success factors dan replicate ke kategori lain";
-                $recommendations[] = "🎯 **Target Setting**: Gunakan historical data untuk set realistic tapi challenging targets. Breakdown target per periode dan monitor progress weekly";
-                $recommendations[] = "🔄 **Seasonal Planning**: Identifikasi seasonal patterns dan prepare inventory, marketing, dan operational capacity accordingly";
-                break;
-                
-            case 'stok':
-                $recommendations[] = "📦 **Inventory Optimization**: Terapkan ABC analysis. Kategori A (high value) perlu tighter control dan frequent review";
-                $recommendations[] = "⚡ **Stock Turnover**: Monitor stock turnover ratio. Targetkan turnover >4x per tahun untuk fast-moving items. Clearance untuk slow-moving >90 hari";
-                $recommendations[] = "🔔 **Reorder Point**: Setup automated reorder alerts berdasarkan lead time supplier dan safety stock level";
-                $recommendations[] = "💰 **Working Capital**: Reduce excess inventory untuk free up cash flow. Negosiasi payment terms dengan supplier dan customer";
-                break;
-                
-            case 'target':
-                $recommendations[] = "🎯 **Performance Gap**: Analisis gap antara target dan realisasi. Identify root cause (internal vs external factors)";
-                $recommendations[] = "📊 **Forecasting Accuracy**: Review historical forecast accuracy. Adjust forecasting method jika consistently over/under estimate";
-                $recommendations[] = "🔄 **Target Calibration**: Quarterly review untuk adjust targets berdasarkan market condition dan business reality";
-                $recommendations[] = "💪 **Action Planning**: Breakdown target menjadi weekly milestones. Weekly check-in untuk track progress dan course correction";
-                break;
-                
-            default:
-                $recommendations[] = "📊 **Data-Driven Decision**: Gunakan insights ini sebagai baseline untuk strategic planning. Monitor key metrics secara konsisten";
-                $recommendations[] = "🎯 **Priority Focus**: Identifikasi 2-3 area dengan impact tertinggi. Fokuskan resources dan effort di sana";
-                $recommendations[] = "📈 **Continuous Improvement**: Setup monthly review cadence untuk track progress dan adjust strategy berdasarkan results";
-                $recommendations[] = "🔄 **Agile Approach**: Test & learn dengan small experiments. Scale what works, pivot what doesn't";
-                break;
+
+        if ($language === 'en') {
+            // English recommendations
+            switch ($dataType) {
+                case 'produk':
+                    $recommendations[] = "🎯 **Product Strategy**: Focus inventory and marketing on top performer products contributing >60% of total sales";
+                    $recommendations[] = "📦 **Inventory Management**: Weekly review for slow-moving products. Consider bundle promotion or clearance sale";
+                    $recommendations[] = "💰 **Pricing Strategy**: Analyze margin of bestsellers. If high volume but low margin, consider gradual price adjustment";
+                    $recommendations[] = "🔄 **Product Lifecycle**: Identify products in decline phase (sales down 3 consecutive months). Prepare replacement or innovation";
+                    break;
+
+                case 'pelanggan':
+                    $recommendations[] = "👑 **Customer Retention**: Implement VIP program for top 20% customers contributing >50% revenue. Give exclusive benefits and early access";
+                    $recommendations[] = "📈 **Upselling Strategy**: Analyze purchase pattern of best customers. Offer complementary products or upgrades with personalized recommendations";
+                    $recommendations[] = "⚠️ **Churn Prevention**: Monitor customers with >30% decrease in purchase frequency. Do proactive outreach with special offers";
+                    $recommendations[] = "🎁 **Loyalty Program**: Create tier-based reward system (Silver, Gold, Platinum) to incentivize repeat purchase and increase customer lifetime value";
+                    break;
+
+                case 'cabang':
+                    $recommendations[] = "🏢 **Performance Optimization**: Top performer branches can be best practice models. Document their strategies and replicate to other branches";
+                    $recommendations[] = "📊 **Resource Allocation**: Allocate bigger marketing and inventory budget to branches with highest ROI. Review underperformer branches for turnaround strategy";
+                    $recommendations[] = "👥 **Talent Management**: Consider rotation or knowledge sharing between successful branch managers and branches needing improvement";
+                    $recommendations[] = "🎯 **Market Penetration**: Analyze market potential in underperformer branch regions. May need local product mix or pricing strategy adjustment";
+                    break;
+
+                case 'penjualan':
+                    $recommendations[] = "📈 **Revenue Growth**: Identify sales patterns (daily, weekly, monthly). Optimize staffing and inventory based on peak periods";
+                    $recommendations[] = "💡 **Sales Drivers**: Analyze products/categories with highest growth. Double down on success factors and replicate to other categories";
+                    $recommendations[] = "🎯 **Target Setting**: Use historical data to set realistic but challenging targets. Breakdown targets per period and monitor progress weekly";
+                    $recommendations[] = "🔄 **Seasonal Planning**: Identify seasonal patterns and prepare inventory, marketing, and operational capacity accordingly";
+                    break;
+
+                case 'stok':
+                    $recommendations[] = "📦 **Inventory Optimization**: Apply ABC analysis. Category A (high value) needs tighter control and frequent review";
+                    $recommendations[] = "⚡ **Stock Turnover**: Monitor stock turnover ratio. Target >4x turnover per year for fast-moving items. Clearance for slow-moving >90 days";
+                    $recommendations[] = "🔔 **Reorder Point**: Setup automated reorder alerts based on supplier lead time and safety stock level";
+                    $recommendations[] = "💰 **Working Capital**: Reduce excess inventory to free up cash flow. Negotiate payment terms with suppliers and customers";
+                    break;
+
+                case 'target':
+                    $recommendations[] = "🎯 **Performance Gap**: Analyze gap between target and actual. Identify root cause (internal vs external factors)";
+                    $recommendations[] = "📊 **Forecasting Accuracy**: Review historical forecast accuracy. Adjust forecasting method if consistently over/under estimate";
+                    $recommendations[] = "🔄 **Target Calibration**: Quarterly review to adjust targets based on market conditions and business reality";
+                    $recommendations[] = "💪 **Action Planning**: Breakdown targets into weekly milestones. Weekly check-in to track progress and course correction";
+                    break;
+
+                default:
+                    $recommendations[] = "📊 **Data-Driven Decision**: Use these insights as baseline for strategic planning. Monitor key metrics consistently";
+                    $recommendations[] = "🎯 **Priority Focus**: Identify 2-3 areas with highest impact. Focus resources and effort there";
+                    $recommendations[] = "📈 **Continuous Improvement**: Setup monthly review cadence to track progress and adjust strategy based on results";
+                    $recommendations[] = "🔄 **Agile Approach**: Test & learn with small experiments. Scale what works, pivot what doesn't";
+                    break;
+            }
+        } else {
+            // Indonesian recommendations
+            switch ($dataType) {
+                case 'produk':
+                    $recommendations[] = "🎯 **Strategi Produk**: Fokuskan inventory dan marketing pada produk top performer yang menyumbang >60% dari total penjualan";
+                    $recommendations[] = "📦 **Manajemen Stok**: Lakukan review mingguan untuk produk dengan pergerakan lambat. Pertimbangkan bundle promotion atau clearance sale";
+                    $recommendations[] = "💰 **Pricing Strategy**: Analisis margin produk terlaris. Jika volume tinggi tapi margin rendah, pertimbangkan penyesuaian harga bertahap";
+                    $recommendations[] = "🔄 **Product Lifecycle**: Identifikasi produk di fase decline (penjualan turun 3 bulan berturut-turut). Siapkan produk pengganti atau inovasi baru";
+                    break;
+
+                case 'pelanggan':
+                    $recommendations[] = "👑 **Customer Retention**: Implementasi VIP program untuk top 20% pelanggan yang menyumbang >50% revenue. Berikan exclusive benefits dan early access";
+                    $recommendations[] = "📈 **Upselling Strategy**: Analisis purchase pattern pelanggan terbaik. Tawarkan produk komplementer atau upgrade dengan personalized recommendation";
+                    $recommendations[] = "⚠️ **Churn Prevention**: Monitor pelanggan dengan penurunan frekuensi belanja >30%. Lakukan proactive outreach dengan special offer";
+                    $recommendations[] = "🎁 **Loyalty Program**: Buat tier-based reward system (Silver, Gold, Platinum) untuk incentivize repeat purchase dan increase customer lifetime value";
+                    break;
+
+                case 'cabang':
+                    $recommendations[] = "🏢 **Performance Optimization**: Cabang top performer bisa jadi model best practice. Dokumentasikan strategi mereka dan replicate ke cabang lain";
+                    $recommendations[] = "📊 **Resource Allocation**: Alokasikan budget marketing dan inventory lebih besar ke cabang dengan ROI tertinggi. Review cabang underperformer untuk turnaround strategy";
+                    $recommendations[] = "👥 **Talent Management**: Pertimbangkan rotation atau knowledge sharing antara manager cabang sukses dan cabang yang perlu improvement";
+                    $recommendations[] = "🎯 **Market Penetration**: Analisis market potential di wilayah cabang underperformer. Mungkin perlu adjustment product mix atau pricing strategy lokal";
+                    break;
+
+                case 'penjualan':
+                    $recommendations[] = "📈 **Revenue Growth**: Identifikasi pattern penjualan (harian, mingguan, bulanan). Optimize staffing dan inventory berdasarkan peak periods";
+                    $recommendations[] = "💡 **Sales Drivers**: Analisis produk/kategori dengan growth tertinggi. Double down pada success factors dan replicate ke kategori lain";
+                    $recommendations[] = "🎯 **Target Setting**: Gunakan historical data untuk set realistic tapi challenging targets. Breakdown target per periode dan monitor progress weekly";
+                    $recommendations[] = "🔄 **Seasonal Planning**: Identifikasi seasonal patterns dan prepare inventory, marketing, dan operational capacity accordingly";
+                    break;
+
+                case 'stok':
+                    $recommendations[] = "📦 **Inventory Optimization**: Terapkan ABC analysis. Kategori A (high value) perlu tighter control dan frequent review";
+                    $recommendations[] = "⚡ **Stock Turnover**: Monitor stock turnover ratio. Targetkan turnover >4x per tahun untuk fast-moving items. Clearance untuk slow-moving >90 hari";
+                    $recommendations[] = "🔔 **Reorder Point**: Setup automated reorder alerts berdasarkan lead time supplier dan safety stock level";
+                    $recommendations[] = "💰 **Working Capital**: Reduce excess inventory untuk free up cash flow. Negosiasi payment terms dengan supplier dan customer";
+                    break;
+
+                case 'target':
+                    $recommendations[] = "🎯 **Performance Gap**: Analisis gap antara target dan realisasi. Identify root cause (internal vs external factors)";
+                    $recommendations[] = "📊 **Forecasting Accuracy**: Review historical forecast accuracy. Adjust forecasting method jika consistently over/under estimate";
+                    $recommendations[] = "🔄 **Target Calibration**: Quarterly review untuk adjust targets berdasarkan market condition dan business reality";
+                    $recommendations[] = "💪 **Action Planning**: Breakdown target menjadi weekly milestones. Weekly check-in untuk track progress dan course correction";
+                    break;
+
+                default:
+                    $recommendations[] = "📊 **Data-Driven Decision**: Gunakan insights ini sebagai baseline untuk strategic planning. Monitor key metrics secara konsisten";
+                    $recommendations[] = "🎯 **Priority Focus**: Identifikasi 2-3 area dengan impact tertinggi. Fokuskan resources dan effort di sana";
+                    $recommendations[] = "📈 **Continuous Improvement**: Setup monthly review cadence untuk track progress dan adjust strategy berdasarkan results";
+                    $recommendations[] = "🔄 **Agile Approach**: Test & learn dengan small experiments. Scale what works, pivot what doesn't";
+                    break;
+            }
         }
-        
+
         return $recommendations;
     }
-    
+
     // ── Generate action items ─────────────────────────────────────────────────
-    private function generateActionItems(string $dataType, array $dataRows, array $numericColumns): array
+    private function generateActionItems(string $language = 'id'): array
     {
         $actionItems = [];
-        
-        $actionItems[] = "✅ **Immediate (This Week)**: Review top 3 dan bottom 3 performers. Schedule meeting dengan team terkait";
-        $actionItems[] = "📋 **Short-term (This Month)**: Implementasi minimal 1 rekomendasi dari daftar di atas. Assign owner dan deadline yang jelas";
-        $actionItems[] = "📊 **Medium-term (This Quarter)**: Setup dashboard monitoring untuk key metrics. Monthly review dengan stakeholder";
-        
+
+        if ($language === 'en') {
+            $actionItems[] = "✅ **Immediate (This Week)**: Review top 3 and bottom 3 performers. Schedule meeting with related team";
+            $actionItems[] = "📋 **Short-term (This Month)**: Implement at least 1 recommendation from the list above. Assign clear owner and deadline";
+            $actionItems[] = "📊 **Medium-term (This Quarter)**: Setup dashboard monitoring for key metrics. Monthly review with stakeholders";
+        } else {
+            $actionItems[] = "✅ **Immediate (This Week)**: Review top 3 dan bottom 3 performers. Schedule meeting dengan team terkait";
+            $actionItems[] = "📋 **Short-term (This Month)**: Implementasi minimal 1 rekomendasi dari daftar di atas. Assign owner dan deadline yang jelas";
+            $actionItems[] = "📊 **Medium-term (This Quarter)**: Setup dashboard monitoring untuk key metrics. Monthly review dengan stakeholder";
+        }
+
         return $actionItems;
     }
 
