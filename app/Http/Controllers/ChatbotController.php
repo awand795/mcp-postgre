@@ -534,14 +534,17 @@ EXAMPLE CORRECT QUERIES:
             && $allowSales) {
             $label = $hasW ? "Produk Terlaris di " . ucwords($wilayahFilter) : "Produk Terlaris";
             $queries[$label] = "
-                SELECT nama_barang, nama_kategori_barang,
+                SELECT 
+                    nama_barang,
+                    nama_kategori_barang as kategori,
                     SUM(qty_jual) as total_terjual,
-                    SUM(total_harga) as total_pendapatan,
-                    ROUND(SUM(total_harga) * 100.0 / NULLIF(SUM(SUM(total_harga)) OVER (), 0), 2) as persen_revenue
+                    SUM(total_netto) as total_pendapatan,
+                    ROUND(SUM(total_netto) * 100.0 / NULLIF(SUM(SUM(total_netto)) OVER (), 0), 2) as persen_revenue
                 FROM {$vSales}
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
                 GROUP BY nama_barang, nama_kategori_barang
-                ORDER BY total_terjual DESC LIMIT 10";
+                ORDER BY total_terjual DESC 
+                LIMIT 10";
         }
 
         // ── Pelanggan terbaik / terloyal ─────────────────────────────────────
@@ -549,15 +552,20 @@ EXAMPLE CORRECT QUERIES:
             && $allowSales) {
             $label = $hasW ? "Pelanggan Terbaik di " . ucwords($wilayahFilter) : "Pelanggan Terbaik";
             $queries[$label] = "
-                SELECT nama_pelanggan, nama_kabupaten_cabang as kota, nama_propinsi_cabang as provinsi,
+                SELECT 
+                    nama_pelanggan,
+                    alamat_pelanggan,
+                    nama_kabupaten_cabang as kabupaten,
+                    nama_propinsi_cabang as provinsi,
                     COUNT(DISTINCT no_fak_jl) as total_transaksi,
-                    SUM(total_harga) as total_belanja,
-                    ROUND(AVG(total_harga), 0) as rata_rata_belanja,
-                    MAX({$tgl}) as transaksi_terakhir
+                    SUM(total_netto) as total_belanja,
+                    ROUND(AVG(total_netto), 0) as rata_rata_belanja,
+                    MAX(tgl_fak_jl) as transaksi_terakhir
                 FROM {$vSales}
-                " . ($hasW ? $wWhere : "WHERE 1=1") . "
-                GROUP BY nama_pelanggan, nama_kabupaten_cabang, nama_propinsi_cabang
-                ORDER BY total_belanja DESC LIMIT 10";
+                " . ($hasW ? "WHERE (LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')" : "WHERE 1=1") . "
+                GROUP BY nama_pelanggan, alamat_pelanggan, nama_kabupaten_cabang, nama_propinsi_cabang
+                ORDER BY total_belanja DESC 
+                LIMIT 10";
         }
 
         // ── Revenue per wilayah ──────────────────────────────────────────────
@@ -718,12 +726,41 @@ EXAMPLE CORRECT QUERIES:
         }
 
         // ── Cabang ───────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi', 'kantor'])
-            && $isAllowed('view_master_cabang_mbi')) {
-            $queries['Daftar Cabang'] = "
-                SELECT kode_cabang, nama_cabang, nama_regional, alamat_cabang, no_telp_cabang
-                FROM sch_mbi.view_master_cabang_mbi
-                ORDER BY nama_regional, nama_cabang";
+        if ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi', 'kantor'])) {
+            if (!$isAllowed('view_master_cabang_mbi')) {
+                // User tidak punya akses ke tabel cabang
+            } elseif ($hasW) {
+                // Ada filter wilayah spesifik (Medan, Riau, dll)
+                $label = "Daftar Cabang di " . ucwords($wilayahFilter);
+                $queries[$label] = "
+                    SELECT 
+                        nama_cabang,
+                        alamat_cabang,
+                        nama_kabupaten_cabang as kabupaten,
+                        nama_propinsi_cabang as provinsi,
+                        no_telepon,
+                        nama_regional
+                    FROM sch_mbi.view_master_cabang_mbi
+                    WHERE LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%'
+                       OR LOWER(nama_propinsi_cabang) LIKE '%{$safe}%'
+                       OR LOWER(nama_cabang) LIKE '%{$safe}%'
+                       OR LOWER(nama_regional) LIKE '%{$safe}%'
+                    ORDER BY nama_propinsi_cabang, nama_kabupaten_cabang, nama_cabang
+                    LIMIT 50";
+            } else {
+                // Tampilkan semua cabang (tanpa filter)
+                $queries['Daftar Cabang'] = "
+                    SELECT 
+                        nama_cabang,
+                        alamat_cabang,
+                        nama_kabupaten_cabang as kabupaten,
+                        nama_propinsi_cabang as provinsi,
+                        no_telepon,
+                        nama_regional
+                    FROM sch_mbi.view_master_cabang_mbi
+                    ORDER BY nama_regional, nama_propinsi_cabang, nama_cabang
+                    LIMIT 100";
+            }
         }
 
         // ── Fallback: ringkasan umum ──────────────────────────────────────────
