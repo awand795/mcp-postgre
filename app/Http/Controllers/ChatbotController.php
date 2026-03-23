@@ -402,11 +402,15 @@ EXAMPLE CORRECT QUERIES:
         }
 
         if (!$success) {
+            // AI failed, but we have data from database queries
             if ($dbContext) {
                 $fallback = $this->formatContextAsResponse($dbContext);
                 echo "data: " . json_encode(['fallback' => true, 'response' => $fallback]) . "\n\n";
+                Log::info("AI unavailable, showing data with auto-generated insights");
             } else {
-                echo "data: " . json_encode(['error' => true, 'response' => "Maaf, semua model AI sedang tidak tersedia. Coba beberapa saat lagi."]) . "\n\n";
+                // No data at all
+                echo "data: " . json_encode(['error' => true, 'response' => "Maaf, tidak ada data yang tersedia untuk pertanyaan ini. Silakan coba dengan pertanyaan lain atau hubungi admin."]) . "\n\n";
+                Log::warning("AI unavailable AND no data context");
             }
             ob_flush(); flush();
         } else {
@@ -838,9 +842,100 @@ EXAMPLE CORRECT QUERIES:
     // ── Format data sebagai respons langsung (fallback jika AI gagal) ─────────
     private function formatContextAsResponse(string $ctx): string
     {
-        return "### 📊 Hasil Data\n\n" .
-               preg_replace('/^=== DATA NYATA.*?\n.*?\n\n/s', '', $ctx) .
-               "\n\n> ℹ️ Model AI sedang tidak tersedia. Data di atas langsung dari database.";
+        // Extract data from context
+        $dataSection = preg_replace('/^=== DATA NYATA.*?\n.*?\n\n/s', '', $ctx);
+        
+        // Parse data untuk generate insight
+        $insights = $this->generateAutoInsights($ctx);
+        
+        $response = "### 📊 Hasil Data\n\n";
+        $response .= $dataSection . "\n\n";
+        
+        // Add auto-generated insights
+        if (!empty($insights['summary'])) {
+            $response .= "### 🔍 Insight\n\n";
+            foreach ($insights['summary'] as $insight) {
+                $response .= "- {$insight}\n";
+            }
+            $response .= "\n";
+        }
+        
+        // Add recommendations
+        if (!empty($insights['recommendations'])) {
+            $response .= "### 💡 Rekomendasi\n\n";
+            $recNum = 1;
+            foreach ($insights['recommendations'] as $rec) {
+                $response .= "{$recNum}. {$rec}\n";
+                $recNum++;
+            }
+            $response .= "\n";
+        }
+        
+        $response .= "> ℹ️ Data di atas diambil langsung dari database. Hubungi admin jika ada pertanyaan lebih lanjut.";
+        
+        return $response;
+    }
+    
+    // ── Generate auto insights dari data ──────────────────────────────────────
+    private function generateAutoInsights(string $ctx): array
+    {
+        $insights = ['summary' => [], 'recommendations' => []];
+        
+        // Extract numeric data from context
+        preg_match_all('/\| ([^|]+) \|/u', $ctx, $matches);
+        
+        if (empty($matches[1])) {
+            return $insights;
+        }
+        
+        $rows = array_slice($matches[1], 1); // Skip header separator
+        $numericValues = [];
+        $labels = [];
+        
+        foreach ($rows as $row) {
+            $cols = explode('|', trim($row));
+            if (count($cols) >= 2) {
+                $labels[] = trim($cols[0]);
+                // Extract numeric values
+                foreach ($cols as $col) {
+                    $col = trim($col);
+                    if (preg_match('/[\d,]+\.?\d*/', str_replace('.', '', $col), $m)) {
+                        $numericValues[] = (float)str_replace(',', '', $m[0]);
+                    }
+                }
+            }
+        }
+        
+        // Generate summary insights
+        if (!empty($numericValues)) {
+            $total = array_sum($numericValues);
+            $avg = $total / count($numericValues);
+            $max = max($numericValues);
+            $min = min($numericValues);
+            
+            $insights['summary'][] = "Total nilai: " . $this->formatRupiah($total);
+            $insights['summary'][] = "Rata-rata: " . $this->formatRupiah($avg);
+            $insights['summary'][] = "Nilai tertinggi: " . $this->formatRupiah($max);
+            $insights['summary'][] = "Nilai terendah: " . $this->formatRupiah($min);
+        }
+        
+        // Generate recommendations based on data type
+        $lowerCtx = strtolower($ctx);
+        if (str_contains($lowerCtx, 'produk') || str_contains($lowerCtx, 'barang')) {
+            $insights['recommendations'][] = "Fokus pada produk dengan penjualan tertinggi untuk optimasi stok";
+            $insights['recommendations'][] = "Evaluasi produk dengan penjualan rendah untuk promosi atau clearance";
+        } elseif (str_contains($lowerCtx, 'pelanggan') || str_contains($lowerCtx, 'customer')) {
+            $insights['recommendations'][] = "Berikan reward khusus untuk pelanggan terbaik";
+            $insights['recommendations'][] = "Buat program loyalitas untuk meningkatkan retensi";
+        } elseif (str_contains($lowerCtx, 'cabang') || str_contains($lowerCtx, 'branch')) {
+            $insights['recommendations'][] = "Tingkatkan dukungan untuk cabang dengan performa tinggi";
+            $insights['recommendations'][] = "Review strategi untuk cabang dengan performa rendah";
+        } else {
+            $insights['recommendations'][] = "Monitor trend secara berkala untuk pengambilan keputusan";
+            $insights['recommendations'][] = "Gunakan data ini sebagai baseline untuk target berikutnya";
+        }
+        
+        return $insights;
     }
 
     // ── Ekstrak filter wilayah dari pesan ─────────────────────────────────────
