@@ -196,7 +196,7 @@ RULES:
 - Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
 - Use 'sch_mbi.' prefix.
 - Use ILIKE (e.g. nama_cabang ILIKE '%riau%').
-- Match columns EXACTLY as shown in SCHEMA.
+- Match columns EXACTLY from SCHEMA (e.g. use nama_kabupaten_cabang for cities, NOT nama_kota).
 - Limit 50 rows.
 - No explanation. No semicolon.";
 
@@ -210,7 +210,7 @@ RULES:
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $message]
                 ],
-                'max_tokens'  => 500,
+                'max_tokens'  => 200,
                 'temperature' => 0.1,
             ]);
 
@@ -906,6 +906,12 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                 'cabang'    => ['view_master_cabang_mbi'],
                 'branch'    => ['view_master_cabang_mbi'],
                 'medan'     => ['view_master_cabang_mbi'],
+                'jakarta'   => ['view_master_cabang_mbi'],
+                'bandung'   => ['view_master_cabang_mbi'],
+                'surabaya'  => ['view_master_cabang_mbi'],
+                'riau'      => ['view_master_cabang_mbi'],
+                'kota'      => ['view_master_cabang_mbi'],
+                'city'      => ['view_master_cabang_mbi'],
                 'sumatra'   => ['view_master_cabang_mbi'],
                 'pelanggan' => ['view_master_pelanggan_mbi', 'pembeli'],
                 'customer'  => ['view_master_pelanggan_mbi', 'pembeli'],
@@ -935,23 +941,29 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                     ORDER BY table_name
                 ");
 
-                $context = "TABLES:\n";
+                $context = "";
                 $count = 0;
+                
+                // Emergency: If we have priority tables, ONLY show those to save tokens
+                if (!empty($priorityTables)) {
+                    foreach ($priorityTables as $tn) {
+                        if (!in_array($tn, $allowedTables)) continue;
+                        $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
+                        $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
+                        $count++;
+                    }
+                    return $context;
+                }
+
                 foreach ($tables as $table) {
                     $tn = $table->table_name;
                     if (!in_array($tn, $allowedTables)) continue;
                     $count++;
-                    
-                    if (in_array($tn, $priorityTables)) {
-                        $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
-                        $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
-                    } else {
-                        $context .= "{$tn}\n";
-                    }
+                    $context .= "{$tn}\n";
                 }
                 
                 if ($count === 0) return "No access to data.";
-                return $context;
+                return "TABLES:\n" . $context;
             });
         } catch (\Exception $e) {
             return "Error: " . $e->getMessage();
