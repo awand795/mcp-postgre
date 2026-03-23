@@ -287,7 +287,7 @@
     <div class="sidebar" id="sidebar">
         <div class="logo">
             <i class="fas fa-robot"></i>
-            <span>DataBot Admin</span>
+            <span>Darko AI Admin</span>
         </div>
         <ul class="nav-links">
             <li><a href="{{ route('admin.dashboard') }}"
