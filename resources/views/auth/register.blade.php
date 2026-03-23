@@ -103,7 +103,7 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-white">Buat Akun</h1>
-            <p class="text-[#A1A09A] text-sm mt-1">Daftar untuk mulai menggunakan Chatbot MCP</p>
+            <p class="text-[#A1A09A] text-sm mt-1">Daftar untuk mulai menggunakan Darko AI</p>
         </div>
 
         <form action="{{ route('register.store') }}" method="POST" class="space-y-5">

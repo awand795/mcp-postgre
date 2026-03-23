@@ -105,7 +105,7 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-white">Selamat Datang</h1>
-            <p class="text-[#A1A09A] text-sm mt-1">Masuk untuk mengakses MCP Chatbot</p>
+            <p class="text-[#A1A09A] text-sm mt-1">Masuk untuk mengakses Darko AI</p>
         </div>
 
         <form action="{{ route('login.post') }}" method="POST" class="space-y-6">
