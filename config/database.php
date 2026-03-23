@@ -94,8 +94,8 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => trim(env('DB_SCHEMA', 'sch_ai'), '"\' '),
-            'schema' => trim(env('DB_SCHEMA', 'sch_ai'), '"\' '),
+            'search_path' => env('DB_SCHEMA') ? trim(env('DB_SCHEMA'), '"\' ') . ', public' : 'sch_ai, public',
+            'schema' => env('DB_SCHEMA') ? trim(env('DB_SCHEMA'), '"\' ') : 'sch_ai',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
