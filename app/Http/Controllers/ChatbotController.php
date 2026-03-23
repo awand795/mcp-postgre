@@ -235,11 +235,11 @@ EXAMPLE CORRECT QUERIES:
             }
 
             $content = $response->json('choices.0.message.content');
-            Log::info("SQL Planner response: " . $content);
+            Log::info("SQL Planner RAW response: " . $content);
 
             $queries = [];
             preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/si', $content, $matches, PREG_SET_ORDER);
-            
+
             foreach ($matches as $match) {
                 $label = trim($match[1]);
                 $sql   = trim($match[2]);
@@ -247,6 +247,8 @@ EXAMPLE CORRECT QUERIES:
                     $queries[$label] = $sql;
                 }
             }
+            
+            Log::info("Parsed " . count($queries) . " queries from AI");
             return $queries;
 
         } catch (\Exception $e) {
@@ -408,11 +410,12 @@ EXAMPLE CORRECT QUERIES:
         $wilayahFilter = $this->extractWilayahFilter($lower);
         $allowedTables = $this->getAllowedTables();
         $results       = [];
+        $allQueriesFailed = false;
 
         try {
             // 1. Coba perencanaan query dinamis (LLM)
             $queries = $this->planSQLQueries($message, $schemaContext, $apiKey);
-            
+
             // 2. Fallback ke query statis jika dinamis gagal/kosong
             if (empty($queries)) {
                 Log::info("Dynamic planner returned no queries, falling back to static templates.");
@@ -420,12 +423,16 @@ EXAMPLE CORRECT QUERIES:
                 $queries = $this->selectQueries($lower, $wilayahFilter);
             }
 
+            $validQueryCount = 0;
+            $invalidQueryCount = 0;
+            
             foreach ($queries as $label => $sql) {
                 try {
                     // Validasi keamanan SQL
                     if (!$this->validateSQL($sql, $allowedTables)) {
                         Log::warning("Skipping unsafe/unauthorized query: {$sql}");
                         $results[$label] = ['error' => 'Query tidak diizinkan atau tidak aman.'];
+                        $invalidQueryCount++;
                         continue;
                     }
 
@@ -436,21 +443,22 @@ EXAMPLE CORRECT QUERIES:
                     $rows = DB::connection('pgsql_mbi')->select($sql);
                     $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
                     Log::info("Query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
+                    $validQueryCount++;
 
                 } catch (\Illuminate\Database\QueryException $qe) {
                     $errorCode = $qe->getCode();
                     $errorMsg = $qe->getMessage();
-                    
+
                     // Log detailed error information
                     Log::error("Query '{$label}' failed with SQLSTATE error: {$errorMsg}", [
                         'sql' => $sql,
                         'code' => $errorCode,
                         'label' => $label
                     ]);
-                    
+
                     // Provide user-friendly error message based on error code
                     $userError = 'Query gagal dijalankan.';
-                    
+
                     // PostgreSQL error codes (SQLSTATE)
                     if (str_contains($errorMsg, '42P01') || str_contains($errorMsg, 'relation does not exist')) {
                         $userError = 'Tabel yang diminta tidak ditemukan. Kemungkinan nama tabel salah.';
@@ -465,14 +473,45 @@ EXAMPLE CORRECT QUERIES:
                         // Connection or server errors
                         $userError = 'Koneksi ke database gagal. Silakan coba lagi.';
                     }
-                    
+
                     $results[$label] = ['error' => $userError];
-                    
+                    $invalidQueryCount++;
+
                 } catch (\Exception $e) {
                     Log::error("Query '{$label}' error: " . $e->getMessage());
                     $results[$label] = ['error' => 'Error: ' . $e->getMessage()];
+                    $invalidQueryCount++;
                 }
             }
+            
+            // 3. Jika semua query dari AI gagal validasi, fallback ke static queries
+            if ($validQueryCount === 0 && $invalidQueryCount > 0 && !empty($queries)) {
+                Log::info("All AI queries failed validation, falling back to static templates.");
+                $wilayahFilter = $this->extractWilayahFilter($lower);
+                $queries = $this->selectQueries($lower, $wilayahFilter);
+                
+                // Re-run the static queries
+                $results = [];
+                foreach ($queries as $label => $sql) {
+                    try {
+                        if (!$this->validateSQL($sql, $allowedTables)) {
+                            Log::warning("Skipping static query: {$sql}");
+                            continue;
+                        }
+                        
+                        if (!preg_match('/\blimit\b/i', $sql)) {
+                            $sql = rtrim($sql, ';') . ' LIMIT 50';
+                        }
+                        
+                        $rows = DB::connection('pgsql_mbi')->select($sql);
+                        $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
+                        Log::info("Static query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
+                    } catch (\Exception $e) {
+                        Log::error("Static query '{$label}' error: " . $e->getMessage());
+                    }
+                }
+            }
+            
         } catch (\Exception $e) {
             Log::error("fetchRelevantData: " . $e->getMessage());
         }

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir *)",
+      "Bash(php *)",
+      "Bash(del *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git restore *)",
+      "Bash(type *)",
+      "Bash(findstr *)"
+    ]
+  }
+}
