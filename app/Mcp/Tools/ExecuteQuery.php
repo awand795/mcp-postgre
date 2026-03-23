@@ -19,6 +19,6 @@ class ExecuteQuery
             throw new \InvalidArgumentException('Only SELECT queries are allowed.');
         }
 
-        return DB::select($query);
+        return DB::connection('pgsql_mbi')->select($query);
     }
 }

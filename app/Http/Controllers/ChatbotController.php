@@ -72,7 +72,7 @@ class ChatbotController extends Controller
 
         $this->colTanggal = cache()->remember('col_tanggal_transaksi', 3600, function () {
             try {
-                $cols = DB::select("
+                $cols = DB::connection('pgsql_mbi')->select("
                     SELECT column_name FROM information_schema.columns
                     WHERE table_name = 'transaksi' AND table_schema = 'public'
                     AND data_type IN ('date','timestamp','timestamp with time zone','timestamp without time zone')
@@ -95,18 +95,7 @@ class ChatbotController extends Controller
     // ── Deteksi nama kolom total bayar di tabel transaksi ────────────────────
     private function getColTotalBayar(): string
     {
-        return cache()->remember('col_total_bayar', 3600, function () {
-            try {
-                $cols = DB::select("
-                    SELECT column_name FROM information_schema.columns
-                    WHERE table_name = 'transaksi' AND table_schema = 'public'
-                    AND column_name IN ('total_bayar','total','grand_total','amount','total_pembayaran')
-                    ORDER BY ordinal_position LIMIT 1
-                ");
-                if (!empty($cols)) return $cols[0]->column_name;
-            } catch (\Exception $e) {}
-            return 'total_bayar';
-        });
+        return 'total_harga';
     }
 
     public function send(Request $request)
@@ -290,7 +279,7 @@ class ChatbotController extends Controller
                         $sql = rtrim($sql, ';') . ' LIMIT 50';
                     }
 
-                    $rows = DB::select($sql);
+                    $rows = DB::connection('pgsql_mbi')->select($sql);
                     $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
                     Log::info("Query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
 
@@ -336,292 +325,223 @@ class ChatbotController extends Controller
     }
 
     // ── Bangun semua query berdasarkan kata kunci ─────────────────────────────
-    private function selectQueries(string $lower, string $wilayahFilter = ''): array
+        private function selectQueries(string $lower, string $wilayahFilter = ''): array
     {
         $queries = [];
-        $tgl     = $this->getColTanggal();      // nama kolom tanggal yang benar
-        $bayar   = $this->getColTotalBayar();   // nama kolom total bayar yang benar
+        $tgl     = 'tgl_fak_jl';
+        $bayar   = 'total_harga';
         $hasW    = !empty($wilayahFilter);
         $safe    = $hasW ? addslashes($wilayahFilter) : '';
 
         $allowedTables = $this->getAllowedTables();
-
-        // Helper untuk cek apakah tabel dikuasai/diizinkan
         $isAllowed = function($table) use ($allowedTables) {
             return in_array($table, $allowedTables);
         };
 
-        // WHERE clause untuk filter wilayah (digunakan bersama WHERE lain)
-        $wAnd = $hasW ? "AND (LOWER(pb.provinsi) LIKE '%{$safe}%' OR LOWER(pb.kota) LIKE '%{$safe}%')" : '';
-        // WHERE clause untuk filter wilayah (standalone, tanpa kondisi lain)
-        $wWhere = $hasW ? "WHERE (LOWER(pb.provinsi) LIKE '%{$safe}%' OR LOWER(pb.kota) LIKE '%{$safe}%')" : '';
+        $vSales = 'sch_mbi.view_data_penjualan_rinci_mbi';
+        $allowSales = $isAllowed('view_data_penjualan_rinci_mbi');
+
+        $wAnd = $hasW ? "AND (LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')" : '';
+        $wWhere = $hasW ? "WHERE (LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')" : '';
 
         // ── Produk terlaris ──────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'bestseller', 'paling laku', 'banyak terjual', 'laris', 'product', 'top selling', 'most sold'])
-            && $isAllowed('produk') && $isAllowed('kategori') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
-            
-            $join = "";
-            $where = "";
-            if ($hasW && $isAllowed('pembeli')) {
-                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
-                $where = "WHERE 1=1 {$wAnd}";
-            } elseif (!$hasW) {
-                $where = "";
-            } else {
-                // User minta wilayah tapi ga punya akses tabel pembeli
-                $hasW = false;
-            }
-
+            && $allowSales) {
             $label = $hasW ? "Produk Terlaris di " . ucwords($wilayahFilter) : "Produk Terlaris";
             $queries[$label] = "
-                SELECT p.nama_produk, k.nama_kategori,
-                    SUM(dt.qty) as total_terjual,
-                    SUM(dt.qty * dt.harga_satuan) as total_pendapatan,
-                    ROUND(SUM(dt.qty * dt.harga_satuan) * 100.0 / SUM(SUM(dt.qty * dt.harga_satuan)) OVER (), 2) as persen_revenue
-                FROM produk p
-                JOIN kategori k ON p.id_kategori = k.id_kategori
-                JOIN detail_transaksi dt ON p.id_produk = dt.id_produk
-                JOIN transaksi tr ON dt.id_transaksi = tr.id_transaksi
-                {$join}
-                {$where}
-                GROUP BY p.nama_produk, k.nama_kategori
+                SELECT nama_barang, nama_kategori_barang,
+                    SUM(qty_jual) as total_terjual,
+                    SUM(total_harga) as total_pendapatan,
+                    ROUND(SUM(total_harga) * 100.0 / NULLIF(SUM(SUM(total_harga)) OVER (), 0), 2) as persen_revenue
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY nama_barang, nama_kategori_barang
                 ORDER BY total_terjual DESC LIMIT 10";
         }
 
         // ── Pelanggan terbaik / terloyal ─────────────────────────────────────
         if ($this->hasKeyword($lower, ['pelanggan', 'pembeli', 'customer', 'loyal', 'setia', 'terbaik', 'terloyal', 'buyer', 'client', 'best customer'])
-            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
+            && $allowSales) {
             $label = $hasW ? "Pelanggan Terbaik di " . ucwords($wilayahFilter) : "Pelanggan Terbaik";
             $queries[$label] = "
-                SELECT pb.nama_pembeli, pb.kota, pb.provinsi,
-                    COUNT(DISTINCT tr.id_transaksi) as total_transaksi,
-                    SUM(tr.{$bayar}) as total_belanja,
-                    ROUND(AVG(tr.{$bayar}), 0) as rata_rata_belanja,
-                    MAX(tr.{$tgl}) as transaksi_terakhir
-                FROM pembeli pb
-                JOIN transaksi tr ON pb.id_pembeli = tr.id_pembeli
-                {$wWhere}
-                GROUP BY pb.nama_pembeli, pb.kota, pb.provinsi
+                SELECT nama_pelanggan, nama_kabupaten_cabang as kota, nama_propinsi_cabang as provinsi,
+                    COUNT(DISTINCT no_fak_jl) as total_transaksi,
+                    SUM(total_harga) as total_belanja,
+                    ROUND(AVG(total_harga), 0) as rata_rata_belanja,
+                    MAX({$tgl}) as transaksi_terakhir
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY nama_pelanggan, nama_kabupaten_cabang, nama_propinsi_cabang
                 ORDER BY total_belanja DESC LIMIT 10";
         }
 
         // ── Revenue per wilayah ──────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['wilayah', 'provinsi', 'kota', 'daerah', 'region', 'area', 'province', 'city'])
-            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
+            && $allowSales) {
             $queries['Revenue per Wilayah'] = "
-                SELECT pb.provinsi,
-                    COUNT(DISTINCT pb.id_pembeli) as jumlah_pelanggan,
-                    COUNT(DISTINCT tr.id_transaksi) as jumlah_transaksi,
-                    SUM(tr.{$bayar}) as total_revenue,
-                    ROUND(AVG(tr.{$bayar}), 0) as aov
-                FROM pembeli pb
-                JOIN transaksi tr ON pb.id_pembeli = tr.id_pembeli
-                GROUP BY pb.provinsi
+                SELECT nama_propinsi_cabang as provinsi,
+                    COUNT(DISTINCT kode_pelanggan) as jumlah_pelanggan,
+                    COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
+                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_harga), 0) as aov
+                FROM {$vSales}
+                GROUP BY nama_propinsi_cabang
                 ORDER BY total_revenue DESC";
         }
 
         // ── Revenue trend / bulanan ──────────────────────────────────────────
         if ($this->hasKeyword($lower, ['tren', 'trend', 'revenue', 'pendapatan', 'omzet', 'per bulan', 'bulanan', 'penjualan bulan', 'monthly', 'sales trend', 'income'])
-            && $isAllowed('transaksi')) {
-            if ($hasW && $isAllowed('pembeli')) {
-                $label = "Revenue Bulanan di " . ucwords($wilayahFilter);
-                $queries[$label] = "
-                    SELECT TO_CHAR(tr.{$tgl}, 'YYYY-MM') as bulan,
-                        COUNT(DISTINCT tr.id_transaksi) as jumlah_transaksi,
-                        SUM(tr.{$bayar}) as total_revenue,
-                        ROUND(AVG(tr.{$bayar}), 0) as avg_order_value
-                    FROM transaksi tr
-                    JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli
-                    WHERE 1=1 {$wAnd}
-                    GROUP BY TO_CHAR(tr.{$tgl}, 'YYYY-MM')
-                    ORDER BY bulan DESC LIMIT 12";
-            } else {
-                $queries['Revenue per Bulan'] = "
-                    SELECT TO_CHAR({$tgl}, 'YYYY-MM') as bulan,
-                        COUNT(DISTINCT id_transaksi) as jumlah_transaksi,
-                        SUM({$bayar}) as total_revenue,
-                        ROUND(AVG({$bayar}), 0) as avg_order_value,
-                        COUNT(DISTINCT id_pembeli) as unique_pelanggan
-                    FROM transaksi
-                    GROUP BY TO_CHAR({$tgl}, 'YYYY-MM')
-                    ORDER BY bulan DESC LIMIT 12";
-            }
+            && $allowSales) {
+            $label = $hasW ? "Revenue Bulanan di " . ucwords($wilayahFilter) : "Revenue per Bulan";
+            $queries[$label] = "
+                SELECT periode_tahun || '-' || periode_bulan as bulan,
+                    COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
+                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_harga), 0) as avg_order_value,
+                    COUNT(DISTINCT kode_pelanggan) as unique_pelanggan
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY periode_tahun, periode_bulan
+                ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12";
         }
 
         // ── Kategori ─────────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['kategori', 'category', 'jenis produk'])
-            && $isAllowed('kategori') && $isAllowed('produk') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
-            
-            $join = "";
-            $where = "";
-            if ($hasW && $isAllowed('pembeli')) {
-                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
-                $where = "WHERE 1=1 {$wAnd}";
-            }
-
+            && $allowSales) {
             $label = $hasW ? "Kategori Terlaris di " . ucwords($wilayahFilter) : "Penjualan per Kategori";
             $queries[$label] = "
-                SELECT k.nama_kategori,
-                    COUNT(DISTINCT p.id_produk) as jumlah_produk,
-                    SUM(dt.qty) as total_terjual,
-                    SUM(dt.qty * dt.harga_satuan) as total_pendapatan
-                FROM kategori k
-                JOIN produk p ON k.id_kategori = p.id_kategori
-                JOIN detail_transaksi dt ON p.id_produk = dt.id_produk
-                JOIN transaksi tr ON dt.id_transaksi = tr.id_transaksi
-                {$join}
-                {$where}
-                GROUP BY k.nama_kategori
+                SELECT nama_kategori_barang as nama_kategori,
+                    COUNT(DISTINCT kode_barang) as jumlah_produk,
+                    SUM(qty_jual) as total_terjual,
+                    SUM(total_harga) as total_pendapatan
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY nama_kategori_barang
                 ORDER BY total_pendapatan DESC";
         }
 
         // ── RFM ──────────────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['rfm', 'recency', 'frequency', 'monetary', 'segmen pelanggan', 'segmentasi'])
-            && $isAllowed('pembeli') && $isAllowed('transaksi')) {
+            && $allowSales) {
             $label = $hasW ? "RFM di " . ucwords($wilayahFilter) : "Analisis RFM";
             $queries[$label] = "
-                SELECT pb.nama_pembeli,
-                    MAX(tr.{$tgl}) as last_purchase,
-                    CURRENT_DATE - MAX(tr.{$tgl}) as recency_days,
-                    COUNT(DISTINCT tr.id_transaksi) as frequency,
-                    SUM(tr.{$bayar}) as monetary,
+                SELECT nama_pelanggan,
+                    MAX({$tgl}) as last_purchase,
+                    CURRENT_DATE - MAX({$tgl}) as recency_days,
+                    COUNT(DISTINCT no_fak_jl) as frequency,
+                    SUM(total_harga) as monetary,
                     CASE
-                        WHEN CURRENT_DATE - MAX(tr.{$tgl}) <= 30 AND COUNT(DISTINCT tr.id_transaksi) >= 3 THEN 'Champions'
-                        WHEN CURRENT_DATE - MAX(tr.{$tgl}) <= 60 AND COUNT(DISTINCT tr.id_transaksi) >= 2 THEN 'Loyal'
-                        WHEN CURRENT_DATE - MAX(tr.{$tgl}) <= 90 THEN 'At Risk'
+                        WHEN CURRENT_DATE - MAX({$tgl}) <= 30 AND COUNT(DISTINCT no_fak_jl) >= 3 THEN 'Champions'
+                        WHEN CURRENT_DATE - MAX({$tgl}) <= 60 AND COUNT(DISTINCT no_fak_jl) >= 2 THEN 'Loyal'
+                        WHEN CURRENT_DATE - MAX({$tgl}) <= 90 THEN 'At Risk'
                         ELSE 'Lost'
                     END as rfm_segment
-                FROM pembeli pb
-                JOIN transaksi tr ON pb.id_pembeli = tr.id_pembeli
-                {$wWhere}
-                GROUP BY pb.nama_pembeli
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY nama_pelanggan
                 ORDER BY monetary DESC LIMIT 20";
         }
 
         // ── Metode pembayaran ─────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['metode bayar', 'pembayaran', 'payment', 'cara bayar', 'transfer', 'tunai', 'kredit'])
-            && $isAllowed('transaksi')) {
-            
-            $join = "";
-            $where = "";
-            if ($hasW && $isAllowed('pembeli')) {
-                $join  = "JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli";
-                $where = "WHERE 1=1 {$wAnd}";
-            }
-
+            && $allowSales) {
             $label = $hasW ? "Metode Pembayaran di " . ucwords($wilayahFilter) : "Metode Pembayaran";
             $queries[$label] = "
-                SELECT tr.metode_bayar,
+                SELECT CASE WHEN hari_jth_tempo > 0 THEN 'Kredit' ELSE 'Tunai' END as metode_bayar,
                     COUNT(*) as jumlah_transaksi,
-                    SUM(tr.{$bayar}) as total_revenue,
-                    ROUND(AVG(tr.{$bayar}), 0) as avg_transaksi,
-                    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as persen_penggunaan
-                FROM transaksi tr
-                {$join}
-                {$where}
-                GROUP BY tr.metode_bayar
+                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_harga), 0) as avg_transaksi,
+                    ROUND(COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0), 2) as persen_penggunaan
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY CASE WHEN hari_jth_tempo > 0 THEN 'Kredit' ELSE 'Tunai' END
                 ORDER BY jumlah_transaksi DESC";
         }
 
         // ── Diskon ───────────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['diskon', 'discount', 'promo', 'potongan'])
-            && $isAllowed('transaksi')) {
-            // Cek apakah kolom diskon ada
+            && $allowSales) {
             $queries['Efektivitas Diskon'] = "
-                SELECT CASE WHEN diskon > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END as status_diskon,
+                SELECT CASE WHEN total_disc > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END as status_diskon,
                     COUNT(*) as jumlah_transaksi,
                     ROUND(AVG(total_harga), 0) as rata_nilai,
-                    SUM({$bayar}) as total_revenue,
-                    ROUND(AVG(diskon), 2) as rata_diskon_persen
-                FROM transaksi
-                GROUP BY CASE WHEN diskon > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END";
+                    SUM(total_harga) as total_revenue,
+                    ROUND(SUM(total_disc), 2) as total_diskon_nominal
+                FROM {$vSales}
+                GROUP BY CASE WHEN total_disc > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END";
         }
 
         // ── Dead stock ────────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['dead stock', 'tidak laku', 'stok mati', 'tidak terjual', 'slow moving'])
-            && $isAllowed('produk') && $isAllowed('kategori') && $isAllowed('detail_transaksi') && $isAllowed('transaksi')) {
+            && $isAllowed('view_master_barang_mbi') && $isAllowed('view_data_kartu_stock_mbi')) {
             $queries['Dead Stock'] = "
-                SELECT p.nama_produk, k.nama_kategori, p.harga,
-                    COALESCE(SUM(dt.qty), 0) as total_terjual,
-                    MAX(tr.{$tgl}) as terakhir_terjual
-                FROM produk p
-                JOIN kategori k ON p.id_kategori = k.id_kategori
-                LEFT JOIN detail_transaksi dt ON p.id_produk = dt.id_produk
-                LEFT JOIN transaksi tr ON dt.id_transaksi = tr.id_transaksi
-                GROUP BY p.nama_produk, k.nama_kategori, p.harga
-                HAVING COALESCE(SUM(dt.qty), 0) = 0
-                    OR MAX(tr.{$tgl}) < CURRENT_DATE - INTERVAL '90 days'
-                ORDER BY terakhir_terjual ASC NULLS FIRST";
+                SELECT b.nama_barang, b.nama_kategori_barang,
+                    SUM(s.qty_saldo_akhir) as stok_akhir,
+                    SUM(s.qty_jual) as terjual
+                FROM sch_mbi.view_master_barang_mbi b
+                LEFT JOIN sch_mbi.view_data_kartu_stock_mbi s ON b.kode_barang = s.kode_kategori_barang
+                GROUP BY b.nama_barang, b.nama_kategori_barang
+                HAVING SUM(s.qty_saldo_akhir) > 0 AND (SUM(s.qty_jual) IS NULL OR SUM(s.qty_jual) = 0)
+                LIMIT 50";
         }
 
         // ── Cross-sell ────────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['cross sell', 'cross-sell', 'kombinasi', 'sering dibeli bersama', 'bundle'])
-            && $isAllowed('detail_transaksi') && $isAllowed('produk')) {
+            && $allowSales) {
             $queries['Cross-Sell'] = "
-                SELECT p1.nama_produk as produk_a, p2.nama_produk as produk_b,
+                SELECT dt1.nama_barang as produk_a, dt2.nama_barang as produk_b,
                     COUNT(*) as frekuensi_bersamaan
-                FROM detail_transaksi dt1
-                JOIN detail_transaksi dt2 ON dt1.id_transaksi = dt2.id_transaksi AND dt1.id_produk < dt2.id_produk
-                JOIN produk p1 ON dt1.id_produk = p1.id_produk
-                JOIN produk p2 ON dt2.id_produk = p2.id_produk
-                GROUP BY p1.nama_produk, p2.nama_produk
+                FROM {$vSales} dt1
+                JOIN {$vSales} dt2 ON dt1.no_fak_jl = dt2.no_fak_jl AND dt1.kode_barang < dt2.kode_barang
+                GROUP BY dt1.nama_barang, dt2.nama_barang
                 ORDER BY frekuensi_bersamaan DESC LIMIT 10";
         }
 
         // ── ABC Analysis ──────────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['abc', 'pareto', '80/20'])
-            && $isAllowed('produk') && $isAllowed('detail_transaksi')) {
+            && $allowSales) {
             $queries['ABC Analysis'] = "
-                SELECT nama_produk, total_pendapatan,
-                    ROUND(total_pendapatan * 100.0 / SUM(total_pendapatan) OVER (), 2) as persen,
-                    ROUND(SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / SUM(total_pendapatan) OVER (), 2) as kumulatif,
+                SELECT nama_barang, total_pendapatan,
+                    ROUND(total_pendapatan * 100.0 / NULLIF(SUM(total_pendapatan) OVER (), 0), 2) as persen,
+                    ROUND(SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / NULLIF(SUM(total_pendapatan) OVER (), 0), 2) as kumulatif,
                     CASE
-                        WHEN SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / SUM(total_pendapatan) OVER () <= 80 THEN 'A - Prioritas'
-                        WHEN SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / SUM(total_pendapatan) OVER () <= 95 THEN 'B - Menengah'
+                        WHEN SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / NULLIF(SUM(total_pendapatan) OVER (), 0) <= 80 THEN 'A - Prioritas'
+                        WHEN SUM(total_pendapatan) OVER (ORDER BY total_pendapatan DESC) * 100.0 / NULLIF(SUM(total_pendapatan) OVER (), 0) <= 95 THEN 'B - Menengah'
                         ELSE 'C - Rendah'
                     END as kategori_abc
                 FROM (
-                    SELECT p.nama_produk, SUM(dt.qty * dt.harga_satuan) as total_pendapatan
-                    FROM produk p JOIN detail_transaksi dt ON p.id_produk = dt.id_produk
-                    GROUP BY p.nama_produk
+                    SELECT nama_barang, SUM(total_harga) as total_pendapatan
+                    FROM {$vSales}
+                    GROUP BY nama_barang
                 ) sub ORDER BY total_pendapatan DESC LIMIT 20";
         }
 
         // ── Customer Retention ────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['retention', 'pelanggan baru', 'pelanggan kembali', 'repeat order', 'repeat buyer'])
-            && $isAllowed('transaksi')) {
+            && $allowSales) {
             $queries['Customer Retention'] = "
-                SELECT TO_CHAR(tr.{$tgl}, 'YYYY-MM') as bulan,
-                    COUNT(DISTINCT CASE WHEN fb.bulan_pertama = TO_CHAR(tr.{$tgl}, 'YYYY-MM') THEN tr.id_pembeli END) as pelanggan_baru,
-                    COUNT(DISTINCT CASE WHEN fb.bulan_pertama != TO_CHAR(tr.{$tgl}, 'YYYY-MM') THEN tr.id_pembeli END) as pelanggan_kembali
-                FROM transaksi tr
+                SELECT periode_tahun || '-' || periode_bulan as bulan,
+                    COUNT(DISTINCT CASE WHEN fb.bulan_pertama = (periode_tahun || '-' || periode_bulan) THEN tr.kode_pelanggan END) as pelanggan_baru,
+                    COUNT(DISTINCT CASE WHEN fb.bulan_pertama != (periode_tahun || '-' || periode_bulan) THEN tr.kode_pelanggan END) as pelanggan_kembali
+                FROM {$vSales} tr
                 JOIN (
-                    SELECT id_pembeli, TO_CHAR(MIN({$tgl}), 'YYYY-MM') as bulan_pertama
-                    FROM transaksi GROUP BY id_pembeli
-                ) fb ON tr.id_pembeli = fb.id_pembeli
-                GROUP BY TO_CHAR(tr.{$tgl}, 'YYYY-MM')
-                ORDER BY bulan DESC LIMIT 12";
+                    SELECT kode_pelanggan, MIN(periode_tahun || '-' || periode_bulan) as bulan_pertama
+                    FROM {$vSales} GROUP BY kode_pelanggan
+                ) fb ON tr.kode_pelanggan = fb.kode_pelanggan
+                GROUP BY periode_tahun, periode_bulan
+                ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12";
         }
 
         // ── Fallback: ringkasan umum ──────────────────────────────────────────
         if (empty($queries)) {
-            if ($hasW && $isAllowed('transaksi') && $isAllowed('pembeli')) {
-                $queries["Ringkasan di " . ucwords($wilayahFilter)] = "
-                    SELECT COUNT(DISTINCT tr.id_transaksi) as total_transaksi,
-                        COALESCE(SUM(tr.{$bayar}), 0) as total_revenue,
-                        COUNT(DISTINCT pb.id_pembeli) as total_pelanggan,
-                        ROUND(AVG(tr.{$bayar}), 0) as avg_order_value
-                    FROM transaksi tr
-                    JOIN pembeli pb ON tr.id_pembeli = pb.id_pembeli
-                    WHERE 1=1 {$wAnd}";
-            } elseif ($isAllowed('transaksi')) {
-                $queries['Ringkasan Bisnis'] = "
-                    SELECT
-                        (SELECT COUNT(*) FROM transaksi) as total_transaksi,
-                        (SELECT COALESCE(SUM({$bayar}), 0) FROM transaksi) as total_revenue,
-                        " . ($isAllowed('pembeli') ? "(SELECT COUNT(*) FROM pembeli) as total_pelanggan," : "") . "
-                        " . ($isAllowed('produk') ? "(SELECT COUNT(*) FROM produk) as total_produk," : "") . "
-                        (SELECT ROUND(AVG({$bayar}), 0) FROM transaksi) as avg_order_value";
+            if ($allowSales) {
+                $queries[$hasW ? "Ringkasan di " . ucwords($wilayahFilter) : 'Ringkasan Bisnis'] = "
+                    SELECT COUNT(DISTINCT no_fak_jl) as total_transaksi,
+                        COALESCE(SUM(total_harga), 0) as total_revenue,
+                        COUNT(DISTINCT kode_pelanggan) as total_pelanggan,
+                        ROUND(AVG(total_harga), 0) as avg_order_value
+                    FROM {$vSales}
+                    " . ($hasW ? $wWhere : "WHERE 1=1");
             }
         }
 
@@ -882,9 +802,9 @@ You are a friendly, intelligent, and expert AI assistant serving as a Senior Dat
             $cacheKey = 'db_schema_context_role_' . (Auth::user() ? Auth::user()->role : 'guest');
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables) {
-                $tables  = DB::select("
+                $tables  = DB::connection('pgsql_mbi')->select("
                     SELECT table_name FROM information_schema.tables
-                    WHERE table_schema = 'public'
+                    WHERE table_schema = 'sch_mbi'
                     AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
                     ORDER BY table_name
                 ");
@@ -895,9 +815,9 @@ You are a friendly, intelligent, and expert AI assistant serving as a Senior Dat
                     if (!in_array($tn, $allowedTables)) continue;
                     
                     $count++;
-                    $cols = DB::select("
+                    $cols = DB::connection('pgsql_mbi')->select("
                         SELECT column_name, data_type FROM information_schema.columns
-                        WHERE table_name = ? AND table_schema = 'public'
+                        WHERE table_name = ? AND table_schema = 'sch_mbi'
                         ORDER BY ordinal_position
                     ", [$tn]);
                     $colStr = implode(", ", array_map(fn($c) => "{$c->column_name} ({$c->data_type})", $cols));
@@ -907,8 +827,8 @@ You are a friendly, intelligent, and expert AI assistant serving as a Senior Dat
                 if ($count === 0) return "Anda tidak memiliki akses ke tabel data manapun.";
 
                 try {
-                    if (in_array('pembeli', $allowedTables)) {
-                        $sp = DB::select("SELECT DISTINCT provinsi FROM pembeli WHERE provinsi IS NOT NULL LIMIT 10");
+                    if (in_array('view_master_pelanggan_mbi', $allowedTables)) {
+                        $sp = DB::connection('pgsql_mbi')->select("SELECT DISTINCT nama_propinsi_pelanggan as provinsi FROM sch_mbi.view_master_pelanggan_mbi WHERE nama_propinsi_pelanggan IS NOT NULL LIMIT 10");
                         if ($sp) {
                             $context .= "\nContoh nilai provinsi: " . implode(', ', array_column($sp, 'provinsi')) . "\n";
                         }

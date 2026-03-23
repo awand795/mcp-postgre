@@ -15,10 +15,10 @@ class DescribeTable
     #[McpTool(name: 'describe_table')]
     public function handle(string $table): array
     {
-        return DB::select("
+        return DB::connection('pgsql_mbi')->select("
             SELECT column_name, data_type, is_nullable, column_default
             FROM information_schema.columns
-            WHERE table_name = ? AND table_schema = 'public'
+            WHERE table_name = ? AND table_schema = 'sch_mbi'
             ORDER BY ordinal_position
         ", [$table]);
     }

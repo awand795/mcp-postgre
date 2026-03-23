@@ -184,7 +184,7 @@ class AdminController extends Controller
     private function getAllTables()
     {
         return cache()->remember('all_db_tables_admin', 600, function() {
-            $tables = DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens', 'roles', 'role_permissions') ORDER BY table_name");
+            $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi' ORDER BY table_name");
             return array_column($tables, 'table_name');
         });
     }

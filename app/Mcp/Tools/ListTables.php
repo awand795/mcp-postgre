@@ -14,7 +14,7 @@ class ListTables
     #[McpTool(name: 'list_tables')]
     public function handle(): array
     {
-        $tables = DB::select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+        $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi'");
         return array_map(fn($t) => $t->table_name, $tables);
     }
 }
