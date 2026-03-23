@@ -853,25 +853,40 @@ EXAMPLE CORRECT QUERIES:
         
         // Add auto-generated insights
         if (!empty($insights['summary'])) {
-            $response .= "### 🔍 Insight\n\n";
+            $response .= "### 📈 Ringkasan Statistik\n\n";
             foreach ($insights['summary'] as $insight) {
                 $response .= "- {$insight}\n";
             }
             $response .= "\n";
         }
         
-        // Add recommendations
-        if (!empty($insights['recommendations'])) {
-            $response .= "### 💡 Rekomendasi\n\n";
-            $recNum = 1;
-            foreach ($insights['recommendations'] as $rec) {
-                $response .= "{$recNum}. {$rec}\n";
-                $recNum++;
+        // Add detailed insights
+        if (!empty($insights['detailed_insights'])) {
+            $response .= "### 🔍 Insight Mendalam\n\n";
+            foreach ($insights['detailed_insights'] as $insight) {
+                $response .= "{$insight}\n";
             }
             $response .= "\n";
         }
         
-        $response .= "> ℹ️ Data di atas diambil langsung dari database. Hubungi admin jika ada pertanyaan lebih lanjut.";
+        // Add recommendations
+        if (!empty($insights['recommendations'])) {
+            $response .= "### 💡 Rekomendasi Strategis\n\n";
+            foreach ($insights['recommendations'] as $rec) {
+                $response .= "{$rec}\n\n";
+            }
+        }
+        
+        // Add action items
+        if (!empty($insights['action_items'])) {
+            $response .= "### ✅ Action Plan\n\n";
+            foreach ($insights['action_items'] as $action) {
+                $response .= "{$action}\n";
+            }
+            $response .= "\n";
+        }
+        
+        $response .= "> ℹ️ Data dan insight di atas digenerate otomatis dari database. Hubungi admin untuk diskusi lebih lanjut.";
         
         return $response;
     }
@@ -879,63 +894,381 @@ EXAMPLE CORRECT QUERIES:
     // ── Generate auto insights dari data ──────────────────────────────────────
     private function generateAutoInsights(string $ctx): array
     {
-        $insights = ['summary' => [], 'recommendations' => []];
+        $insights = ['summary' => [], 'detailed_insights' => [], 'recommendations' => [], 'action_items' => []];
         
-        // Extract numeric data from context
-        preg_match_all('/\| ([^|]+) \|/u', $ctx, $matches);
+        // Extract data dari context
+        $dataRows = $this->parseDataTable($ctx);
         
-        if (empty($matches[1])) {
+        if (empty($dataRows)) {
             return $insights;
         }
         
-        $rows = array_slice($matches[1], 1); // Skip header separator
-        $numericValues = [];
-        $labels = [];
+        // Deteksi tipe data
+        $dataType = $this->detectDataType($ctx);
         
-        foreach ($rows as $row) {
-            $cols = explode('|', trim($row));
-            if (count($cols) >= 2) {
-                $labels[] = trim($cols[0]);
-                // Extract numeric values
-                foreach ($cols as $col) {
-                    $col = trim($col);
-                    if (preg_match('/[\d,]+\.?\d*/', str_replace('.', '', $col), $m)) {
-                        $numericValues[] = (float)str_replace(',', '', $m[0]);
-                    }
+        // Extract numeric columns
+        $numericColumns = $this->extractNumericColumns($dataRows);
+        
+        // === SUMMARY STATISTICS ===
+        foreach ($numericColumns as $colName => $values) {
+            if (empty($values)) continue;
+            
+            $total = array_sum($values);
+            $avg = $total / count($values);
+            $max = max($values);
+            $min = min($values);
+            $median = $this->calculateMedian($values);
+            
+            $insights['summary'][] = "Total {$colName}: " . $this->formatRupiah($total);
+            $insights['summary'][] = "Rata-rata {$colName}: " . $this->formatRupiah($avg);
+            
+            if (count($values) > 1) {
+                $insights['summary'][] = "Median {$colName}: " . $this->formatRupiah($median);
+                $insights['summary'][] = "Range {$colName}: " . $this->formatRupiah($min) . " - " . $this->formatRupiah($max);
+                
+                // Coefficient of Variation (untuk ukur dispersi)
+                $stdDev = $this->calculateStdDev($values, $avg);
+                $cv = ($avg > 0) ? ($stdDev / $avg) * 100 : 0;
+                if ($cv > 50) {
+                    $insights['detailed_insights'][] = "⚠️ Dispersi data {$colName} tinggi (CV: " . number_format($cv, 1) . "%). Ada ketimpangan signifikan antara nilai tertinggi dan terendah.";
+                } else {
+                    $insights['detailed_insights'][] = "✅ Distribusi {$colName} relatif merata (CV: " . number_format($cv, 1) . "%).";
                 }
             }
         }
         
-        // Generate summary insights
-        if (!empty($numericValues)) {
-            $total = array_sum($numericValues);
-            $avg = $total / count($numericValues);
-            $max = max($numericValues);
-            $min = min($numericValues);
-            
-            $insights['summary'][] = "Total nilai: " . $this->formatRupiah($total);
-            $insights['summary'][] = "Rata-rata: " . $this->formatRupiah($avg);
-            $insights['summary'][] = "Nilai tertinggi: " . $this->formatRupiah($max);
-            $insights['summary'][] = "Nilai terendah: " . $this->formatRupiah($min);
+        // === DETAILED INSIGHTS ===
+        // Top performers
+        $topItems = $this->getTopPerformers($dataRows, $numericColumns, 3);
+        if (!empty($topItems)) {
+            $insights['detailed_insights'][] = "🏆 Top Performers: " . implode(', ', $topItems);
         }
         
-        // Generate recommendations based on data type
+        // Bottom performers
+        $bottomItems = $this->getBottomPerformers($dataRows, $numericColumns, 3);
+        if (!empty($bottomItems)) {
+            $insights['detailed_insights'][] = "📉 Perlu Perhatian: " . implode(', ', $bottomItems);
+        }
+        
+        // Percentage analysis
+        $percentageInsights = $this->analyzePercentages($dataRows, $numericColumns);
+        foreach ($percentageInsights as $pi) {
+            $insights['detailed_insights'][] = $pi;
+        }
+        
+        // === RECOMMENDATIONS (Specific & Actionable) ===
+        $recommendations = $this->generateRecommendations($dataType, $dataRows, $numericColumns, $ctx);
+        $insights['recommendations'] = $recommendations;
+        
+        // === ACTION ITEMS (Immediate Actions) ===
+        $actionItems = $this->generateActionItems($dataType, $dataRows, $numericColumns);
+        $insights['action_items'] = $actionItems;
+        
+        return $insights;
+    }
+    
+    // ── Parse data table dari context ─────────────────────────────────────────
+    private function parseDataTable(string $ctx): array
+    {
+        $dataRows = [];
+        preg_match_all('/\| ([^|]+) \|/u', $ctx, $matches);
+        
+        if (empty($matches[1])) {
+            return $dataRows;
+        }
+        
+        $rows = array_slice($matches[1], 2); // Skip header dan separator
+        
+        $headers = null;
+        foreach ($rows as $row) {
+            $cols = array_map('trim', explode('|', $row));
+            if ($headers === null) {
+                $headers = $cols;
+                continue;
+            }
+            
+            $rowData = [];
+            foreach ($cols as $i => $col) {
+                $key = $headers[$i] ?? "col_{$i}";
+                $rowData[$key] = $col;
+            }
+            $dataRows[] = $rowData;
+        }
+        
+        return $dataRows;
+    }
+    
+    // ── Deteksi tipe data ─────────────────────────────────────────────────────
+    private function detectDataType(string $ctx): string
+    {
         $lowerCtx = strtolower($ctx);
+        
         if (str_contains($lowerCtx, 'produk') || str_contains($lowerCtx, 'barang')) {
-            $insights['recommendations'][] = "Fokus pada produk dengan penjualan tertinggi untuk optimasi stok";
-            $insights['recommendations'][] = "Evaluasi produk dengan penjualan rendah untuk promosi atau clearance";
+            return 'produk';
         } elseif (str_contains($lowerCtx, 'pelanggan') || str_contains($lowerCtx, 'customer')) {
-            $insights['recommendations'][] = "Berikan reward khusus untuk pelanggan terbaik";
-            $insights['recommendations'][] = "Buat program loyalitas untuk meningkatkan retensi";
+            return 'pelanggan';
         } elseif (str_contains($lowerCtx, 'cabang') || str_contains($lowerCtx, 'branch')) {
-            $insights['recommendations'][] = "Tingkatkan dukungan untuk cabang dengan performa tinggi";
-            $insights['recommendations'][] = "Review strategi untuk cabang dengan performa rendah";
-        } else {
-            $insights['recommendations'][] = "Monitor trend secara berkala untuk pengambilan keputusan";
-            $insights['recommendations'][] = "Gunakan data ini sebagai baseline untuk target berikutnya";
+            return 'cabang';
+        } elseif (str_contains($lowerCtx, 'penjualan') || str_contains($lowerCtx, 'sales') || str_contains($lowerCtx, 'revenue')) {
+            return 'penjualan';
+        } elseif (str_contains($lowerCtx, 'stok') || str_contains($lowerCtx, 'stock')) {
+            return 'stok';
+        } elseif (str_contains($lowerCtx, 'target') || str_contains($lowerCtx, 'realisasi')) {
+            return 'target';
+        }
+        
+        return 'general';
+    }
+    
+    // ── Extract numeric columns ───────────────────────────────────────────────
+    private function extractNumericColumns(array $dataRows): array
+    {
+        $numericColumns = [];
+        
+        if (empty($dataRows)) {
+            return $numericColumns;
+        }
+        
+        $headers = array_keys($dataRows[0]);
+        
+        foreach ($headers as $header) {
+            $values = [];
+            foreach ($dataRows as $row) {
+                $val = $row[$header] ?? null;
+                if ($val !== null && is_numeric(str_replace(['.', ','], ['', '.'], $val))) {
+                    $values[] = (float)str_replace(',', '', str_replace('.', '', $val));
+                }
+            }
+            if (!empty($values)) {
+                $numericColumns[$header] = $values;
+            }
+        }
+        
+        return $numericColumns;
+    }
+    
+    // ── Calculate median ──────────────────────────────────────────────────────
+    private function calculateMedian(array $values): float
+    {
+        sort($values);
+        $count = count($values);
+        $middle = intdiv($count, 2);
+        
+        if ($count % 2 === 0) {
+            return ($values[$middle - 1] + $values[$middle]) / 2;
+        }
+        
+        return $values[$middle];
+    }
+    
+    // ── Calculate standard deviation ──────────────────────────────────────────
+    private function calculateStdDev(array $values, float $mean): float
+    {
+        $sum = 0;
+        foreach ($values as $val) {
+            $sum += pow($val - $mean, 2);
+        }
+        return sqrt($sum / count($values));
+    }
+    
+    // ── Get top performers ────────────────────────────────────────────────────
+    private function getTopPerformers(array $dataRows, array $numericColumns, int $limit = 3): array
+    {
+        if (empty($dataRows) || empty($numericColumns)) {
+            return [];
+        }
+        
+        // Find the main value column (usually total, revenue, etc.)
+        $valueCol = null;
+        foreach (['total_belanja', 'total_pendapatan', 'total_terjual', 'total_revenue', 'total'] as $keyword) {
+            foreach (array_keys($numericColumns) as $col) {
+                if (stripos($col, $keyword) !== false) {
+                    $valueCol = $col;
+                    break 2;
+                }
+            }
+        }
+        
+        if ($valueCol === null) {
+            $valueCol = array_keys($numericColumns)[0];
+        }
+        
+        // Sort by value column
+        usort($dataRows, function($a, $b) use ($valueCol) {
+            $valA = (float)str_replace(',', '', str_replace('.', '', $a[$valueCol] ?? 0));
+            $valB = (float)str_replace(',', '', str_replace('.', '', $b[$valueCol] ?? 0));
+            return $valB <=> $valA;
+        });
+        
+        $topPerformers = [];
+        foreach (array_slice($dataRows, 0, $limit) as $row) {
+            // Find name column
+            $name = null;
+            foreach (['nama_pelanggan', 'nama_barang', 'nama_cabang', 'nama', 'produk', 'cabang'] as $key) {
+                foreach (array_keys($row) as $rowKey) {
+                    if (stripos($rowKey, $key) !== false) {
+                        $name = $row[$rowKey];
+                        break 2;
+                    }
+                }
+            }
+            if ($name === null) {
+                $name = reset($row);
+            }
+            $topPerformers[] = $name;
+        }
+        
+        return $topPerformers;
+    }
+    
+    // ── Get bottom performers ─────────────────────────────────────────────────
+    private function getBottomPerformers(array $dataRows, array $numericColumns, int $limit = 3): array
+    {
+        if (empty($dataRows) || empty($numericColumns)) {
+            return [];
+        }
+        
+        // Find the main value column
+        $valueCol = null;
+        foreach (['total_belanja', 'total_pendapatan', 'total_terjual', 'total_revenue', 'total'] as $keyword) {
+            foreach (array_keys($numericColumns) as $col) {
+                if (stripos($col, $keyword) !== false) {
+                    $valueCol = $col;
+                    break 2;
+                }
+            }
+        }
+        
+        if ($valueCol === null) {
+            $valueCol = array_keys($numericColumns)[0];
+        }
+        
+        // Sort ascending
+        usort($dataRows, function($a, $b) use ($valueCol) {
+            $valA = (float)str_replace(',', '', str_replace('.', '', $a[$valueCol] ?? 0));
+            $valB = (float)str_replace(',', '', str_replace('.', '', $b[$valueCol] ?? 0));
+            return $valA <=> $valB;
+        });
+        
+        $bottomPerformers = [];
+        foreach (array_slice($dataRows, 0, $limit) as $row) {
+            // Find name column
+            $name = null;
+            foreach (['nama_pelanggan', 'nama_barang', 'nama_cabang', 'nama', 'produk', 'cabang'] as $key) {
+                foreach (array_keys($row) as $rowKey) {
+                    if (stripos($rowKey, $key) !== false) {
+                        $name = $row[$rowKey];
+                        break 2;
+                    }
+                }
+            }
+            if ($name === null) {
+                $name = reset($row);
+            }
+            $bottomPerformers[] = $name;
+        }
+        
+        return $bottomPerformers;
+    }
+    
+    // ── Analyze percentages ───────────────────────────────────────────────────
+    private function analyzePercentages(array $dataRows, array $numericColumns): array
+    {
+        $insights = [];
+        
+        if (empty($dataRows) || empty($numericColumns)) {
+            return $insights;
+        }
+        
+        // Find percentage column
+        $pctCol = null;
+        foreach (array_keys($numericColumns) as $col) {
+            if (stripos($col, 'persen') !== false || stripos($col, 'percent') !== false) {
+                $pctCol = $col;
+                break;
+            }
+        }
+        
+        if ($pctCol !== null) {
+            $values = $numericColumns[$pctCol];
+            $topPct = max($values);
+            if ($topPct > 20) {
+                $insights[] = "📊 Konsentrasi tinggi: Item teratas menguasai " . number_format($topPct, 1) . "% dari total. Pertimbangkan diversifikasi.";
+            }
         }
         
         return $insights;
+    }
+    
+    // ── Generate recommendations based on data type ───────────────────────────
+    private function generateRecommendations(string $dataType, array $dataRows, array $numericColumns, string $ctx): array
+    {
+        $recommendations = [];
+        
+        switch ($dataType) {
+            case 'produk':
+                $recommendations[] = "🎯 **Strategi Produk**: Fokuskan inventory dan marketing pada produk top performer yang menyumbang >60% dari total penjualan";
+                $recommendations[] = "📦 **Manajemen Stok**: Lakukan review mingguan untuk produk dengan pergerakan lambat. Pertimbangkan bundle promotion atau clearance sale";
+                $recommendations[] = "💰 **Pricing Strategy**: Analisis margin produk terlaris. Jika volume tinggi tapi margin rendah, pertimbangkan penyesuaian harga bertahap";
+                $recommendations[] = "🔄 **Product Lifecycle**: Identifikasi produk di fase decline (penjualan turun 3 bulan berturut-turut). Siapkan produk pengganti atau inovasi baru";
+                break;
+                
+            case 'pelanggan':
+                $recommendations[] = "👑 **Customer Retention**: Implementasi VIP program untuk top 20% pelanggan yang menyumbang >50% revenue. Berikan exclusive benefits dan early access";
+                $recommendations[] = "📈 **Upselling Strategy**: Analisis purchase pattern pelanggan terbaik. Tawarkan produk komplementer atau upgrade dengan personalized recommendation";
+                $recommendations[] = "⚠️ **Churn Prevention**: Monitor pelanggan dengan penurunan frekuensi belanja >30%. Lakukan proactive outreach dengan special offer";
+                $recommendations[] = "🎁 **Loyalty Program**: Buat tier-based reward system (Silver, Gold, Platinum) untuk incentivize repeat purchase dan increase customer lifetime value";
+                break;
+                
+            case 'cabang':
+                $recommendations[] = "🏢 **Performance Optimization**: Cabang top performer bisa jadi model best practice. Dokumentasikan strategi mereka dan replicate ke cabang lain";
+                $recommendations[] = "📊 **Resource Allocation**: Alokasikan budget marketing dan inventory lebih besar ke cabang dengan ROI tertinggi. Review cabang underperformer untuk turnaround strategy";
+                $recommendations[] = "👥 **Talent Management**: Pertimbangkan rotation atau knowledge sharing antara manager cabang sukses dan cabang yang perlu improvement";
+                $recommendations[] = "🎯 **Market Penetration**: Analisis market potential di wilayah cabang underperformer. Mungkin perlu adjustment product mix atau pricing strategy lokal";
+                break;
+                
+            case 'penjualan':
+                $recommendations[] = "📈 **Revenue Growth**: Identifikasi pattern penjualan (harian, mingguan, bulanan). Optimize staffing dan inventory berdasarkan peak periods";
+                $recommendations[] = "💡 **Sales Drivers**: Analisis produk/kategori dengan growth tertinggi. Double down pada success factors dan replicate ke kategori lain";
+                $recommendations[] = "🎯 **Target Setting**: Gunakan historical data untuk set realistic tapi challenging targets. Breakdown target per periode dan monitor progress weekly";
+                $recommendations[] = "🔄 **Seasonal Planning**: Identifikasi seasonal patterns dan prepare inventory, marketing, dan operational capacity accordingly";
+                break;
+                
+            case 'stok':
+                $recommendations[] = "📦 **Inventory Optimization**: Terapkan ABC analysis. Kategori A (high value) perlu tighter control dan frequent review";
+                $recommendations[] = "⚡ **Stock Turnover**: Monitor stock turnover ratio. Targetkan turnover >4x per tahun untuk fast-moving items. Clearance untuk slow-moving >90 hari";
+                $recommendations[] = "🔔 **Reorder Point**: Setup automated reorder alerts berdasarkan lead time supplier dan safety stock level";
+                $recommendations[] = "💰 **Working Capital**: Reduce excess inventory untuk free up cash flow. Negosiasi payment terms dengan supplier dan customer";
+                break;
+                
+            case 'target':
+                $recommendations[] = "🎯 **Performance Gap**: Analisis gap antara target dan realisasi. Identify root cause (internal vs external factors)";
+                $recommendations[] = "📊 **Forecasting Accuracy**: Review historical forecast accuracy. Adjust forecasting method jika consistently over/under estimate";
+                $recommendations[] = "🔄 **Target Calibration**: Quarterly review untuk adjust targets berdasarkan market condition dan business reality";
+                $recommendations[] = "💪 **Action Planning**: Breakdown target menjadi weekly milestones. Weekly check-in untuk track progress dan course correction";
+                break;
+                
+            default:
+                $recommendations[] = "📊 **Data-Driven Decision**: Gunakan insights ini sebagai baseline untuk strategic planning. Monitor key metrics secara konsisten";
+                $recommendations[] = "🎯 **Priority Focus**: Identifikasi 2-3 area dengan impact tertinggi. Fokuskan resources dan effort di sana";
+                $recommendations[] = "📈 **Continuous Improvement**: Setup monthly review cadence untuk track progress dan adjust strategy berdasarkan results";
+                $recommendations[] = "🔄 **Agile Approach**: Test & learn dengan small experiments. Scale what works, pivot what doesn't";
+                break;
+        }
+        
+        return $recommendations;
+    }
+    
+    // ── Generate action items ─────────────────────────────────────────────────
+    private function generateActionItems(string $dataType, array $dataRows, array $numericColumns): array
+    {
+        $actionItems = [];
+        
+        $actionItems[] = "✅ **Immediate (This Week)**: Review top 3 dan bottom 3 performers. Schedule meeting dengan team terkait";
+        $actionItems[] = "📋 **Short-term (This Month)**: Implementasi minimal 1 rekomendasi dari daftar di atas. Assign owner dan deadline yang jelas";
+        $actionItems[] = "📊 **Medium-term (This Quarter)**: Setup dashboard monitoring untuk key metrics. Monthly review dengan stakeholder";
+        
+        return $actionItems;
     }
 
     // ── Ekstrak filter wilayah dari pesan ─────────────────────────────────────
