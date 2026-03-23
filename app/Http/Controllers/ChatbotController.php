@@ -123,10 +123,16 @@ class ChatbotController extends Controller
             return response()->json(['response' => "Error: OPENROUTER_API_KEY atau NVIDIA_API_KEY tidak dikonfigurasi di .env"]);
         }
 
-        // Detect language from user message
         $detectedLanguage = $this->languageDetector->detect($message);
-        $languageInfo = $this->languageDetector->detectWithInfo($message);
-        Log::info("Detected language: ", $languageInfo);
+
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no'); // Untuk Nginx agar tidak di-buffer
+        
+        // Kirim event pertama segera agar koneksi tidak timeout saat planning SQL
+        echo "data: " . json_encode(['chunk' => '']) . "\n\n";
+        ob_flush(); flush();
 
         $needsData = $this->messageNeedsDatabase($message);
         $dbContext = '';
@@ -391,6 +397,7 @@ Example:
     private function fetchRelevantData(string $message, string $schemaContext, string $apiKey): string
     {
         $lower         = mb_strtolower($message);
+        $wilayahFilter = $this->extractWilayahFilter($lower);
         $allowedTables = $this->getAllowedTables();
         $results       = [];
 
@@ -853,81 +860,35 @@ Example:
     // ── System prompt ─────────────────────────────────────────────────────────
     private function buildSystemPrompt(string $schemaContext, string $dbContext, string $docContext = '', string $userLanguage = 'id'): string
     {
-        // Build data section with language-specific instructions
-        $dataSection = '';
-        $dataWarning = '';
-        if (!empty($dbContext)) {
-            if ($userLanguage === 'en') {
-                $dataSection = "\n\n{$dbContext}\n";
-                $dataWarning = "⚠️ CRITICAL: REAL DATABASE DATA IS PROVIDED ABOVE. YOU MUST USE THIS EXACT DATA IN YOUR RESPONSE. DO NOT MAKE UP NUMBERS OR FABRICATE ANY INFORMATION.\n";
-            } else {
-                $dataSection = "\n\n{$dbContext}\n";
-                $dataWarning = "⚠️ PENTING: DATA NYATA DARI DATABASE SUDAH DISEDIAKAN DI ATAS. ANDA WAJIB MENGGUNAKAN DATA INI DALAM JAWABAN ANDA. JANGAN MENGARANG ANGKA ATAU INFORMASI.\n";
-            }
-        }
+        $dataSection = !empty($dbContext) ? "\n\n## REAL DATABASE DATA\n{$dbContext}\n⚠️ CRITICAL: The data above is the only source of truth for database questions. You MUST use it. DO NOT make up numbers or information.\n" : "";
+        $docSection = !empty($docContext) ? "\n\n## ERP DOCUMENTATION\n{$docContext}\nUSE THE GUIDE ABOVE for technical ERP instructions.\n" : "";
 
-        // Build doc section with language-specific instructions
-        $docSection = '';
-        if (!empty($docContext)) {
-            if ($userLanguage === 'en') {
-                $docSection = "\n\n{$docContext}\nUSE THE GUIDE ABOVE to provide instructions to the user.\n";
-            } else {
-                $docSection = "\n\n{$docContext}\nGUNAKAN PANDUAN DI ATAS untuk memberikan instruksi kepada pengguna.\n";
-            }
-        }
+        return "### IDENTITY
+You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professional, intelligent, and helpful.
 
-        // Build language-specific instructions
-        $languageInstruction = $userLanguage === 'en'
-            ? "## LANGUAGE\n- ALWAYS respond in English since the user is using English.\n- Match the user's tone and formality level.\n"
-            : "## BAHASA\n- SELALU jawab dalam Bahasa Indonesia karena user menggunakan Bahasa Indonesia.\n- Sesuaikan nada dan tingkat formalitas dengan user.\n";
+### CORE RULES
+1. **LANGUAGE MATCHING**: ALWAYS detect the user's language and respond in the EXACT SAME language. This applies to greetings, data analysis, report headers, and guides.
+2. **DATA INTEGRITY**: Use ONLY the real database data provided below. Do NOT fabricate numbers. If data is missing, state it clearly in the user's language.
+3. **ACCESS DENIAL**: If a user asks for data from tables NOT listed in 'ALLOWED TABLES', you MUST respond with EXACTLY ONE SENTENCE in the user's language stating you do not have permission. No explanations.
+4. **FORMATTING**: Use professional report formatting. Translate headers (e.g., 'Hasil Data', 'Analisis Mendalam', 'Rekomendasi') into the user's current language.
 
-        // Build personality section based on language
-        $personalitySection = $userLanguage === 'en'
-            ? "## PERSONALITY\n- Friendly and warm in greetings.\n- Answer general questions naturally.\n- Be a professional data analyst for data questions.\n- Provide clear step-by-step instructions for technical/operational ERP questions."
-            : "## KEPRIBADIAN\n- Bisa diajak ngobrol santai dan merespons salam dengan hangat.\n- Untuk pertanyaan umum, jawab natural.\n- Untuk pertanyaan data, jadilah analis data profesional.\n- Untuk pertanyaan teknis/operasional ERP, berikan langkah-langkah yang jelas berdasarkan dokumentasi.";
+### OUTPUT STRUCTURE (Translate to user language)
+#### 📊 [Data Results]
+| Column | Column |
+|---|---|
+| value | value |
 
-        // Build data format section based on language
-        $dataFormatSection = $userLanguage === 'en'
-            ? "## DATA RESPONSE FORMAT (Only if access is granted)\n### 📊 Data Results\n| Column1 | Column2 |\n|---------|---------|\n| value   | value   |\n\n### 🔍 In-depth Analysis\n- **Key Findings**: insights from data\n- **Patterns & Trends**: visible patterns\n\n### 💡 Business Recommendations\n1. **[Action]**: concrete explanation"
-            : "## FORMAT JAWABAN DATA (Hanya jika ada akses)\n### 📊 Hasil Data\n| Kolom1 | Kolom2 |\n|--------|--------|\n| nilai  | nilai  |\n\n### 🔍 Analisis Mendalam\n- **Temuan Utama**: insight dari data\n- **Pola & Tren**: pola yang terlihat\n\n### 💡 Rekomendasi Bisnis\n1. **[Aksi]**: penjelasan konkret";
+#### 🔍 [Analysis]
+- Insight from data.
+- Trends and patterns.
 
-        // Build docs format section based on language
-        $docsFormatSection = $userLanguage === 'en'
-            ? "## GUIDE/DOCS RESPONSE FORMAT\n- Provide step-by-step instructions (1, 2, 3...) for procedures.\n- Include documentation source links if available."
-            : "## FORMAT JAWABAN PANDUAN/DOCS\n- Berikan langkah demi langkah (1, 2, 3...) jika itu sebuah prosedur.\n- Berikan link sumber dokumentasi jika tersedia.";
+#### 💡 [Recommendations]
+1. Concrete business action based on data.
 
-        // Build closing instruction based on language
-        $closingInstruction = $userLanguage === 'en'
-            ? "Use real data and guidance above. Do not fabricate information.\nFor casual conversation, respond naturally without report format."
-            : "Gunakan data dan panduan nyata di atas. Jangan mengarang.\nUntuk percakapan santai, jawab natural tanpa format laporan.";
-
-        // Build access denial message based on language
-        $accessDenialMessage = $userLanguage === 'en'
-            ? "1. IF USER ASKS ABOUT DATA FROM TABLES NOT LISTED IN 'TABLES YOU CAN ACCESS' BELOW, YOU MUST ANSWER WITH ONLY THIS SENTENCE: 'I'm sorry, I don't have access rights to display [information name] data for your account.'\n2. STRICTLY FORBIDDEN to provide reasons, alternative solutions, or example queries when access is denied. JUST ONE SENTENCE ONLY.\n3. NEVER FABRICATE DATA (HALLUCINATION)."
-            : "1. JIKA USER BERTANYA TENTANG DATA DARI TABEL YANG TIDAK ADA DI 'TABEL YANG DAPAT ANDA AKSES' DI BAWAH, KAMU WAJIB MENJAWAB HANYA DENGAN SATU KALIMAT INI: 'Mohon maaf, saya tidak memiliki hak akses untuk menampilkan data [nama informasi] untuk akun Anda.'\n2. DILARANG KERAS MEMBERIKAN ALASAN, DILARANG MEMBERIKAN SOLUSI ALTERNATIF, DAN DILARANG MEMBERIKAN CONTOH QUERY JIKA AKSES DITOLAK. CUKUP SATU KALIMAT SAJA.\n3. JANGAN PERNAH MENGARANG DATA (HALLUCINATION).";
-
-        // Put data context FIRST so it's most prominent
-        return "### MAIN RULES (MANDATORY TO FOLLOW)
-{$accessDenialMessage}
-
-{$dataWarning}
-
-You are a friendly, intelligent, and expert AI assistant serving as a Senior Data Analyst and ERP Consultant. Your nickname is DataBot.
-
-{$personalitySection}
-
-{$languageInstruction}
-
-## DATA & DOCUMENTATION CONTEXT
+### CONTEXT
 {$schemaContext}
 {$dataSection}
-{$docSection}
-
-{$dataFormatSection}
-
-{$docsFormatSection}
-
-{$closingInstruction}";
+{$docSection}";
     }
 
     // ── Ekstrak history untuk frontend ───────────────────────────────────────
