@@ -161,18 +161,35 @@ class ChatbotController extends Controller
             $dbContext = $this->fetchRelevantData($message, $schemaContext, $apiKey);
             Log::info("Needs docs: NO, fetching DB data, length: " . strlen($dbContext));
         }
+        
+        Log::info("Detected language: {$detectedLanguage}");
         $systemPrompt  = $this->buildSystemPrompt($schemaContext, $dbContext, $docContext, $detectedLanguage);
 
         Log::info("System prompt length: " . strlen($systemPrompt));
+        Log::info("System prompt starts with: " . substr($systemPrompt, 0, 200));
         Log::info("DB Context empty: " . (empty($dbContext) ? 'YES' : 'NO'));
 
-        $messages = [['role' => 'system', 'content' => $systemPrompt]];
+        // Build messages array with explicit language instruction
+        $messages = [];
+        
+        // Add system prompt
+        $messages[] = ['role' => 'system', 'content' => $systemPrompt];
+        
+        // Add explicit language instruction as a separate system message (reinforcement)
+        $langInstruction = $detectedLanguage === 'en' 
+            ? "IMPORTANT: The user speaks ENGLISH. You MUST respond in ENGLISH only. Do not use any Indonesian words."
+            : "PENTING: User berbicara BAHASA INDONESIA. Anda HARUS merespons dalam Bahasa Indonesia saja. Jangan gunakan kata bahasa Inggris.";
+        $messages[] = ['role' => 'system', 'content' => $langInstruction];
+        
+        // Add conversation history
         $trimmedHistory = array_slice($history, -($this->maxHistoryTurns * 2));
         foreach ($trimmedHistory as $turn) {
             if (isset($turn['role'], $turn['content'])) {
                 $messages[] = ['role' => $turn['role'], 'content' => $turn['content']];
             }
         }
+        
+        // Add current user message
         $messages[] = ['role' => 'user', 'content' => $message];
 
         // Ensure session is written and closed before streaming to avoid blocking other requests
