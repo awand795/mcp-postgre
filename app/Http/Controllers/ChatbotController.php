@@ -233,7 +233,10 @@ EXAMPLE CORRECT QUERIES:
 ✗ SELECT * FROM sch_mbi.master_cabang (WRONG - use 'view_master_cabang_mbi' instead!)";
 
         try {
-            $response = Http::timeout(120)->withHeaders([
+            // Reduce max_tokens to avoid credit limit issues
+            $maxTokens = 200;
+            
+            $response = Http::timeout(60)->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type'  => 'application/json',
             ])->post($this->apiUrl, [
@@ -242,12 +245,19 @@ EXAMPLE CORRECT QUERIES:
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $message]
                 ],
-                'max_tokens'  => 400,
+                'max_tokens'  => $maxTokens,
                 'temperature' => 0.1,
             ]);
 
             if (!$response->successful()) {
-                Log::error("SQL Planner failed: " . $response->body());
+                $errorBody = $response->body();
+                Log::error("SQL Planner failed: " . $errorBody);
+                
+                // Check for credit/limit errors
+                if (str_contains($errorBody, 'credits') || str_contains($errorBody, '402')) {
+                    Log::error("API Credit limit reached! Falling back to static queries.");
+                }
+                
                 return [];
             }
 
@@ -409,9 +419,9 @@ EXAMPLE CORRECT QUERIES:
                 Log::info("AI unavailable, showing data with auto-generated insights in language: {$detectedLanguage}");
             } else {
                 // No data at all - use detected language for error message
-                $errorMsg = $detectedLanguage === 'en' 
-                    ? "Sorry, no data is available for this question. Please try a different question or contact admin."
-                    : "Maaf, tidak ada data yang tersedia untuk pertanyaan ini. Silakan coba dengan pertanyaan lain atau hubungi admin.";
+                $errorMsg = $detectedLanguage === 'en'
+                    ? "Sorry, AI service is temporarily unavailable. Please try again later or contact admin if the issue persists."
+                    : "Maaf, layanan AI sedang tidak tersedia. Silakan coba lagi nanti atau hubungi admin jika masalah berlanjut.";
                 echo "data: " . json_encode(['error' => true, 'response' => $errorMsg]) . "\n\n";
                 Log::warning("AI unavailable AND no data context");
             }
