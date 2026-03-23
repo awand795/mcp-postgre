@@ -838,6 +838,43 @@ EXAMPLE CORRECT QUERIES:
                     " . ($hasW ? $wWhere : "WHERE 1=1");
             }
         }
+        
+        // ── Query untuk "seluruh", "semua", "all" data ───────────────────────
+        // Jika user minta tampilkan seluruh data, SELALU tambahkan summary total
+        if ($this->hasKeyword($lower, ['seluruh', 'semua', 'all', 'everything', 'daftar lengkap', 'full list', 'total'])) {
+            if ($allowSales) {
+                // Always add total summary for sales data
+                $queries['📊 Total Keseluruhan'] = "
+                    SELECT 
+                        COUNT(DISTINCT no_fak_jl) as total_transaksi,
+                        COUNT(DISTINCT kode_pelanggan) as total_pelanggan,
+                        COUNT(DISTINCT kode_barang) as total_produk,
+                        SUM(qty_jual) as total_qty_terjual,
+                        SUM(total_netto) as total_pendapatan,
+                        ROUND(AVG(total_netto), 0) as rata_rata_transaksi,
+                        MIN(tgl_fak_jl) as transaksi_pertama,
+                        MAX(tgl_fak_jl) as transaksi_terakhir
+                    FROM {$vSales}
+                    " . ($hasW ? $wWhere : "WHERE 1=1");
+            }
+            if ($isAllowed('view_master_cabang_mbi')) {
+                $queries['🏢 Total Cabang'] = "
+                    SELECT 
+                        COUNT(*) as jumlah_cabang,
+                        COUNT(DISTINCT nama_regional) as jumlah_regional,
+                        COUNT(DISTINCT nama_propinsi_cabang) as jumlah_provinsi,
+                        COUNT(DISTINCT nama_kabupaten_cabang) as jumlah_kabupaten
+                    FROM sch_mbi.view_master_cabang_mbi";
+            }
+            if ($isAllowed('view_master_pelanggan_mbi')) {
+                $queries['👥 Total Pelanggan'] = "
+                    SELECT 
+                        COUNT(*) as jumlah_pelanggan,
+                        COUNT(DISTINCT nama_kabupaten_pelanggan) as kabupaten,
+                        COUNT(DISTINCT nama_propinsi_pelanggan) as provinsi
+                    FROM sch_mbi.view_master_pelanggan_mbi";
+            }
+        }
 
         return $queries;
     }
