@@ -120,7 +120,7 @@ class ChatbotController extends Controller
         set_time_limit(300);
         $message = $request->input('message');
         $history = $request->input('history', []);
-        $apiKey  = env('OPENROUTER_API_KEY') ?: env('NVIDIA_API_KEY');
+        $apiKey  = env('OPENROUTER_API_KEY');
 
         Log::info("Chatbot send: ", ['message' => $message]);
 
@@ -201,11 +201,11 @@ RULES:
 - Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
 - Use 'sch_mbi.' prefix.
 - User may request to view, filter, sort, or base on ANY specific column or table. Construct the correct SQL dynamically.
-- User may request complex data (regions, targets, joins). Construct valid PostgreSQL.
-- Use ILIKE for text filters (e.g. column ILIKE '%value%').
-- CRITICAL: Match table and column names EXACTLY as written in SCHEMA. Do NOT guess.
-- Limit 50 rows.
-- No explanation. No semicolon.";
+- CRITICAL: USE ONLY THE TABLE AND COLUMN NAMES PROVIDED IN THE SCHEMA BELOW.
+- IF A COLUMN IS NOT IN THE SCHEMA, DO NOT USE IT. PROMPT USER FOR CLARIFICATION OR USE '*' IF APPLICABLE.
+- NEVER ESCAPE TABLE OR COLUMN NAMES WITH DOUBLE QUOTES UNLESS ABSOLUTELY NECESSARY.
+- Use 'sch_mbi.' prefix for all tables.
+- Limit 50 rows. No explanation. No semicolon.";
 
         try {
             $response = Http::timeout(120)->withHeaders([
@@ -217,7 +217,7 @@ RULES:
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $message]
                 ],
-                'max_tokens'  => 600,
+                'max_tokens'  => 400,
                 'temperature' => 0.1,
             ]);
 
@@ -942,42 +942,44 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
             $cacheKey = 'db_schema_context_v4_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
-                $tables = DB::connection('pgsql_mbi')->select("
-                    SELECT table_name FROM information_schema.tables
+                // Single query to get all tables and their columns in sch_mbi
+                $results = DB::connection('pgsql_mbi')->select("
+                    SELECT table_name, column_name 
+                    FROM information_schema.columns 
                     WHERE table_schema = 'sch_mbi'
                     AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
-                    ORDER BY table_name
+                    ORDER BY table_name, ordinal_position
                 ");
+
+                $tableGroups = [];
+                foreach ($results as $row) {
+                    if (!in_array($row->table_name, $allowedTables)) continue;
+                    $tableGroups[$row->table_name][] = $row->column_name;
+                }
 
                 $context = "";
                 $count = 0;
                 
-                // Emergency: If we have priority tables, show those FIRST
-                if (!empty($priorityTables)) {
-                    foreach ($priorityTables as $tn) {
-                        if (!in_array($tn, $allowedTables)) continue;
-                        $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
-                        $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
+                // Add priority tables first
+                foreach ($priorityTables as $tn) {
+                    if (isset($tableGroups[$tn])) {
+                        $context .= "{$tn}(" . implode(",", $tableGroups[$tn]) . ")\n";
+                        unset($tableGroups[$tn]);
                         $count++;
                     }
                 }
 
-                // Show all other allowed tables so LLM can reason about dynamically requested tables/columns
-                foreach ($tables as $table) {
-                    $tn = $table->table_name;
-                    if (!in_array($tn, $allowedTables)) continue;
-                    if (in_array($tn, $priorityTables)) continue; // Already added
-                    
+                // Add remaining allowed tables
+                foreach ($tableGroups as $tn => $cols) {
+                    $context .= "{$tn}(" . implode(",", $cols) . ")\n";
                     $count++;
-                    $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
-                    $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
                 }
                 
-                if ($count === 0) return "No access to data.";
-                return "TABLES:\n" . $context;
+                if ($count === 0) return "No access to database tables.";
+                return "ACTIVE SCHEMA (TABLES & COLUMNS):\n" . $context;
             });
         } catch (\Exception $e) {
-            return "Error: " . $e->getMessage();
+            return "Error while fetching schema: " . $e->getMessage();
         }
     }
 
@@ -1042,22 +1044,5 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
         return 'Rp ' . number_format($value, 0, ',', '.');
     }
 
-    public function rerank(Request $request)
-    {
-        $query    = $request->input('query');
-        $passages = $request->input('passages');
-        $apiKey   = env('NVIDIA_API_KEY');
 
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $apiKey,
-            'Accept'        => 'application/json',
-            'Content-Type'  => 'application/json',
-        ])->post('https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-1b-v2/reranking', [
-            'model'    => 'nvidia/llama-nemotron-rerank-1b-v2',
-            'query'    => ['text' => $query],
-            'passages' => array_map(fn($p) => ['text' => $p], $passages),
-        ]);
-
-        return $response->json();
-    }
 }
