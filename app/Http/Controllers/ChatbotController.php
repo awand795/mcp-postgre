@@ -193,19 +193,27 @@ class ChatbotController extends Controller
     private function planSQLQueries(string $message, string $schemaContext, string $apiKey): array
     {
         Log::info("Planning SQL for: " . $message);
-        
-        $systemPrompt = "You are a SQL Planner. SCHEMA:
+
+        $systemPrompt = "You are a SQL Planner for PostgreSQL database. SCHEMA INFORMATION:
 {$schemaContext}
 
-RULES:
+⚠️ CRITICAL RULES - READ CAREFULLY:
+1. ONLY use table names that are explicitly listed in the SCHEMA above (e.g., view_master_cabang_mbi, view_data_penjualan_rinci_mbi, etc.)
+2. NEVER invent table names like 'cabang', 'produk', 'pembeli', 'target', 'regions', 'master_cabang' - these DO NOT EXIST!
+3. ALWAYS use the full table name with 'sch_mbi.' prefix (e.g., sch_mbi.view_master_cabang_mbi)
+4. If user asks for data but you're unsure which table to use, respond with a clarification request
+5. ONLY use column names that are listed for each table in the schema above
+
+RESPONSE FORMAT:
 - Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
-- Use 'sch_mbi.' prefix.
-- User may request to view, filter, sort, or base on ANY specific column or table. Construct the correct SQL dynamically.
-- CRITICAL: USE ONLY THE TABLE AND COLUMN NAMES PROVIDED IN THE SCHEMA BELOW.
-- IF A COLUMN IS NOT IN THE SCHEMA, DO NOT USE IT. PROMPT USER FOR CLARIFICATION OR USE '*' IF APPLICABLE.
-- NEVER ESCAPE TABLE OR COLUMN NAMES WITH DOUBLE QUOTES UNLESS ABSOLUTELY NECESSARY.
-- Use 'sch_mbi.' prefix for all tables.
-- Limit 50 rows. No explanation. No semicolon.";
+- Limit 50 rows maximum
+- No explanation, no semicolon at the end
+
+EXAMPLE CORRECT QUERIES:
+✓ SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50
+✓ SELECT nama_cabang, alamat_cabang FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%riau%'
+✗ SELECT * FROM sch_mbi.cabang (WRONG - table 'cabang' does not exist!)
+✗ SELECT * FROM sch_mbi.master_cabang (WRONG - use 'view_master_cabang_mbi' instead!)";
 
         try {
             $response = Http::timeout(120)->withHeaders([
@@ -273,16 +281,22 @@ RULES:
             }
         }
 
-        // 3. Pastikan semua tabel yang digunakan ada di daftar allowedTables
-        // Regex untuk mencari nama tabel setelah FROM atau JOIN
-        // Contoh: sch_mbi.view_master_cabang_mbi
-        if (preg_match_all('/(?:from|join)\s+([a-zA-Z0-9_\.]+)/i', $sql, $matches)) {
+        // 2. Pastikan semua tabel yang digunakan ada di daftar allowedTables
+        // Regex untuk mencari nama tabel setelah FROM, JOIN, INTO, UPDATE, dll
+        // Contoh: sch_mbi.view_master_cabang_mbi atau view_master_cabang_mbi
+        if (preg_match_all('/(?:from|join|into|update|table)\s+([a-zA-Z0-9_\.]+)/i', $sql, $matches)) {
             foreach ($matches[1] as $fullTableName) {
+                // Skip subqueries and parentheses
+                if (in_array(strtolower($fullTableName), ['select', '('])) continue;
+                
                 $parts = explode('.', $fullTableName);
                 $tableName = end($parts); // Ambil bagian setelah titik terakhir jika ada
-                
+
+                // Clean table name from any aliases or conditions
+                $tableName = preg_replace('/\s+.*$/', '', $tableName);
+
                 if (!in_array($tableName, $allowedTables)) {
-                    Log::warning("SQL Validation failed: Table '{$tableName}' (from '{$fullTableName}') is not allowed.");
+                    Log::warning("SQL Validation failed: Table '{$tableName}' (from '{$fullTableName}') is not in allowed tables. Available: " . implode(', ', $allowedTables));
                     return false;
                 }
             }
@@ -423,9 +437,40 @@ RULES:
                     $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
                     Log::info("Query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
 
+                } catch (\Illuminate\Database\QueryException $qe) {
+                    $errorCode = $qe->getCode();
+                    $errorMsg = $qe->getMessage();
+                    
+                    // Log detailed error information
+                    Log::error("Query '{$label}' failed with SQLSTATE error: {$errorMsg}", [
+                        'sql' => $sql,
+                        'code' => $errorCode,
+                        'label' => $label
+                    ]);
+                    
+                    // Provide user-friendly error message based on error code
+                    $userError = 'Query gagal dijalankan.';
+                    
+                    // PostgreSQL error codes (SQLSTATE)
+                    if (str_contains($errorMsg, '42P01') || str_contains($errorMsg, 'relation does not exist')) {
+                        $userError = 'Tabel yang diminta tidak ditemukan. Kemungkinan nama tabel salah.';
+                        Log::error("Table not found error - check if table name exists in schema");
+                    } elseif (str_contains($errorMsg, '42703') || str_contains($errorMsg, 'column does not exist')) {
+                        $userError = 'Kolom yang diminta tidak ditemukan dalam tabel.';
+                        Log::error("Column not found error - check column names");
+                    } elseif (str_contains($errorMsg, '42601')) {
+                        $userError = 'Sintaks SQL tidak valid.';
+                        Log::error("SQL syntax error");
+                    } elseif ($errorCode >= 1000) {
+                        // Connection or server errors
+                        $userError = 'Koneksi ke database gagal. Silakan coba lagi.';
+                    }
+                    
+                    $results[$label] = ['error' => $userError];
+                    
                 } catch (\Exception $e) {
                     Log::error("Query '{$label}' error: " . $e->getMessage());
-                    $results[$label] = ['error' => $e->getMessage()];
+                    $results[$label] = ['error' => 'Error: ' . $e->getMessage()];
                 }
             }
         } catch (\Exception $e) {
@@ -904,7 +949,7 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
         try {
             $allowedTables = $this->getAllowedTables();
             $lowerMsg = mb_strtolower($message);
-            
+
             // Priority tables based on keywords
             $priorityKeywords = [
                 'penjualan' => ['view_data_penjualan_rinci_mbi', 'transaksi', 'detail_transaksi'],
@@ -938,14 +983,14 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
             // If no message or no keywords, we'll just show all allowed table names first
             // and columns for top 5 most common tables.
             $commonTables = ['view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi', 'produk', 'transaksi'];
-            
-            $cacheKey = 'db_schema_context_v4_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
+
+            $cacheKey = 'db_schema_context_v5_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
                 // Single query to get all tables and their columns in sch_mbi
                 $results = DB::connection('pgsql_mbi')->select("
-                    SELECT table_name, column_name 
-                    FROM information_schema.columns 
+                    SELECT table_name, column_name
+                    FROM information_schema.columns
                     WHERE table_schema = 'sch_mbi'
                     AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
                     ORDER BY table_name, ordinal_position
@@ -957,9 +1002,18 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                     $tableGroups[$row->table_name][] = $row->column_name;
                 }
 
-                $context = "";
-                $count = 0;
+                // IMPORTANT: Start with a clear header listing ALL available tables
+                $context = "AVAILABLE TABLES (USE EXACT NAMES AS SHOWN):\n";
+                $context .= "----------------------------------------\n";
+                $context .= "Table names you MUST use (choose from this list only):\n";
+                foreach (array_keys($tableGroups) as $tn) {
+                    $context .= "  - {$tn}\n";
+                }
+                $context .= "----------------------------------------\n\n";
+                $context .= "TABLE DETAILS (name(columns)):\n";
                 
+                $count = 0;
+
                 // Add priority tables first
                 foreach ($priorityTables as $tn) {
                     if (isset($tableGroups[$tn])) {
@@ -974,9 +1028,9 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                     $context .= "{$tn}(" . implode(",", $cols) . ")\n";
                     $count++;
                 }
-                
+
                 if ($count === 0) return "No access to database tables.";
-                return "ACTIVE SCHEMA (TABLES & COLUMNS):\n" . $context;
+                return $context;
             });
         } catch (\Exception $e) {
             return "Error while fetching schema: " . $e->getMessage();
