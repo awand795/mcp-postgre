@@ -48,7 +48,19 @@ class ChatbotController extends Controller
             return ['produk', 'kategori', 'transaksi', 'detail_transaksi', 'pembeli', 'karyawan'];
         }
 
-        $roleId = Auth::user()->role;
+        $user = Auth::user();
+        
+        // Bypass untuk Super Admin (is_admin = true)
+        if ($user->is_admin) {
+            return cache()->remember('all_db_tables_admin_bypass', 600, function() {
+                $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi' ORDER BY table_name");
+                $tableList = array_column($tables, 'table_name');
+                Log::info("Super Admin bypass: access granted to all " . count($tableList) . " tables.");
+                return $tableList;
+            });
+        }
+
+        $roleId = $user->role;
 
         return cache()->remember("allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
             $tables = RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
@@ -132,12 +144,12 @@ class ChatbotController extends Controller
             }
         }
 
+        $schemaContext = $this->getSchemaContext();
+
         if ($needsData) {
-            $dbContext = $this->fetchRelevantData($message);
+            $dbContext = $this->fetchRelevantData($message, $schemaContext, $apiKey);
             Log::info("Needs docs: NO, fetching DB data, length: " . strlen($dbContext));
         }
-
-        $schemaContext = $this->getSchemaContext();
         $systemPrompt  = $this->buildSystemPrompt($schemaContext, $dbContext, $docContext, $detectedLanguage);
 
         Log::info("System prompt length: " . strlen($systemPrompt));
@@ -166,6 +178,119 @@ class ChatbotController extends Controller
     }
 
     // ── Panggil AI dengan auto-fallback (Streaming SSE) ───────────────────────
+    // ── Perencanaan Query SQL (LLM call) ─────────────────────────────────────
+    private function planSQLQueries(string $message, string $schemaContext, string $apiKey): array
+    {
+        Log::info("Planning SQL for: " . $message);
+        
+        $systemPrompt = "You are a SQL Query Planner for a PostgreSQL database. 
+Your task is to translate the user's request into one or more valid SQL SELECT queries.
+
+## SCHEMA CONTEXT
+{$schemaContext}
+
+## RULES
+1. ONLY generate SELECT queries.
+2. ONLY use tables and columns listed in the SCHEMA CONTEXT.
+3. If the request is complex (e.g., multiple regions, categories), generate multiple queries if needed or use complex clauses like IN, JOIN, or GROUP BY.
+4. Surround each SQL query with [SQL] and [/SQL] tags.
+5. Provide a short label for each query surrounded by [LABEL] and [/LABEL] tags.
+6. Do NOT provide any explanation, just the labels and queries.
+7. Use 'sch_mbi.' prefix for all tables.
+8. Limit each query to 50 rows unless specified otherwise.
+9. Always use alias for aggregate columns.
+
+Example:
+[LABEL]Produk Terlaris di 3 Kota[/LABEL]
+[SQL]SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_kabupaten_cabang IN ('Jakarta', 'Bandung', 'Surabaya') GROUP BY nama_barang ORDER BY total DESC LIMIT 10[/SQL]";
+
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ])->post($this->apiUrl, [
+                'model'       => $this->models[0], // Use the first model for planning
+                'messages'    => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user', 'content' => $message]
+                ],
+                'max_tokens'  => 1024,
+                'temperature' => 0.1, // Low temperature for consistent SQL
+            ]);
+
+            if (!$response->successful()) {
+                Log::error("SQL Planner failed: " . $response->body());
+                return [];
+            }
+
+            $content = $response->json('choices.0.message.content');
+            Log::info("SQL Planner response: " . $content);
+
+            $queries = [];
+            
+            // Extract labels and SQLs
+            preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/s', $content, $matches, PREG_SET_ORDER);
+            
+            foreach ($matches as $match) {
+                $label = trim($match[1]);
+                $sql   = trim($match[2]);
+                if (!empty($label) && !empty($sql)) {
+                    $queries[$label] = $sql;
+                }
+            }
+
+            return $queries;
+
+        } catch (\Exception $e) {
+            Log::error("planSQLQueries error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    // ── Validasi SQL untuk keamanan ──────────────────────────────────────────
+    private function validateSQL(string $sql, array $allowedTables): bool
+    {
+        // 1. Harus SELECT
+        if (!preg_match('/^\s*select/i', $sql)) {
+            Log::warning("SQL Validation failed: Not a SELECT query.");
+            return false;
+        }
+
+        // 2. Tidak boleh ada karakter berbahaya atau multiple statements
+        if (str_contains($sql, ';')) {
+            Log::warning("SQL Validation failed: Multiple statements detected.");
+            return false;
+        }
+
+        $forbidden = ['insert', 'update', 'delete', 'drop', 'truncate', 'alter', 'create', 'grant', 'revoke', '--', '/*'];
+        $lowerSql = strtolower($sql);
+        foreach ($forbidden as $word) {
+            // Check for forbidden words as independent tokens
+            if (preg_match('/\b' . preg_quote($word, '/') . '\b/i', $lowerSql)) {
+                // Special case: 'delete' might be part of a column name, but we play it safe
+                Log::warning("SQL Validation failed: Forbidden keyword '{$word}' detected.");
+                return false;
+            }
+        }
+
+        // 3. Pastikan semua tabel yang digunakan ada di daftar allowedTables
+        // Regex untuk mencari nama tabel setelah FROM atau JOIN
+        // Contoh: sch_mbi.view_master_cabang_mbi
+        if (preg_match_all('/(?:from|join)\s+([a-zA-Z0-9_\.]+)/i', $sql, $matches)) {
+            foreach ($matches[1] as $fullTableName) {
+                $parts = explode('.', $fullTableName);
+                $tableName = end($parts); // Ambil bagian setelah titik terakhir jika ada
+                
+                if (!in_array($tableName, $allowedTables)) {
+                    Log::warning("SQL Validation failed: Table '{$tableName}' (from '{$fullTableName}') is not allowed.");
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     private function streamAIResponse(array $messages, string $apiKey, string $dbContext): void
     {
         $success = false;
@@ -263,18 +388,32 @@ class ChatbotController extends Controller
     }
 
     // ── Query database & kembalikan sebagai konteks ───────────────────────────
-    private function fetchRelevantData(string $message): string
+    private function fetchRelevantData(string $message, string $schemaContext, string $apiKey): string
     {
         $lower         = mb_strtolower($message);
-        $wilayahFilter = $this->extractWilayahFilter($lower);
+        $allowedTables = $this->getAllowedTables();
         $results       = [];
 
         try {
-            $queries = $this->selectQueries($lower, $wilayahFilter);
+            // 1. Coba perencanaan query dinamis (LLM)
+            $queries = $this->planSQLQueries($message, $schemaContext, $apiKey);
+            
+            // 2. Fallback ke query statis jika dinamis gagal/kosong
+            if (empty($queries)) {
+                Log::info("Dynamic planner returned no queries, falling back to static templates.");
+                $wilayahFilter = $this->extractWilayahFilter($lower);
+                $queries = $this->selectQueries($lower, $wilayahFilter);
+            }
 
             foreach ($queries as $label => $sql) {
                 try {
-                    if (!preg_match('/^\s*select/i', $sql)) continue;
+                    // Validasi keamanan SQL
+                    if (!$this->validateSQL($sql, $allowedTables)) {
+                        Log::warning("Skipping unsafe/unauthorized query: {$sql}");
+                        $results[$label] = ['error' => 'Query tidak diizinkan atau tidak aman.'];
+                        continue;
+                    }
+
                     if (!preg_match('/\blimit\b/i', $sql)) {
                         $sql = rtrim($sql, ';') . ' LIMIT 50';
                     }
@@ -532,6 +671,15 @@ class ChatbotController extends Controller
                 ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12";
         }
 
+        // ── Cabang ───────────────────────────────────────────────────────────
+        if ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi', 'kantor'])
+            && $isAllowed('view_master_cabang_mbi')) {
+            $queries['Daftar Cabang'] = "
+                SELECT kode_cabang, nama_cabang, nama_regional, alamat_cabang, no_telp_cabang
+                FROM sch_mbi.view_master_cabang_mbi
+                ORDER BY nama_regional, nama_cabang";
+        }
+
         // ── Fallback: ringkasan umum ──────────────────────────────────────────
         if (empty($queries)) {
             if ($allowSales) {
@@ -596,7 +744,7 @@ class ChatbotController extends Controller
             'pembeli','kategori','stok','laporan','analisis','analisa','data',
             'tren','trend','statistik','ranking','rank','terbaik','tertinggi',
             'terendah','total','jumlah','bulan','tahun','wilayah','provinsi',
-            'kota','diskon','profit','pendapatan','omzet','rfm','abc','retention',
+            'kota','cabang','diskon','profit','pendapatan','omzet','rfm','abc','retention',
             'cross-sell','cross sell','dead stock','metode bayar','metode pembayaran',
             'aov','lihat','tampilkan','tunjukkan','cari','berapa','siapa','mana',
             'show','display','top','paling','laku','laris','beli','jual','loyal','terloyal',
@@ -608,7 +756,7 @@ class ChatbotController extends Controller
             'buyer', 'category', 'stock', 'report', 'analysis', 'data',
             'trend', 'statistics', 'ranking', 'best', 'highest',
             'lowest', 'total', 'amount', 'sum', 'count', 'month', 'year', 'region', 'province',
-            'city', 'discount', 'profit', 'income', 'revenue', 'retention',
+            'city', 'branch', 'discount', 'profit', 'income', 'revenue', 'retention',
             'cross sell', 'dead stock', 'payment method', 'payment',
             'aov', 'see', 'show', 'display', 'find', 'search', 'how many', 'how much', 'what', 'who', 'which',
             'top', 'most', 'buy', 'sell', 'loyal', 'loyalty',
@@ -795,45 +943,69 @@ You are a friendly, intelligent, and expert AI assistant serving as a Senior Dat
     }
 
     // ── Schema context ────────────────────────────────────────────────────────
-    private function getSchemaContext(): string
+    private function getSchemaContext(string $message = ''): string
     {
         try {
             $allowedTables = $this->getAllowedTables();
-            $cacheKey = 'db_schema_context_role_' . (Auth::user() ? Auth::user()->role : 'guest');
+            $lowerMsg = mb_strtolower($message);
+            
+            // Priority tables based on keywords
+            $priorityKeywords = [
+                'penjualan' => ['view_data_penjualan_rinci_mbi', 'transaksi', 'detail_transaksi'],
+                'produk'    => ['produk', 'kategori', 'view_data_penjualan_rinci_mbi'],
+                'cabang'    => ['view_master_cabang_mbi'],
+                'pelanggan' => ['view_master_pelanggan_mbi', 'pembeli'],
+                'stok'      => ['stok', 'mutasi_stok'],
+            ];
 
-            return cache()->remember($cacheKey, 300, function () use ($allowedTables) {
-                $tables  = DB::connection('pgsql_mbi')->select("
+            $priorityTables = [];
+            foreach ($priorityKeywords as $kw => $tabs) {
+                if (str_contains($lowerMsg, $kw)) {
+                    $priorityTables = array_merge($priorityTables, $tabs);
+                }
+            }
+            $priorityTables = array_unique($priorityTables);
+
+            // If no message or no keywords, we'll just show all allowed table names first
+            // and columns for top 5 most common tables.
+            $commonTables = ['view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi', 'produk', 'transaksi'];
+            
+            $cacheKey = 'db_schema_context_v3_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
+
+            return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables, $commonTables, $message) {
+                $tables = DB::connection('pgsql_mbi')->select("
                     SELECT table_name FROM information_schema.tables
                     WHERE table_schema = 'sch_mbi'
                     AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
                     ORDER BY table_name
                 ");
-                $context = "TABEL YANG DAPAT ANDA AKSES:\n";
+
+                $context = "ALLOWED TABLES:\n";
                 $count = 0;
                 foreach ($tables as $table) {
                     $tn = $table->table_name;
                     if (!in_array($tn, $allowedTables)) continue;
                     
                     $count++;
-                    $cols = DB::connection('pgsql_mbi')->select("
-                        SELECT column_name, data_type FROM information_schema.columns
-                        WHERE table_name = ? AND table_schema = 'sch_mbi'
-                        ORDER BY ordinal_position
-                    ", [$tn]);
-                    $colStr = implode(", ", array_map(fn($c) => "{$c->column_name} ({$c->data_type})", $cols));
-                    $context .= "- {$tn}: {$colStr}\n";
+                    // Show columns ONLY if it's a priority table OR a common table (if message is short)
+                    $isPriority = in_array($tn, $priorityTables);
+                    $isCommon   = in_array($tn, $commonTables);
+                    $shouldShowCols = $isPriority || (empty($priorityTables) && $isCommon);
+
+                    if ($shouldShowCols) {
+                        $cols = DB::connection('pgsql_mbi')->select("
+                            SELECT column_name FROM information_schema.columns
+                            WHERE table_name = ? AND table_schema = 'sch_mbi'
+                            ORDER BY ordinal_position
+                        ", [$tn]);
+                        $colStr = implode(",", array_column($cols, 'column_name'));
+                        $context .= "{$tn}({$colStr})\n";
+                    } else {
+                        $context .= "{$tn}\n";
+                    }
                 }
                 
-                if ($count === 0) return "Anda tidak memiliki akses ke tabel data manapun.";
-
-                try {
-                    if (in_array('view_master_pelanggan_mbi', $allowedTables)) {
-                        $sp = DB::connection('pgsql_mbi')->select("SELECT DISTINCT nama_propinsi_pelanggan as provinsi FROM sch_mbi.view_master_pelanggan_mbi WHERE nama_propinsi_pelanggan IS NOT NULL LIMIT 10");
-                        if ($sp) {
-                            $context .= "\nContoh nilai provinsi: " . implode(', ', array_column($sp, 'provinsi')) . "\n";
-                        }
-                    }
-                } catch (\Exception $e) {}
+                if ($count === 0) return "No access to any data tables.";
                 return $context;
             });
         } catch (\Exception $e) {

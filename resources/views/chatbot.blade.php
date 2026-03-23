@@ -394,7 +394,7 @@
                     <h1 class="text-white font-semibold text-lg leading-tight">Darko AI</h1>
                     <div class="flex items-center gap-2 mt-0.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-xs text-[#A1A09A]">MCP PostgreSQL Online</span>
+                        <span class="text-xs text-[#A1A09A]">Online</span>
                     </div>
                 </div>
             </div>
