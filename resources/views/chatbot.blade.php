@@ -478,7 +478,7 @@
                     </svg>
                 </button>
             </div>
-            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest">Powered by Awanda</p>
+            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest">Powered by Darko AI</p>
         </div>
     </div>
 

@@ -189,39 +189,29 @@ class ChatbotController extends Controller
     {
         Log::info("Planning SQL for: " . $message);
         
-        $systemPrompt = "You are a SQL Query Planner for a PostgreSQL database. 
-Your task is to translate the user's request into one or more valid SQL SELECT queries.
-
-## SCHEMA CONTEXT
+        $systemPrompt = "You are a SQL Planner. SCHEMA:
 {$schemaContext}
 
-## RULES
-1. ONLY generate SELECT queries.
-2. ONLY use tables and columns listed in the SCHEMA CONTEXT.
-3. If the request is complex (e.g., multiple regions, categories), generate multiple queries if needed or use complex clauses like IN, JOIN, or GROUP BY.
-4. Surround each SQL query with [SQL] and [/SQL] tags.
-5. Provide a short label for each query surrounded by [LABEL] and [/LABEL] tags.
-6. Do NOT provide any explanation, just the labels and queries.
-7. Use 'sch_mbi.' prefix for all tables.
-8. Limit each query to 50 rows unless specified otherwise.
-9. Always use alias for aggregate columns.
-
-Example:
-[LABEL]Produk Terlaris di 3 Kota[/LABEL]
-[SQL]SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_kabupaten_cabang IN ('Jakarta', 'Bandung', 'Surabaya') GROUP BY nama_barang ORDER BY total DESC LIMIT 10[/SQL]";
+RULES:
+- Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
+- Use 'sch_mbi.' prefix.
+- Use ILIKE (e.g. nama_cabang ILIKE '%riau%').
+- Match columns EXACTLY as shown in SCHEMA.
+- Limit 50 rows.
+- No explanation.";
 
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type'  => 'application/json',
             ])->post($this->apiUrl, [
-                'model'       => $this->models[0], // Use the first model for planning
+                'model'       => $this->models[0],
                 'messages'    => [
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $message]
                 ],
-                'max_tokens'  => 1024,
-                'temperature' => 0.1, // Low temperature for consistent SQL
+                'max_tokens'  => 500,
+                'temperature' => 0.1,
             ]);
 
             if (!$response->successful()) {
@@ -233,8 +223,6 @@ Example:
             Log::info("SQL Planner response: " . $content);
 
             $queries = [];
-            
-            // Extract labels and SQLs
             preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/s', $content, $matches, PREG_SET_ORDER);
             
             foreach ($matches as $match) {
@@ -244,7 +232,6 @@ Example:
                     $queries[$label] = $sql;
                 }
             }
-
             return $queries;
 
         } catch (\Exception $e) {
@@ -913,10 +900,15 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
             // Priority tables based on keywords
             $priorityKeywords = [
                 'penjualan' => ['view_data_penjualan_rinci_mbi', 'transaksi', 'detail_transaksi'],
+                'sales'     => ['view_data_penjualan_rinci_mbi', 'transaksi', 'detail_transaksi'],
                 'produk'    => ['produk', 'kategori', 'view_data_penjualan_rinci_mbi'],
+                'product'   => ['produk', 'kategori', 'view_data_penjualan_rinci_mbi'],
                 'cabang'    => ['view_master_cabang_mbi'],
+                'branch'    => ['view_master_cabang_mbi'],
                 'pelanggan' => ['view_master_pelanggan_mbi', 'pembeli'],
+                'customer'  => ['view_master_pelanggan_mbi', 'pembeli'],
                 'stok'      => ['stok', 'mutasi_stok'],
+                'stock'     => ['stok', 'mutasi_stok'],
             ];
 
             $priorityTables = [];
@@ -933,7 +925,7 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
             
             $cacheKey = 'db_schema_context_v3_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
 
-            return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables, $commonTables, $message) {
+            return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
                 $tables = DB::connection('pgsql_mbi')->select("
                     SELECT table_name FROM information_schema.tables
                     WHERE table_schema = 'sch_mbi'
@@ -941,32 +933,22 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                     ORDER BY table_name
                 ");
 
-                $context = "ALLOWED TABLES:\n";
+                $context = "TABLES:\n";
                 $count = 0;
                 foreach ($tables as $table) {
                     $tn = $table->table_name;
                     if (!in_array($tn, $allowedTables)) continue;
-                    
                     $count++;
-                    // Show columns ONLY if it's a priority table OR a common table (if message is short)
-                    $isPriority = in_array($tn, $priorityTables);
-                    $isCommon   = in_array($tn, $commonTables);
-                    $shouldShowCols = $isPriority || (empty($priorityTables) && $isCommon);
-
-                    if ($shouldShowCols) {
-                        $cols = DB::connection('pgsql_mbi')->select("
-                            SELECT column_name FROM information_schema.columns
-                            WHERE table_name = ? AND table_schema = 'sch_mbi'
-                            ORDER BY ordinal_position
-                        ", [$tn]);
-                        $colStr = implode(",", array_column($cols, 'column_name'));
-                        $context .= "{$tn}({$colStr})\n";
+                    
+                    if (in_array($tn, $priorityTables)) {
+                        $cols = DB::connection('pgsql_mbi')->select("SELECT column_name FROM information_schema.columns WHERE table_name = ? AND table_schema = 'sch_mbi'", [$tn]);
+                        $context .= "{$tn}(" . implode(",", array_column($cols, 'column_name')) . ")\n";
                     } else {
                         $context .= "{$tn}\n";
                     }
                 }
                 
-                if ($count === 0) return "No access to any data tables.";
+                if ($count === 0) return "No access to data.";
                 return $context;
             });
         } catch (\Exception $e) {
