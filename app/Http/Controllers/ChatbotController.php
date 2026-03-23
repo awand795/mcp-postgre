@@ -198,7 +198,7 @@ RULES:
 - Use ILIKE (e.g. nama_cabang ILIKE '%riau%').
 - Match columns EXACTLY as shown in SCHEMA.
 - Limit 50 rows.
-- No explanation.";
+- No explanation. No semicolon.";
 
         try {
             $response = Http::withHeaders([
@@ -249,8 +249,8 @@ RULES:
             return false;
         }
 
-        // 2. Tidak boleh ada karakter berbahaya atau multiple statements
-        if (str_contains($sql, ';')) {
+        // Allow a single trailing semicolon, but not in the middle (prevent multiple statements)
+        if (str_contains(trim($sql, " \n\r\t;"), ';')) {
             Log::warning("SQL Validation failed: Multiple statements detected.");
             return false;
         }
@@ -905,6 +905,8 @@ You are DataBot, an expert AI Data Analyst and ERP Consultant. You are professio
                 'product'   => ['produk', 'kategori', 'view_data_penjualan_rinci_mbi'],
                 'cabang'    => ['view_master_cabang_mbi'],
                 'branch'    => ['view_master_cabang_mbi'],
+                'medan'     => ['view_master_cabang_mbi'],
+                'sumatra'   => ['view_master_cabang_mbi'],
                 'pelanggan' => ['view_master_pelanggan_mbi', 'pembeli'],
                 'customer'  => ['view_master_pelanggan_mbi', 'pembeli'],
                 'stok'      => ['stok', 'mutasi_stok'],
