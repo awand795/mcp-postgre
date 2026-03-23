@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - DataBot</title>
+    <title>Admin Dashboard - Darko AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -75,7 +76,8 @@
             transition: all 0.3s;
         }
 
-        .nav-links a:hover, .nav-links a.active {
+        .nav-links a:hover,
+        .nav-links a.active {
             background: rgba(99, 102, 241, 0.1);
             color: white;
         }
@@ -272,6 +274,7 @@
     </style>
     @yield('scripts')
 </head>
+
 <body>
     <!-- Mobile Menu Toggle -->
     <button class="mobile-menu-toggle" onclick="toggleSidebar()">
@@ -287,14 +290,20 @@
             <span>DataBot Admin</span>
         </div>
         <ul class="nav-links">
-            <li><a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><i class="fas fa-chart-line"></i> <span>Dashboard</span></a></li>
-            <li><a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users') ? 'active' : '' }}"><i class="fas fa-users"></i> <span>Management User</span></a></li>
-            <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}"><i class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
-            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a></li>
+            <li><a href="{{ route('admin.dashboard') }}"
+                    class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><i
+                        class="fas fa-chart-line"></i> <span>Dashboard</span></a></li>
+            <li><a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users') ? 'active' : '' }}"><i
+                        class="fas fa-users"></i> <span>Management User</span></a></li>
+            <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}"><i
+                        class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
+            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a>
+            </li>
         </ul>
         <form action="{{ route('logout') }}" method="POST" id="logout-form">
             @csrf
-            <a href="#" class="logout-btn" onclick="document.getElementById('logout-form').submit();"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+            <a href="#" class="logout-btn" onclick="document.getElementById('logout-form').submit();"><i
+                    class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
         </form>
     </div>
 
@@ -320,4 +329,5 @@
         });
     </script>
 </body>
+
 </html>
