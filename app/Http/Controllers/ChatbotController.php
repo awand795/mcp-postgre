@@ -16,9 +16,9 @@ class ChatbotController extends Controller
     private string $apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
     private array $models = [
-        'nvidia/llama-3.1-nemotron-70b-instruct', // Rekomendasi 1: Nemotron
-        'qwen/qwen-2.5-72b-instruct',           // Rekomendasi 2: Qwen
-        'meta-llama/llama-3.3-70b-instruct',
+        'anthropic/claude-3.5-sonnet',
+        'anthropic/claude-3-opus',
+        'anthropic/claude-3-haiku',
     ];
 
     private int $maxHistoryTurns = 10;
@@ -208,7 +208,7 @@ RULES:
 - No explanation. No semicolon.";
 
         try {
-            $response = Http::withHeaders([
+            $response = Http::timeout(120)->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type'  => 'application/json',
             ])->post($this->apiUrl, [
@@ -217,7 +217,7 @@ RULES:
                     ['role' => 'system', 'content' => $systemPrompt],
                     ['role' => 'user', 'content' => $message]
                 ],
-                'max_tokens'  => 200,
+                'max_tokens'  => 600,
                 'temperature' => 0.1,
             ]);
 
@@ -230,7 +230,7 @@ RULES:
             Log::info("SQL Planner response: " . $content);
 
             $queries = [];
-            preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/s', $content, $matches, PREG_SET_ORDER);
+            preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/si', $content, $matches, PREG_SET_ORDER);
             
             foreach ($matches as $match) {
                 $label = trim($match[1]);
