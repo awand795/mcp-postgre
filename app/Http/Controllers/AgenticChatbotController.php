@@ -88,10 +88,24 @@ class AgenticChatbotController extends Controller
             $response = $this->callOpenAI($messages, $tools, $openaiKey);
 
             if (!$response) {
-                $errMsg = $lang === 'en'
-                    ? "⚠️ Failed to connect to OpenAI. Please check your OPENAI_API_KEY in .env and try again."
-                    : "⚠️ Gagal terhubung ke OpenAI. Silakan periksa OPENAI_API_KEY di .env dan coba lagi.";
+                // Baca log terakhir untuk ambil detail error
+                $logFile = storage_path('logs/laravel.log');
+                $errDetail = '';
+                if (file_exists($logFile)) {
+                    $logContent = file_get_contents($logFile);
+                    // Ambil baris log terakhir yang mengandung 'OpenAI Error Detail'
+                    if (preg_match_all('/\[Agentic\] OpenAI Error Detail.*?message: (.+)/m', $logContent, $matches)) {
+                        $errDetail = '\n\n**Detail error:** ' . trim(end($matches[1]));
+                    } elseif (preg_match_all('/\[Agentic\] cURL error: (.+)/m', $logContent, $matches)) {
+                        $errDetail = '\n\n**cURL error:** ' . trim(end($matches[1]));
+                    }
+                }
 
+                $errMsg = $lang === 'en'
+                    ? "⚠️ Failed to connect to OpenAI. Please check your OPENAI_API_KEY in .env and try again.{$errDetail}"
+                    : "⚠️ Gagal terhubung ke OpenAI. Silakan periksa OPENAI_API_KEY di .env dan coba lagi.{$errDetail}";
+
+                Log::error("[Agentic] Sending error to client: {$errMsg}");
                 $this->streamText($errMsg);
                 echo "data: [DONE]\n\n";
                 ob_flush(); flush();
@@ -226,13 +240,21 @@ class AgenticChatbotController extends Controller
                 return null;
             }
             if ($httpCode < 200 || $httpCode >= 300) {
-                Log::error("[Agentic] HTTP {$httpCode}: " . substr($body, 0, 300));
+                // ── LANGKAH 1: Logging detail error OpenAI ─────────────────
+                Log::error("[Agentic] HTTP {$httpCode} — Full response body: {$body}");
+                $decoded = json_decode($body, true);
+                $errDetail = $decoded['error']['message'] ?? 'No error message from API';
+                $errType   = $decoded['error']['type']   ?? 'unknown';
+                $errCode   = $decoded['error']['code']   ?? 'unknown';
+                Log::error("[Agentic] OpenAI Error Detail → type: {$errType}, code: {$errCode}, message: {$errDetail}");
                 return null;
             }
 
             $decoded = json_decode($body, true);
             if (!$decoded || isset($decoded['error'])) {
-                Log::error("[Agentic] API error: " . substr($body, 0, 200));
+                Log::error("[Agentic] API error — Full body: {$body}");
+                $errDetail = $decoded['error']['message'] ?? 'Unknown API error';
+                Log::error("[Agentic] API error detail: {$errDetail}");
                 return null;
             }
             if (empty($decoded['choices'])) {
