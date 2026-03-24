@@ -338,7 +338,8 @@ PROMPT;
    - Are they asking about the database schema (e.g., "apa kolom di tabel ini")? → DO NOT generate queries. Return [SCHEMA_ONLY]!
 
 2. **IDENTIFY** the main topic:
-   - Cabang/Branches? → view_master_cabang_mbi
+   - Cabang/Branches details (list of locations)? → view_master_cabang_mbi
+   - Cabang/Branches performance (sales/revenue per branch)? → view_data_penjualan_rinci_mbi
    - Pelanggan/Customers? → view_master_pelanggan_mbi
    - Penjualan/Sales? → view_data_penjualan_rinci_mbi
    - Produk/Products? → view_master_barang_mbi OR view_data_penjualan_rinci_mbi
@@ -377,6 +378,10 @@ Thinking: User wants LIST of sales for a specific product. Needs ILIKE filter.
 User: "kira kira produk apa yang akan laku keras di medan"
 Thinking: User wants PREDICTION (akan laku keras) in Medan. Answer using TOP N historical products in that region.
 [LABEL]Prediksi Produk Laris di Medan[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%medan%' OR nama_kabupaten_cabang ILIKE '%medan%' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
+
+User: "cabang mana yang paling banyak penjualan"
+Thinking: User wants TOP branches by sales → GROUP BY nama_cabang from sales table, ORDER BY total sales DESC.
+[LABEL]Cabang Penjualan Terbanyak[/LABEL] [SQL]SELECT nama_cabang, SUM(total_netto) as total_penjualan FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_cabang ORDER BY total_penjualan DESC LIMIT 10[/SQL]
 
 User: "apa nama nama kolom di tabel produk"
 Thinking: User is asking about database schema/columns.
@@ -1154,7 +1159,20 @@ PROMPT;
         }
 
         // ── Cabang ───────────────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi', 'kantor'])) {
+        if ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi']) && $this->hasKeyword($lower, ['penjualan', 'laku', 'terlaris', 'terbaik', 'omzet', 'revenue', 'pendapatan', 'banyak']) && $allowSales) {
+            $label = $hasW ? "Performa Cabang di " . ucwords($wilayahFilter) : "Performa Penjualan Cabang";
+            $queries[$label] = "
+                SELECT nama_cabang,
+                    COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
+                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_harga), 0) as avg_order_value,
+                    COUNT(DISTINCT kode_pelanggan) as total_pelanggan
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY nama_cabang
+                ORDER BY total_revenue DESC LIMIT 10";
+        }
+        elseif ($this->hasKeyword($lower, ['cabang', 'branch', 'lokasi', 'kantor'])) {
             if (!$isAllowed('view_master_cabang_mbi')) {
                 // User tidak punya akses ke tabel cabang
             } elseif ($hasW) {
