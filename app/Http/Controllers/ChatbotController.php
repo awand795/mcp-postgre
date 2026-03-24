@@ -222,28 +222,45 @@ PROMPT;
         $systemPrompt .= "\n" . $schemaContext . "\n\n";
 
         $systemPrompt .= <<<'PROMPT'
-## CRITICAL RULES - YOU MUST FOLLOW:
+## ⚠️ CRITICAL RULES - YOU MUST FOLLOW THESE OR THE QUERY WILL FAIL:
 
-### TABLE NAMES (MOST IMPORTANT):
-1. ONLY use table names EXACTLY as listed in SCHEMA above
-2. ALWAYS prefix with 'sch_mbi.' (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
-3. NEVER invent table names - common WRONG examples:
-   - ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
-   - ❌ 'produk' → ✅ use table from schema
-   - ❌ 'pembeli' → ✅ 'view_master_pelanggan_mbi' or 'pembeli'
-   - ❌ 'transaksi' → ✅ 'view_data_penjualan_rinci_mbi'
+### 1. TABLE NAMES (MOST CRITICAL):
+- ONLY use table names EXACTLY as listed in SCHEMA above
+- ALWAYS prefix with 'sch_mbi.' (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
+- NEVER invent table names like 'cabang', 'produk', 'customer' - these DO NOT EXIST!
+- Common WRONG → CORRECT examples:
+  - ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
+  - ❌ 'produk' → ✅ use exact table from schema
+  - ❌ 'customer' → ✅ 'view_master_pelanggan_mbi' or 'pembeli'
 
-### COLUMN NAMES:
-1. ONLY use columns listed for each table in schema
-2. For year filtering use: `periode_tahun = '2026'` or `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
-3. For month filtering use: `periode_bulan = '03'` or `EXTRACT(MONTH FROM tgl_fak_jl) = 3`
-4. For region filtering use: `nama_propinsi_cabang ILIKE '%riau%'`
+### 2. COLUMN NAMES (EQUALLY CRITICAL):
+- ONLY use columns EXACTLY as listed in schema for each table
+- NEVER use English column names if schema shows Indonesian names!
+- Common WRONG → CORRECT examples:
+  - ❌ 'name' → ✅ 'nama_barang' or 'nama_pelanggan' or 'nama_cabang'
+  - ❌ 'city' → ✅ 'nama_kabupaten_cabang'
+  - ❌ 'province' → ✅ 'nama_propinsi_cabang'
+  - ❌ 'address' → ✅ 'alamat_cabang' or 'alamat_pelanggan'
+  - ❌ 'phone' → ✅ 'no_telepon'
+  - ❌ 'quantity' → ✅ 'qty_jual'
+  - ❌ 'price' → ✅ 'total_harga' or 'total_netto'
+  - ❌ 'date' → ✅ 'tgl_fak_jl' or 'tanggal'
+  - ❌ 'year' → ✅ 'periode_tahun'
+  - ❌ 'month' → ✅ 'periode_bulan'
+  - ❌ 'category' → ✅ 'nama_kategori_barang'
 
-### QUERY COMPLEXITY:
+### 3. FILTERING SYNTAX:
+- For year filtering: `periode_tahun = '2026'` OR `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
+- For month filtering: `periode_bulan = '03'` OR `EXTRACT(MONTH FROM tgl_fak_jl) = 3`
+- For region filtering (use ILIKE for case-insensitive): `nama_propinsi_cabang ILIKE '%riau%'`
+- For text search: ALWAYS use ILIKE with wildcards (e.g., `column ILIKE '%keyword%'`)
+
+### 4. QUERY COMPLEXITY GUIDELINES:
 - For 'show all', 'seluruh data', 'tampilkan semua': Use simple SELECT * with LIMIT 50
-- For 'total', 'summary', 'ringkasan': Use aggregate functions (SUM, COUNT, AVG)
+- For 'total', 'summary', 'ringkasan': Use aggregate functions (SUM, COUNT, AVG, GROUP BY)
 - For 'trend', 'per bulan', 'bulanan': GROUP BY periode_tahun, periode_bulan
 - For 'terbaik', 'top', 'terlaris': ORDER BY metric DESC LIMIT 10
+- For 'per kategori', 'per province', 'per region': GROUP BY the dimension + aggregate
 
 ## RESPONSE FORMAT (STRICT):
 Respond ONLY in this format, NOTHING ELSE:
@@ -253,7 +270,7 @@ You can return multiple queries if needed:
 [LABEL]Query 1 Label[/LABEL] [SQL]SELECT ...[/SQL]
 [LABEL]Query 2 Label[/LABEL] [SQL]SELECT ...[/SQL]
 
-## FEW-SHOT EXAMPLES (LEARN FROM THESE):
+## FEW-SHOT EXAMPLES (LEARN FROM THESE - COPY THE PATTERN):
 
 ### Example 1: Show all sales data for 2026
 User: "tampilkan seluruh data penjualan di tahun 2026"
@@ -263,7 +280,7 @@ User: "tampilkan seluruh data penjualan di tahun 2026"
 User: "tampilkan penjualan per provinsi"
 [LABEL]Penjualan per Provinsi[/LABEL] [SQL]SELECT nama_propinsi_cabang, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_propinsi_cabang ORDER BY total_pendapatan DESC[/SQL]
 
-### Example 3: Top products in specific region
+### Example 3: Top products in specific region with year filter
 User: "produk terlaris di Riau tahun 2025"
 [LABEL]Produk Terlaris Riau 2025[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' AND periode_tahun = '2025' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
 
@@ -275,13 +292,25 @@ User: "tren penjualan per bulan"
 User: "pelanggan terbaik"
 [LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_belanja FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total_belanja DESC LIMIT 10[/SQL]
 
-### Example 6: Branch information
+### Example 6: Branch information by region
 User: "daftar cabang di Jakarta"
-[LABEL]Cabang Jakarta[/LABEL] [SQL]SELECT nama_cabang, alamat_cabang, nama_kabupaten_cabang, no_telepon FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' OR nama_kabupaten_cabang ILIKE '%jakarta%'[/SQL]
+[LABEL]Cabang Jakarta[/LABEL] [SQL]SELECT nama_cabang, alamat_cabang, nama_kabupaten_cabang, nama_propinsi_cabang, no_telepon FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' OR nama_kabupaten_cabang ILIKE '%jakarta%'[/SQL]
 
-### Example 7: Complex - Sales by category with filter
+### Example 7: Complex - Sales by category with multiple filters
 User: "penjualan per kategori produk di Sumatera Utara tahun 2024"
 [LABEL]Penjualan per Kategori Sumut 2024[/LABEL] [SQL]SELECT nama_kategori_barang, COUNT(DISTINCT no_fak_jl) as transaksi, SUM(qty_jual) as total_qty, SUM(total_netto) as revenue FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE (nama_propinsi_cabang ILIKE '%sumatera utara%' OR nama_propinsi_cabang ILIKE '%sumut%') AND periode_tahun = '2024' GROUP BY nama_kategori_barang ORDER BY revenue DESC[/SQL]
+
+### Example 8: Multi-part query (comparison across cities)
+User: "produk terlaris di Jakarta, Bandung, dan Surabaya"
+[LABEL]Produk Terlaris per Kota[/LABEL] [SQL]SELECT nama_cabang_kota, nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_cabang_kota IN ('Jakarta', 'Bandung', 'Surabaya') GROUP BY nama_cabang_kota, nama_barang ORDER BY nama_cabang_kota, total_terjual DESC[/SQL]
+
+## STEP-BY-STEP THINKING (DO THIS INTERNALLY):
+1. Identify what user wants (data, summary, trend, comparison, etc.)
+2. Identify filters (region, year, month, product, customer, etc.)
+3. Find the correct table name from schema
+4. Find the correct column names from schema
+5. Build the SQL query following the examples above
+6. Double-check: Are ALL table and column names from the schema?
 
 ## NOW GENERATE SQL FOR THIS USER REQUEST:
 
