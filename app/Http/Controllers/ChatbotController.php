@@ -333,7 +333,8 @@ PROMPT;
    - Do they want SUM (total)? → Use SUM(column)
    - Do they want LIST (show me)? → Use SELECT *
    - Do they want TOP N (best/terlaris)? → Use GROUP BY + ORDER BY + LIMIT
-   - Do they want TREND (per bulan/tahun)? → Use GROUP BY periode
+   - Do they want TREND (per bulan)? → Use GROUP BY periode_tahun, periode_bulan
+   - Do they want TREND (per tahun)? → Use GROUP BY periode_tahun
    - Are they asking about the database schema (e.g., "apa kolom di tabel ini")? → DO NOT generate queries. Return [SCHEMA_ONLY]!
 
 2. **IDENTIFY** the main topic:
@@ -396,6 +397,10 @@ Thinking: User wants TOP customers (terbaik) → GROUP BY nama_pelanggan, SUM(to
 User: "tren penjualan per bulan"
 Thinking: User wants TREND → GROUP BY periode_tahun, periode_bulan, SUM(total_netto), ORDER BY.
 [LABEL]Tren Penjualan Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY bulan DESC LIMIT 12[/SQL]
+
+User: "tampilkan penjualan tiap tahun"
+Thinking: User wants TREND per year → GROUP BY periode_tahun, SUM(total_netto), ORDER BY.
+[LABEL]Penjualan Per Tahun[/LABEL] [SQL]SELECT periode_tahun as tahun, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun ORDER BY tahun DESC LIMIT 10[/SQL]
 
 User: "ada berapa cabang?"
 Thinking: User wants COUNT (ada berapa) → COUNT(*). No filters.
@@ -1000,6 +1005,21 @@ PROMPT;
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
                 GROUP BY periode_tahun, periode_bulan
                 ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12";
+        }
+
+        // ── Revenue trend / tahunan ──────────────────────────────────────────
+        if ($this->hasKeyword($lower, ['tiap tahun', 'per tahun', 'tahunan', 'yearly']) && $allowSales) {
+            $label = $hasW ? "Revenue Tahunan di " . ucwords($wilayahFilter) : "Revenue per Tahun";
+            $queries[$label] = "
+                SELECT periode_tahun as tahun,
+                    COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
+                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_harga), 0) as avg_order_value,
+                    COUNT(DISTINCT kode_pelanggan) as unique_pelanggan
+                FROM {$vSales}
+                " . ($hasW ? $wWhere : "WHERE 1=1") . "
+                GROUP BY periode_tahun
+                ORDER BY periode_tahun DESC LIMIT 10";
         }
 
         // ── Kategori ─────────────────────────────────────────────────────────
