@@ -236,9 +236,32 @@ class ChatbotController extends Controller
             }
         }
 
+        // Extract month from message (e.g., "januari", "februari", "bulan 1")
+        $bulanMatch = null;
+        $bulanMap = [
+            'januari' => '01', 'jan' => '01',
+            'februari' => '02', 'feb' => '02',
+            'maret' => '03', 'mar' => '03',
+            'april' => '04', 'apr' => '04',
+            'mei' => '05',
+            'juni' => '06', 'jun' => '06',
+            'juli' => '07', 'jul' => '07',
+            'agustus' => '08', 'agu' => '08',
+            'september' => '09', 'sep' => '09',
+            'oktober' => '10', 'okt' => '10',
+            'november' => '11', 'nov' => '11',
+            'desember' => '12', 'des' => '12'
+        ];
+        foreach ($bulanMap as $keyword => $bulanNum) {
+            if (str_contains($lower, $keyword)) {
+                $bulanMatch = $bulanNum;
+                break;
+            }
+        }
+
         // Pattern 1: Simple TOTAL / COUNT - NO AI NEEDED
         if (preg_match('/^(total|jumlah|ada berapa|berapa banyak)\s+(cabang|branch|pelanggan|customer|pembeli|produk|barang|kategori)/i', $lower, $matches) 
-            && !$tahun && !$region) {
+            && !$tahun && !$region && !$bulanMatch) {
             $topic = strtolower($matches[2]);
             $queries = [];
             
@@ -260,7 +283,29 @@ class ChatbotController extends Controller
             }
         }
 
-        // Pattern 2: TOTAL PENJUALAN / TRANSAKSI (with optional year/region) - HARDCODED
+        // Pattern 2: PRODUK TERLARIS / PALING LARIS (with year/month/region) - HARDCODED
+        if ((str_contains($lower, 'produk') || str_contains($lower, 'barang')) && 
+            (str_contains($lower, 'terlaris') || str_contains($lower, 'paling laris') || str_contains($lower, 'best seller') || str_contains($lower, 'bestseller'))
+            && $isAllowed('view_data_penjualan_rinci_mbi')) {
+            $queries = [];
+            $whereConditions = [];
+            
+            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
+            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
+            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
+            
+            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+            
+            $label = "Produk Terlaris";
+            if ($tahun) $label .= " " . $tahun;
+            if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
+            if ($region) $label .= " di " . ucwords($region);
+            
+            $queries[$label] = "SELECT nama_barang, SUM(qty_jual) as total_terjual, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10";
+            return $queries;
+        }
+
+        // Pattern 3: TOTAL PENJUALAN / TRANSAKSI (with optional year/month/region) - HARDCODED
         if (preg_match('/(total|jumlah|sum|transaksi|penjualan)\s*(penjualan|transaksi|data)?/i', $lower) && 
             (str_contains($lower, 'total') || str_contains($lower, 'jumlah') || str_contains($lower, 'transaksi') || str_contains($lower, 'penjualan'))) {
             $queries = [];
@@ -270,45 +315,53 @@ class ChatbotController extends Controller
                             str_contains($lower, 'daftar') || str_contains($lower, 'list') ||
                             str_contains($lower, 'data');
             
+            $whereConditions = [];
+            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
+            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
+            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
+            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+            
             if ($isListRequest) {
                 // User wants to SEE the data (SELECT *)
-                if ($tahun) {
-                    $queries['Transaksi ' . $tahun] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}' LIMIT 50";
-                } else if ($region) {
-                    $queries['Transaksi di ' . ucwords($region)] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%{$region}%' LIMIT 50";
-                } else {
-                    $queries['Data Transaksi'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 50";
-                }
+                $label = "Data Transaksi";
+                if ($tahun) $label .= " " . $tahun;
+                if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
+                if ($region) $label .= " di " . ucwords($region);
+                
+                $queries[$label] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50";
             } else {
                 // User wants TOTAL/SUM
-                if ($tahun) {
-                    $queries['Total Penjualan ' . $tahun] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}'";
-                } else if ($region) {
-                    $queries['Total Penjualan di ' . ucwords($region)] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%{$region}%'";
-                } else {
-                    $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
-                }
+                $label = "Total Penjualan";
+                if ($tahun) $label .= " " . $tahun;
+                if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
+                if ($region) $label .= " di " . ucwords($region);
+                
+                $queries[$label] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause}";
             }
             return $queries;
         }
 
-        // Pattern 3: TAMPILKAN / SHOW data (with optional filters)
+        // Pattern 4: TAMPILKAN / SHOW data (with optional filters)
         if (preg_match('/^(tampilkan|show|daftar|list)\s+(semua|seluruh|data)?\s*(cabang|pelanggan|penjualan|produk|transaksi)?/i', $lower, $matches)) {
             $topic = isset($matches[3]) ? strtolower($matches[3]) : '';
             $queries = [];
             
+            $whereConditions = [];
+            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
+            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
+            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
+            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+            
             if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
-                $sql = "SELECT * FROM sch_mbi.view_master_cabang_mbi";
-                if ($region) $sql .= " WHERE nama_propinsi_cabang ILIKE '%{$region}%'";
-                $sql .= " LIMIT 50";
-                $queries['Daftar Cabang'] = $sql;
+                $queries['Daftar Cabang'] = "SELECT * FROM sch_mbi.view_master_cabang_mbi {$whereClause} LIMIT 50";
                 return $queries;
             }
             if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
-                $sql = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi";
-                if ($region) $sql .= " WHERE nama_propinsi_pelanggan ILIKE '%{$region}%'";
-                $sql .= " LIMIT 50";
-                $queries['Daftar Pelanggan'] = $sql;
+                $queries['Daftar Pelanggan'] = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi {$whereClause} LIMIT 50";
+                return $queries;
+            }
+            if (in_array($topic, ['penjualan', 'sales', 'transaksi']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
+                $queries['Data Penjualan'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50";
                 return $queries;
             }
         }
@@ -360,8 +413,11 @@ User: "penjualan di tahun 2026"
 User: "tampilkan transaksi penjualan di 2026"
 [LABEL]Transaksi 2026[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50[/SQL]
 
+User: "produk paling laris di bulan januari 2026"
+[LABEL]Produk Terlaris Januari 2026[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' AND periode_bulan = '01' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
+
 User: "produk terlaris di Riau"
-[LABEL]Produk Terlaris Riau[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_barang ORDER BY total DESC LIMIT 10[/SQL]
+[LABEL]Produk Terlaris Riau[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
 
 User: "tren penjualan per bulan"
 [LABEL]Tren Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY bulan DESC LIMIT 12[/SQL]
@@ -371,6 +427,9 @@ User: "pelanggan terbaik"
 
 User: "transaksi di Jakarta tahun 2025"
 [LABEL]Transaksi Jakarta 2025[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' AND periode_tahun = '2025' LIMIT 50[/SQL]
+
+User: "total penjualan bulan maret 2026"
+[LABEL]Total Maret 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' AND periode_bulan = '03'[/SQL]
 
 ## NOW GENERATE SQL:
 PROMPT;
