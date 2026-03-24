@@ -287,8 +287,10 @@ User: "jumlah pelanggan"
 - For text search: ALWAYS use ILIKE with wildcards (e.g., `column ILIKE '%keyword%'`)
 
 ### 4. QUERY COMPLEXITY GUIDELINES:
-- For 'show all', 'seluruh data', 'tampilkan semua': Use simple SELECT * with LIMIT 50
-- For 'total', 'summary', 'ringkasan': Use aggregate functions (SUM, COUNT, AVG, GROUP BY)
+- For 'total', 'jumlah', 'ada berapa', 'how many', 'count': Use aggregate (COUNT/SUM) WITHOUT LIMIT
+  - ✅ CORRECT: `SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi`
+  - ❌ WRONG: `SELECT COUNT(*) as jumlah_cabang FROM ... LIMIT 10` (don't limit counts!)
+- For 'show all', 'tampilkan', 'daftar', 'list': Use SELECT * with LIMIT 50
 - For 'trend', 'per bulan', 'bulanan': GROUP BY periode_tahun, periode_bulan
 - For 'terbaik', 'top', 'terlaris': ORDER BY metric DESC LIMIT 10
 - For 'per kategori', 'per province', 'per region': GROUP BY the dimension + aggregate
@@ -594,25 +596,66 @@ PROMPT;
         $results       = [];
         $allQueriesFailed = false;
 
-        // DETECT SIMPLE QUESTION - enforce SINGLE query only
-        $simpleKeywords = ['ada berapa', 'jumlah', 'total', 'berapa banyak', 'how many', 'count'];
-        $isSimpleQuestion = false;
-        foreach ($simpleKeywords as $kw) {
+        // DETECT QUESTION TYPE for proper query handling
+        $aggregateKeywords = ['total', 'jumlah', 'ada berapa', 'berapa banyak', 'how many', 'count', 'sum', 'average', 'rata-rata'];
+        $listKeywords = ['tampilkan', 'show', 'daftar', 'list', 'semua', 'seluruh', 'detail'];
+        
+        $isAggregateQuestion = false; // COUNT, SUM, AVG - no row limit
+        $isListQuestion = false;      // SELECT * - needs LIMIT
+        $isSimpleQuestion = false;    // Single topic only
+        
+        foreach ($aggregateKeywords as $kw) {
             if (str_contains($lower, $kw)) {
-                $isSimpleQuestion = true;
+                $isAggregateQuestion = true;
                 break;
             }
         }
+        
+        foreach ($listKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $isListQuestion = true;
+                break;
+            }
+        }
+        
+        // Simple = single topic (branches OR sales OR customers, not multiple)
+        $hasBranches = str_contains($lower, 'cabang') || str_contains($lower, 'branch');
+        $hasSales = str_contains($lower, 'penjualan') || str_contains($lower, 'sales') || str_contains($lower, 'transaksi');
+        $hasCustomers = str_contains($lower, 'pelanggan') || str_contains($lower, 'customer') || str_contains($lower, 'pembeli');
+        $hasProducts = str_contains($lower, 'produk') || str_contains($lower, 'barang');
+        
+        $topicCount = 0;
+        if ($hasBranches) $topicCount++;
+        if ($hasSales) $topicCount++;
+        if ($hasCustomers) $topicCount++;
+        if ($hasProducts) $topicCount++;
+        
+        $isSimpleQuestion = ($topicCount <= 1);
 
         try {
             // 1. Coba perencanaan query dinamis (LLM)
             $queries = $this->planSQLQueries($message, $schemaContext, $apiKey);
 
-            // HARD LIMIT: For simple questions, keep ONLY the first query
-            if ($isSimpleQuestion && count($queries) > 1) {
+            Log::info("Question type - Aggregate: " . ($isAggregateQuestion ? 'YES' : 'NO') . 
+                      ", List: " . ($isListQuestion ? 'YES' : 'NO') . 
+                      ", Simple: " . ($isSimpleQuestion ? 'YES' : 'NO'));
+
+            // For simple AGGREGATE questions, keep ONLY the first query and NO LIMIT
+            if ($isSimpleQuestion && $isAggregateQuestion && count($queries) > 1) {
                 $firstKey = array_key_first($queries);
                 $firstQuery = [$firstKey => $queries[$firstKey]];
-                Log::info("Simple question: Limited from " . count($queries) . " to 1 query");
+                // Remove LIMIT from aggregate queries
+                foreach ($firstQuery as $label => &$sql) {
+                    $sql = preg_replace('/\s+LIMIT\s+\d+$/i', '', $sql);
+                }
+                Log::info("Simple aggregate: Limited to 1 query, removed LIMIT");
+                $queries = $firstQuery;
+            }
+            // For simple LIST questions, keep ONLY the first query with LIMIT 50
+            else if ($isSimpleQuestion && $isListQuestion && count($queries) > 1) {
+                $firstKey = array_key_first($queries);
+                $firstQuery = [$firstKey => $queries[$firstKey]];
+                Log::info("Simple list: Limited to 1 query with LIMIT");
                 $queries = $firstQuery;
             }
 
@@ -623,11 +666,18 @@ PROMPT;
                 $tahunFilter   = $this->extractTahunFilter($lower);
                 $queries = $this->selectQueries($lower, $wilayahFilter, $tahunFilter);
                 
-                // Also limit static queries for simple questions
-                if ($isSimpleQuestion && count($queries) > 1) {
+                // Apply same limits to static queries
+                if ($isSimpleQuestion && $isAggregateQuestion && count($queries) > 1) {
                     $firstKey = array_key_first($queries);
                     $firstQuery = [$firstKey => $queries[$firstKey]];
+                    foreach ($firstQuery as $label => &$sql) {
+                        $sql = preg_replace('/\s+LIMIT\s+\d+$/i', '', $sql);
+                    }
                     $queries = $firstQuery;
+                }
+                else if ($isSimpleQuestion && $isListQuestion && count($queries) > 1) {
+                    $firstKey = array_key_first($queries);
+                    $queries = [$firstKey => $queries[$firstKey]];
                 }
             }
 
@@ -1033,6 +1083,23 @@ PROMPT;
                         ROUND(AVG(total_harga), 0) as avg_order_value
                     FROM {$vSales}
                     " . ($hasW ? $wWhere : "WHERE 1=1");
+            }
+        }
+
+        // ── TOTAL / JUMLAH queries (aggregate without LIMIT) ──────────────────
+        // Handle explicit "total" or "jumlah" requests for specific entities
+        if ($this->hasKeyword($lower, ['total', 'jumlah', 'ada berapa']) && empty($queries)) {
+            if ($hasBranches && $isAllowed('view_master_cabang_mbi')) {
+                $queries['Total Cabang'] = "SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi";
+            }
+            if ($hasCustomers && $isAllowed('view_master_pelanggan_mbi')) {
+                $queries['Total Pelanggan'] = "SELECT COUNT(*) as jumlah_pelanggan FROM sch_mbi.view_master_pelanggan_mbi";
+            }
+            if ($hasSales && $allowSales) {
+                $queries['Total Penjualan'] = "SELECT SUM(total_netto) as total_penjualan FROM sch_mbi.view_data_penjualan_rinci_mbi";
+            }
+            if ($hasProducts && $isAllowed('view_master_barang_mbi')) {
+                $queries['Total Produk'] = "SELECT COUNT(*) as jumlah_produk FROM sch_mbi.view_master_barang_mbi";
             }
         }
 
