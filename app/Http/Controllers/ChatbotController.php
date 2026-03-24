@@ -118,11 +118,13 @@ class ChatbotController extends Controller
     public function send(Request $request)
     {
         set_time_limit(300);
+        ini_set('memory_limit', '512M');
+        
         $message = $request->input('message');
         $history = $request->input('history', []);
         $apiKey  = env('OPENROUTER_API_KEY');
 
-        Log::info("Chatbot send: ", ['message' => $message]);
+        Log::info("Chatbot send: ", ['message' => $message, 'history_count' => count($history)]);
 
         if (!$apiKey) {
             return response()->json(['response' => "Error: OPENROUTER_API_KEY atau NVIDIA_API_KEY tidak dikonfigurasi di .env"]);
@@ -217,9 +219,11 @@ class ChatbotController extends Controller
 ⚠️ CRITICAL RULES - READ CAREFULLY:
 1. ONLY use table names that are explicitly listed in the SCHEMA above (e.g., view_master_cabang_mbi, view_data_penjualan_rinci_mbi, etc.)
 2. NEVER invent table names like 'cabang', 'produk', 'pembeli', 'target', 'regions', 'master_cabang' - these DO NOT EXIST!
-3. ALWAYS use the full table name with 'sch_mbi.' prefix (e.g., sch_mbi.view_master_cabang_mbi)
-4. If user asks for data but you're unsure which table to use, respond with a clarification request
-5. ONLY use column names that are listed for each table in the schema above
+3. ALWAYS use the full table name with 'sch_mbi.' prefix (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
+4. For date filtering, use: periode_tahun = '2026' OR EXTRACT(YEAR FROM tgl_fak_jl) = 2026
+5. If user asks for data but you're unsure which table to use, respond with a clarification request
+6. ONLY use column names that are listed for each table in the schema above
+7. For 'all data' or 'seluruh data' requests, use simple SELECT without complex aggregations
 
 RESPONSE FORMAT:
 - Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
@@ -227,16 +231,17 @@ RESPONSE FORMAT:
 - No explanation, no semicolon at the end
 
 EXAMPLE CORRECT QUERIES:
-✓ SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50
+✓ SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50
 ✓ SELECT nama_cabang, alamat_cabang FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%riau%'
+✓ SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50
 ✗ SELECT * FROM sch_mbi.cabang (WRONG - table 'cabang' does not exist!)
 ✗ SELECT * FROM sch_mbi.master_cabang (WRONG - use 'view_master_cabang_mbi' instead!)";
 
         try {
             // Reduce max_tokens to avoid credit limit issues
-            $maxTokens = 200;
-            
-            $response = Http::timeout(60)->withHeaders([
+            $maxTokens = 300;
+
+            $response = Http::timeout(90)->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type'  => 'application/json',
             ])->post($this->apiUrl, [
@@ -446,6 +451,7 @@ EXAMPLE CORRECT QUERIES:
     {
         $lower         = mb_strtolower($message);
         $wilayahFilter = $this->extractWilayahFilter($lower);
+        $tahunFilter   = $this->extractTahunFilter($lower);
         $allowedTables = $this->getAllowedTables();
         $results       = [];
         $allQueriesFailed = false;
@@ -458,12 +464,13 @@ EXAMPLE CORRECT QUERIES:
             if (empty($queries)) {
                 Log::info("Dynamic planner returned no queries, falling back to static templates.");
                 $wilayahFilter = $this->extractWilayahFilter($lower);
-                $queries = $this->selectQueries($lower, $wilayahFilter);
+                $tahunFilter   = $this->extractTahunFilter($lower);
+                $queries = $this->selectQueries($lower, $wilayahFilter, $tahunFilter);
             }
 
             $validQueryCount = 0;
             $invalidQueryCount = 0;
-            
+
             foreach ($queries as $label => $sql) {
                 try {
                     // Validasi keamanan SQL
@@ -478,6 +485,7 @@ EXAMPLE CORRECT QUERIES:
                         $sql = rtrim($sql, ';') . ' LIMIT 50';
                     }
 
+                    Log::info("Executing query '{$label}': " . substr($sql, 0, 200));
                     $rows = DB::connection('pgsql_mbi')->select($sql);
                     $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
                     Log::info("Query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
@@ -521,13 +529,14 @@ EXAMPLE CORRECT QUERIES:
                     $invalidQueryCount++;
                 }
             }
-            
+
             // 3. Jika semua query dari AI gagal validasi, fallback ke static queries
             if ($validQueryCount === 0 && $invalidQueryCount > 0 && !empty($queries)) {
                 Log::info("All AI queries failed validation, falling back to static templates.");
                 $wilayahFilter = $this->extractWilayahFilter($lower);
-                $queries = $this->selectQueries($lower, $wilayahFilter);
-                
+                $tahunFilter   = $this->extractTahunFilter($lower);
+                $queries = $this->selectQueries($lower, $wilayahFilter, $tahunFilter);
+
                 // Re-run the static queries
                 $results = [];
                 foreach ($queries as $label => $sql) {
@@ -536,11 +545,12 @@ EXAMPLE CORRECT QUERIES:
                             Log::warning("Skipping static query: {$sql}");
                             continue;
                         }
-                        
+
                         if (!preg_match('/\blimit\b/i', $sql)) {
                             $sql = rtrim($sql, ';') . ' LIMIT 50';
                         }
-                        
+
+                        Log::info("Executing static query '{$label}': " . substr($sql, 0, 200));
                         $rows = DB::connection('pgsql_mbi')->select($sql);
                         $results[$label] = !empty($rows) ? $rows : ['info' => 'Tidak ada data.'];
                         Log::info("Static query '{$label}': " . (is_array($rows) ? count($rows) : 0) . " rows");
@@ -549,7 +559,7 @@ EXAMPLE CORRECT QUERIES:
                     }
                 }
             }
-            
+
         } catch (\Exception $e) {
             Log::error("fetchRelevantData: " . $e->getMessage());
         }
@@ -558,6 +568,7 @@ EXAMPLE CORRECT QUERIES:
 
         $ctx  = "=== DATA NYATA DARI DATABASE ===\n";
         if ($wilayahFilter) $ctx .= "Filter wilayah: '{$wilayahFilter}'\n";
+        if ($tahunFilter) $ctx .= "Filter tahun: '{$tahunFilter}'\n";
         $ctx .= "Gunakan HANYA data di bawah. Jangan mengarang.\n\n";
 
         foreach ($results as $label => $rows) {
@@ -587,12 +598,13 @@ EXAMPLE CORRECT QUERIES:
     }
 
     // ── Bangun semua query berdasarkan kata kunci ─────────────────────────────
-        private function selectQueries(string $lower, string $wilayahFilter = ''): array
+    private function selectQueries(string $lower, string $wilayahFilter = '', string $tahunFilter = ''): array
     {
         $queries = [];
         $tgl     = 'tgl_fak_jl';
         $bayar   = 'total_harga';
         $hasW    = !empty($wilayahFilter);
+        $hasT    = !empty($tahunFilter);
         $safe    = $hasW ? addslashes($wilayahFilter) : '';
 
         $allowedTables = $this->getAllowedTables();
@@ -603,8 +615,16 @@ EXAMPLE CORRECT QUERIES:
         $vSales = 'sch_mbi.view_data_penjualan_rinci_mbi';
         $allowSales = $isAllowed('view_data_penjualan_rinci_mbi');
 
-        $wAnd = $hasW ? "AND (LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')" : '';
-        $wWhere = $hasW ? "WHERE (LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')" : '';
+        // Build WHERE clause with both wilayah and tahun filters
+        $whereConditions = [];
+        if ($hasW) {
+            $whereConditions[] = "(LOWER(nama_propinsi_cabang) LIKE '%{$safe}%' OR LOWER(nama_kabupaten_cabang) LIKE '%{$safe}%' OR LOWER(alamat_pelanggan) LIKE '%{$safe}%')";
+        }
+        if ($hasT) {
+            $whereConditions[] = "(periode_tahun = '{$tahunFilter}' OR EXTRACT(YEAR FROM {$tgl}) = {$tahunFilter})";
+        }
+        
+        $wWhere = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "WHERE 1=1";
 
         // ── Produk terlaris ──────────────────────────────────────────────────
         if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'bestseller', 'paling laku', 'banyak terjual', 'laris', 'product', 'top selling', 'most sold'])
@@ -852,14 +872,14 @@ EXAMPLE CORRECT QUERIES:
                     " . ($hasW ? $wWhere : "WHERE 1=1");
             }
         }
-        
+
         // ── Query untuk "seluruh", "semua", "all" data ───────────────────────
-        // Jika user minta tampilkan seluruh data, SELALU tambahkan summary total
+        // Jika user minta tampilkan seluruh data, SELALU tambahkan summary total DAN raw data
         if ($this->hasKeyword($lower, ['seluruh', 'semua', 'all', 'everything', 'daftar lengkap', 'full list', 'total'])) {
             if ($allowSales) {
                 // Always add total summary for sales data
                 $queries['📊 Total Keseluruhan'] = "
-                    SELECT 
+                    SELECT
                         COUNT(DISTINCT no_fak_jl) as total_transaksi,
                         COUNT(DISTINCT kode_pelanggan) as total_pelanggan,
                         COUNT(DISTINCT kode_barang) as total_produk,
@@ -869,11 +889,31 @@ EXAMPLE CORRECT QUERIES:
                         MIN(tgl_fak_jl) as transaksi_pertama,
                         MAX(tgl_fak_jl) as transaksi_terakhir
                     FROM {$vSales}
-                    " . ($hasW ? $wWhere : "WHERE 1=1");
+                    " . ($hasW || $hasT ? $wWhere : "WHERE 1=1");
+                
+                // ADD RAW DATA QUERY for "seluruh data penjualan" requests
+                if ($this->hasKeyword($lower, ['data', 'penjualan', 'transaksi', 'sales'])) {
+                    $queries['📋 Data Penjualan Detail'] = "
+                        SELECT
+                            no_fak_jl,
+                            tgl_fak_jl,
+                            nama_pelanggan,
+                            nama_barang,
+                            qty_jual,
+                            total_harga,
+                            total_netto,
+                            nama_kategori_barang,
+                            periode_tahun,
+                            periode_bulan
+                        FROM {$vSales}
+                        " . ($hasW || $hasT ? $wWhere : "WHERE 1=1") . "
+                        ORDER BY tgl_fak_jl DESC
+                        LIMIT 50";
+                }
             }
             if ($isAllowed('view_master_cabang_mbi')) {
                 $queries['🏢 Total Cabang'] = "
-                    SELECT 
+                    SELECT
                         COUNT(*) as jumlah_cabang,
                         COUNT(DISTINCT nama_regional) as jumlah_regional,
                         COUNT(DISTINCT nama_propinsi_cabang) as jumlah_provinsi,
@@ -882,7 +922,7 @@ EXAMPLE CORRECT QUERIES:
             }
             if ($isAllowed('view_master_pelanggan_mbi')) {
                 $queries['👥 Total Pelanggan'] = "
-                    SELECT 
+                    SELECT
                         COUNT(*) as jumlah_pelanggan,
                         COUNT(DISTINCT nama_kabupaten_pelanggan) as kabupaten,
                         COUNT(DISTINCT nama_propinsi_pelanggan) as provinsi
@@ -1460,6 +1500,22 @@ EXAMPLE CORRECT QUERIES:
             if (strlen($c) >= 3 && !in_array($c, $stop)) return $c;
         }
 
+        return '';
+    }
+
+    // ── Ekstrak filter tahun dari pesan ───────────────────────────────────────
+    private function extractTahunFilter(string $lower): string
+    {
+        // Cari tahun 4 digit (2020-2030)
+        if (preg_match('/\b(202[0-9]|2030)\b/', $lower, $m)) {
+            return $m[1];
+        }
+        
+        // Cari pola "tahun 2025", "th 2024", dll
+        if (preg_match('/(?:tahun|th|thn|year)\s*\.?\s*(202[0-9]|2030)/', $lower, $m)) {
+            return $m[1];
+        }
+        
         return '';
     }
 
