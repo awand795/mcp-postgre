@@ -213,11 +213,15 @@ class ChatbotController extends Controller
     {
         Log::info("Planning SQL for: " . $message);
 
-        $systemPrompt = "You are an expert SQL Query Generator for PostgreSQL database with business intelligence capabilities.
+        $systemPrompt = <<<'PROMPT'
+You are an expert SQL Query Generator for PostgreSQL database with business intelligence capabilities.
 
 ## SCHEMA INFORMATION (YOUR ONLY SOURCE OF TRUTH):
-{$schemaContext}
+PROMPT;
 
+        $systemPrompt .= "\n" . $schemaContext . "\n\n";
+
+        $systemPrompt .= <<<'PROMPT'
 ## CRITICAL RULES - YOU MUST FOLLOW:
 
 ### TABLE NAMES (MOST IMPORTANT):
@@ -280,7 +284,8 @@ User: "penjualan per kategori produk di Sumatera Utara tahun 2024"
 [LABEL]Penjualan per Kategori Sumut 2024[/LABEL] [SQL]SELECT nama_kategori_barang, COUNT(DISTINCT no_fak_jl) as transaksi, SUM(qty_jual) as total_qty, SUM(total_netto) as revenue FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE (nama_propinsi_cabang ILIKE '%sumatera utara%' OR nama_propinsi_cabang ILIKE '%sumut%') AND periode_tahun = '2024' GROUP BY nama_kategori_barang ORDER BY revenue DESC[/SQL]
 
 ## NOW GENERATE SQL FOR THIS USER REQUEST:
-";
+
+PROMPT;
 
         try {
             // Increased max_tokens for complex queries
