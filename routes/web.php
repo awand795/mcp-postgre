@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\AgenticChatbotController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\MCPServer;
 use Illuminate\Support\Facades\Route;
@@ -17,16 +18,25 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-// Protected Chatbot Routes
+// Protected Routes
 Route::middleware('auth')->group(function () {
+
     Route::get('/', function () {
         return redirect()->route('chatbot');
     });
 
-    Route::get('/chatbot', [ChatbotController::class, 'index'])->name('chatbot');
-    Route::post('/chatbot/send', [ChatbotController::class, 'send'])->name('chatbot.send');
+    // ── CHATBOT ROUTES ──────────────────────────────────────────────────────
 
-    // Admin Routes
+    // Mode lama (manual SQL planning) - tetap ada sebagai fallback
+    Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
+    Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
+
+    // Mode agentic baru - AI query mandiri via tool calling
+    // Endpoint terpisah agar bisa ditest paralel
+    Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
+    Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
+
+    // ── ADMIN ROUTES ─────────────────────────────────────────────────────────
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('dashboard');
 
@@ -35,7 +45,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
         Route::put('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
         Route::delete('/users/{user}', [AdminController::class, 'userDelete'])->name('users.delete');
-        
+
         // User Import/Export
         Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');
         Route::post('/users/import', [AdminController::class, 'usersImport'])->name('users.import');
@@ -50,4 +60,5 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// MCP Server endpoint (untuk koneksi klien eksternal seperti Claude Desktop)
 Mcp::web('/mcp', MCPServer::class);
