@@ -213,20 +213,21 @@ class ChatbotController extends Controller
     {
         Log::info("Planning SQL for: " . $message);
 
-        // === DIRECT QUERY MAPPING FOR COMMON QUESTIONS ===
-        // This bypasses AI for simple, well-defined queries
+        // === HYBRID APPROACH: Hardcoded for simple, AI for complex ===
+        
+        // Extract year, region, month for AI to use
         $lower = mb_strtolower($message);
         $allowedTables = $this->getAllowedTables();
         $isAllowed = function($table) use ($allowedTables) {
             return in_array($table, $allowedTables);
         };
 
-        // Extract year from message (e.g., "2026", "tahun 2026", "di 2026")
+        // Extract year from message
         $tahunMatch = null;
         preg_match('/\b(202[0-9]|2030)\b/', $lower, $tahunMatch);
         $tahun = $tahunMatch ? $tahunMatch[1] : null;
 
-        // Extract region (simple detection)
+        // Extract region
         $regions = ['riau', 'jakarta', 'bandung', 'surabaya', 'medan', 'sumatera', 'jawa'];
         $region = null;
         foreach ($regions as $r) {
@@ -236,7 +237,7 @@ class ChatbotController extends Controller
             }
         }
 
-        // Extract month from message (e.g., "januari", "februari", "bulan 1")
+        // Extract month from message
         $bulanMatch = null;
         $bulanMap = [
             'januari' => '01', 'jan' => '01',
@@ -259,7 +260,7 @@ class ChatbotController extends Controller
             }
         }
 
-        // Pattern 1: Simple TOTAL / COUNT - NO AI NEEDED
+        // === TIER 1: ULTRA-SIMPLE (100% HARDCODED - NO AI) ===
         if (preg_match('/^(total|jumlah|ada berapa|berapa banyak)\s+(cabang|branch|pelanggan|customer|pembeli|produk|barang|kategori)/i', $lower, $matches) 
             && !$tahun && !$region && !$bulanMatch) {
             $topic = strtolower($matches[2]);
@@ -277,161 +278,90 @@ class ChatbotController extends Controller
                 $queries['Total Produk'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_barang_mbi";
                 return $queries;
             }
-            if ($topic === 'kategori' && $isAllowed('view_data_penjualan_rinci_mbi')) {
-                $queries['Total Kategori'] = "SELECT COUNT(DISTINCT nama_kategori_barang) as jumlah FROM sch_mbi.view_data_penjualan_rinci_mbi";
-                return $queries;
-            }
         }
 
-        // Pattern 2: PRODUK TERLARIS / PALING LARIS (with year/month/region) - HARDCODED
-        if ((str_contains($lower, 'produk') || str_contains($lower, 'barang')) && 
-            (str_contains($lower, 'terlaris') || str_contains($lower, 'paling laris') || str_contains($lower, 'best seller') || str_contains($lower, 'bestseller'))
-            && $isAllowed('view_data_penjualan_rinci_mbi')) {
-            $queries = [];
-            $whereConditions = [];
-            
-            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
-            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
-            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
-            
-            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
-            
-            $label = "Produk Terlaris";
-            if ($tahun) $label .= " " . $tahun;
-            if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
-            if ($region) $label .= " di " . ucwords($region);
-            
-            $queries[$label] = "SELECT nama_barang, SUM(qty_jual) as total_terjual, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10";
-            return $queries;
-        }
+        // === TIER 2+: AI FOR EVERYTHING ELSE ===
+        // AI will handle queries with filters and complex analysis
 
-        // Pattern 3: TOTAL PENJUALAN / TRANSAKSI (with optional year/month/region) - HARDCODED
-        if (preg_match('/(total|jumlah|sum|transaksi|penjualan)\s*(penjualan|transaksi|data)?/i', $lower) && 
-            (str_contains($lower, 'total') || str_contains($lower, 'jumlah') || str_contains($lower, 'transaksi') || str_contains($lower, 'penjualan'))) {
-            $queries = [];
-            
-            // Check if user wants COUNT or LIST
-            $isListRequest = str_contains($lower, 'tampilkan') || str_contains($lower, 'show') || 
-                            str_contains($lower, 'daftar') || str_contains($lower, 'list') ||
-                            str_contains($lower, 'data');
-            
-            $whereConditions = [];
-            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
-            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
-            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
-            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
-            
-            if ($isListRequest) {
-                // User wants to SEE the data (SELECT *)
-                $label = "Data Transaksi";
-                if ($tahun) $label .= " " . $tahun;
-                if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
-                if ($region) $label .= " di " . ucwords($region);
-                
-                $queries[$label] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50";
-            } else {
-                // User wants TOTAL/SUM
-                $label = "Total Penjualan";
-                if ($tahun) $label .= " " . $tahun;
-                if ($bulanMatch) $label .= " Bulan " . $bulanMatch;
-                if ($region) $label .= " di " . ucwords($region);
-                
-                $queries[$label] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause}";
-            }
-            return $queries;
-        }
-
-        // Pattern 4: TAMPILKAN / SHOW data (with optional filters)
-        if (preg_match('/^(tampilkan|show|daftar|list)\s+(semua|seluruh|data)?\s*(cabang|pelanggan|penjualan|produk|transaksi)?/i', $lower, $matches)) {
-            $topic = isset($matches[3]) ? strtolower($matches[3]) : '';
-            $queries = [];
-            
-            $whereConditions = [];
-            if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
-            if ($bulanMatch) $whereConditions[] = "periode_bulan = '{$bulanMatch}'";
-            if ($region) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$region}%'";
-            $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
-            
-            if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
-                $queries['Daftar Cabang'] = "SELECT * FROM sch_mbi.view_master_cabang_mbi {$whereClause} LIMIT 50";
-                return $queries;
-            }
-            if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
-                $queries['Daftar Pelanggan'] = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi {$whereClause} LIMIT 50";
-                return $queries;
-            }
-            if (in_array($topic, ['penjualan', 'sales', 'transaksi']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
-                $queries['Data Penjualan'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50";
-                return $queries;
-            }
-        }
-
-        // === FALLBACK TO AI FOR COMPLEX QUESTIONS ===
-        // Examples: "penjualan di tahun 2026", "produk terlaris di Riau", "tren per bulan"
         $systemPrompt = <<<'PROMPT'
-You are an expert SQL Query Generator for PostgreSQL database.
+You are an intelligent SQL Query Generator that THINKS and REASONS before generating queries.
 
-## SCHEMA INFORMATION (YOUR ONLY SOURCE OF TRUTH):
+## SCHEMA INFORMATION (YOUR SOURCE OF TRUTH):
 PROMPT;
 
         $systemPrompt .= "\n" . $schemaContext . "\n\n";
 
+        // Pass detected filters to AI
+        $filterInfo = "USER REQUEST CONTEXT:\n";
+        if ($tahun) $filterInfo .= "- Year filter: {$tahun}\n";
+        if ($region) $filterInfo .= "- Region filter: {$region}\n";
+        if ($bulanMatch) $filterInfo .= "- Month filter: {$bulanMatch}\n";
+        $systemPrompt .= $filterInfo . "\n";
+
         $systemPrompt .= <<<'PROMPT'
-## CRITICAL RULES:
+## THINK STEP-BY-STEP:
 
-### 1. TABLE NAMES - USE EXACTLY AS SHOWN:
-- ALWAYS prefix with 'sch_mbi.'
-- ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
-- ❌ 'penjualan' → ✅ 'view_data_penjualan_rinci_mbi'
+1. **UNDERSTAND** what user wants:
+   - Do they want COUNT (how many)? → Use COUNT(*)
+   - Do they want SUM (total)? → Use SUM(column)
+   - Do they want LIST (show me)? → Use SELECT *
+   - Do they want TOP N (best/terlaris)? → Use GROUP BY + ORDER BY + LIMIT
+   - Do they want TREND (per bulan/tahun)? → Use GROUP BY periode
 
-### 2. COLUMN NAMES - USE EXACTLY AS SHOWN:
-- ❌ 'name' → ✅ 'nama_barang' or 'nama_pelanggan'
-- ❌ 'province' → ✅ 'nama_propinsi_cabang'
-- ❌ 'city' → ✅ 'nama_kabupaten_cabang'
+2. **IDENTIFY** the main topic:
+   - Cabang/Branches? → view_master_cabang_mbi
+   - Pelanggan/Customers? → view_master_pelanggan_mbi
+   - Penjualan/Sales? → view_data_penjualan_rinci_mbi
+   - Produk/Products? → view_master_barang_mbi OR view_data_penjualan_rinci_mbi
 
-### 3. FILTERING:
-- Year: `periode_tahun = '2026'` or `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
-- Region: `nama_propinsi_cabang ILIKE '%riau%'`
-- Text: ALWAYS use ILIKE with wildcards
+3. **APPLY** filters from USER REQUEST CONTEXT above:
+   - Year: `WHERE periode_tahun = '2026'`
+   - Month: `WHERE periode_bulan = '01'`
+   - Region: `WHERE nama_propinsi_cabang ILIKE '%riau%'`
+   - Combine: `WHERE periode_tahun = '2026' AND periode_bulan = '01' AND ...`
 
-### 4. QUERY TYPES:
-- COUNT: `SELECT COUNT(*) as jumlah FROM table` (NO LIMIT!)
-- SUM: `SELECT SUM(column) as total FROM table` (NO LIMIT!)
-- LIST: `SELECT * FROM table LIMIT 50`
-- TREND: `GROUP BY periode_tahun, periode_bulan`
-- TOP N: `ORDER BY metric DESC LIMIT 10`
+4. **BUILD** the query:
+   - Use EXACT table names from schema (with sch_mbi. prefix)
+   - Use EXACT column names from schema (Indonesian names!)
+   - Add LIMIT 50 for SELECT *, LIMIT 10 for TOP N
+   - NO LIMIT for COUNT/SUM!
 
-### 5. ONE QUESTION = ONE QUERY
+5. **DOUBLE-CHECK**:
+   - Are table names from schema? ✓
+   - Are column names from schema? ✓
+   - Are filters applied? ✓
+   - Is query answering user's question? ✓
 
 ## RESPONSE FORMAT:
-[LABEL]Label[/LABEL] [SQL]SELECT ...[/SQL]
+[LABEL]Descriptive Label[/LABEL] [SQL]Your SQL query here[/SQL]
 
-## EXAMPLES:
-User: "penjualan di tahun 2026"
-[LABEL]Penjualan 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026'[/SQL]
-
-User: "tampilkan transaksi penjualan di 2026"
-[LABEL]Transaksi 2026[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50[/SQL]
+## EXAMPLES - LEARN THE PATTERN:
 
 User: "produk paling laris di bulan januari 2026"
+Thinking: User wants TOP products (terlaris) → GROUP BY nama_barang, SUM(qty_jual), ORDER BY, LIMIT 10. Has year=2026, month=01 filters.
 [LABEL]Produk Terlaris Januari 2026[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' AND periode_bulan = '01' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
 
-User: "produk terlaris di Riau"
-[LABEL]Produk Terlaris Riau[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
+User: "total penjualan bulan maret 2026"
+Thinking: User wants SUM (total) → SUM(total_netto). Has year=2026, month=03 filters.
+[LABEL]Total Penjualan Maret 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' AND periode_bulan = '03'[/SQL]
+
+User: "tampilkan transaksi di tahun 2025"
+Thinking: User wants LIST (tampilkan) → SELECT *. Has year=2025 filter.
+[LABEL]Transaksi 2025[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2025' LIMIT 50[/SQL]
+
+User: "pelanggan terbaik di Riau"
+Thinking: User wants TOP customers (terbaik) → GROUP BY nama_pelanggan, SUM(total_netto), ORDER BY, LIMIT 10. Has region=riau filter.
+[LABEL]Pelanggan Terbaik Riau[/LABEL] [SQL]SELECT nama_pelanggan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_pelanggan ORDER BY total DESC LIMIT 10[/SQL]
 
 User: "tren penjualan per bulan"
-[LABEL]Tren Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY bulan DESC LIMIT 12[/SQL]
+Thinking: User wants TREND → GROUP BY periode_tahun, periode_bulan, SUM(total_netto), ORDER BY.
+[LABEL]Tren Penjualan Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY bulan DESC LIMIT 12[/SQL]
 
-User: "pelanggan terbaik"
-[LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total DESC LIMIT 10[/SQL]
+User: "ada berapa cabang?"
+Thinking: User wants COUNT (ada berapa) → COUNT(*). No filters.
+[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi[/SQL]
 
-User: "transaksi di Jakarta tahun 2025"
-[LABEL]Transaksi Jakarta 2025[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' AND periode_tahun = '2025' LIMIT 50[/SQL]
-
-User: "total penjualan bulan maret 2026"
-[LABEL]Total Maret 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' AND periode_bulan = '03'[/SQL]
-
-## NOW GENERATE SQL:
+## NOW THINK AND GENERATE SQL FOR THIS:
 PROMPT;
 
         try {
