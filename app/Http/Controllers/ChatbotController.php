@@ -332,7 +332,7 @@ PROMPT;
    - Do they want COUNT (how many)? → Use COUNT(*)
    - Do they want SUM (total)? → Use SUM(column)
    - Do they want LIST (show me)? → Use SELECT *
-   - Do they want TOP N (best/terlaris)? → Use GROUP BY + ORDER BY + LIMIT
+   - Do they want TOP N (best/terlaris) or PREDICTIONS (apa yang akan laku/rekomendasi)? → Use GROUP BY + ORDER BY + LIMIT (historical top data answers predictions)
    - Do they want TREND (per bulan)? → Use GROUP BY periode_tahun, periode_bulan
    - Do they want TREND (per tahun)? → Use GROUP BY periode_tahun
    - Are they asking about the database schema (e.g., "apa kolom di tabel ini")? → DO NOT generate queries. Return [SCHEMA_ONLY]!
@@ -373,6 +373,10 @@ If the user is purely asking about the database schema/columns (like "apa nama k
 User: "tampilkan penjualan untuk produk sabun cair saja"
 Thinking: User wants LIST of sales for a specific product. Needs ILIKE filter.
 [LABEL]Penjualan Sabun Cair[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_barang ILIKE '%sabun cair%' LIMIT 50[/SQL]
+
+User: "kira kira produk apa yang akan laku keras di medan"
+Thinking: User wants PREDICTION (akan laku keras) in Medan. Answer using TOP N historical products in that region.
+[LABEL]Prediksi Produk Laris di Medan[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%medan%' OR nama_kabupaten_cabang ILIKE '%medan%' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
 
 User: "apa nama nama kolom di tabel produk"
 Thinking: User is asking about database schema/columns.
@@ -939,7 +943,7 @@ PROMPT;
         $wWhere = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "WHERE 1=1";
 
         // ── Produk terlaris ──────────────────────────────────────────────────
-        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'bestseller', 'paling laku', 'banyak terjual', 'laris', 'product', 'top selling', 'most sold'])
+        if ($this->hasKeyword($lower, ['produk', 'terlaris', 'best seller', 'bestseller', 'paling laku', 'banyak terjual', 'laris', 'product', 'top selling', 'most sold', 'laku keras', 'rekomendasi', 'prediksi', 'akan laku'])
             && $allowSales) {
             $label = $hasW ? "Produk Terlaris di " . ucwords($wilayahFilter) : "Produk Terlaris";
             $queries[$label] = "
