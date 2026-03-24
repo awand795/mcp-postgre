@@ -380,22 +380,11 @@
 
         <!-- Header -->
         <div class="p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-            <div class="flex items-center gap-4">
-                <div
-                    class="w-10 h-10 rounded-full bg-gradient-to-br from-[#f53003] to-[#ff4433] flex items-center justify-center shadow-lg shadow-red-500/20 flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <ellipse cx="12" cy="5" rx="9" ry="3" />
-                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-xs text-[#A1A09A]">Online</span>
-                    </div>
+            <div>
+                <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
+                <div class="flex items-center gap-2 mt-0.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-xs text-[#A1A09A]">Online</span>
                 </div>
             </div>
             <div class="flex items-center gap-2 header-actions">
