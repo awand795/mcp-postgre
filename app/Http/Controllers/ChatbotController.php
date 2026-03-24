@@ -213,33 +213,78 @@ class ChatbotController extends Controller
     {
         Log::info("Planning SQL for: " . $message);
 
-        $systemPrompt = "You are a SQL Planner for PostgreSQL database. SCHEMA INFORMATION:
+        $systemPrompt = "You are an expert SQL Query Generator for PostgreSQL database with business intelligence capabilities.
+
+## SCHEMA INFORMATION (YOUR ONLY SOURCE OF TRUTH):
 {$schemaContext}
 
-⚠️ CRITICAL RULES - READ CAREFULLY:
-1. ONLY use table names that are explicitly listed in the SCHEMA above (e.g., view_master_cabang_mbi, view_data_penjualan_rinci_mbi, etc.)
-2. NEVER invent table names like 'cabang', 'produk', 'pembeli', 'target', 'regions', 'master_cabang' - these DO NOT EXIST!
-3. ALWAYS use the full table name with 'sch_mbi.' prefix (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
-4. For date filtering, use: periode_tahun = '2026' OR EXTRACT(YEAR FROM tgl_fak_jl) = 2026
-5. If user asks for data but you're unsure which table to use, respond with a clarification request
-6. ONLY use column names that are listed for each table in the schema above
-7. For 'all data' or 'seluruh data' requests, use simple SELECT without complex aggregations
+## CRITICAL RULES - YOU MUST FOLLOW:
 
-RESPONSE FORMAT:
-- Respond ONLY: [LABEL]User Language Label[/LABEL] [SQL]SELECT ...[/SQL]
-- Limit 50 rows maximum
-- No explanation, no semicolon at the end
+### TABLE NAMES (MOST IMPORTANT):
+1. ONLY use table names EXACTLY as listed in SCHEMA above
+2. ALWAYS prefix with 'sch_mbi.' (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
+3. NEVER invent table names - common WRONG examples:
+   - ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
+   - ❌ 'produk' → ✅ use table from schema
+   - ❌ 'pembeli' → ✅ 'view_master_pelanggan_mbi' or 'pembeli'
+   - ❌ 'transaksi' → ✅ 'view_data_penjualan_rinci_mbi'
 
-EXAMPLE CORRECT QUERIES:
-✓ SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50
-✓ SELECT nama_cabang, alamat_cabang FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%riau%'
-✓ SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50
-✗ SELECT * FROM sch_mbi.cabang (WRONG - table 'cabang' does not exist!)
-✗ SELECT * FROM sch_mbi.master_cabang (WRONG - use 'view_master_cabang_mbi' instead!)";
+### COLUMN NAMES:
+1. ONLY use columns listed for each table in schema
+2. For year filtering use: `periode_tahun = '2026'` or `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
+3. For month filtering use: `periode_bulan = '03'` or `EXTRACT(MONTH FROM tgl_fak_jl) = 3`
+4. For region filtering use: `nama_propinsi_cabang ILIKE '%riau%'`
+
+### QUERY COMPLEXITY:
+- For 'show all', 'seluruh data', 'tampilkan semua': Use simple SELECT * with LIMIT 50
+- For 'total', 'summary', 'ringkasan': Use aggregate functions (SUM, COUNT, AVG)
+- For 'trend', 'per bulan', 'bulanan': GROUP BY periode_tahun, periode_bulan
+- For 'terbaik', 'top', 'terlaris': ORDER BY metric DESC LIMIT 10
+
+## RESPONSE FORMAT (STRICT):
+Respond ONLY in this format, NOTHING ELSE:
+[LABEL]Descriptive Label[/LABEL] [SQL]SELECT your_query_here[/SQL]
+
+You can return multiple queries if needed:
+[LABEL]Query 1 Label[/LABEL] [SQL]SELECT ...[/SQL]
+[LABEL]Query 2 Label[/LABEL] [SQL]SELECT ...[/SQL]
+
+## FEW-SHOT EXAMPLES (LEARN FROM THESE):
+
+### Example 1: Show all sales data for 2026
+User: "tampilkan seluruh data penjualan di tahun 2026"
+[LABEL]Data Penjualan 2026[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50[/SQL]
+
+### Example 2: Sales summary by province
+User: "tampilkan penjualan per provinsi"
+[LABEL]Penjualan per Provinsi[/LABEL] [SQL]SELECT nama_propinsi_cabang, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_propinsi_cabang ORDER BY total_pendapatan DESC[/SQL]
+
+### Example 3: Top products in specific region
+User: "produk terlaris di Riau tahun 2025"
+[LABEL]Produk Terlaris Riau 2025[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' AND periode_tahun = '2025' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
+
+### Example 4: Monthly sales trend
+User: "tren penjualan per bulan"
+[LABEL]Tren Penjualan Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, COUNT(DISTINCT no_fak_jl) as jumlah_transaksi, SUM(total_netto) as total_revenue FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12[/SQL]
+
+### Example 5: Customer analysis
+User: "pelanggan terbaik"
+[LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_belanja FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total_belanja DESC LIMIT 10[/SQL]
+
+### Example 6: Branch information
+User: "daftar cabang di Jakarta"
+[LABEL]Cabang Jakarta[/LABEL] [SQL]SELECT nama_cabang, alamat_cabang, nama_kabupaten_cabang, no_telepon FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' OR nama_kabupaten_cabang ILIKE '%jakarta%'[/SQL]
+
+### Example 7: Complex - Sales by category with filter
+User: "penjualan per kategori produk di Sumatera Utara tahun 2024"
+[LABEL]Penjualan per Kategori Sumut 2024[/LABEL] [SQL]SELECT nama_kategori_barang, COUNT(DISTINCT no_fak_jl) as transaksi, SUM(qty_jual) as total_qty, SUM(total_netto) as revenue FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE (nama_propinsi_cabang ILIKE '%sumatera utara%' OR nama_propinsi_cabang ILIKE '%sumut%') AND periode_tahun = '2024' GROUP BY nama_kategori_barang ORDER BY revenue DESC[/SQL]
+
+## NOW GENERATE SQL FOR THIS USER REQUEST:
+";
 
         try {
-            // Reduce max_tokens to avoid credit limit issues
-            $maxTokens = 300;
+            // Increased max_tokens for complex queries
+            $maxTokens = 500;
 
             $response = Http::timeout(90)->withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
@@ -251,20 +296,20 @@ EXAMPLE CORRECT QUERIES:
                     ['role' => 'user', 'content' => $message]
                 ],
                 'max_tokens'  => $maxTokens,
-                'temperature' => 0.05,       // Very low untuk SQL planning yang presisi
-                'top_p'       => 0.90,       // High coherence untuk konteks SQL
+                'temperature' => 0.1,        // Slightly higher for creativity in complex queries
+                'top_p'       => 0.90,       // High coherence for SQL context
                 'frequency_penalty' => 0.05, // Minimal repetition penalty
             ]);
 
             if (!$response->successful()) {
                 $errorBody = $response->body();
                 Log::error("SQL Planner failed: " . $errorBody);
-                
+
                 // Check for credit/limit errors
                 if (str_contains($errorBody, 'credits') || str_contains($errorBody, '402')) {
                     Log::error("API Credit limit reached! Falling back to static queries.");
                 }
-                
+
                 return [];
             }
 
@@ -278,11 +323,28 @@ EXAMPLE CORRECT QUERIES:
                 $label = trim($match[1]);
                 $sql   = trim($match[2]);
                 if (!empty($label) && !empty($sql)) {
+                    // Clean up SQL - remove trailing semicolons
+                    $sql = rtrim($sql, ';');
                     $queries[$label] = $sql;
                 }
             }
-            
+
             Log::info("Parsed " . count($queries) . " queries from AI");
+            
+            // If no queries parsed, try simpler regex
+            if (empty($queries)) {
+                Log::info("Trying fallback regex pattern...");
+                preg_match_all('/\[SQL\](.*?)\[\/SQL\]/si', $content, $matches, PREG_SET_ORDER);
+                foreach ($matches as $idx => $match) {
+                    $sql = trim($match[1]);
+                    $sql = rtrim($sql, ';');
+                    if (!empty($sql)) {
+                        $queries["Query " . ($idx + 1)] = $sql;
+                    }
+                }
+                Log::info("Fallback parsed " . count($queries) . " queries");
+            }
+            
             return $queries;
 
         } catch (\Exception $e) {
@@ -1763,16 +1825,12 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
             }
             $priorityTables = array_unique($priorityTables);
 
-            // If no message or no keywords, we'll just show all allowed table names first
-            // and columns for top 5 most common tables.
-            $commonTables = ['view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi', 'produk', 'transaksi'];
-
-            $cacheKey = 'db_schema_context_v5_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
+            $cacheKey = 'db_schema_context_v6_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
                 // Single query to get all tables and their columns in sch_mbi
                 $results = DB::connection('pgsql_mbi')->select("
-                    SELECT table_name, column_name
+                    SELECT table_name, column_name, data_type
                     FROM information_schema.columns
                     WHERE table_schema = 'sch_mbi'
                     AND table_name NOT IN ('migrations','cache','cache_locks','sessions','jobs','failed_jobs','personal_access_tokens','users','password_reset_tokens')
@@ -1782,25 +1840,40 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
                 $tableGroups = [];
                 foreach ($results as $row) {
                     if (!in_array($row->table_name, $allowedTables)) continue;
-                    $tableGroups[$row->table_name][] = $row->column_name;
+                    if (!isset($tableGroups[$row->table_name])) {
+                        $tableGroups[$row->table_name] = [];
+                    }
+                    $tableGroups[$row->table_name][] = [
+                        'column' => $row->column_name,
+                        'type' => $row->data_type
+                    ];
                 }
 
-                // IMPORTANT: Start with a clear header listing ALL available tables
-                $context = "AVAILABLE TABLES (USE EXACT NAMES AS SHOWN):\n";
-                $context .= "----------------------------------------\n";
-                $context .= "Table names you MUST use (choose from this list only):\n";
-                foreach (array_keys($tableGroups) as $tn) {
-                    $context .= "  - {$tn}\n";
-                }
-                $context .= "----------------------------------------\n\n";
-                $context .= "TABLE DETAILS (name(columns)):\n";
+                // Build comprehensive schema context
+                $context = "=== DATABASE SCHEMA (sch_mbi) ===\n\n";
+                $context .= "⚠️ CRITICAL: Use ONLY table names listed below. ALWAYS prefix with 'sch_mbi.'\n\n";
                 
+                $context .= "AVAILABLE TABLES:\n";
+                $context .= str_repeat("-", 60) . "\n";
+                
+                foreach (array_keys($tableGroups) as $tn) {
+                    $context .= "• {$tn}\n";
+                }
+                $context .= str_repeat("-", 60) . "\n\n";
+                
+                $context .= "TABLE STRUCTURES (table_name(column_name data_type)):\n";
+                $context .= str_repeat("=", 60) . "\n\n";
+
                 $count = 0;
 
-                // Add priority tables first
+                // Add priority tables first with full column details
                 foreach ($priorityTables as $tn) {
                     if (isset($tableGroups[$tn])) {
-                        $context .= "{$tn}(" . implode(",", $tableGroups[$tn]) . ")\n";
+                        $context .= "{$tn}:\n";
+                        foreach ($tableGroups[$tn] as $col) {
+                            $context .= "  - {$col['column']} ({$col['type']})\n";
+                        }
+                        $context .= "\n";
                         unset($tableGroups[$tn]);
                         $count++;
                     }
@@ -1808,11 +1881,23 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
 
                 // Add remaining allowed tables
                 foreach ($tableGroups as $tn => $cols) {
-                    $context .= "{$tn}(" . implode(",", $cols) . ")\n";
+                    $context .= "{$tn}:\n";
+                    foreach ($cols as $col) {
+                        $context .= "  - {$col['column']} ({$col['type']})\n";
+                    }
+                    $context .= "\n";
                     $count++;
                 }
 
                 if ($count === 0) return "No access to database tables.";
+                
+                $context .= str_repeat("=", 60) . "\n";
+                $context .= "\n💡 TIPS:\n";
+                $context .= "- For filtering by year: use periode_tahun column or EXTRACT(YEAR FROM tgl_fak_jl)\n";
+                $context .= "- For region search: use ILIKE with wildcards (e.g., nama_propinsi_cabang ILIKE '%riau%')\n";
+                $context .= "- For aggregations: use SUM(), COUNT(), AVG() with GROUP BY\n";
+                $context .= "- Always LIMIT results to 50 rows maximum\n";
+                
                 return $context;
             });
         } catch (\Exception $e) {
