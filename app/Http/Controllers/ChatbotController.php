@@ -407,24 +407,6 @@ PROMPT;
 
             Log::info("Parsed " . count($queries) . " queries from AI");
 
-            // LIMIT QUERIES for simple questions (prevent irrelevant data)
-            $simpleKeywords = ['ada berapa', 'jumlah', 'total', 'berapa', 'count', 'how many'];
-            $isSimpleQuestion = false;
-            $lowerMessage = mb_strtolower($message);
-            foreach ($simpleKeywords as $kw) {
-                if (str_contains($lowerMessage, $kw)) {
-                    $isSimpleQuestion = true;
-                    break;
-                }
-            }
-            
-            // For simple questions, keep only the FIRST query (most relevant)
-            if ($isSimpleQuestion && count($queries) > 1) {
-                $firstQuery = array_shift($queries);
-                $queries = ['Relevant Query' => $firstQuery];
-                Log::info("Simple question detected - limited to 1 query");
-            }
-
             // If no queries parsed, try simpler regex
             if (empty($queries)) {
                 Log::info("Trying fallback regex pattern...");
@@ -438,7 +420,7 @@ PROMPT;
                 }
                 Log::info("Fallback parsed " . count($queries) . " queries");
             }
-            
+
             return $queries;
 
         } catch (\Exception $e) {
@@ -612,9 +594,27 @@ PROMPT;
         $results       = [];
         $allQueriesFailed = false;
 
+        // DETECT SIMPLE QUESTION - enforce SINGLE query only
+        $simpleKeywords = ['ada berapa', 'jumlah', 'total', 'berapa banyak', 'how many', 'count'];
+        $isSimpleQuestion = false;
+        foreach ($simpleKeywords as $kw) {
+            if (str_contains($lower, $kw)) {
+                $isSimpleQuestion = true;
+                break;
+            }
+        }
+
         try {
             // 1. Coba perencanaan query dinamis (LLM)
             $queries = $this->planSQLQueries($message, $schemaContext, $apiKey);
+
+            // HARD LIMIT: For simple questions, keep ONLY the first query
+            if ($isSimpleQuestion && count($queries) > 1) {
+                $firstKey = array_key_first($queries);
+                $firstQuery = [$firstKey => $queries[$firstKey]];
+                Log::info("Simple question: Limited from " . count($queries) . " to 1 query");
+                $queries = $firstQuery;
+            }
 
             // 2. Fallback ke query statis jika dinamis gagal/kosong
             if (empty($queries)) {
@@ -622,6 +622,13 @@ PROMPT;
                 $wilayahFilter = $this->extractWilayahFilter($lower);
                 $tahunFilter   = $this->extractTahunFilter($lower);
                 $queries = $this->selectQueries($lower, $wilayahFilter, $tahunFilter);
+                
+                // Also limit static queries for simple questions
+                if ($isSimpleQuestion && count($queries) > 1) {
+                    $firstKey = array_key_first($queries);
+                    $firstQuery = [$firstKey => $queries[$firstKey]];
+                    $queries = $firstQuery;
+                }
             }
 
             $validQueryCount = 0;
