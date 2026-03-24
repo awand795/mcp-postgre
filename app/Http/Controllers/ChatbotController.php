@@ -197,8 +197,8 @@ class ChatbotController extends Controller
         // Ensure session is written and closed before streaming to avoid blocking other requests
         session_write_close();
 
-        return response()->stream(function () use ($messages, $apiKey, $dbContext) {
-            $this->streamAIResponse($messages, $apiKey, $dbContext);
+        return response()->stream(function () use ($messages, $apiKey, $dbContext, $detectedLanguage) {
+            $this->streamAIResponse($messages, $apiKey, $dbContext, $detectedLanguage);
         }, 200, [
             'Cache-Control' => 'no-cache',
             'Content-Type' => 'text/event-stream',
@@ -408,7 +408,7 @@ PROMPT;
         return true;
     }
 
-    private function streamAIResponse(array $messages, string $apiKey, string $dbContext): void
+    private function streamAIResponse(array $messages, string $apiKey, string $dbContext, string $detectedLanguage = 'id'): void
     {
         $success = false;
         $fullContent = '';
