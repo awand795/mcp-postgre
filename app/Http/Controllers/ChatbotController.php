@@ -669,7 +669,7 @@ PROMPT;
                 $wilayahFilter = $this->extractWilayahFilter($lower);
                 $tahunFilter   = $this->extractTahunFilter($lower);
                 $queries = $this->selectQueries($lower, $wilayahFilter, $tahunFilter);
-                
+
                 // Apply same limits to static queries
                 if ($isSimpleQuestion && $isAggregateQuestion && count($queries) > 1) {
                     $firstKey = array_key_first($queries);
@@ -683,6 +683,41 @@ PROMPT;
                     $firstKey = array_key_first($queries);
                     $queries = [$firstKey => $queries[$firstKey]];
                 }
+            }
+            
+            // 3. LAST RESORT: Generate basic query based on detected patterns
+            if (empty($queries)) {
+                Log::info("Static queries also empty, generating basic query from detected filters...");
+                $queries = [];
+                $whereConditions = [];
+                
+                if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
+                if ($tahunFilter) $whereConditions[] = "periode_tahun = '{$tahunFilter}'";
+                if ($wilayahFilter) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$wilayahFilter}%'";
+                $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
+                
+                // Detect what user wants based on keywords
+                if (str_contains($lower, 'transaksi') || str_contains($lower, 'penjualan')) {
+                    if (str_contains($lower, 'total') || str_contains($lower, 'jumlah')) {
+                        $queries['Total'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause}";
+                    } else {
+                        $queries['Data'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50";
+                    }
+                } else if (str_contains($lower, 'cabang')) {
+                    if (str_contains($lower, 'total') || str_contains($lower, 'jumlah') || str_contains($lower, 'ada berapa')) {
+                        $queries['Total'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi {$whereClause}";
+                    } else {
+                        $queries['Data'] = "SELECT * FROM sch_mbi.view_master_cabang_mbi {$whereClause} LIMIT 50";
+                    }
+                } else if (str_contains($lower, 'pelanggan')) {
+                    if (str_contains($lower, 'total') || str_contains($lower, 'jumlah') || str_contains($lower, 'ada berapa')) {
+                        $queries['Total'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_pelanggan_mbi {$whereClause}";
+                    } else {
+                        $queries['Data'] = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi {$whereClause} LIMIT 50";
+                    }
+                }
+                
+                Log::info("Generated " . count($queries) . " basic queries from detected patterns");
             }
 
             $validQueryCount = 0;
