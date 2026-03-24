@@ -213,8 +213,72 @@ class ChatbotController extends Controller
     {
         Log::info("Planning SQL for: " . $message);
 
+        // === DIRECT QUERY MAPPING FOR COMMON QUESTIONS ===
+        // This bypasses AI for simple, well-defined queries
+        $lower = mb_strtolower($message);
+        $allowedTables = $this->getAllowedTables();
+        $isAllowed = function($table) use ($allowedTables) {
+            return in_array($table, $allowedTables);
+        };
+
+        // Pattern matching for TOTAL / COUNT questions
+        if (preg_match('/^(total|jumlah|ada berapa|berapa banyak|how many|count)\s+(cabang|branch|pelanggan|customer|pembeli|penjualan|sales|produk|barang|kategori)$/i', $lower, $matches)) {
+            $questionType = strtolower($matches[1]);
+            $topic = strtolower($matches[2]);
+            
+            $queries = [];
+            
+            // Map topics to exact table and column names
+            if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
+                $queries['Total Cabang'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi";
+                return $queries;
+            }
+            
+            if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
+                $queries['Total Pelanggan'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_pelanggan_mbi";
+                return $queries;
+            }
+            
+            if (in_array($topic, ['penjualan', 'sales']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
+                $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
+                return $queries;
+            }
+            
+            if (in_array($topic, ['produk', 'barang']) && $isAllowed('view_master_barang_mbi')) {
+                $queries['Total Produk'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_barang_mbi";
+                return $queries;
+            }
+            
+            if ($topic === 'kategori' && $isAllowed('view_data_penjualan_rinci_mbi')) {
+                $queries['Total Kategori'] = "SELECT COUNT(DISTINCT nama_kategori_barang) as jumlah FROM sch_mbi.view_data_penjualan_rinci_mbi";
+                return $queries;
+            }
+        }
+
+        // Pattern for "tampilkan semua/semua data" questions
+        if (preg_match('/^(tampilkan|show|daftar|list)\s+(semua|seluruh|all)\s+(cabang|pelanggan|penjualan|produk)/i', $lower, $matches)) {
+            $topic = strtolower($matches[3]);
+            $queries = [];
+            
+            if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
+                $queries['Daftar Cabang'] = "SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50";
+                return $queries;
+            }
+            
+            if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
+                $queries['Daftar Pelanggan'] = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi LIMIT 50";
+                return $queries;
+            }
+            
+            if (in_array($topic, ['penjualan', 'sales']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
+                $queries['Data Penjualan'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 50";
+                return $queries;
+            }
+        }
+
+        // === FALLBACK TO AI FOR COMPLEX QUESTIONS ===
         $systemPrompt = <<<'PROMPT'
-You are an expert SQL Query Generator for PostgreSQL database with business intelligence capabilities.
+You are an expert SQL Query Generator for PostgreSQL database.
 
 ## SCHEMA INFORMATION (YOUR ONLY SOURCE OF TRUTH):
 PROMPT;
@@ -222,142 +286,41 @@ PROMPT;
         $systemPrompt .= "\n" . $schemaContext . "\n\n";
 
         $systemPrompt .= <<<'PROMPT'
-## ⚠️ CRITICAL RULES - YOU MUST FOLLOW THESE OR THE QUERY WILL FAIL:
+## CRITICAL RULES:
 
-### 0. RELEVANCE (ABSOLUTE #1 PRIORITY - READ THIS FIRST):
-- Generate ONLY queries that DIRECTLY answer the user's question
-- ONE question = ONE query MAXIMUM (unless user explicitly asks for multiple things)
-- DO NOT generate multiple queries for different topics!
+### 1. TABLE NAMES - USE EXACTLY AS SHOWN IN SCHEMA:
+- ALWAYS prefix with 'sch_mbi.'
+- NEVER invent names: ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
 
-#### ❌ WRONG EXAMPLES - DO NOT DO THIS:
-User: "ada berapa jumlah cabang?"
-[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_cabang_mbi[/SQL]
-[LABEL]Jumlah Pelanggan[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_pelanggan_mbi[/SQL]
-[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
-→ WRONG! User only asked about branches, NOT customers, NOT sales!
+### 2. COLUMN NAMES - USE EXACTLY AS SHOWN IN SCHEMA:
+- NEVER use English: ❌ 'name' → ✅ 'nama_barang'
+- NEVER use English: ❌ 'city' → ✅ 'nama_kabupaten_cabang'
+- NEVER use English: ❌ 'province' → ✅ 'nama_propinsi_cabang'
+
+### 3. QUERY TYPES:
+- COUNT questions: `SELECT COUNT(*) as jumlah FROM table` (NO LIMIT!)
+- SUM questions: `SELECT SUM(column) as total FROM table` (NO LIMIT!)
+- LIST questions: `SELECT * FROM table LIMIT 50`
+
+### 4. ONE QUESTION = ONE QUERY:
+- User asks about branches → ONLY branch query
+- User asks about sales → ONLY sales query
+- DO NOT mix topics!
+
+## RESPONSE FORMAT:
+[LABEL]Label[/LABEL] [SQL]SELECT ...[/SQL]
+
+## EXAMPLES:
+User: "ada berapa cabang?"
+[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi[/SQL]
 
 User: "total penjualan"
-[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
-[LABEL]Total Pelanggan[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.pembeli[/SQL]
-[LABEL]Total Cabang[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_cabang_mbi[/SQL]
-→ WRONG! User only asked about sales, NOT customers, NOT branches!
+[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
 
-#### ✅ CORRECT EXAMPLES - DO THIS:
-User: "ada berapa jumlah cabang?"
-[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi[/SQL]
-→ CORRECT! Only branches, nothing else!
+User: "tampilkan pelanggan"
+[LABEL]Daftar Pelanggan[/LABEL] [SQL]SELECT * FROM sch_mbi.view_master_pelanggan_mbi LIMIT 50[/SQL]
 
-User: "total penjualan"
-[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) as total_penjualan FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
-→ CORRECT! Only sales, nothing else!
-
-User: "jumlah pelanggan"
-[LABEL]Jumlah Pelanggan[/LABEL] [SQL]SELECT COUNT(*) as jumlah_pelanggan FROM sch_mbi.view_master_pelanggan_mbi[/SQL]
-→ CORRECT! Only customers, nothing else!
-
-### 1. TABLE NAMES (MOST CRITICAL):
-- ONLY use table names EXACTLY as listed in SCHEMA above
-- ALWAYS prefix with 'sch_mbi.' (e.g., sch_mbi.view_data_penjualan_rinci_mbi)
-- NEVER invent table names like 'cabang', 'produk', 'customer' - these DO NOT EXIST!
-- Common WRONG → CORRECT examples:
-  - ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
-  - ❌ 'produk' → ✅ use exact table from schema
-  - ❌ 'customer' → ✅ 'view_master_pelanggan_mbi' or 'pembeli'
-
-### 2. COLUMN NAMES (EQUALLY CRITICAL):
-- ONLY use columns EXACTLY as listed in schema for each table
-- NEVER use English column names if schema shows Indonesian names!
-- Common WRONG → CORRECT examples:
-  - ❌ 'name' → ✅ 'nama_barang' or 'nama_pelanggan' or 'nama_cabang'
-  - ❌ 'city' → ✅ 'nama_kabupaten_cabang'
-  - ❌ 'province' → ✅ 'nama_propinsi_cabang'
-  - ❌ 'address' → ✅ 'alamat_cabang' or 'alamat_pelanggan'
-  - ❌ 'phone' → ✅ 'no_telepon'
-  - ❌ 'quantity' → ✅ 'qty_jual'
-  - ❌ 'price' → ✅ 'total_harga' or 'total_netto'
-  - ❌ 'date' → ✅ 'tgl_fak_jl' or 'tanggal'
-  - ❌ 'year' → ✅ 'periode_tahun'
-  - ❌ 'month' → ✅ 'periode_bulan'
-  - ❌ 'category' → ✅ 'nama_kategori_barang'
-
-### 3. FILTERING SYNTAX:
-- For year filtering: `periode_tahun = '2026'` OR `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
-- For month filtering: `periode_bulan = '03'` OR `EXTRACT(MONTH FROM tgl_fak_jl) = 3`
-- For region filtering (use ILIKE for case-insensitive): `nama_propinsi_cabang ILIKE '%riau%'`
-- For text search: ALWAYS use ILIKE with wildcards (e.g., `column ILIKE '%keyword%'`)
-
-### 4. QUERY COMPLEXITY GUIDELINES:
-- For 'total', 'jumlah', 'ada berapa', 'how many', 'count': Use aggregate (COUNT/SUM) WITHOUT LIMIT
-  - ✅ CORRECT: `SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi`
-  - ❌ WRONG: `SELECT COUNT(*) as jumlah_cabang FROM ... LIMIT 10` (don't limit counts!)
-- For 'show all', 'tampilkan', 'daftar', 'list': Use SELECT * with LIMIT 50
-- For 'trend', 'per bulan', 'bulanan': GROUP BY periode_tahun, periode_bulan
-- For 'terbaik', 'top', 'terlaris': ORDER BY metric DESC LIMIT 10
-- For 'per kategori', 'per province', 'per region': GROUP BY the dimension + aggregate
-
-## RESPONSE FORMAT (STRICT):
-Respond ONLY in this format, NOTHING ELSE:
-[LABEL]Descriptive Label[/LABEL] [SQL]SELECT your_query_here[/SQL]
-
-You can return multiple queries if needed:
-[LABEL]Query 1 Label[/LABEL] [SQL]SELECT ...[/SQL]
-[LABEL]Query 2 Label[/LABEL] [SQL]SELECT ...[/SQL]
-
-## FEW-SHOT EXAMPLES (LEARN FROM THESE - COPY THE PATTERN):
-
-### Example 1: Simple count question (ONE question = ONE query)
-User: "ada berapa jumlah cabang?"
-[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi[/SQL]
-
-### Example 2: Simple total question
-User: "total penjualan"
-[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) as total_penjualan FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
-
-### Example 3: Show all sales data for 2026
-User: "tampilkan seluruh data penjualan di tahun 2026"
-[LABEL]Data Penjualan 2026[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50[/SQL]
-
-### Example 4: Sales summary by province
-User: "tampilkan penjualan per provinsi"
-[LABEL]Penjualan per Provinsi[/LABEL] [SQL]SELECT nama_propinsi_cabang, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_propinsi_cabang ORDER BY total_pendapatan DESC[/SQL]
-
-### Example 5: Top products in specific region with year filter
-User: "produk terlaris di Riau tahun 2025"
-[LABEL]Produk Terlaris Riau 2025[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total_terjual, SUM(total_netto) as total_pendapatan FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' AND periode_tahun = '2025' GROUP BY nama_barang ORDER BY total_terjual DESC LIMIT 10[/SQL]
-
-### Example 6: Monthly sales trend
-User: "tren penjualan per bulan"
-[LABEL]Tren Penjualan Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, COUNT(DISTINCT no_fak_jl) as jumlah_transaksi, SUM(total_netto) as total_revenue FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY periode_tahun DESC, periode_bulan DESC LIMIT 12[/SQL]
-
-### Example 7: Customer analysis
-User: "pelanggan terbaik"
-[LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, COUNT(DISTINCT no_fak_jl) as total_transaksi, SUM(total_netto) as total_belanja FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total_belanja DESC LIMIT 10[/SQL]
-
-### Example 8: Branch information by region
-User: "daftar cabang di Jakarta"
-[LABEL]Cabang Jakarta[/LABEL] [SQL]SELECT nama_cabang, alamat_cabang, nama_kabupaten_cabang, nama_propinsi_cabang, no_telepon FROM sch_mbi.view_master_cabang_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' OR nama_kabupaten_cabang ILIKE '%jakarta%'[/SQL]
-
-### Example 9: Complex - Sales by category with multiple filters
-User: "penjualan per kategori produk di Sumatera Utara tahun 2024"
-[LABEL]Penjualan per Kategori Sumut 2024[/LABEL] [SQL]SELECT nama_kategori_barang, COUNT(DISTINCT no_fak_jl) as transaksi, SUM(qty_jual) as total_qty, SUM(total_netto) as revenue FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE (nama_propinsi_cabang ILIKE '%sumatera utara%' OR nama_propinsi_cabang ILIKE '%sumut%') AND periode_tahun = '2024' GROUP BY nama_kategori_barang ORDER BY revenue DESC[/SQL]
-
-## STEP-BY-STEP THINKING (DO THIS INTERNALLY):
-1. What is the user asking? (branches, sales, products, customers?)
-2. Is this a SIMPLE question (count, total, list) or COMPLEX (trend, comparison, multi-filter)?
-3. Find the ONE correct table from schema that matches the question
-4. Find the correct column names from schema (Indonesian names!)
-5. Build ONE query that DIRECTLY answers the question
-6. STOP - Do NOT add unrelated queries!
-7. Double-check: Are ALL table and column names from the schema?
-
-## IMPORTANT REMINDERS:
-- SIMPLE question = SIMPLE query (do NOT overcomplicate!)
-- If user asks about BRANCHES, return ONLY branch queries (NOT sales, NOT products)
-- If user asks about SALES, return ONLY sales queries (NOT branches, NOT customers)
-- ONE topic = ONE query (unless user explicitly asks for multiple things)
-
-## NOW GENERATE SQL FOR THIS USER REQUEST:
-
+## NOW GENERATE SQL:
 PROMPT;
 
         try {
