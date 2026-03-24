@@ -162,6 +162,32 @@ class ChatbotController extends Controller
         if ($needsData) {
             $dbContext = $this->fetchRelevantData($message, $schemaContext, $apiKey);
             Log::info("Needs docs: NO, fetching DB data, length: " . strlen($dbContext));
+            
+            // LAST RESORT: If dbContext is still empty, generate simple response directly
+            if (empty($dbContext)) {
+                Log::info("DB context empty, generating direct response...");
+                $tahun = null;
+                preg_match('/\b(202[0-9]|2030)\b/', $lower, $tahunMatch);
+                if ($tahunMatch) $tahun = $tahunMatch[1];
+                
+                if (str_contains($lower, 'transaksi') || str_contains($lower, 'penjualan')) {
+                    try {
+                        $whereClause = $tahun ? "WHERE periode_tahun = '{$tahun}'" : "";
+                        $rows = DB::connection('pgsql_mbi')->select("SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi {$whereClause} LIMIT 50");
+                        if (!empty($rows)) {
+                            $dbContext = "=== DATA TRANSAKSI ===\n";
+                            if ($tahun) $dbContext .= "Tahun: {$tahun}\n";
+                            $dbContext .= "Total: " . count($rows) . " baris\n\n";
+                            foreach ($rows as $i => $row) {
+                                $dbContext .= ($i+1) . ". No: {$row->no_fak_jl}, Tanggal: {$row->tgl_fak_jl}, Total: Rp " . number_format($row->total_netto, 0, ',', '.') . "\n";
+                            }
+                            Log::info("Direct DB query succeeded with " . count($rows) . " rows");
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("Direct DB query failed: " . $e->getMessage());
+                    }
+                }
+            }
         }
         
         Log::info("Detected language: {$detectedLanguage}");
