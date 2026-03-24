@@ -390,11 +390,14 @@
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                     </svg>
                 </div>
-                <div>
-                    <h1 class="text-white font-semibold text-lg leading-tight">Darko AI</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-xs text-[#A1A09A]">Online</span>
+                <div class="flex items-center gap-3">
+                    <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-10 h-10 object-contain">
+                    <div>
+                        <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="text-xs text-[#A1A09A]">Online</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -441,7 +444,7 @@
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                     <p>Halo! Saya <strong>Darko AI</strong> 👋</p>
                     <p style="margin-top:6px">Saya bisa diajak ngobrol santai <em>dan</em> membantu analisis data bisnis
-                        dari database kamu.</p>
+                        dari data kamu.</p>
                     <p style="margin-top:6px">Coba tanya saya:</p>
                 </div>
                 <span class="text-[10px] text-[#706f6c] ml-1">{{ now()->format('H:i') }}</span>

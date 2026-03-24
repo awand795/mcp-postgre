@@ -15,10 +15,10 @@ class ChatbotController extends Controller
 {
     private string $apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
+    // Qwen model dengan performa analisis terbaik untuk MCP
     private array $models = [
-        'anthropic/claude-3.5-sonnet',
-        'anthropic/claude-3-opus',
-        'anthropic/claude-3-haiku',
+        'qwen/qwen-2.5-coder-32b-instruct',  // Primary - optimized for code/SQL analysis
+        'qwen/qwen-2.5-72b-instruct',        // Fallback - general purpose large model
     ];
 
     private int $maxHistoryTurns = 10;
@@ -246,7 +246,9 @@ EXAMPLE CORRECT QUERIES:
                     ['role' => 'user', 'content' => $message]
                 ],
                 'max_tokens'  => $maxTokens,
-                'temperature' => 0.1,
+                'temperature' => 0.05,       // Very low untuk SQL planning yang presisi
+                'top_p'       => 0.90,       // High coherence untuk konteks SQL
+                'frequency_penalty' => 0.05, // Minimal repetition penalty
             ]);
 
             if (!$response->successful()) {
@@ -348,8 +350,10 @@ EXAMPLE CORRECT QUERIES:
                     'model'       => $model,
                     'messages'    => $messages,
                     'max_tokens'  => 4096,
-                    'temperature' => 0.3,
-                    'top_p'       => 0.90,
+                    'temperature' => 0.1,      // Lower temperature untuk analisis lebih fokus dan deterministik
+                    'top_p'       => 0.95,     // Top-P tinggi untuk koherensi konteks yang lebih baik
+                    'frequency_penalty' => 0.1, // Mencegah repetisi
+                    'presence_penalty'  => 0.1, // Mendorong variasi respons
                     'stream'      => true,
                 ]);
 
