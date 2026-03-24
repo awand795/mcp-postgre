@@ -260,13 +260,34 @@ class ChatbotController extends Controller
             }
         }
 
-        // Pattern 2: TOTAL PENJUALAN (with optional year/region) - HARDCODED
-        if (preg_match('/(total|jumlah|sum)\s+penjualan/i', $lower) && !$region) {
+        // Pattern 2: TOTAL PENJUALAN / TRANSAKSI (with optional year/region) - HARDCODED
+        if (preg_match('/(total|jumlah|sum|transaksi|penjualan)\s*(penjualan|transaksi|data)?/i', $lower) && 
+            (str_contains($lower, 'total') || str_contains($lower, 'jumlah') || str_contains($lower, 'transaksi') || str_contains($lower, 'penjualan'))) {
             $queries = [];
-            if ($tahun) {
-                $queries['Total Penjualan ' . $tahun] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}'";
+            
+            // Check if user wants COUNT or LIST
+            $isListRequest = str_contains($lower, 'tampilkan') || str_contains($lower, 'show') || 
+                            str_contains($lower, 'daftar') || str_contains($lower, 'list') ||
+                            str_contains($lower, 'data');
+            
+            if ($isListRequest) {
+                // User wants to SEE the data (SELECT *)
+                if ($tahun) {
+                    $queries['Transaksi ' . $tahun] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}' LIMIT 50";
+                } else if ($region) {
+                    $queries['Transaksi di ' . ucwords($region)] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%{$region}%' LIMIT 50";
+                } else {
+                    $queries['Data Transaksi'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 50";
+                }
             } else {
-                $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
+                // User wants TOTAL/SUM
+                if ($tahun) {
+                    $queries['Total Penjualan ' . $tahun] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}'";
+                } else if ($region) {
+                    $queries['Total Penjualan di ' . ucwords($region)] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%{$region}%'";
+                } else {
+                    $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
+                }
             }
             return $queries;
         }
@@ -336,6 +357,9 @@ PROMPT;
 User: "penjualan di tahun 2026"
 [LABEL]Penjualan 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026'[/SQL]
 
+User: "tampilkan transaksi penjualan di 2026"
+[LABEL]Transaksi 2026[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026' LIMIT 50[/SQL]
+
 User: "produk terlaris di Riau"
 [LABEL]Produk Terlaris Riau[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_barang ORDER BY total DESC LIMIT 10[/SQL]
 
@@ -344,6 +368,9 @@ User: "tren penjualan per bulan"
 
 User: "pelanggan terbaik"
 [LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total DESC LIMIT 10[/SQL]
+
+User: "transaksi di Jakarta tahun 2025"
+[LABEL]Transaksi Jakarta 2025[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%jakarta%' AND periode_tahun = '2025' LIMIT 50[/SQL]
 
 ## NOW GENERATE SQL:
 PROMPT;
