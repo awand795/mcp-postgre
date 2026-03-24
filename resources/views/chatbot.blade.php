@@ -226,7 +226,7 @@
             <div class="flex flex-col items-start gap-1.5 max-w-[85%]">
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                     <p>Halo! Saya <strong>Darko AI</strong> 👋</p>
-                    <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya misalnya: <em>"Tampilkan 10 produk terlaris"</em> atau <em>"Berapa total penjualan di Riau tahun 2025?"</em></p>
+                    <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya saya :</p>
                 </div>
                 <span class="text-[10px] text-[#706f6c] ml-1">{{ now()->format('H:i') }}</span>
             </div>
@@ -294,18 +294,24 @@
             }
         }
 
-        // ── Tool call icon map ─────────────────────────────────────────────────
+        // ── Label notifikasi bisnis (ramah pengguna) ──────────────────────────
         const toolIcons = {
-            'list_tables':    '📋',
-            'describe_table': '🔍',
-            'execute_query':  '⚡',
+            'list_tables':    '📊',
+            'describe_table': '🔎',
+            'execute_query':  '📈',
             'get_schema_info':'🗂️',
         };
         const toolLabels = {
-            'list_tables':    'Membaca daftar tabel',
-            'describe_table': 'Memeriksa struktur tabel',
-            'execute_query':  'Menjalankan query SQL',
-            'get_schema_info':'Membaca schema database',
+            'list_tables':    'Melihat data yang tersedia',
+            'describe_table': 'Memeriksa informasi data',
+            'execute_query':  'Membaca data',
+            'get_schema_info':'Melihat data',
+        };
+        const toolLabelsEn = {
+            'list_tables':    'Checking available data',
+            'describe_table': 'Inspecting data details',
+            'execute_query':  'Reading data',
+            'get_schema_info':'Loading data overview',
         };
 
         // ── Loading state ──────────────────────────────────────────────────────
@@ -340,13 +346,11 @@
             typingText.textContent = 'AI sedang berpikir...';
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            // Buat bubble AI + area tool calls
             const { bubble, toolArea, wrapper } = createStreamBubble();
             chatMessages.appendChild(wrapper);
             chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
 
             let aiResponseText = '';
-            // Track tool badge elements agar bisa diupdate status-nya
             const toolBadges = {};
 
             try {
@@ -389,25 +393,24 @@
                                 renderStreamToBubble(bubble, aiResponseText);
                             }
 
-                            // ── Tool call notification ────────────────────────
+                            // ── Notifikasi proses (label bisnis) ──────────────
                             if (parsed.tool_call) {
                                 const tc = parsed.tool_call;
-                                const icon  = toolIcons[tc.name] || '🔧';
-                                const label = toolLabels[tc.name] || tc.name;
+                                const icon  = toolIcons[tc.name] || '🔄';
+                                const label = toolLabels[tc.name] || 'Memproses data';
 
                                 if (tc.status === 'running') {
-                                    // Tampilkan badge dengan animasi
                                     const badge = document.createElement('div');
                                     badge.className = 'tool-call-badge running';
                                     badge.dataset.tool = tc.name;
 
-                                    // Info ekstra untuk execute_query
+                                    // Info konteks tambahan (nama tabel/label)
                                     let detail = '';
                                     if (tc.name === 'execute_query' && tc.arguments?.label) {
                                         detail = ` · ${tc.arguments.label}`;
                                     }
                                     if (tc.name === 'describe_table' && tc.arguments?.table_name) {
-                                        detail = ` · ${tc.arguments.table_name}`;
+                                        detail = '';  // Sembunyikan nama tabel teknis
                                     }
 
                                     badge.innerHTML = `
@@ -418,14 +421,12 @@
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
                                 } else if (tc.status === 'done') {
-                                    // Update badge terakhir yang running ke done
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
                                     if (runningBadge) {
                                         runningBadge.classList.remove('running');
                                         runningBadge.classList.add('done');
                                         const dot = runningBadge.querySelector('.tool-call-dot');
                                         if (dot) { dot.classList.remove('running'); }
-                                        // Ganti icon jadi centang
                                         const dotEl = runningBadge.querySelector('.tool-call-dot');
                                         if (dotEl) dotEl.textContent = '✓';
                                     }
@@ -451,7 +452,6 @@
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
-                // Sembunyikan tool area jika tidak ada tool calls (hanya teks biasa)
                 if (toolArea.children.length === 0) {
                     toolArea.style.display = 'none';
                 }
@@ -466,18 +466,16 @@
             }
         }
 
-        // ── Buat bubble AI dengan area tool calls di atasnya ──────────────────
+        // ── Buat bubble AI ────────────────────────────────────────────────────
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
             const wrap = document.createElement('div');
             wrap.className = 'flex flex-col gap-1.5 items-start max-w-[95%]';
 
-            // Area tool call badges (muncul sebelum jawaban)
             const toolArea = document.createElement('div');
             toolArea.className = 'flex flex-col gap-1 pl-1 mb-1';
 
-            // Bubble jawaban AI
             const bubble = document.createElement('div');
             bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
             bubble.innerHTML = '<span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses...</span>';

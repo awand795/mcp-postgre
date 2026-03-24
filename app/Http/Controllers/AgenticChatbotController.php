@@ -8,41 +8,42 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
- * AgenticChatbotController — Opsi A: Tool Calling (Agentic Loop)
+ * AgenticChatbotController — Tool Calling (Agentic Loop)
  *
  * Provider chain:
- *   1. NVIDIA NIM  — gratis jika key valid + model tersedia
- *   2. Groq        — gratis tier generous, SANGAT DIREKOMENDASIKAN sebagai primary jika NVIDIA bermasalah
- *   3. OpenRouter  — last resort
- *
- * Untuk aktifkan Groq:
- *   1. Daftar gratis di https://console.groq.com
- *   2. Buat API Key
- *   3. Tambahkan ke .env: GROQ_API_KEY=gsk_xxxxx
+ *   1. OpenAI       — Primary, tool calling terbaik (gpt-4o-mini)
+ *   2. NVIDIA NIM   — Fallback gratis jika key valid
+ *   3. Groq         — Fallback gratis generous
+ *   4. OpenRouter   — Last resort
  */
 class AgenticChatbotController extends Controller
 {
+    // ── OpenAI (Primary) ──────────────────────────────────────────────────────
+    private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
+    private array $openaiModels = [
+        'gpt-4o-mini',   // Best value: cepat, murah, tool calling sempurna
+        'gpt-4o',        // Paling canggih jika diperlukan
+        'gpt-3.5-turbo', // Fallback paling hemat
+    ];
+
     // ── NVIDIA NIM ────────────────────────────────────────────────────────────
     private string $nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    // Model diurutkan dari yang paling sering tersedia gratis
     private array $nvidiaModels = [
         'meta/llama-3.3-70b-instruct',
         'meta/llama-3.1-8b-instruct',
-        'meta/llama-3.2-3b-instruct',
         'mistralai/mistral-nemo-12b-instruct',
-        'nvidia/llama-3.1-nemotron-nano-8b-instruct',
     ];
 
-    // ── Groq (DIREKOMENDASIKAN sebagai fallback utama) ─────────────────────
+    // ── Groq ──────────────────────────────────────────────────────────────────
     private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
     private array $groqModels = [
-        'llama-3.3-70b-versatile',    // Best, support tool calling
-        'llama-3.1-70b-versatile',    // Alternatif
-        'llama-3.1-8b-instant',       // Cepat, support tools
-        'mixtral-8x7b-32768',         // Support tools
+        'llama-3.3-70b-versatile',
+        'llama-3.1-70b-versatile',
+        'llama-3.1-8b-instant',
+        'mixtral-8x7b-32768',
     ];
 
-    // ── OpenRouter (last resort, berbayar) ────────────────────────────────────
+    // ── OpenRouter ────────────────────────────────────────────────────────────
     private string $openrouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
     private array $openrouterModels = [
         'mistralai/mistral-7b-instruct:free',
@@ -75,15 +76,16 @@ class AgenticChatbotController extends Controller
 
         $message       = $request->input('message', '');
         $history       = $request->input('history', []);
+        $openaiKey     = env('OPENAI_API_KEY');
         $nvidiaKey     = env('NVIDIA_API_KEY');
         $groqKey       = env('GROQ_API_KEY');
         $openrouterKey = env('OPENROUTER_API_KEY');
 
         Log::info("[Agentic] New message: " . substr($message, 0, 100));
 
-        if (!$nvidiaKey && !$groqKey && !$openrouterKey) {
+        if (!$openaiKey && !$nvidiaKey && !$groqKey && !$openrouterKey) {
             return response()->json([
-                'error' => 'Tidak ada API key yang valid. Isi salah satu: NVIDIA_API_KEY, GROQ_API_KEY, atau OPENROUTER_API_KEY di .env'
+                'error' => 'Tidak ada API key yang valid. Isi salah satu: OPENAI_API_KEY, NVIDIA_API_KEY, GROQ_API_KEY, atau OPENROUTER_API_KEY di .env'
             ]);
         }
 
@@ -94,8 +96,8 @@ class AgenticChatbotController extends Controller
         session_write_close();
 
         return response()->stream(
-            function () use ($messages, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang) {
-                $this->runAgenticLoop($messages, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang);
+            function () use ($messages, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang) {
+                $this->runAgenticLoop($messages, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang);
             },
             200,
             [
@@ -110,6 +112,7 @@ class AgenticChatbotController extends Controller
     // ── Agentic Loop ──────────────────────────────────────────────────────────
     private function runAgenticLoop(
         array   $messages,
+        ?string $openaiKey,
         ?string $nvidiaKey,
         ?string $groqKey,
         ?string $openrouterKey,
@@ -126,20 +129,13 @@ class AgenticChatbotController extends Controller
             Log::info("[Agentic] ── Loop #{$loopCount} ──");
 
             [$response, $providerUsed] = $this->callBestProvider(
-                $messages, $tools, $nvidiaKey, $groqKey, $openrouterKey
+                $messages, $tools, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey
             );
 
             if (!$response) {
-                // Tampilkan pesan error yang lebih informatif
                 $errMsg = $lang === 'en'
-                    ? "⚠️ All AI providers failed. Please check:\n"
-                      . "- **NVIDIA**: Key may need refresh at https://build.nvidia.com\n"
-                      . "- **Groq** (recommended, free): Register at https://console.groq.com and add GROQ_API_KEY to .env\n"
-                      . "- Check `storage/logs/laravel.log` for detailed errors."
-                    : "⚠️ Semua layanan AI gagal merespons. Silakan periksa:\n"
-                      . "- **NVIDIA**: Key mungkin perlu diperbarui di https://build.nvidia.com\n"
-                      . "- **Groq** (rekomendasi, gratis): Daftar di https://console.groq.com lalu tambahkan GROQ_API_KEY ke .env\n"
-                      . "- Cek detail error di `storage/logs/laravel.log`";
+                    ? "⚠️ All AI providers failed. Please check your API keys in .env and try again."
+                    : "⚠️ Semua layanan AI gagal merespons. Silakan periksa API key di .env dan coba lagi.";
 
                 $this->streamText($errMsg);
                 echo "data: [DONE]\n\n";
@@ -154,7 +150,6 @@ class AgenticChatbotController extends Controller
             $messageObj   = $choice['message'] ?? [];
             $toolCalls    = $messageObj['tool_calls'] ?? [];
 
-            // Tambah respons AI ke percakapan
             $assistantMsg = [
                 'role'    => 'assistant',
                 'content' => $messageObj['content'] ?? null,
@@ -221,11 +216,22 @@ class AgenticChatbotController extends Controller
     private function callBestProvider(
         array   $messages,
         array   $tools,
+        ?string $openaiKey,
         ?string $nvidiaKey,
         ?string $groqKey,
         ?string $openrouterKey
     ): array {
-        // 1. NVIDIA NIM
+        // 1. OpenAI (Primary)
+        if ($openaiKey) {
+            foreach ($this->openaiModels as $model) {
+                $result = $this->callAPI($this->openaiUrl, $openaiKey, $model, $messages, $tools, false, true);
+                if ($result !== null) {
+                    return [$result, "OpenAI/{$model}"];
+                }
+            }
+        }
+
+        // 2. NVIDIA NIM
         if ($nvidiaKey) {
             foreach ($this->nvidiaModels as $model) {
                 $result = $this->callAPI($this->nvidiaUrl, $nvidiaKey, $model, $messages, $tools);
@@ -235,7 +241,7 @@ class AgenticChatbotController extends Controller
             }
         }
 
-        // 2. Groq
+        // 3. Groq
         if ($groqKey) {
             foreach ($this->groqModels as $model) {
                 $result = $this->callAPI($this->groqUrl, $groqKey, $model, $messages, $tools);
@@ -245,7 +251,7 @@ class AgenticChatbotController extends Controller
             }
         }
 
-        // 3. OpenRouter
+        // 4. OpenRouter
         if ($openrouterKey) {
             foreach ($this->openrouterModels as $model) {
                 $result = $this->callAPI($this->openrouterUrl, $openrouterKey, $model, $messages, $tools, true);
@@ -265,7 +271,8 @@ class AgenticChatbotController extends Controller
         string $model,
         array  $messages,
         array  $tools,
-        bool   $isOpenRouter = false
+        bool   $isOpenRouter = false,
+        bool   $isOpenAI = false
     ): ?array {
         // Bersihkan messages
         $cleanMessages = [];
@@ -280,7 +287,6 @@ class AgenticChatbotController extends Controller
                 if (!empty($msg['tool_calls'])) {
                     $clean['tool_calls'] = $msg['tool_calls'];
                 }
-                // Content bisa null saat ada tool_calls (valid per OpenAI spec)
                 $clean['content'] = $msg['content'];
             } else {
                 $clean['content'] = $msg['content'] ?? '';
@@ -304,6 +310,7 @@ class AgenticChatbotController extends Controller
             'Content-Type: application/json',
             'Accept: application/json',
         ];
+
         if ($isOpenRouter) {
             $headers[] = 'HTTP-Referer: ' . env('APP_URL', 'http://localhost');
             $headers[] = 'X-Title: MCP Chatbot';
@@ -370,16 +377,16 @@ class AgenticChatbotController extends Controller
 
         if ($lang === 'en') {
             return <<<PROMPT
-You are DataBot, an expert AI Data Analyst with **direct access to a PostgreSQL database** via tools.
+You are DataBot, an expert AI Data Analyst with **direct access to a business database** via tools.
 
 ## TOOLS AVAILABLE
 1. `get_schema_info` — Get all tables and their columns at once. **Call this FIRST.**
 2. `list_tables`     — List accessible tables.
 3. `describe_table`  — Get columns/types for a specific table.
-4. `execute_query`   — Run a SQL SELECT query.
+4. `execute_query`   — Run a SQL SELECT query to retrieve business data.
 
 ## WORKFLOW
-1. Call `get_schema_info` first to understand the schema.
+1. Call `get_schema_info` first to understand the business data structure.
 2. Write precise SQL using correct column names.
 3. Call `execute_query` with that SQL.
 4. Analyze results and answer clearly in Markdown.
@@ -403,16 +410,16 @@ PROMPT;
         }
 
         return <<<PROMPT
-Anda adalah DataBot, AI Analis Data yang memiliki **akses langsung ke database PostgreSQL** melalui tools.
+Anda adalah DataBot, AI Analis Data yang memiliki **akses langsung ke data bisnis perusahaan** melalui tools.
 
 ## TOOLS YANG TERSEDIA
 1. `get_schema_info` — Ambil semua tabel dan kolomnya sekaligus. **Panggil ini PERTAMA.**
 2. `list_tables`     — Lihat daftar tabel yang bisa diakses.
 3. `describe_table`  — Detail kolom tabel tertentu.
-4. `execute_query`   — Jalankan SQL SELECT.
+4. `execute_query`   — Ambil data bisnis dari database.
 
 ## ALUR KERJA
-1. Panggil `get_schema_info` untuk memahami schema database.
+1. Panggil `get_schema_info` untuk memahami struktur data bisnis.
 2. Tulis SQL yang tepat berdasarkan nama kolom yang ada.
 3. Panggil `execute_query` dengan SQL tersebut.
 4. Analisis hasilnya dan jawab dalam Markdown yang rapi.
