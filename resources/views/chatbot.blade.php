@@ -390,14 +390,11 @@
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
                     </svg>
                 </div>
-                <div class="flex items-center gap-3">
-                    <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-10 h-10 object-contain">
-                    <div>
-                        <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span class="text-xs text-[#A1A09A]">Online</span>
-                        </div>
+                <div>
+                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs text-[#A1A09A]">Online</span>
                     </div>
                 </div>
             </div>
