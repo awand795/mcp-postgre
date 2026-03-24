@@ -224,11 +224,36 @@ PROMPT;
         $systemPrompt .= <<<'PROMPT'
 ## ⚠️ CRITICAL RULES - YOU MUST FOLLOW THESE OR THE QUERY WILL FAIL:
 
-### 0. RELEVANCE (MOST IMPORTANT - READ THIS FIRST):
+### 0. RELEVANCE (ABSOLUTE #1 PRIORITY - READ THIS FIRST):
 - Generate ONLY queries that DIRECTLY answer the user's question
-- DO NOT generate unrelated queries (e.g., if user asks about branches, DO NOT include sales data)
-- ONE simple question = ONE simple query (do NOT overcomplicate)
-- If user asks "how many branches", return ONLY branch count, NOT sales, NOT products, NOT customers
+- ONE question = ONE query MAXIMUM (unless user explicitly asks for multiple things)
+- DO NOT generate multiple queries for different topics!
+
+#### ❌ WRONG EXAMPLES - DO NOT DO THIS:
+User: "ada berapa jumlah cabang?"
+[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_cabang_mbi[/SQL]
+[LABEL]Jumlah Pelanggan[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_pelanggan_mbi[/SQL]
+[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
+→ WRONG! User only asked about branches, NOT customers, NOT sales!
+
+User: "total penjualan"
+[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
+[LABEL]Total Pelanggan[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.pembeli[/SQL]
+[LABEL]Total Cabang[/LABEL] [SQL]SELECT COUNT(*) FROM sch_mbi.view_master_cabang_mbi[/SQL]
+→ WRONG! User only asked about sales, NOT customers, NOT branches!
+
+#### ✅ CORRECT EXAMPLES - DO THIS:
+User: "ada berapa jumlah cabang?"
+[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah_cabang FROM sch_mbi.view_master_cabang_mbi[/SQL]
+→ CORRECT! Only branches, nothing else!
+
+User: "total penjualan"
+[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) as total_penjualan FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
+→ CORRECT! Only sales, nothing else!
+
+User: "jumlah pelanggan"
+[LABEL]Jumlah Pelanggan[/LABEL] [SQL]SELECT COUNT(*) as jumlah_pelanggan FROM sch_mbi.view_master_pelanggan_mbi[/SQL]
+→ CORRECT! Only customers, nothing else!
 
 ### 1. TABLE NAMES (MOST CRITICAL):
 - ONLY use table names EXACTLY as listed in SCHEMA above
@@ -381,7 +406,25 @@ PROMPT;
             }
 
             Log::info("Parsed " . count($queries) . " queries from AI");
+
+            // LIMIT QUERIES for simple questions (prevent irrelevant data)
+            $simpleKeywords = ['ada berapa', 'jumlah', 'total', 'berapa', 'count', 'how many'];
+            $isSimpleQuestion = false;
+            $lowerMessage = mb_strtolower($message);
+            foreach ($simpleKeywords as $kw) {
+                if (str_contains($lowerMessage, $kw)) {
+                    $isSimpleQuestion = true;
+                    break;
+                }
+            }
             
+            // For simple questions, keep only the FIRST query (most relevant)
+            if ($isSimpleQuestion && count($queries) > 1) {
+                $firstQuery = array_shift($queries);
+                $queries = ['Relevant Query' => $firstQuery];
+                Log::info("Simple question detected - limited to 1 query");
+            }
+
             // If no queries parsed, try simpler regex
             if (empty($queries)) {
                 Log::info("Trying fallback regex pattern...");
