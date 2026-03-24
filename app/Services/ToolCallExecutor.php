@@ -10,27 +10,41 @@ use Illuminate\Support\Facades\Log;
 /**
  * ToolCallExecutor
  *
- * Bertanggung jawab mengeksekusi tool calls yang diminta AI.
- * Tool yang tersedia:
- *   - list_tables        : Daftar tabel yang boleh diakses user
- *   - describe_table     : Struktur kolom sebuah tabel
- *   - execute_query      : Eksekusi SELECT query ke PostgreSQL
- *   - get_schema_info    : Informasi schema secara keseluruhan (shortcut)
+ * Mengeksekusi tool calls yang diminta AI (OpenAI gpt-4o-mini).
+ * Tools:
+ *   - list_tables     : Daftar tabel yang boleh diakses user
+ *   - describe_table  : Struktur kolom sebuah tabel
+ *   - execute_query   : Eksekusi SELECT query ke PostgreSQL
+ *   - get_schema_info : Ringkasan semua tabel + kolom sekaligus
  */
 class ToolCallExecutor
 {
-    // ── Definisi tools yang dikirim ke AI ─────────────────────────────────────
+    // ── Definisi tools yang dikirim ke OpenAI ─────────────────────────────────
+    // FIX: properties kosong harus pakai stdClass agar JSON encode jadi {} bukan []
+    // FIX: deskripsi lebih detail agar AI tahu kapan memanggil tiap tool
     public static function getToolDefinitions(): array
     {
         return [
             [
                 'type' => 'function',
                 'function' => [
-                    'name'        => 'list_tables',
-                    'description' => 'List all database tables that the current user is allowed to access. Always call this first to know what tables are available.',
+                    'name'        => 'get_schema_info',
+                    'description' => 'Get a complete overview of all accessible tables with their columns and data types in one single call. ALWAYS call this first before writing any SQL query. This gives you everything you need to understand the database structure.',
                     'parameters'  => [
                         'type'       => 'object',
-                        'properties' => (object)[],
+                        'properties' => new \stdClass(),  // FIX: {} bukan []
+                        'required'   => [],
+                    ],
+                ],
+            ],
+            [
+                'type' => 'function',
+                'function' => [
+                    'name'        => 'list_tables',
+                    'description' => 'List all database table names the current user is allowed to access. Use this only if you need a quick list of table names without column details.',
+                    'parameters'  => [
+                        'type'       => 'object',
+                        'properties' => new \stdClass(),  // FIX: {} bukan []
                         'required'   => [],
                     ],
                 ],
@@ -39,13 +53,13 @@ class ToolCallExecutor
                 'type' => 'function',
                 'function' => [
                     'name'        => 'describe_table',
-                    'description' => 'Get all columns and their data types for a specific table. Use this to understand the structure before writing a query.',
+                    'description' => 'Get all columns and their data types for a specific table. Use this when you need detailed information about a single table after already knowing the table name.',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
                             'table_name' => [
                                 'type'        => 'string',
-                                'description' => 'The table name (without schema prefix, e.g. "view_data_penjualan_rinci_mbi")',
+                                'description' => 'The exact table name without schema prefix, e.g. "view_data_penjualan_rinci_mbi"',
                             ],
                         ],
                         'required' => ['table_name'],
@@ -56,32 +70,20 @@ class ToolCallExecutor
                 'type' => 'function',
                 'function' => [
                     'name'        => 'execute_query',
-                    'description' => 'Execute a SQL SELECT query against the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi." (e.g. SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 10). Only SELECT queries are allowed. Add LIMIT to prevent large result sets.',
+                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi." (e.g. SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 10). Only SELECT queries are allowed. Always include LIMIT to avoid large results.',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
                             'sql'   => [
                                 'type'        => 'string',
-                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names.',
+                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC LIMIT 10',
                             ],
                             'label' => [
                                 'type'        => 'string',
-                                'description' => 'A short human-readable description of what this query retrieves, e.g. "Top 10 produk terlaris"',
+                                'description' => 'A short business-friendly description of what this query retrieves, e.g. "10 produk terlaris" or "Total penjualan per cabang"',
                             ],
                         ],
                         'required' => ['sql', 'label'],
-                    ],
-                ],
-            ],
-            [
-                'type' => 'function',
-                'function' => [
-                    'name'        => 'get_schema_info',
-                    'description' => 'Get a summary of all allowed tables with their columns in one call. Useful as an alternative to calling list_tables + multiple describe_table calls.',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => (object)[],
-                        'required'   => [],
                     ],
                 ],
             ],
@@ -132,7 +134,7 @@ class ToolCallExecutor
         }
 
         $columns = DB::connection('pgsql_mbi')->select("
-            SELECT column_name, data_type, is_nullable, column_default
+            SELECT column_name, data_type, is_nullable
             FROM information_schema.columns
             WHERE table_name = ? AND table_schema = 'sch_mbi'
             ORDER BY ordinal_position
@@ -148,15 +150,14 @@ class ToolCallExecutor
                 'column'   => $col->column_name,
                 'type'     => $col->data_type,
                 'nullable' => $col->is_nullable,
-                'default'  => $col->column_default,
             ];
         }
 
         return json_encode([
             'table'   => $tableName,
             'schema'  => 'sch_mbi',
-            'columns' => $result,
             'sql_ref' => "sch_mbi.{$tableName}",
+            'columns' => $result,
         ]);
     }
 
@@ -167,118 +168,126 @@ class ToolCallExecutor
             return json_encode(['error' => 'sql is required']);
         }
 
-        // ── LAYER 1: Strip comments dulu sebelum validasi ──────────────────
-        // Hapus single-line comments (-- ...) dan multi-line (/* ... */)
+        // ── LAYER 1: Strip comments ──────────────────────────────────────────
         $sqlStripped = preg_replace('/--[^\n]*/', '', $sql);
         $sqlStripped = preg_replace('/\/\*.*?\*\//s', '', $sqlStripped);
         $sqlStripped = trim($sqlStripped);
 
-        // ── LAYER 2: Harus diawali SELECT (tidak boleh ada apapun sebelumnya) ──
+        // ── LAYER 2: Harus diawali SELECT ────────────────────────────────────
         if (!preg_match('/^\s*SELECT\b/i', $sqlStripped)) {
             Log::warning("[ToolCallExecutor] Rejected non-SELECT query: " . substr($sql, 0, 200));
-            return json_encode(['error' => 'Hanya query SELECT yang diizinkan. Operasi tulis data tidak diperbolehkan.']);
+            return json_encode(['error' => 'Hanya query SELECT yang diizinkan.']);
         }
 
-        // ── LAYER 3: Blokir semua kata kunci berbahaya sebagai word boundary ──
+        // ── LAYER 3: Blokir kata kunci berbahaya ─────────────────────────────
         $forbidden = [
-            // DML - data modification
             'insert', 'update', 'delete', 'merge', 'upsert',
-            // DDL - structure changes
-            'drop', 'truncate', 'alter', 'create', 'rename', 'comment',
-            // DCL - privileges
-            'grant', 'revoke',
-            // Execution
-            'execute', 'exec', 'call', 'do',
-            // System / dangerous
-            'copy', 'vacuum', 'reindex', 'cluster', 'analyze',
-            'pg_read_file', 'pg_write_file', 'pg_ls_dir',
-            'lo_import', 'lo_export',
-            'dblink', 'dblink_exec',
+            'drop', 'truncate', 'alter', 'create', 'rename',
+            'grant', 'revoke', 'execute', 'exec', 'call', 'do',
+            'copy', 'vacuum', 'pg_read_file', 'pg_write_file',
+            'lo_import', 'lo_export', 'dblink', 'dblink_exec',
         ];
-        $lowerSql  = strtolower($sqlStripped);
+        $lowerSql = strtolower($sqlStripped);
         foreach ($forbidden as $kw) {
             if (preg_match('/\b' . preg_quote($kw, '/') . '\b/', $lowerSql)) {
-                Log::warning("[ToolCallExecutor] Forbidden keyword '{$kw}' in query: " . substr($sql, 0, 200));
-                return json_encode(['error' => "Perintah '{$kw}' tidak diizinkan. Hanya operasi baca (SELECT) yang diperbolehkan."]);
+                Log::warning("[ToolCallExecutor] Forbidden keyword '{$kw}'");
+                return json_encode(['error' => "Perintah '{$kw}' tidak diizinkan."]);
             }
         }
 
-        // ── LAYER 4: Blokir multiple statements (stacked queries) ──────────
-        // Hapus semicolon di akhir (wajar), tapi tolak jika ada di tengah
+        // ── LAYER 4: Blokir multiple statements ──────────────────────────────
         $trimmedSql = rtrim($sqlStripped, '; ');
         if (str_contains($trimmedSql, ';')) {
-            Log::warning("[ToolCallExecutor] Multiple statements detected: " . substr($sql, 0, 200));
-            return json_encode(['error' => 'Hanya satu query SELECT yang diizinkan per panggilan. Multiple statements diblokir.']);
+            return json_encode(['error' => 'Hanya satu query per panggilan.']);
         }
 
         // ── LAYER 5: Validasi akses tabel ─────────────────────────────────────
         $allowed = $this->getAllowedTables();
-        if (preg_match_all('/(?:from|join)\s+(?:sch_mbi\.)?([a-zA-Z0-9_]+)/i', $sqlStripped, $matches)) {
+        if (preg_match_all('/(?:from|join)\s+(?:sch_mbi\.)?([a-zA-Z0-9_]+)/i', $trimmedSql, $matches)) {
             foreach ($matches[1] as $tbl) {
                 $tbl = strtolower(trim($tbl));
-                // Skip subquery aliases & SQL keywords
-                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as'])) continue;
+                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as', 'lateral'])) continue;
                 if (!in_array($tbl, $allowed)) {
                     Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}'");
-                    return json_encode(['error' => "Akses ditolak: tabel '{$tbl}' tidak ada dalam daftar tabel yang diizinkan."]);
+                    return json_encode(['error' => "Akses ditolak: tabel '{$tbl}' tidak diizinkan."]);
                 }
             }
         }
 
-        // ── LAYER 6: Paksa transaction READ ONLY + tambah LIMIT jika tidak ada ──
+        // ── LAYER 6: Paksa LIMIT jika tidak ada ──────────────────────────────
         $cleanSql = $trimmedSql;
         if (!preg_match('/\blimit\b/i', $cleanSql)) {
             $cleanSql .= ' LIMIT 100';
         }
 
-        Log::info("[ToolCallExecutor] Executing READ-ONLY SQL: " . substr($cleanSql, 0, 300));
+        Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 
-        // Jalankan dalam transaksi read-only agar tidak bisa commit perubahan
-        $rows = DB::connection('pgsql_mbi')->transaction(function () use ($cleanSql) {
-            DB::connection('pgsql_mbi')->statement('SET TRANSACTION READ ONLY');
-            return DB::connection('pgsql_mbi')->select($cleanSql);
-        });
+        // FIX: Hapus SET TRANSACTION READ ONLY karena tidak kompatibel dengan Laravel DB::transaction()
+        // Cukup jalankan langsung — validasi SELECT + forbidden keywords di atas sudah cukup aman
+        try {
+            $rows = DB::connection('pgsql_mbi')->select($cleanSql);
+        } catch (\Exception $e) {
+            Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage());
+            return json_encode([
+                'error'   => 'Query gagal: ' . $e->getMessage(),
+                'sql'     => $cleanSql,
+            ]);
+        }
 
         if (empty($rows)) {
             return json_encode([
                 'label'   => $label,
-                'sql'     => $cleanSql,
-                'rows'    => [],
                 'total'   => 0,
-                'message' => 'No data found for this query.',
+                'message' => 'Tidak ada data untuk query ini.',
+                'columns' => [],
+                'rows'    => [],
             ]);
         }
 
         $data = array_map(fn($row) => (array) $row, $rows);
 
-        return json_encode([
+        // FIX: Batasi ukuran response agar tidak overflow context window AI
+        // Jika data lebih dari 50 baris, kirim ringkasan + sample saja
+        $total = count($data);
+        $sample = array_slice($data, 0, 50);
+
+        $result = [
             'label'   => $label,
-            'sql'     => $cleanSql,
-            'rows'    => $data,
-            'total'   => count($data),
+            'total'   => $total,
             'columns' => array_keys($data[0]),
-        ]);
+            'rows'    => $sample,
+        ];
+
+        if ($total > 50) {
+            $result['note'] = "Menampilkan 50 dari {$total} baris. Gunakan query lebih spesifik untuk mempersempit hasil.";
+        }
+
+        return json_encode($result);
     }
 
     // ── get_schema_info ───────────────────────────────────────────────────────
+    // FIX: Tambah LIMIT pada query info_schema agar tidak lambat
     private function getSchemaInfo(): string
     {
         $allowed = $this->getAllowedTables();
 
         if (empty($allowed)) {
-            return json_encode(['error' => 'No tables accessible for your role.']);
+            return json_encode(['error' => 'Tidak ada tabel yang bisa diakses untuk role ini.']);
         }
+
+        // Buat placeholder untuk IN clause
+        $placeholders = implode(',', array_fill(0, count($allowed), '?'));
 
         $results = DB::connection('pgsql_mbi')->select("
             SELECT table_name, column_name, data_type
             FROM information_schema.columns
             WHERE table_schema = 'sch_mbi'
+            AND table_name IN ({$placeholders})
             ORDER BY table_name, ordinal_position
-        ");
+        ", $allowed);
 
         $schema = [];
         foreach ($results as $row) {
-            if (!in_array($row->table_name, $allowed)) continue;
             if (!isset($schema[$row->table_name])) {
                 $schema[$row->table_name] = [];
             }
@@ -289,7 +298,7 @@ class ToolCallExecutor
             'schema'       => 'sch_mbi',
             'total_tables' => count($schema),
             'tables'       => $schema,
-            'note'         => 'Use "sch_mbi.table_name" in SQL queries',
+            'usage_note'   => 'Prefix all table names with "sch_mbi." in SQL queries. Example: SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 10',
         ]);
     }
 

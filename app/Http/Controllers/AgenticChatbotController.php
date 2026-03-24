@@ -9,46 +9,12 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
- *
- * Provider chain:
- *   1. OpenAI       — Primary, tool calling terbaik (gpt-4o-mini)
- *   2. NVIDIA NIM   — Fallback gratis jika key valid
- *   3. Groq         — Fallback gratis generous
- *   4. OpenRouter   — Last resort
+ * Provider: OpenAI only (gpt-4o-mini)
  */
 class AgenticChatbotController extends Controller
 {
-    // ── OpenAI (Primary) ──────────────────────────────────────────────────────
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private array $openaiModels = [
-        'gpt-4o-mini',   // Best value: cepat, murah, tool calling sempurna
-        'gpt-4o',        // Paling canggih jika diperlukan
-        'gpt-3.5-turbo', // Fallback paling hemat
-    ];
-
-    // ── NVIDIA NIM ────────────────────────────────────────────────────────────
-    private string $nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    private array $nvidiaModels = [
-        'meta/llama-3.3-70b-instruct',
-        'meta/llama-3.1-8b-instruct',
-        'mistralai/mistral-nemo-12b-instruct',
-    ];
-
-    // ── Groq ──────────────────────────────────────────────────────────────────
-    private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-    private array $groqModels = [
-        'llama-3.3-70b-versatile',
-        'llama-3.1-70b-versatile',
-        'llama-3.1-8b-instant',
-        'mixtral-8x7b-32768',
-    ];
-
-    // ── OpenRouter ────────────────────────────────────────────────────────────
-    private string $openrouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
-    private array $openrouterModels = [
-        'mistralai/mistral-7b-instruct:free',
-        'meta-llama/llama-3.1-70b-instruct:free',
-    ];
+    private string $openaiModel = 'gpt-4o-mini';
 
     private int $maxToolLoops = 8;
     private int $maxHistory   = 10;
@@ -74,18 +40,15 @@ class AgenticChatbotController extends Controller
         set_time_limit(300);
         ini_set('memory_limit', '512M');
 
-        $message       = $request->input('message', '');
-        $history       = $request->input('history', []);
-        $openaiKey     = env('OPENAI_API_KEY');
-        $nvidiaKey     = env('NVIDIA_API_KEY');
-        $groqKey       = env('GROQ_API_KEY');
-        $openrouterKey = env('OPENROUTER_API_KEY');
+        $message   = $request->input('message', '');
+        $history   = $request->input('history', []);
+        $openaiKey = env('OPENAI_API_KEY');
 
         Log::info("[Agentic] New message: " . substr($message, 0, 100));
 
-        if (!$openaiKey && !$nvidiaKey && !$groqKey && !$openrouterKey) {
+        if (!$openaiKey) {
             return response()->json([
-                'error' => 'Tidak ada API key yang valid. Isi salah satu: OPENAI_API_KEY, NVIDIA_API_KEY, GROQ_API_KEY, atau OPENROUTER_API_KEY di .env'
+                'error' => 'OPENAI_API_KEY belum dikonfigurasi di .env'
             ]);
         }
 
@@ -96,8 +59,8 @@ class AgenticChatbotController extends Controller
         session_write_close();
 
         return response()->stream(
-            function () use ($messages, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang) {
-                $this->runAgenticLoop($messages, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey, $detectedLang);
+            function () use ($messages, $openaiKey, $detectedLang) {
+                $this->runAgenticLoop($messages, $openaiKey, $detectedLang);
             },
             200,
             [
@@ -110,14 +73,8 @@ class AgenticChatbotController extends Controller
     }
 
     // ── Agentic Loop ──────────────────────────────────────────────────────────
-    private function runAgenticLoop(
-        array   $messages,
-        ?string $openaiKey,
-        ?string $nvidiaKey,
-        ?string $groqKey,
-        ?string $openrouterKey,
-        string  $lang
-    ): void {
+    private function runAgenticLoop(array $messages, string $openaiKey, string $lang): void
+    {
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
         ob_flush(); flush();
 
@@ -128,22 +85,18 @@ class AgenticChatbotController extends Controller
             $loopCount++;
             Log::info("[Agentic] ── Loop #{$loopCount} ──");
 
-            [$response, $providerUsed] = $this->callBestProvider(
-                $messages, $tools, $openaiKey, $nvidiaKey, $groqKey, $openrouterKey
-            );
+            $response = $this->callOpenAI($messages, $tools, $openaiKey);
 
             if (!$response) {
                 $errMsg = $lang === 'en'
-                    ? "⚠️ All AI providers failed. Please check your API keys in .env and try again."
-                    : "⚠️ Semua layanan AI gagal merespons. Silakan periksa API key di .env dan coba lagi.";
+                    ? "⚠️ Failed to connect to OpenAI. Please check your OPENAI_API_KEY in .env and try again."
+                    : "⚠️ Gagal terhubung ke OpenAI. Silakan periksa OPENAI_API_KEY di .env dan coba lagi.";
 
                 $this->streamText($errMsg);
                 echo "data: [DONE]\n\n";
                 ob_flush(); flush();
                 return;
             }
-
-            Log::info("[Agentic] Provider: {$providerUsed}");
 
             $choice       = $response['choices'][0] ?? null;
             $finishReason = $choice['finish_reason'] ?? 'stop';
@@ -212,69 +165,10 @@ class AgenticChatbotController extends Controller
         ob_flush(); flush();
     }
 
-    // ── Coba semua provider, return [response, providerName] ──────────────────
-    private function callBestProvider(
-        array   $messages,
-        array   $tools,
-        ?string $openaiKey,
-        ?string $nvidiaKey,
-        ?string $groqKey,
-        ?string $openrouterKey
-    ): array {
-        // 1. OpenAI (Primary)
-        if ($openaiKey) {
-            foreach ($this->openaiModels as $model) {
-                $result = $this->callAPI($this->openaiUrl, $openaiKey, $model, $messages, $tools, false, true);
-                if ($result !== null) {
-                    return [$result, "OpenAI/{$model}"];
-                }
-            }
-        }
-
-        // 2. NVIDIA NIM
-        if ($nvidiaKey) {
-            foreach ($this->nvidiaModels as $model) {
-                $result = $this->callAPI($this->nvidiaUrl, $nvidiaKey, $model, $messages, $tools);
-                if ($result !== null) {
-                    return [$result, "NVIDIA/{$model}"];
-                }
-            }
-        }
-
-        // 3. Groq
-        if ($groqKey) {
-            foreach ($this->groqModels as $model) {
-                $result = $this->callAPI($this->groqUrl, $groqKey, $model, $messages, $tools);
-                if ($result !== null) {
-                    return [$result, "Groq/{$model}"];
-                }
-            }
-        }
-
-        // 4. OpenRouter
-        if ($openrouterKey) {
-            foreach ($this->openrouterModels as $model) {
-                $result = $this->callAPI($this->openrouterUrl, $openrouterKey, $model, $messages, $tools, true);
-                if ($result !== null) {
-                    return [$result, "OpenRouter/{$model}"];
-                }
-            }
-        }
-
-        return [null, 'none'];
-    }
-
-    // ── Panggil satu model API ────────────────────────────────────────────────
-    private function callAPI(
-        string $apiUrl,
-        string $apiKey,
-        string $model,
-        array  $messages,
-        array  $tools,
-        bool   $isOpenRouter = false,
-        bool   $isOpenAI = false
-    ): ?array {
-        // Bersihkan messages
+    // ── Panggil OpenAI API ────────────────────────────────────────────────────
+    private function callOpenAI(array $messages, array $tools, string $apiKey): ?array
+    {
+        // Bersihkan messages sesuai OpenAI spec
         $cleanMessages = [];
         foreach ($messages as $msg) {
             $role  = $msg['role'] ?? '';
@@ -296,7 +190,7 @@ class AgenticChatbotController extends Controller
         }
 
         $payload = [
-            'model'       => $model,
+            'model'       => $this->openaiModel,
             'messages'    => $cleanMessages,
             'tools'       => $tools,
             'tool_choice' => 'auto',
@@ -305,26 +199,19 @@ class AgenticChatbotController extends Controller
             'top_p'       => 0.9,
         ];
 
-        $headers = [
-            'Authorization: Bearer ' . $apiKey,
-            'Content-Type: application/json',
-            'Accept: application/json',
-        ];
-
-        if ($isOpenRouter) {
-            $headers[] = 'HTTP-Referer: ' . env('APP_URL', 'http://localhost');
-            $headers[] = 'X-Title: MCP Chatbot';
-        }
-
-        Log::info("[Agentic] Trying: {$apiUrl} | {$model}");
+        Log::info("[Agentic] Calling OpenAI: {$this->openaiModel}");
 
         try {
-            $ch = curl_init($apiUrl);
+            $ch = curl_init($this->openaiUrl);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST           => true,
                 CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $apiKey,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
                 CURLOPT_TIMEOUT        => 120,
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
@@ -335,28 +222,28 @@ class AgenticChatbotController extends Controller
             curl_close($ch);
 
             if ($curlErr) {
-                Log::error("[Agentic] cURL [{$model}]: {$curlErr}");
+                Log::error("[Agentic] cURL error: {$curlErr}");
                 return null;
             }
             if ($httpCode < 200 || $httpCode >= 300) {
-                Log::error("[Agentic] HTTP {$httpCode} [{$model}]: " . substr($body, 0, 300));
+                Log::error("[Agentic] HTTP {$httpCode}: " . substr($body, 0, 300));
                 return null;
             }
 
             $decoded = json_decode($body, true);
             if (!$decoded || isset($decoded['error'])) {
-                Log::error("[Agentic] API err [{$model}]: " . substr($body, 0, 200));
+                Log::error("[Agentic] API error: " . substr($body, 0, 200));
                 return null;
             }
             if (empty($decoded['choices'])) {
-                Log::error("[Agentic] No choices [{$model}]");
+                Log::error("[Agentic] No choices in response");
                 return null;
             }
 
             return $decoded;
 
         } catch (\Throwable $e) {
-            Log::error("[Agentic] Exception [{$model}]: " . $e->getMessage());
+            Log::error("[Agentic] Exception: " . $e->getMessage());
             return null;
         }
     }

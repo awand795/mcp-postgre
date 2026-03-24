@@ -177,7 +177,7 @@
             <div class="flex items-center gap-3">
                 <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech</h1>
+                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech ai</h1>
                     <div class="flex items-center gap-2 mt-0.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         <span class="text-xs text-[#A1A09A]">Online</span>
@@ -225,7 +225,7 @@
         <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-5">
             <div class="flex flex-col items-start gap-1.5 max-w-[85%]">
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                    <p>Halo! Saya <strong>Darko AI</strong> 👋</p>
+                    <p>Halo! Saya <strong>Darkotech AI</strong> 👋</p>
                     <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya saya :</p>
                 </div>
                 <span class="text-[10px] text-[#706f6c] ml-1">{{ now()->format('H:i') }}</span>
