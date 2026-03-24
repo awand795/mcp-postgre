@@ -221,62 +221,79 @@ class ChatbotController extends Controller
             return in_array($table, $allowedTables);
         };
 
-        // Pattern matching for TOTAL / COUNT questions
-        if (preg_match('/^(total|jumlah|ada berapa|berapa banyak|how many|count)\s+(cabang|branch|pelanggan|customer|pembeli|penjualan|sales|produk|barang|kategori)$/i', $lower, $matches)) {
-            $questionType = strtolower($matches[1]);
+        // Extract year from message (e.g., "2026", "tahun 2026", "di 2026")
+        $tahunMatch = null;
+        preg_match('/\b(202[0-9]|2030)\b/', $lower, $tahunMatch);
+        $tahun = $tahunMatch ? $tahunMatch[1] : null;
+
+        // Extract region (simple detection)
+        $regions = ['riau', 'jakarta', 'bandung', 'surabaya', 'medan', 'sumatera', 'jawa'];
+        $region = null;
+        foreach ($regions as $r) {
+            if (str_contains($lower, $r)) {
+                $region = $r;
+                break;
+            }
+        }
+
+        // Pattern 1: Simple TOTAL / COUNT - NO AI NEEDED
+        if (preg_match('/^(total|jumlah|ada berapa|berapa banyak)\s+(cabang|branch|pelanggan|customer|pembeli|produk|barang|kategori)/i', $lower, $matches) 
+            && !$tahun && !$region) {
             $topic = strtolower($matches[2]);
-            
             $queries = [];
             
-            // Map topics to exact table and column names
             if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
                 $queries['Total Cabang'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi";
                 return $queries;
             }
-            
             if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
                 $queries['Total Pelanggan'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_pelanggan_mbi";
                 return $queries;
             }
-            
-            if (in_array($topic, ['penjualan', 'sales']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
-                $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
-                return $queries;
-            }
-            
             if (in_array($topic, ['produk', 'barang']) && $isAllowed('view_master_barang_mbi')) {
                 $queries['Total Produk'] = "SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_barang_mbi";
                 return $queries;
             }
-            
             if ($topic === 'kategori' && $isAllowed('view_data_penjualan_rinci_mbi')) {
                 $queries['Total Kategori'] = "SELECT COUNT(DISTINCT nama_kategori_barang) as jumlah FROM sch_mbi.view_data_penjualan_rinci_mbi";
                 return $queries;
             }
         }
 
-        // Pattern for "tampilkan semua/semua data" questions
-        if (preg_match('/^(tampilkan|show|daftar|list)\s+(semua|seluruh|all)\s+(cabang|pelanggan|penjualan|produk)/i', $lower, $matches)) {
-            $topic = strtolower($matches[3]);
+        // Pattern 2: TOTAL PENJUALAN (with optional year/region) - HARDCODED
+        if (preg_match('/(total|jumlah|sum)\s+penjualan/i', $lower) && !$region) {
+            $queries = [];
+            if ($tahun) {
+                $queries['Total Penjualan ' . $tahun] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '{$tahun}'";
+            } else {
+                $queries['Total Penjualan'] = "SELECT COALESCE(SUM(total_netto), 0) as total FROM sch_mbi.view_data_penjualan_rinci_mbi";
+            }
+            return $queries;
+        }
+
+        // Pattern 3: TAMPILKAN / SHOW data (with optional filters)
+        if (preg_match('/^(tampilkan|show|daftar|list)\s+(semua|seluruh|data)?\s*(cabang|pelanggan|penjualan|produk|transaksi)?/i', $lower, $matches)) {
+            $topic = isset($matches[3]) ? strtolower($matches[3]) : '';
             $queries = [];
             
             if (in_array($topic, ['cabang', 'branch']) && $isAllowed('view_master_cabang_mbi')) {
-                $queries['Daftar Cabang'] = "SELECT * FROM sch_mbi.view_master_cabang_mbi LIMIT 50";
+                $sql = "SELECT * FROM sch_mbi.view_master_cabang_mbi";
+                if ($region) $sql .= " WHERE nama_propinsi_cabang ILIKE '%{$region}%'";
+                $sql .= " LIMIT 50";
+                $queries['Daftar Cabang'] = $sql;
                 return $queries;
             }
-            
             if (in_array($topic, ['pelanggan', 'customer', 'pembeli']) && $isAllowed('view_master_pelanggan_mbi')) {
-                $queries['Daftar Pelanggan'] = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi LIMIT 50";
-                return $queries;
-            }
-            
-            if (in_array($topic, ['penjualan', 'sales']) && $isAllowed('view_data_penjualan_rinci_mbi')) {
-                $queries['Data Penjualan'] = "SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 50";
+                $sql = "SELECT * FROM sch_mbi.view_master_pelanggan_mbi";
+                if ($region) $sql .= " WHERE nama_propinsi_pelanggan ILIKE '%{$region}%'";
+                $sql .= " LIMIT 50";
+                $queries['Daftar Pelanggan'] = $sql;
                 return $queries;
             }
         }
 
         // === FALLBACK TO AI FOR COMPLEX QUESTIONS ===
+        // Examples: "penjualan di tahun 2026", "produk terlaris di Riau", "tren per bulan"
         $systemPrompt = <<<'PROMPT'
 You are an expert SQL Query Generator for PostgreSQL database.
 
@@ -288,37 +305,45 @@ PROMPT;
         $systemPrompt .= <<<'PROMPT'
 ## CRITICAL RULES:
 
-### 1. TABLE NAMES - USE EXACTLY AS SHOWN IN SCHEMA:
+### 1. TABLE NAMES - USE EXACTLY AS SHOWN:
 - ALWAYS prefix with 'sch_mbi.'
-- NEVER invent names: ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
+- ❌ 'cabang' → ✅ 'view_master_cabang_mbi'
+- ❌ 'penjualan' → ✅ 'view_data_penjualan_rinci_mbi'
 
-### 2. COLUMN NAMES - USE EXACTLY AS SHOWN IN SCHEMA:
-- NEVER use English: ❌ 'name' → ✅ 'nama_barang'
-- NEVER use English: ❌ 'city' → ✅ 'nama_kabupaten_cabang'
-- NEVER use English: ❌ 'province' → ✅ 'nama_propinsi_cabang'
+### 2. COLUMN NAMES - USE EXACTLY AS SHOWN:
+- ❌ 'name' → ✅ 'nama_barang' or 'nama_pelanggan'
+- ❌ 'province' → ✅ 'nama_propinsi_cabang'
+- ❌ 'city' → ✅ 'nama_kabupaten_cabang'
 
-### 3. QUERY TYPES:
-- COUNT questions: `SELECT COUNT(*) as jumlah FROM table` (NO LIMIT!)
-- SUM questions: `SELECT SUM(column) as total FROM table` (NO LIMIT!)
-- LIST questions: `SELECT * FROM table LIMIT 50`
+### 3. FILTERING:
+- Year: `periode_tahun = '2026'` or `EXTRACT(YEAR FROM tgl_fak_jl) = 2026`
+- Region: `nama_propinsi_cabang ILIKE '%riau%'`
+- Text: ALWAYS use ILIKE with wildcards
 
-### 4. ONE QUESTION = ONE QUERY:
-- User asks about branches → ONLY branch query
-- User asks about sales → ONLY sales query
-- DO NOT mix topics!
+### 4. QUERY TYPES:
+- COUNT: `SELECT COUNT(*) as jumlah FROM table` (NO LIMIT!)
+- SUM: `SELECT SUM(column) as total FROM table` (NO LIMIT!)
+- LIST: `SELECT * FROM table LIMIT 50`
+- TREND: `GROUP BY periode_tahun, periode_bulan`
+- TOP N: `ORDER BY metric DESC LIMIT 10`
+
+### 5. ONE QUESTION = ONE QUERY
 
 ## RESPONSE FORMAT:
 [LABEL]Label[/LABEL] [SQL]SELECT ...[/SQL]
 
 ## EXAMPLES:
-User: "ada berapa cabang?"
-[LABEL]Jumlah Cabang[/LABEL] [SQL]SELECT COUNT(*) as jumlah FROM sch_mbi.view_master_cabang_mbi[/SQL]
+User: "penjualan di tahun 2026"
+[LABEL]Penjualan 2026[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE periode_tahun = '2026'[/SQL]
 
-User: "total penjualan"
-[LABEL]Total Penjualan[/LABEL] [SQL]SELECT SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi[/SQL]
+User: "produk terlaris di Riau"
+[LABEL]Produk Terlaris Riau[/LABEL] [SQL]SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_propinsi_cabang ILIKE '%riau%' GROUP BY nama_barang ORDER BY total DESC LIMIT 10[/SQL]
 
-User: "tampilkan pelanggan"
-[LABEL]Daftar Pelanggan[/LABEL] [SQL]SELECT * FROM sch_mbi.view_master_pelanggan_mbi LIMIT 50[/SQL]
+User: "tren penjualan per bulan"
+[LABEL]Tren Bulanan[/LABEL] [SQL]SELECT periode_tahun || '-' || periode_bulan as bulan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY periode_tahun, periode_bulan ORDER BY bulan DESC LIMIT 12[/SQL]
+
+User: "pelanggan terbaik"
+[LABEL]Pelanggan Terbaik[/LABEL] [SQL]SELECT nama_pelanggan, SUM(total_netto) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_pelanggan ORDER BY total DESC LIMIT 10[/SQL]
 
 ## NOW GENERATE SQL:
 PROMPT;
