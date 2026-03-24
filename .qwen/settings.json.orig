@@ -9,10 +9,7 @@
       "Bash(git push *)",
       "Bash(git restore *)",
       "Bash(type *)",
-      "Bash(findstr *)",
-      "Bash(copy *)",
-      "Bash(git pull *)"
+      "Bash(findstr *)"
     ]
-  },
-  "$version": 3
+  }
 }

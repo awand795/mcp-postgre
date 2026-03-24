@@ -166,6 +166,7 @@ class ChatbotController extends Controller
             // LAST RESORT: If dbContext is still empty, generate simple response directly
             if (empty($dbContext)) {
                 Log::info("DB context empty, generating direct response...");
+                $lower = mb_strtolower($message);
                 $tahun = null;
                 preg_match('/\b(202[0-9]|2030)\b/', $lower, $tahunMatch);
                 if ($tahunMatch) $tahun = $tahunMatch[1];
@@ -333,6 +334,7 @@ PROMPT;
    - Do they want LIST (show me)? → Use SELECT *
    - Do they want TOP N (best/terlaris)? → Use GROUP BY + ORDER BY + LIMIT
    - Do they want TREND (per bulan/tahun)? → Use GROUP BY periode
+   - Are they asking about the database schema (e.g., "apa kolom di tabel ini")? → DO NOT generate queries. Return [SCHEMA_ONLY]!
 
 2. **IDENTIFY** the main topic:
    - Cabang/Branches? → view_master_cabang_mbi
@@ -340,11 +342,11 @@ PROMPT;
    - Penjualan/Sales? → view_data_penjualan_rinci_mbi
    - Produk/Products? → view_master_barang_mbi OR view_data_penjualan_rinci_mbi
 
-3. **APPLY** filters from USER REQUEST CONTEXT above:
-   - Year: `WHERE periode_tahun = '2026'`
-   - Month: `WHERE periode_bulan = '01'`
-   - Region: `WHERE nama_propinsi_cabang ILIKE '%riau%'`
-   - Combine: `WHERE periode_tahun = '2026' AND periode_bulan = '01' AND ...`
+3. **APPLY** filters strictly from the user's explicit request:
+   - READ THE MESSAGE to extract ALL specific conditions (e.g. product names, customer names, regions, minimum amounts).
+   - Use `ILIKE '%keyword%'` for text conditions (e.g. `nama_barang ILIKE '%sabun%'`).
+   - Combine multiple filters using AND.
+   - Use the pre-extracted year/region/month filters from USER REQUEST CONTEXT ONLY if helpful.
 
 4. **BUILD** the query:
    - Use EXACT table names from schema (with sch_mbi. prefix)
@@ -355,13 +357,25 @@ PROMPT;
 5. **DOUBLE-CHECK**:
    - Are table names from schema? ✓
    - Are column names from schema? ✓
-   - Are filters applied? ✓
+   - Are filters applied based on the specifics mentioned by user? ✓
    - Is query answering user's question? ✓
 
 ## RESPONSE FORMAT:
+If you need to query the database, return precisely:
 [LABEL]Descriptive Label[/LABEL] [SQL]Your SQL query here[/SQL]
 
+If the user is purely asking about the database schema/columns (like "apa nama kolom di tabel X", "tampilkan struktur tabel") WITHOUT requesting data, return EXACTLY:
+[SCHEMA_ONLY]
+
 ## EXAMPLES - LEARN THE PATTERN:
+
+User: "tampilkan penjualan untuk produk sabun cair saja"
+Thinking: User wants LIST of sales for a specific product. Needs ILIKE filter.
+[LABEL]Penjualan Sabun Cair[/LABEL] [SQL]SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi WHERE nama_barang ILIKE '%sabun cair%' LIMIT 50[/SQL]
+
+User: "apa nama nama kolom di tabel produk"
+Thinking: User is asking about database schema/columns.
+[SCHEMA_ONLY]
 
 User: "produk paling laris di bulan januari 2026"
 Thinking: User wants TOP products (terlaris) → GROUP BY nama_barang, SUM(qty_jual), ORDER BY, LIMIT 10. Has year=2026, month=01 filters.
@@ -423,6 +437,12 @@ PROMPT;
 
             $content = $response->json('choices.0.message.content');
             Log::info("SQL Planner RAW response: " . $content);
+            
+            // Check if AI explicitly determined this is a schema-only query
+            if (str_contains($content, '[SCHEMA_ONLY]')) {
+                Log::info("AI determined this is a schema-only query. Skipping DB fetch.");
+                return ['__schema_only__' => true];
+            }
 
             $queries = [];
             preg_match_all('/\[LABEL\](.*?)\[\/LABEL\]\s*\[SQL\](.*?)\[\/SQL\]/si', $content, $matches, PREG_SET_ORDER);
@@ -666,6 +686,11 @@ PROMPT;
             // 1. Coba perencanaan query dinamis (LLM)
             $queries = $this->planSQLQueries($message, $schemaContext, $apiKey);
 
+            if (isset($queries['__schema_only__'])) {
+                Log::info("Schema-only request detected. Bypassing data fetch.");
+                return ''; // Main AI will answer using $schemaContext
+            }
+
             Log::info("Question type - Aggregate: " . ($isAggregateQuestion ? 'YES' : 'NO') . 
                       ", List: " . ($isListQuestion ? 'YES' : 'NO') . 
                       ", Simple: " . ($isSimpleQuestion ? 'YES' : 'NO'));
@@ -717,7 +742,6 @@ PROMPT;
                 $queries = [];
                 $whereConditions = [];
                 
-                if ($tahun) $whereConditions[] = "periode_tahun = '{$tahun}'";
                 if ($tahunFilter) $whereConditions[] = "periode_tahun = '{$tahunFilter}'";
                 if ($wilayahFilter) $whereConditions[] = "nama_propinsi_cabang ILIKE '%{$wilayahFilter}%'";
                 $whereClause = !empty($whereConditions) ? "WHERE " . implode(" AND ", $whereConditions) : "";
@@ -884,6 +908,11 @@ PROMPT;
         $hasW    = !empty($wilayahFilter);
         $hasT    = !empty($tahunFilter);
         $safe    = $hasW ? addslashes($wilayahFilter) : '';
+
+        $hasBranches = str_contains($lower, 'cabang') || str_contains($lower, 'branch');
+        $hasSales = str_contains($lower, 'penjualan') || str_contains($lower, 'sales') || str_contains($lower, 'transaksi');
+        $hasCustomers = str_contains($lower, 'pelanggan') || str_contains($lower, 'customer') || str_contains($lower, 'pembeli');
+        $hasProducts = str_contains($lower, 'produk') || str_contains($lower, 'barang');
 
         $allowedTables = $this->getAllowedTables();
         $isAllowed = function($table) use ($allowedTables) {
@@ -1140,7 +1169,9 @@ PROMPT;
 
         // ── Fallback: ringkasan umum ──────────────────────────────────────────
         if (empty($queries)) {
-            if ($allowSales) {
+            if ($this->hasKeyword($lower, ['kolom', 'tabel', 'struktur', 'database', 'apa saja', 'fields'])) {
+                Log::info("Schema keyword detected. Skipping fallback summary.");
+            } elseif ($allowSales) {
                 $queries[$hasW ? "Ringkasan di " . ucwords($wilayahFilter) : 'Ringkasan Bisnis'] = "
                     SELECT COUNT(DISTINCT no_fak_jl) as total_transaksi,
                         COALESCE(SUM(total_harga), 0) as total_revenue,
