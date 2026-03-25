@@ -272,7 +272,6 @@
             }
         }
     </style>
-    @yield('scripts')
 </head>
 
 <body>
@@ -311,6 +310,7 @@
         @yield('content')
     </div>
 
+    @yield('scripts')
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');

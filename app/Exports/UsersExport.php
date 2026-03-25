@@ -100,8 +100,9 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
      */
     public function styles(Worksheet $sheet)
     {
-        // Style the header row
-        $sheet->getStyle('A1:E1')->applyFromArray([
+        // Style the header row (export=6 kolom A-F, template=5 kolom A-E)
+        $headerRange = $this->isTemplate ? 'A1:E1' : 'A1:F1';
+        $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -115,8 +116,9 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             ],
         ]);
 
-        // Auto-size columns
-        foreach (range('A', 'E') as $col) {
+        // Auto-size columns (export: A-F, template: A-E)
+        $lastCol = $this->isTemplate ? 'E' : 'F';
+        foreach (range('A', $lastCol) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 

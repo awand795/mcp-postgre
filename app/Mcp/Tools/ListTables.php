@@ -2,19 +2,20 @@
 
 namespace App\Mcp\Tools;
 
+use App\Services\ToolCallExecutor;
 use Illuminate\Support\Facades\DB;
-use Laravel\Mcp\Response;
 use PhpMcp\Server\Attributes\McpTool;
 
 class ListTables
 {
     /**
-     * List all tables in the public schema of the PostgreSQL database.
+     * List tables in sch_mbi schema that are accessible by the current user's role.
      */
     #[McpTool(name: 'list_tables')]
     public function handle(): array
     {
-        $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi'");
-        return array_map(fn($t) => $t->table_name, $tables);
+        // Kembalikan hanya tabel yang diizinkan berdasarkan role user
+        $executor = new ToolCallExecutor();
+        return $executor->getAllowedTables();
     }
 }

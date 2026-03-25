@@ -36,7 +36,8 @@ class UserImport implements ToModel, WithHeadingRow, WithValidation, SkipsEmptyR
         return new User([
             'name'     => $row['name'],
             'email'    => $row['email'],
-            'password' => Hash::make($row['password'] ?? 'password123'),
+            // Jika password tidak diisi, generate random 12 karakter agar lebih aman dari default 'password123'
+            'password' => Hash::make($row['password'] ?? \Illuminate\Support\Str::random(12)),
             'role'     => $role?->id,
             'is_admin' => isset($row['is_admin']) ? ($row['is_admin'] == 1 || strtolower($row['is_admin']) === 'yes' || strtolower($row['is_admin']) === 'true') : false,
         ]);

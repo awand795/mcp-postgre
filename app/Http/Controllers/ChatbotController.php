@@ -43,21 +43,18 @@ class ChatbotController extends Controller
     private function getAllowedTables(): array
     {
         if (!Auth::check()) {
-            // Fallback: allow common tables for unauthenticated users (for testing)
-            Log::warning('No authenticated user, using default allowed tables');
-            return [
-                'produk', 'kategori', 'transaksi', 'detail_transaksi', 'pembeli', 'karyawan',
-                'view_data_penjualan_rinci_mbi', 'view_master_cabang_mbi', 'view_master_pelanggan_mbi',
-                'view_data_target_realisasi_mbi', 'view_target_unit_mbi', 'view_master_barang_mbi',
-                'view_data_kartu_stock_mbi', 'view_master_provinsi_mbi', 'view_master_kabupaten_mbi'
-            ];
+            // Tidak ada akses untuk unauthenticated user
+            // Route sudah dilindungi middleware 'auth', ini hanya double-check
+            Log::warning('ChatbotController: Unauthenticated user attempted data access. Returning empty table list.');
+            return [];
         }
 
         $user = Auth::user();
         
         // Bypass untuk Super Admin (is_admin = true)
         if ($user->is_admin) {
-            return cache()->remember('all_db_tables_admin_bypass', 600, function() {
+            // Gunakan key yang SAMA dengan ToolCallExecutor agar cache bisa di-share
+            return cache()->remember('agentic_all_tables_admin', 600, function() {
                 $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi' ORDER BY table_name");
                 $tableList = array_column($tables, 'table_name');
                 Log::info("Super Admin bypass: access granted to all " . count($tableList) . " tables.");
@@ -67,7 +64,8 @@ class ChatbotController extends Controller
 
         $roleId = $user->role;
 
-        return cache()->remember("allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
+        // Gunakan key yang SAMA dengan ToolCallExecutor agar sinkron saat cache di-clear admin
+        return cache()->remember("agentic_allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
             $tables = RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
             Log::info("Allowed tables for role {$roleId}: " . implode(', ', $tables));
             return $tables;
@@ -2131,7 +2129,9 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
             }
             $priorityTables = array_unique($priorityTables);
 
-            $cacheKey = 'db_schema_context_v6_' . (Auth::user() ? Auth::user()->role : 'guest') . '_' . md5($message);
+            // Cache key dibuat unik per role agar schema tidak bocor antar user yang berbeda role
+            $userRole = Auth::check() ? (Auth::user()->is_admin ? 'admin' : Auth::user()->role) : 'guest';
+            $cacheKey = 'db_schema_context_v7_' . $userRole . '_' . md5(implode(',', $allowedTables));
 
             return cache()->remember($cacheKey, 300, function () use ($allowedTables, $priorityTables) {
                 // Single query to get all tables and their columns in sch_mbi

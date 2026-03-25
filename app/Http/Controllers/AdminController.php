@@ -89,6 +89,12 @@ class AdminController extends Controller
             $data['password'] = Hash::make($request->password);
         }
 
+        // Jika role user berubah, clear cache allowed tables user lama & baru
+        if ($user->role != $request->role) {
+            cache()->forget("agentic_allowed_tables_role_{$user->role}");
+            cache()->forget("agentic_allowed_tables_role_{$request->role}");
+        }
+
         $user->update($data);
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
@@ -175,8 +181,12 @@ class AdminController extends Controller
             ]);
         }
 
-        // Clear cache for this role
-        cache()->forget("allowed_tables_role_{$role->id}");
+        // Clear SEMUA cache keys terkait role ini (harus konsisten dengan ToolCallExecutor)
+        cache()->forget("agentic_allowed_tables_role_{$role->id}");  // key yg dipakai ToolCallExecutor
+        cache()->forget("allowed_tables_role_{$role->id}");           // key lama (backward compat)
+        // Clear cache admin juga agar sinkron
+        cache()->forget('agentic_all_tables_admin');
+        cache()->forget('all_db_tables_admin');
 
         return response()->json(['success' => true]);
     }

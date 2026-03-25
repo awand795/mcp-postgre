@@ -227,8 +227,6 @@
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                     <p>Halo! Saya <strong>Darkotech AI</strong> 👋</p>
                     <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya saya :</p>
-                </div>
-                <span class="text-[10px] text-[#706f6c] ml-1">{{ now()->format('H:i') }}</span>
             </div>
         </div>
 

@@ -305,18 +305,10 @@ class ToolCallExecutor
     // ── Helper: daftar tabel yang boleh diakses ───────────────────────────────
     public function getAllowedTables(): array
     {
+        // Jika tidak login, tidak ada akses sama sekali
+        // (route sudah dilindungi middleware 'auth', tapi ini sebagai double-check)
         if (!Auth::check()) {
-            return [
-                'view_data_penjualan_rinci_mbi',
-                'view_master_cabang_mbi',
-                'view_master_pelanggan_mbi',
-                'view_data_target_realisasi_mbi',
-                'view_target_unit_mbi',
-                'view_master_barang_mbi',
-                'view_data_kartu_stock_mbi',
-                'view_master_provinsi_mbi',
-                'view_master_kabupaten_mbi',
-            ];
+            return [];
         }
 
         $user = Auth::user();

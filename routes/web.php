@@ -12,8 +12,17 @@ use Laravel\Mcp\Facades\Mcp;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
-    Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+
+    // Register hanya aktif di local/testing env.
+    // Di production, user dibuat melalui Admin Dashboard (/admin/users)
+    if (app()->environment('local', 'testing')) {
+        Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+        Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+    } else {
+        // Fallback agar route name 'register' tetap ada (dipakai di login.blade.php)
+        Route::get('/register', fn() => redirect()->route('login'))->name('register');
+        Route::post('/register', fn() => redirect()->route('login'))->name('register.store');
+    }
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
@@ -25,14 +34,11 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('chatbot');
     });
 
-    // ── CHATBOT ROUTES ──────────────────────────────────────────────────────
-
-    // Mode lama (manual SQL planning) - tetap ada sebagai fallback
+    // ── CHATBOT ROUTES (Agentic Tool Calling) ──────────────────────────────
     Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
     Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
 
-    // Mode agentic baru - AI query mandiri via tool calling
-    // Endpoint terpisah agar bisa ditest paralel
+    // Alias agentic (backward compat — mengarah ke controller yang sama)
     Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
     Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
 

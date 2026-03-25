@@ -18,7 +18,7 @@ class AgenticChatbotController extends Controller
 
     private int $maxToolLoops = 8;
     private int $maxHistory   = 10;
-    private int $maxTokens    = 2048;
+    private int $maxTokens    = 4096; // Ditingkatkan: 2048 sering terpotong untuk analisis bisnis panjang
 
     private LanguageDetector $langDetector;
     private ToolCallExecutor  $toolExecutor;
