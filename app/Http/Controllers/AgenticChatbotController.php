@@ -60,14 +60,24 @@ class AgenticChatbotController extends Controller
         }
 
         $detectedLang = $this->langDetector->detect($message);
-        $systemPrompt = $this->buildSystemPrompt($detectedLang);
+
+        // FIX: Resolve allowed tables & system prompt BEFORE closing session
+        // session_write_close() will invalidate Auth::check() inside the stream
+        $allowedTables = $this->toolExecutor->getAllowedTables();
+        if (empty($allowedTables)) {
+            return response()->json([
+                'error' => 'Anda tidak memiliki akses ke tabel manapun. Silakan hubungi administrator.'
+            ]);
+        }
+
+        $systemPrompt = $this->buildSystemPrompt($detectedLang, $allowedTables);
         $messages     = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
 
         session_write_close();
 
         return response()->stream(
-            function () use ($messages, $openaiKey, $detectedLang) {
-                $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel);
+            function () use ($messages, $openaiKey, $detectedLang, $allowedTables) {
+                $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel, $allowedTables);
             },
             200,
             [
@@ -80,10 +90,13 @@ class AgenticChatbotController extends Controller
     }
 
     // ── Agentic Loop ──────────────────────────────────────────────────────────
-    private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model): void
+    private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model, array $allowedTables = []): void
     {
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
         ob_flush(); flush();
+
+        // FIX: Pass allowedTables into executor so it doesn't rely on Auth::check() inside stream
+        $this->toolExecutor->setAllowedTables($allowedTables);
 
         $tools     = ToolCallExecutor::getToolDefinitions();
         $loopCount = 0;
@@ -306,9 +319,10 @@ class AgenticChatbotController extends Controller
     }
 
     // ── System prompt ─────────────────────────────────────────────────────────
-    private function buildSystemPrompt(string $lang): string
+    private function buildSystemPrompt(string $lang, array $allowedTables = []): string
     {
-        $tableList = implode(', ', $this->toolExecutor->getAllowedTables());
+        // FIX: Use pre-resolved allowedTables (resolved before session_write_close)
+        $tableList = implode(', ', $allowedTables ?: $this->toolExecutor->getAllowedTables());
 
         if ($lang === 'en') {
             return <<<PROMPT

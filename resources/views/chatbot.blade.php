@@ -362,6 +362,16 @@
                     body: JSON.stringify({ message, history: conversationHistory }),
                 });
 
+                // FIX: Tangani error JSON response (non-stream) dari server
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const json = await response.json();
+                    const errMsg = json.error || 'Terjadi kesalahan pada server.';
+                    bubble.innerHTML = renderMarkdown('⚠️ ' + errMsg);
+                    setLoading(false);
+                    return;
+                }
+
                 if (!response.ok) throw new Error('HTTP ' + response.status);
 
                 const reader  = response.body.getReader();

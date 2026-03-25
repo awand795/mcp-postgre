@@ -19,6 +19,14 @@ use Illuminate\Support\Facades\Log;
  */
 class ToolCallExecutor
 {
+    // FIX: Cache allowed tables so Auth::check() is not needed inside stream
+    private ?array $cachedAllowedTables = null;
+
+    public function setAllowedTables(array $tables): void
+    {
+        $this->cachedAllowedTables = $tables;
+    }
+
     // ── Definisi tools yang dikirim ke OpenAI ─────────────────────────────────
     // FIX: properties kosong harus pakai stdClass agar JSON encode jadi {} bukan []
     // FIX: deskripsi lebih detail agar AI tahu kapan memanggil tiap tool
@@ -105,7 +113,7 @@ class ToolCallExecutor
             };
         } catch (\Throwable $e) {
             Log::error("[ToolCallExecutor] Tool {$toolName} failed: " . $e->getMessage());
-            return json_encode(['error' => $e->getMessage()]);
+            return json_encode(['error' => 'Permintaan tidak dapat diproses saat ini. Silakan coba lagi.']);
         }
     }
 
@@ -227,10 +235,9 @@ class ToolCallExecutor
         try {
             $rows = DB::connection('pgsql_mbi')->select($cleanSql);
         } catch (\Exception $e) {
-            Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage());
+            Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage() . " | SQL: " . $cleanSql);
             return json_encode([
-                'error'   => 'Query gagal: ' . $e->getMessage(),
-                'sql'     => $cleanSql,
+                'error' => 'Data tidak dapat diambil saat ini. Silakan coba lagi atau hubungi administrator.',
             ]);
         }
 
@@ -266,13 +273,13 @@ class ToolCallExecutor
     }
 
     // ── get_schema_info ───────────────────────────────────────────────────────
-    // FIX: Tambah LIMIT pada query info_schema agar tidak lambat
+    // FIX: Batasi jumlah kolom per tabel agar tidak overflow context window AI
     private function getSchemaInfo(): string
     {
         $allowed = $this->getAllowedTables();
 
         if (empty($allowed)) {
-            return json_encode(['error' => 'Tidak ada tabel yang bisa diakses untuk role ini.']);
+            return json_encode(['error' => 'Anda tidak memiliki izin untuk mengakses data. Silakan hubungi administrator.']);
         }
 
         // Buat placeholder untuk IN clause
@@ -291,20 +298,46 @@ class ToolCallExecutor
             if (!isset($schema[$row->table_name])) {
                 $schema[$row->table_name] = [];
             }
-            $schema[$row->table_name][] = $row->column_name . ' (' . $row->data_type . ')';
+            // FIX: Batasi max 30 kolom per tabel agar JSON tidak overflow context AI
+            if (count($schema[$row->table_name]) < 30) {
+                $schema[$row->table_name][] = $row->column_name . ' (' . $row->data_type . ')';
+            }
         }
 
-        return json_encode([
+        // FIX: Cek total ukuran JSON, jika terlalu besar kirim versi ringkas (nama tabel saja)
+        $fullJson = json_encode([
             'schema'       => 'sch_mbi',
             'total_tables' => count($schema),
             'tables'       => $schema,
-            'usage_note'   => 'Prefix all table names with "sch_mbi." in SQL queries. Example: SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 10',
+            'usage_note'   => 'Prefix all table names with "sch_mbi." in SQL queries.',
         ]);
+
+        // Jika > 20KB, kirim versi ringkas: nama tabel + jumlah kolom saja
+        if (strlen($fullJson) > 20000) {
+            Log::warning('[ToolCallExecutor] getSchemaInfo terlalu besar (' . strlen($fullJson) . ' chars), mengirim versi ringkas.');
+            $compact = [];
+            foreach ($schema as $tbl => $cols) {
+                $compact[$tbl] = count($cols) . ' columns: ' . implode(', ', array_slice($cols, 0, 5)) . (count($cols) > 5 ? '...' : '');
+            }
+            return json_encode([
+                'schema'       => 'sch_mbi',
+                'total_tables' => count($compact),
+                'tables'       => $compact,
+                'usage_note'   => 'Schema ringkas karena terlalu besar. Gunakan describe_table untuk detail kolom lengkap.',
+            ]);
+        }
+
+        return $fullJson;
     }
 
     // ── Helper: daftar tabel yang boleh diakses ───────────────────────────────
     public function getAllowedTables(): array
     {
+        // FIX: Return cached tables if already resolved (e.g., set before session_write_close)
+        if ($this->cachedAllowedTables !== null) {
+            return $this->cachedAllowedTables;
+        }
+
         // Jika tidak login, tidak ada akses sama sekali
         // (route sudah dilindungi middleware 'auth', tapi ini sebagai double-check)
         if (!Auth::check()) {

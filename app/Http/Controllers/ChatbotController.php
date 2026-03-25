@@ -125,7 +125,7 @@ class ChatbotController extends Controller
         Log::info("Chatbot send: ", ['message' => $message, 'history_count' => count($history)]);
 
         if (!$apiKey) {
-            return response()->json(['response' => "Error: OPENROUTER_API_KEY atau NVIDIA_API_KEY tidak dikonfigurasi di .env"]);
+            return response()->json(['response' => 'Maaf, layanan AI saat ini tidak tersedia. Silakan hubungi administrator untuk informasi lebih lanjut.']);
         }
 
         $detectedLanguage = $this->languageDetector->detect($message);
@@ -790,7 +790,7 @@ PROMPT;
                     // Validasi keamanan SQL
                     if (!$this->validateSQL($sql, $allowedTables)) {
                         Log::warning("Skipping unsafe/unauthorized query: {$sql}");
-                        $results[$label] = ['error' => 'Query tidak diizinkan atau tidak aman.'];
+                        $results[$label] = ['error' => 'Anda tidak memiliki izin untuk mengakses data yang diminta.'];
                         $invalidQueryCount++;
                         continue;
                     }
@@ -817,21 +817,17 @@ PROMPT;
                     ]);
 
                     // Provide user-friendly error message based on error code
-                    $userError = 'Query gagal dijalankan.';
+                    $userError = 'Data tidak dapat ditampilkan saat ini. Silakan coba lagi atau hubungi administrator.';
 
-                    // PostgreSQL error codes (SQLSTATE)
+                    // PostgreSQL error codes (SQLSTATE) — hanya untuk logging, bukan untuk ditampilkan ke user
                     if (str_contains($errorMsg, '42P01') || str_contains($errorMsg, 'relation does not exist')) {
-                        $userError = 'Tabel yang diminta tidak ditemukan. Kemungkinan nama tabel salah.';
                         Log::error("Table not found error - check if table name exists in schema");
                     } elseif (str_contains($errorMsg, '42703') || str_contains($errorMsg, 'column does not exist')) {
-                        $userError = 'Kolom yang diminta tidak ditemukan dalam tabel.';
                         Log::error("Column not found error - check column names");
                     } elseif (str_contains($errorMsg, '42601')) {
-                        $userError = 'Sintaks SQL tidak valid.';
                         Log::error("SQL syntax error");
                     } elseif ($errorCode >= 1000) {
-                        // Connection or server errors
-                        $userError = 'Koneksi ke database gagal. Silakan coba lagi.';
+                        Log::error("Database connection or server error");
                     }
 
                     $results[$label] = ['error' => $userError];
@@ -839,7 +835,7 @@ PROMPT;
 
                 } catch (\Exception $e) {
                     Log::error("Query '{$label}' error: " . $e->getMessage());
-                    $results[$label] = ['error' => 'Error: ' . $e->getMessage()];
+                    $results[$label] = ['error' => 'Data tidak dapat ditampilkan saat ini. Silakan coba lagi atau hubungi administrator.'];
                     $invalidQueryCount++;
                 }
             }
@@ -876,6 +872,7 @@ PROMPT;
 
         } catch (\Exception $e) {
             Log::error("fetchRelevantData: " . $e->getMessage());
+            // Tidak menampilkan detail error teknis ke user
         }
 
         if (empty($results)) return '';
@@ -2195,7 +2192,7 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
                     $count++;
                 }
 
-                if ($count === 0) return "No access to database tables.";
+                if ($count === 0) return "Anda tidak memiliki akses ke data manapun. Silakan hubungi administrator.";
                 
                 $context .= str_repeat("=", 60) . "\n";
                 $context .= "\n💡 TIPS:\n";
@@ -2207,7 +2204,8 @@ ANDA HARUS merespons SEPENUHNYA dalam BAHASA INDONESIA. Ini termasuk:
                 return $context;
             });
         } catch (\Exception $e) {
-            return "Error while fetching schema: " . $e->getMessage();
+            Log::error("getSchemaContext error: " . $e->getMessage());
+            return 'Informasi skema tidak tersedia saat ini.';
         }
     }
 
