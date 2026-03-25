@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Daftar - Darko AI</title>
+    <title>Daftar - darkotech AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -103,7 +103,7 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-white">Buat Akun</h1>
-            <p class="text-[#A1A09A] text-sm mt-1">Daftar untuk mulai menggunakan Darko AI</p>
+            <p class="text-[#A1A09A] text-sm mt-1">Daftar untuk mulai menggunakan darkotech AI</p>
         </div>
 
         <form action="{{ route('register.store') }}" method="POST" class="space-y-5">

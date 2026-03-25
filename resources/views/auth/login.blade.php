@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login - Darko AI</title>
+    <title>Login - darkotech AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -105,7 +105,7 @@
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-white">Selamat Datang</h1>
-            <p class="text-[#A1A09A] text-sm mt-1">Masuk untuk mengakses Darko AI</p>
+            <p class="text-[#A1A09A] text-sm mt-1">Masuk untuk mengakses darkotech AI</p>
         </div>
 
         <form action="{{ route('login.post') }}" method="POST" class="space-y-6">

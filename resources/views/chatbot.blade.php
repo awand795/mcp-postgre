@@ -177,7 +177,7 @@
             <div class="flex items-center gap-3">
                 <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-10 h-10 object-contain">
                 <div>
-                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech ai</h1>
+                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech AI</h1>
                     <div class="flex items-center gap-2 mt-0.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         <span class="text-xs text-[#A1A09A]">Online</span>
@@ -225,8 +225,8 @@
         <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-5">
             <div class="flex flex-col items-start gap-1.5 max-w-[85%]">
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                    <p>Halo! Saya <strong>Darkotech AI</strong> 👋</p>
-                    <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya saya :</p>
+                    <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
+                    <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
             </div>
         </div>
         </div>
@@ -239,7 +239,7 @@
         <!-- Input -->
         <div class="p-5 bg-black/20 border-t border-white/10 flex-shrink-0">
             <div class="relative">
-                <input type="text" id="message-input" placeholder="Tanya apa saja atau minta analisis data..."
+                <input type="text" id="message-input" placeholder="Ketik pesan anda di sini..."
                     class="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
                     autocomplete="off">
                 <button id="send-btn"
@@ -257,7 +257,7 @@
                     </svg>
                 </button>
             </div>
-            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest">Powered by Darko AI</p>
+            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest">Powered by darkotech</p>
         </div>
     </div>
 
