@@ -9,12 +9,19 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
- * Provider: OpenAI only (gpt-4o-mini)
+ * Provider: OpenAI dengan fallback otomatis antar model
+ * Urutan: gpt-4o-mini → gpt-4o → gpt-4-turbo
  */
 class AgenticChatbotController extends Controller
 {
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
     private string $openaiModel = 'gpt-4o-mini';
+
+    // Fallback models jika model utama gagal (rate limit, overload, dll)
+    private array $fallbackModels = [
+        'gpt-4o',
+        'gpt-4-turbo',
+    ];
 
     private int $maxToolLoops = 8;
     private int $maxHistory   = 10;
@@ -48,7 +55,7 @@ class AgenticChatbotController extends Controller
 
         if (!$openaiKey) {
             return response()->json([
-                'error' => 'OPENAI_API_KEY belum dikonfigurasi di .env'
+                'error' => 'Layanan AI sementara tidak dapat diakses. Silakan hubungi administrator.'
             ]);
         }
 
@@ -60,7 +67,7 @@ class AgenticChatbotController extends Controller
 
         return response()->stream(
             function () use ($messages, $openaiKey, $detectedLang) {
-                $this->runAgenticLoop($messages, $openaiKey, $detectedLang);
+                $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel);
             },
             200,
             [
@@ -73,7 +80,7 @@ class AgenticChatbotController extends Controller
     }
 
     // ── Agentic Loop ──────────────────────────────────────────────────────────
-    private function runAgenticLoop(array $messages, string $openaiKey, string $lang): void
+    private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model): void
     {
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
         ob_flush(); flush();
@@ -85,31 +92,49 @@ class AgenticChatbotController extends Controller
             $loopCount++;
             Log::info("[Agentic] ── Loop #{$loopCount} ──");
 
-            $response = $this->callOpenAI($messages, $tools, $openaiKey);
+            $response = $this->callOpenAI($messages, $tools, $openaiKey, $model);
 
+            // ── Fallback ke model OpenAI lain jika gagal ─────────────────────
             if (!$response) {
-                // Baca log terakhir untuk ambil detail error
-                $logFile = storage_path('logs/laravel.log');
-                $errDetail = '';
-                if (file_exists($logFile)) {
-                    $logContent = file_get_contents($logFile);
-                    // Ambil baris log terakhir yang mengandung 'OpenAI Error Detail'
-                    if (preg_match_all('/\[Agentic\] OpenAI Error Detail.*?message: (.+)/m', $logContent, $matches)) {
-                        $errDetail = '\n\n**Detail error:** ' . trim(end($matches[1]));
-                    } elseif (preg_match_all('/\[Agentic\] cURL error: (.+)/m', $logContent, $matches)) {
-                        $errDetail = '\n\n**cURL error:** ' . trim(end($matches[1]));
+                $tried    = [$model];
+                $fallback = null;
+
+                foreach ($this->fallbackModels as $fbModel) {
+                    if (in_array($fbModel, $tried)) continue;
+
+                    Log::warning("[Agentic] Model {$model} gagal, mencoba fallback: {$fbModel}");
+
+                    $notif = $lang === 'en'
+                        ? "🔄 System is optimizing performance, please wait a moment..."
+                        : "🔄 Sistem sedang mengoptimalkan performa, mohon tunggu sebentar...";
+
+                    echo "data: " . json_encode(['chunk' => $notif . "\n\n"]) . "\n\n";
+                    ob_flush(); flush();
+
+                    $fallback = $this->callOpenAI($messages, $tools, $openaiKey, $fbModel);
+                    $tried[]  = $fbModel;
+
+                    if ($fallback) {
+                        $model    = $fbModel;   // pakai model ini untuk sisa loop
+                        $response = $fallback;
+                        Log::info("[Agentic] Fallback berhasil menggunakan: {$fbModel}");
+                        break;
                     }
                 }
 
-                $errMsg = $lang === 'en'
-                    ? "⚠️ Failed to connect to OpenAI. Please check your OPENAI_API_KEY in .env and try again.{$errDetail}"
-                    : "⚠️ Gagal terhubung ke OpenAI. Silakan periksa OPENAI_API_KEY di .env dan coba lagi.{$errDetail}";
+                // Semua model gagal
+                if (!$response) {
+                    $triedList  = implode(', ', $tried);
+                    $errMsg = $lang === 'en'
+                        ? "Apologies, our system is currently under high load. Please try again in a moment."
+                        : "Mohon maaf, sistem kami sedang mengalami gangguan sementara. Silakan coba beberapa saat lagi.";
 
-                Log::error("[Agentic] Sending error to client: {$errMsg}");
-                $this->streamText($errMsg);
-                echo "data: [DONE]\n\n";
-                ob_flush(); flush();
-                return;
+                    Log::error("[Agentic] Semua model gagal: {$triedList}");
+                    $this->streamText($errMsg);
+                    echo "data: [DONE]\n\n";
+                    ob_flush(); flush();
+                    return;
+                }
             }
 
             $choice       = $response['choices'][0] ?? null;
@@ -131,8 +156,8 @@ class AgenticChatbotController extends Controller
                 $finalContent = trim($messageObj['content'] ?? '');
                 if (empty($finalContent)) {
                     $finalContent = $lang === 'en'
-                        ? "I couldn't generate an answer. Please rephrase your question."
-                        : "Tidak bisa menghasilkan jawaban. Coba ulangi pertanyaan dengan kalimat berbeda.";
+                        ? "I'm sorry, I was unable to process your request at this time. Please try rephrasing your question."
+                        : "Mohon maaf, permintaan Anda tidak dapat diproses saat ini. Silakan coba dengan pertanyaan yang berbeda.";
                 }
                 $this->streamText($finalContent);
                 echo "data: " . json_encode(['history' => $this->extractClientHistory($messages)]) . "\n\n";
@@ -172,16 +197,17 @@ class AgenticChatbotController extends Controller
         }
 
         $msg = $lang === 'en'
-            ? "Reached maximum query iterations. Please rephrase your question."
-            : "Sudah mencapai batas iterasi query. Coba ulangi pertanyaan dengan kalimat berbeda.";
+            ? "I'm sorry, your request requires more processing than available. Please try a more specific question."
+            : "Mohon maaf, permintaan Anda membutuhkan analisis yang terlalu kompleks. Silakan coba dengan pertanyaan yang lebih spesifik.";
         $this->streamText($msg);
         echo "data: [DONE]\n\n";
         ob_flush(); flush();
     }
 
     // ── Panggil OpenAI API ────────────────────────────────────────────────────
-    private function callOpenAI(array $messages, array $tools, string $apiKey): ?array
+    private function callOpenAI(array $messages, array $tools, string $apiKey, string $model = ''): ?array
     {
+        if (empty($model)) $model = $this->openaiModel;
         // Bersihkan messages sesuai OpenAI spec
         $cleanMessages = [];
         foreach ($messages as $msg) {
@@ -204,7 +230,7 @@ class AgenticChatbotController extends Controller
         }
 
         $payload = [
-            'model'       => $this->openaiModel,
+            'model'       => $model,
             'messages'    => $cleanMessages,
             'tools'       => $tools,
             'tool_choice' => 'auto',
@@ -213,7 +239,7 @@ class AgenticChatbotController extends Controller
             'top_p'       => 0.9,
         ];
 
-        Log::info("[Agentic] Calling OpenAI: {$this->openaiModel}");
+        Log::info("[Agentic] Calling OpenAI: {$model}");
 
         try {
             $ch = curl_init($this->openaiUrl);
