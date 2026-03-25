@@ -229,6 +229,7 @@
                     <p style="margin-top:6px">Ada yang bisa saya bantu? Coba tanya saya :</p>
             </div>
         </div>
+        </div>
 
         <!-- Typing Indicator (hidden, kept for JS compatibility) -->
         <div id="typing-indicator" class="hidden"></div>
