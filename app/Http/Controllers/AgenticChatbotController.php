@@ -15,20 +15,20 @@ use Illuminate\Support\Facades\Log;
 class AgenticChatbotController extends Controller
 {
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private string $openaiModel = 'gpt-4o-mini';
+    private string $openaiModel = 'gpt-5.4';
 
     // Fallback models jika model utama gagal (rate limit, overload, dll)
     private array $fallbackModels = [
-        'gpt-4o',
-        'gpt-4-turbo',
+        'gpt-5.4-pro',
+        'gpt-5.4-mini',
     ];
 
-    private int $maxToolLoops = 8;
-    private int $maxHistory   = 10;
-    private int $maxTokens    = 4096; // Ditingkatkan: 2048 sering terpotong untuk analisis bisnis panjang
+    private int $maxToolLoops = 20;
+    private int $maxHistory = 20;
+    private int $maxTokens = 65536; // Massive tokens for unlimited data rendering
 
     private LanguageDetector $langDetector;
-    private ToolCallExecutor  $toolExecutor;
+    private ToolCallExecutor $toolExecutor;
 
     public function __construct()
     {
@@ -44,11 +44,11 @@ class AgenticChatbotController extends Controller
     // ── Endpoint utama ────────────────────────────────────────────────────────
     public function send(Request $request)
     {
-        set_time_limit(300);
-        ini_set('memory_limit', '512M');
+        set_time_limit(0); // UNLIMITED - NO TIMEOUT
+        ini_set('memory_limit', '-1'); // UNLIMITED - NO MEMORY LIMIT
 
-        $message   = $request->input('message', '');
-        $history   = $request->input('history', []);
+        $message = $request->input('message', '');
+        $history = $request->input('history', []);
         $openaiKey = env('OPENAI_API_KEY');
 
         Log::info("[Agentic] New message: " . substr($message, 0, 100));
@@ -71,21 +71,21 @@ class AgenticChatbotController extends Controller
         }
 
         $systemPrompt = $this->buildSystemPrompt($detectedLang, $allowedTables);
-        $messages     = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
+        $messages = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
 
         session_write_close();
 
         return response()->stream(
             function () use ($messages, $openaiKey, $detectedLang, $allowedTables) {
-                $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel, $allowedTables);
-            },
+            $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel, $allowedTables);
+        },
             200,
-            [
-                'Content-Type'      => 'text/event-stream',
-                'Cache-Control'     => 'no-cache',
-                'X-Accel-Buffering' => 'no',
-                'Connection'        => 'keep-alive',
-            ]
+        [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'X-Accel-Buffering' => 'no',
+            'Connection' => 'keep-alive',
+        ]
         );
     }
 
@@ -93,12 +93,13 @@ class AgenticChatbotController extends Controller
     private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model, array $allowedTables = []): void
     {
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
-        ob_flush(); flush();
+        ob_flush();
+        flush();
 
         // FIX: Pass allowedTables into executor so it doesn't rely on Auth::check() inside stream
         $this->toolExecutor->setAllowedTables($allowedTables);
 
-        $tools     = ToolCallExecutor::getToolDefinitions();
+        $tools = ToolCallExecutor::getToolDefinitions();
         $loopCount = 0;
 
         while ($loopCount < $this->maxToolLoops) {
@@ -109,11 +110,12 @@ class AgenticChatbotController extends Controller
 
             // ── Fallback ke model OpenAI lain jika gagal ─────────────────────
             if (!$response) {
-                $tried    = [$model];
+                $tried = [$model];
                 $fallback = null;
 
                 foreach ($this->fallbackModels as $fbModel) {
-                    if (in_array($fbModel, $tried)) continue;
+                    if (in_array($fbModel, $tried))
+                        continue;
 
                     Log::warning("[Agentic] Model {$model} gagal, mencoba fallback: {$fbModel}");
 
@@ -122,13 +124,14 @@ class AgenticChatbotController extends Controller
                         : "🔄 Sistem sedang mengoptimalkan performa, mohon tunggu sebentar...";
 
                     echo "data: " . json_encode(['chunk' => $notif . "\n\n"]) . "\n\n";
-                    ob_flush(); flush();
+                    ob_flush();
+                    flush();
 
                     $fallback = $this->callOpenAI($messages, $tools, $openaiKey, $fbModel);
-                    $tried[]  = $fbModel;
+                    $tried[] = $fbModel;
 
                     if ($fallback) {
-                        $model    = $fbModel;   // pakai model ini untuk sisa loop
+                        $model = $fbModel; // pakai model ini untuk sisa loop
                         $response = $fallback;
                         Log::info("[Agentic] Fallback berhasil menggunakan: {$fbModel}");
                         break;
@@ -137,7 +140,7 @@ class AgenticChatbotController extends Controller
 
                 // Semua model gagal
                 if (!$response) {
-                    $triedList  = implode(', ', $tried);
+                    $triedList = implode(', ', $tried);
                     $errMsg = $lang === 'en'
                         ? "Apologies, our system is currently under high load. Please try again in a moment."
                         : "Mohon maaf, sistem kami sedang mengalami gangguan sementara. Silakan coba beberapa saat lagi.";
@@ -145,18 +148,19 @@ class AgenticChatbotController extends Controller
                     Log::error("[Agentic] Semua model gagal: {$triedList}");
                     $this->streamText($errMsg);
                     echo "data: [DONE]\n\n";
-                    ob_flush(); flush();
+                    ob_flush();
+                    flush();
                     return;
                 }
             }
 
-            $choice       = $response['choices'][0] ?? null;
+            $choice = $response['choices'][0] ?? null;
             $finishReason = $choice['finish_reason'] ?? 'stop';
-            $messageObj   = $choice['message'] ?? [];
-            $toolCalls    = $messageObj['tool_calls'] ?? [];
+            $messageObj = $choice['message'] ?? [];
+            $toolCalls = $messageObj['tool_calls'] ?? [];
 
             $assistantMsg = [
-                'role'    => 'assistant',
+                'role' => 'assistant',
                 'content' => $messageObj['content'] ?? null,
             ];
             if (!empty($toolCalls)) {
@@ -175,37 +179,40 @@ class AgenticChatbotController extends Controller
                 $this->streamText($finalContent);
                 echo "data: " . json_encode(['history' => $this->extractClientHistory($messages)]) . "\n\n";
                 echo "data: [DONE]\n\n";
-                ob_flush(); flush();
+                ob_flush();
+                flush();
                 return;
             }
 
             // ── Eksekusi tool calls ───────────────────────────────────────────
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
-                $toolName   = $toolCall['function']['name'] ?? '';
-                $argsRaw    = $toolCall['function']['arguments'] ?? '{}';
-                $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
+                $toolName = $toolCall['function']['name'] ?? '';
+                $argsRaw = $toolCall['function']['arguments'] ?? '{}';
+                $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 Log::info("[Agentic] → Tool: {$toolName}", $arguments);
 
                 echo "data: " . json_encode([
                     'tool_call' => ['name' => $toolName, 'arguments' => $arguments, 'status' => 'running']
                 ]) . "\n\n";
-                ob_flush(); flush();
+                ob_flush();
+                flush();
 
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments);
                 Log::info("[Agentic] ← Result: " . strlen($toolResult) . " chars");
 
                 $messages[] = [
-                    'role'         => 'tool',
+                    'role' => 'tool',
                     'tool_call_id' => $toolCallId,
-                    'content'      => $toolResult,
+                    'content' => $toolResult,
                 ];
 
                 echo "data: " . json_encode([
                     'tool_call' => ['name' => $toolName, 'status' => 'done']
                 ]) . "\n\n";
-                ob_flush(); flush();
+                ob_flush();
+                flush();
             }
         }
 
@@ -214,28 +221,32 @@ class AgenticChatbotController extends Controller
             : "Mohon maaf, permintaan Anda membutuhkan analisis yang terlalu kompleks. Silakan coba dengan pertanyaan yang lebih spesifik.";
         $this->streamText($msg);
         echo "data: [DONE]\n\n";
-        ob_flush(); flush();
+        ob_flush();
+        flush();
     }
 
     // ── Panggil OpenAI API ────────────────────────────────────────────────────
     private function callOpenAI(array $messages, array $tools, string $apiKey, string $model = ''): ?array
     {
-        if (empty($model)) $model = $this->openaiModel;
+        if (empty($model))
+            $model = $this->openaiModel;
         // Bersihkan messages sesuai OpenAI spec
         $cleanMessages = [];
         foreach ($messages as $msg) {
-            $role  = $msg['role'] ?? '';
+            $role = $msg['role'] ?? '';
             $clean = ['role' => $role];
 
             if ($role === 'tool') {
                 $clean['tool_call_id'] = $msg['tool_call_id'] ?? '';
-                $clean['content']      = $msg['content'] ?? '';
-            } elseif ($role === 'assistant') {
+                $clean['content'] = $msg['content'] ?? '';
+            }
+            elseif ($role === 'assistant') {
                 if (!empty($msg['tool_calls'])) {
                     $clean['tool_calls'] = $msg['tool_calls'];
                 }
                 $clean['content'] = $msg['content'];
-            } else {
+            }
+            else {
                 $clean['content'] = $msg['content'] ?? '';
             }
 
@@ -243,13 +254,13 @@ class AgenticChatbotController extends Controller
         }
 
         $payload = [
-            'model'       => $model,
-            'messages'    => $cleanMessages,
-            'tools'       => $tools,
+            'model' => $model,
+            'messages' => $cleanMessages,
+            'tools' => $tools,
             'tool_choice' => 'auto',
-            'max_tokens'  => $this->maxTokens,
+            'max_tokens' => $this->maxTokens,
             'temperature' => 0.2,
-            'top_p'       => 0.9,
+            'top_p' => 0.9,
         ];
 
         Log::info("[Agentic] Calling OpenAI: {$model}");
@@ -258,27 +269,29 @@ class AgenticChatbotController extends Controller
             $ch = curl_init($this->openaiUrl);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
-                CURLOPT_HTTPHEADER     => [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+                CURLOPT_HTTPHEADER => [
                     'Authorization: Bearer ' . $apiKey,
                     'Content-Type: application/json',
                     'Accept: application/json',
                 ],
-                CURLOPT_TIMEOUT        => 300,
+                CURLOPT_TIMEOUT => 300,
                 CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_NOPROGRESS     => false,
-                CURLOPT_PROGRESSFUNCTION => function($clientp, $dltotal, $dlnow, $ultotal, $ulnow) {
-                    if (connection_aborted()) return 1; // Stop curl if client closed connection
-                    echo ": keepalive\n\n";
-                    ob_flush(); flush();
-                    return 0;
-                },
+                CURLOPT_NOPROGRESS => false,
+                CURLOPT_PROGRESSFUNCTION => function ($clientp, $dltotal, $dlnow, $ultotal, $ulnow) {
+                if (connection_aborted())
+                    return 1; // Stop curl if client closed connection
+                echo ": keepalive\n\n";
+                ob_flush();
+                flush();
+                return 0;
+            },
             ]);
 
-            $body     = curl_exec($ch);
+            $body = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr  = curl_error($ch);
+            $curlErr = curl_error($ch);
             curl_close($ch);
 
             if ($curlErr) {
@@ -290,8 +303,8 @@ class AgenticChatbotController extends Controller
                 Log::error("[Agentic] HTTP {$httpCode} — Full response body: {$body}");
                 $decoded = json_decode($body, true);
                 $errDetail = $decoded['error']['message'] ?? 'No error message from API';
-                $errType   = $decoded['error']['type']   ?? 'unknown';
-                $errCode   = $decoded['error']['code']   ?? 'unknown';
+                $errType = $decoded['error']['type'] ?? 'unknown';
+                $errCode = $decoded['error']['code'] ?? 'unknown';
                 Log::error("[Agentic] OpenAI Error Detail → type: {$errType}, code: {$errCode}, message: {$errDetail}");
                 return null;
             }
@@ -310,7 +323,8 @@ class AgenticChatbotController extends Controller
 
             return $decoded;
 
-        } catch (\Throwable $e) {
+        }
+        catch (\Throwable $e) {
             Log::error("[Agentic] Exception: " . $e->getMessage());
             return null;
         }
@@ -321,7 +335,8 @@ class AgenticChatbotController extends Controller
     {
         foreach (mb_str_split($text, 30) as $chunk) {
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
-            ob_flush(); flush();
+            ob_flush();
+            flush();
         }
     }
 
@@ -333,6 +348,7 @@ class AgenticChatbotController extends Controller
 
         if ($lang === 'en') {
             return <<<PROMPT
+
 You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to the business database** via tools.
 This database contains sales, stock, purchases, targets, customers, and product master data for a spare parts/automotive company with multiple branches across Indonesia.
 
@@ -352,8 +368,8 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
-- Always include LIMIT (max 100 for detail, no limit needed for aggregations)
-- **Select only relevant columns** (e.g., `SELECT nama_pelanggan, alamat, no_telepon` instead of `SELECT *`) to avoid token limit errors.
+- **ANTI-LIMIT POLICY**: No row limit required. You can retrieve as many rows as needed to answer the user fully.
+- **Select relevant columns**: While there is no limit, only select columns needed for the answer to maintain high performance.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '2025'`
 - **Month filter**: `WHERE periode_bulan = '12'` ← use 2-digit string ('01'=Jan, '12'=Dec)
@@ -368,7 +384,37 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Target vs realisasi: use `view_data_target_realisasi_mbi` or `view_data_trm_mbi`
 - Top selling products: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - Always cast numeric aggregates: SUM(qty_jual::numeric) if needed
-- **Total/grand total count**: ALWAYS run `SELECT COUNT(*) FROM sch_mbi.table WHERE ...` as a SEPARATE query FIRST. NEVER use `rows_returned` from a data query as the total — it only reflects rows returned by that query (limited by LIMIT).
+- **Total/Overall count**: ALWAYS run a separate `SELECT COUNT(*) FROM sch_mbi.table WHERE ...` BEFORE querying detailed data. Never use `rows_returned` as the total count—it only represents the returned rows (limited).
+
+## DATA VISUALIZATION (CHARTS)
+If the user asks for a chart/graph, or if you identify trend data that would look better visualized, provide the data in a custom `chart` code block using Chart.js JSON format:
+```chart
+{
+  "type": "bar", // or 'line', 'pie', 'doughnut'
+  "data": {
+    "labels": ["Jan", "Feb", "Mar"],
+    "datasets": [{
+      "label": "2025 Sales",
+      "data": [120, 150, 180],
+      "backgroundColor": "rgba(245, 48, 3, 0.5)",
+      "borderColor": "#f53003",
+      "borderWidth": 1
+    }]
+  },
+  "options": {
+    "responsive": true,
+    "maintainAspectRatio": false,
+    "plugins": { "legend": { "labels": { "color": "#fff" } } },
+    "scales": {
+        "y": { "grid": { "color": "rgba(255,255,255,0.1)" }, "ticks": { "color": "#A1A09A" } },
+        "x": { "grid": { "color": "rgba(255,255,255,0.1)" }, "ticks": { "color": "#A1A09A" } }
+    }
+  }
+}
+```
+**IMPORTANT**: Always include a text summary or Markdown table below the chart for details.
+
+## TABLE REFERENCE GUIDE
 - Achievement %: (realisasi / target * 100), ready-made columns: `pencapaian_qty`, `pencapaian_amount` in view_data_trm_mbi
 - GPM (Gross Profit Margin %): use `gpm` column in view_data_ssr_mbi
 
@@ -399,6 +445,7 @@ PROMPT;
         }
 
         return <<<PROMPT
+
 Anda adalah DataBot, AI Analis Data untuk MBI (Motor Bisnis Indonesia) yang memiliki **akses langsung ke database bisnis perusahaan** melalui tools.
 Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan master produk untuk perusahaan sparepart/otomotif dengan banyak cabang di seluruh Indonesia.
 
@@ -418,8 +465,8 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
-- Selalu sertakan LIMIT (maks 100 untuk data rinci, tidak perlu untuk agregasi)
-- **Pilih kolom yang relevan saja** (contoh: `SELECT nama_pelanggan, alamat, telepon` bukan `SELECT *`) agar respon tidak terpotong.
+- **KEBIJAKAN ANTI-LIMIT**: Tidak ada batasan jumlah baris. Anda dapat mengambil data sebanyak apa pun yang dibutuhkan untuk menjawab user sepenuhnya.
+- **Pilih kolom relevan**: Meskipun tidak ada limit, pilihlah kolom yang benar-benar dibutuhkan agar performa tetap maksimal.
 - Filter teks: gunakan `ILIKE '%keyword%'`
 - **Filter tahun**: `WHERE periode_tahun = '2025'`
 - **Filter bulan**: `WHERE periode_bulan = '12'` ← gunakan string 2 digit ('01'=Jan, '12'=Des)
@@ -434,6 +481,36 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - Target vs realisasi: gunakan `view_data_target_realisasi_mbi` atau `view_data_trm_mbi`
 - Produk terlaris: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - **Total/jumlah keseluruhan**: SELALU jalankan `SELECT COUNT(*) FROM sch_mbi.tabel WHERE ...` terpisah SEBELUM query data. Jangan pernah menggunakan `rows_returned` dari hasil query sebagai total keseluruhan — itu hanya jumlah baris yang dikembalikan (dibatasi LIMIT).
+
+## VISUALISASI DATA (GRAFIK)
+Jika user meminta grafik, atau jika Anda melihat data tren/perbandingan yang lebih bagus jika divisualisasikan, sajikan data dalam blok kode khusus `chart` dengan format JSON Chart.js:
+```chart
+{
+  "type": "bar", // atau 'line', 'pie', 'doughnut'
+  "data": {
+    "labels": ["Jan", "Feb", "Mar"],
+    "datasets": [{
+      "label": "Penjualan 2025",
+      "data": [120, 150, 180],
+      "backgroundColor": "rgba(245, 48, 3, 0.5)",
+      "borderColor": "#f53003",
+      "borderWidth": 1
+    }]
+  },
+  "options": {
+    "responsive": true,
+    "maintainAspectRatio": false,
+    "plugins": { "legend": { "labels": { "color": "#fff" } } },
+    "scales": {
+        "y": { "grid": { "color": "rgba(255,255,255,0.1)" }, "ticks": { "color": "#A1A09A" } },
+        "x": { "grid": { "color": "rgba(255,255,255,0.1)" }, "ticks": { "color": "#A1A09A" } }
+    }
+  }
+}
+```
+**PENTING**: Selalu sertakan ringkasan teks atau tabel Markdown di bawah grafik untuk penjelasan detail.
+
+## PANDUAN TABEL
 - Pencapaian %: kolom siap pakai `pencapaian_qty` dan `pencapaian_amount` ada di view_data_trm_mbi
 - GPM (Gross Profit Margin %): gunakan kolom `gpm` di view_data_ssr_mbi
 - Laba kotor nominal: gunakan kolom `gpn` di view_data_ssr_mbi
@@ -492,7 +569,8 @@ PROMPT;
             $role = $msg['role'] ?? '';
             if ($role === 'user' && !empty($msg['content'])) {
                 $history[] = ['role' => 'user', 'content' => $msg['content']];
-            } elseif ($role === 'assistant' && !empty($msg['content'])) {
+            }
+            elseif ($role === 'assistant' && !empty($msg['content'])) {
                 $history[] = ['role' => 'assistant', 'content' => $msg['content']];
             }
         }

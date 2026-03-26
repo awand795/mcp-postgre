@@ -222,19 +222,17 @@ class ToolCallExecutor
             }
         }
 
-        // ── LAYER 6: Paksa LIMIT jika tidak ada ──────────────────────────────
+        // ── LAYER 6: ANTI-LIMIT - No forced LIMIT ──────────────────────────────
         $cleanSql = $trimmedSql;
-        if (!preg_match('/\blimit\b/i', $cleanSql)) {
-            $cleanSql .= ' LIMIT 100';
-        }
+        // Forced LIMIT removed to allow unlimited data retrieval as requested.
 
         Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 
         // FIX: Hapus SET TRANSACTION READ ONLY karena tidak kompatibel dengan Laravel DB::transaction()
         // Cukup jalankan langsung — validasi SELECT + forbidden keywords di atas sudah cukup aman
         try {
-            // Set statement timeout 25 detik agar query berat tidak memicu HTTP/Proxy timeout (504)
-            DB::connection('pgsql_mbi')->statement('SET statement_timeout = 25000');
+            // ANTI-LIMIT: No statement timeout for SQL execution
+            DB::connection('pgsql_mbi')->statement('SET statement_timeout = 0');
             $rows = DB::connection('pgsql_mbi')->select($cleanSql);
         } catch (\Exception $e) {
             Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage() . " | SQL: " . $cleanSql);
@@ -265,10 +263,7 @@ class ToolCallExecutor
             'rows'          => $data,
         ];
 
-        if ($returned === 100) {
-            $result['note'] = 'Query mengembalikan 100 baris (batas default). Gunakan LIMIT lebih kecil atau tambahkan kondisi WHERE untuk mempersempit data.';
-        }
-
+        // ANTI-LIMIT: Note removed for cleaner large data output
         return json_encode($result);
     }
 

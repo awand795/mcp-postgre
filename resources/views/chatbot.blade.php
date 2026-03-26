@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body {
@@ -128,6 +129,18 @@
         .markdown-body table tbody tr:last-child td { border-bottom: none; }
         .markdown-body blockquote { border-left: 3px solid #f97316; padding-left: 12px; margin: 8px 0; color: #A1A09A; font-style: italic; font-size: 12px; }
         .markdown-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
+        
+        /* ── Chart Container ── */
+        .chart-container {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
 
         .btn-clear { transition: all 0.2s; }
         .btn-clear:hover { background: rgba(245,48,3,0.15); color: #ff4433; }
@@ -282,6 +295,17 @@
         const renderer = new marked.Renderer();
         renderer.table = (header, body) =>
             `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+            
+        // Render custom Chart blocks
+        renderer.code = (code, language) => {
+            if (language === 'chart') {
+                const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
+                        <input type="hidden" class="chart-data-provider" data-id="${chartId}" value='${code.replace(/'/g, "&apos;")}'>`;
+            }
+            return `<pre><code class="language-${language}">${code}</code></pre>`;
+        };
+
         marked.use({ renderer, gfm: true, breaks: true, pedantic: false });
 
         function renderMarkdown(text) {
@@ -502,8 +526,28 @@
 
         function renderStreamToBubble(bubble, text) {
             bubble.innerHTML = renderMarkdown(text);
+            
+            // Highlight code
             bubble.querySelectorAll('pre code').forEach(b => {
                 try { hljs.highlightElement(b); } catch(e) {}
+            });
+
+            // Initialize Charts
+            bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
+                const chartId = provider.getAttribute('data-id');
+                const rawData = provider.value;
+                const canvas  = document.getElementById(chartId);
+                
+                if (canvas && !canvas.getAttribute('data-chart-initialized')) {
+                    try {
+                        const config = JSON.parse(rawData);
+                        new Chart(canvas, config);
+                        canvas.setAttribute('data-chart-initialized', 'true');
+                        provider.remove(); // Cleanup hidden input
+                    } catch (e) {
+                        console.error('Chart.js init error:', e);
+                    }
+                }
             });
         }
 
