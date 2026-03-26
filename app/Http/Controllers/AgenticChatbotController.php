@@ -373,8 +373,8 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - GPM (Gross Profit Margin %): use `gpm` column in view_data_ssr_mbi
 
 ## TABLE REFERENCE GUIDE
-- **Sales detail**: `view_data_penjualan_rinci_mbi` — per-invoice line items. Key cols: periode_tahun, periode_bulan, nama_barang, qty_jual, total_netto, total_dpp, nama_cabang, nama_pelanggan, nama_kategori_barang, nama_merek_barang
-- **Sales summary (SSR)**: `view_data_ssr_mbi` — monthly sales + GPM. Key cols: periode_tahun, periode_bulan, total_qty, total_sales, cogs, gpn, gpm, sales_per_qty
+- **Sales detail (EXTREMELY HEAVY)**: `view_data_penjualan_rinci_mbi` — ONLY use if the user explicitly asks for per-invoice, per-customer, or itemized transactional details. Do NOT use this for general "sales in month X" queries.
+- **Sales summary (FAST & PREFERRED)**: `view_data_ssr_mbi` — ALWAYS prioritize this view for monthly/yearly totals, general performance, or sales data without itemized needs. Key cols: periode_tahun, periode_bulan, total_qty, total_sales, cogs, gpn, gpm, sales_per_qty.
 - **Target vs Realisasi**: `view_data_target_realisasi_mbi` — Key cols: periode, periode_tahun, periode_bulan, target_product, dpp_product, target_service, dpp_service, target_unit, jumlah_unit, jumlah_faktur
 - **Target TRM**: `view_data_trm_mbi` — Key cols: periode (YYYY-MM), target_qty, ttl_qty, pencapaian_qty, growth_qty, target_amount, ttl_amount, pencapaian_amount, growth_amount, qty_stock
 - **Target Jual**: `view_target_jual_mbi` — sales qty/nominal target per branch/category/brand
@@ -439,8 +439,8 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - Laba kotor nominal: gunakan kolom `gpn` di view_data_ssr_mbi
 
 ## PANDUAN TABEL
-- **Penjualan rinci**: `view_data_penjualan_rinci_mbi` — per baris faktur. Kolom utama: periode_tahun, periode_bulan, nama_barang, qty_jual, total_netto, total_dpp, nama_cabang, nama_pelanggan, nama_kategori_barang, nama_merek_barang
-- **Ringkasan penjualan (SSR)**: `view_data_ssr_mbi` — Kolom utama: periode_tahun, periode_bulan, total_qty, total_sales, cogs, gpn, gpm, sales_per_qty
+- **Penjualan rinci (SANGAT BERAT)**: `view_data_penjualan_rinci_mbi` — HANYA GUNAKAN JIKA user eksplisit meminta rincian faktur/nota, nama pembeli spesifik, atau per barang. Jika hanya minta "data penjualan bulan X", JANGAN gunakan view ini.
+- **Ringkasan penjualan bulanan (CEPAT)**: `view_data_ssr_mbi` — SELALU UTAMAKAN INI untuk melihat total, performa, atau data penjualan general bulanan/tahunan. Kolom: periode_tahun, periode_bulan, total_qty, total_sales, cogs, gpn, gpm, sales_per_qty.
 - **Target vs Realisasi**: `view_data_target_realisasi_mbi` — Kolom utama: periode, periode_tahun, periode_bulan, target_product, dpp_product, target_service, dpp_service, target_unit, jumlah_unit, jumlah_faktur
 - **Target TRM**: `view_data_trm_mbi` — Kolom utama: periode (YYYY-MM), target_qty, ttl_qty, pencapaian_qty, growth_qty, target_amount, ttl_amount, pencapaian_amount, growth_amount, qty_stock
 - **Target Jual**: `view_target_jual_mbi` — target qty/nominal penjualan per cabang/kategori/merek
