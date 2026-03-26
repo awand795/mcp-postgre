@@ -10,17 +10,17 @@ use Illuminate\Support\Facades\Log;
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
  * Provider: OpenAI dengan fallback otomatis antar model
- * Urutan: gpt-4o-mini → gpt-4o → gpt-4-turbo
+ * Urutan: gpt-5.4 → gpt-5.2 → gpt-4o
  */
 class AgenticChatbotController extends Controller
 {
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private string $openaiModel = 'gpt-4o';
+    private string $openaiModel = 'gpt-5.4';
 
     // Fallback models jika model utama gagal (rate limit, overload, dll)
     private array $fallbackModels = [
-        'gpt-4-turbo',
-        'gpt-4o-mini',
+        'gpt-5.2',
+        'gpt-4o',
     ];
 
     private int $maxToolLoops = 20;
@@ -253,15 +253,26 @@ class AgenticChatbotController extends Controller
             $cleanMessages[] = $clean;
         }
 
+        // GPT-5.x family (gpt-5.4, gpt-5.2, gpt-5-mini, dll) requires reasoning_effort='none'
+        // agar parameter temperature & top_p bisa digunakan. Tanpa ini API akan return error.
+        // Ref: https://developers.openai.com/api/docs/models/gpt-5.4
+        $isGpt5 = str_starts_with($model, 'gpt-5');
+
         $payload = [
             'model' => $model,
             'messages' => $cleanMessages,
             'tools' => $tools,
             'tool_choice' => 'auto',
             'max_tokens' => $this->maxTokens,
-            'temperature' => 0.2,
-            'top_p' => 0.9,
         ];
+
+        if ($isGpt5) {
+            // reasoning_effort=none = default, aktifkan temperature & top_p
+            $payload['reasoning_effort'] = 'none';
+        }
+
+        $payload['temperature'] = 0.2;
+        $payload['top_p'] = 0.9;
 
         Log::info("[Agentic] Calling OpenAI: {$model}");
 
@@ -290,25 +301,29 @@ class AgenticChatbotController extends Controller
             ]);
 
             $body = curl_exec($ch);
+            $errNo = curl_errno($ch);
+            $errStr = curl_error($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
             curl_close($ch);
 
-            if ($curlErr) {
-                Log::error("[Agentic] cURL error: {$curlErr}");
+            // ── cURL network error ────────────────────────────────────────────
+            if ($errNo) {
+                Log::error("[Agentic] cURL error #{$errNo}: {$errStr}");
                 return null;
             }
+
+            // ── HTTP error (non-2xx) ──────────────────────────────────────────
             if ($httpCode < 200 || $httpCode >= 300) {
-                // ── LANGKAH 1: Logging detail error OpenAI ─────────────────
                 Log::error("[Agentic] HTTP {$httpCode} — Full response body: {$body}");
                 $decoded = json_decode($body, true);
                 $errDetail = $decoded['error']['message'] ?? 'No error message from API';
-                $errType = $decoded['error']['type'] ?? 'unknown';
-                $errCode = $decoded['error']['code'] ?? 'unknown';
+                $errType   = $decoded['error']['type']    ?? 'unknown';
+                $errCode   = $decoded['error']['code']    ?? 'unknown';
                 Log::error("[Agentic] OpenAI Error Detail → type: {$errType}, code: {$errCode}, message: {$errDetail}");
                 return null;
             }
 
+            // ── Parse sukses ─────────────────────────────────────────────────
             $decoded = json_decode($body, true);
             if (!$decoded || isset($decoded['error'])) {
                 Log::error("[Agentic] API error — Full body: {$body}");

@@ -78,13 +78,13 @@ class ToolCallExecutor
                 'type' => 'function',
                 'function' => [
                     'name'        => 'execute_query',
-                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi." (e.g. SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi LIMIT 10). Only SELECT queries are allowed. Always include LIMIT to avoid large results.',
+                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi." (e.g. SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi). Only SELECT queries are allowed. Do NOT add LIMIT unless the user explicitly asks for a limited number of rows — always retrieve full data by default.',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
                             'sql'   => [
                                 'type'        => 'string',
-                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC LIMIT 10',
+                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Do NOT add LIMIT unless user explicitly requests limited rows. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC',
                             ],
                             'label' => [
                                 'type'        => 'string',

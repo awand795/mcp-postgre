@@ -524,31 +524,42 @@
             return { bubble, toolArea, wrapper: wrap };
         }
 
+        function initChartsInBubble(bubble) {
+            bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
+                const chartId = provider.getAttribute('data-id');
+                const rawData = provider.value.replace(/&apos;/g, "'");
+                const canvas  = document.getElementById(chartId);
+
+                if (canvas && !canvas.getAttribute('data-chart-initialized')) {
+                    try {
+                        const config = JSON.parse(rawData);
+                        // Pastikan options ada
+                        config.options = config.options || {};
+                        config.options.responsive = true;
+                        config.options.maintainAspectRatio = false;
+                        new Chart(canvas, config);
+                        canvas.setAttribute('data-chart-initialized', 'true');
+                        provider.remove();
+                    } catch (e) {
+                        console.error('Chart.js init error:', e, rawData.substring(0, 200));
+                        // Tampilkan pesan error ringan di dalam chart container
+                        const container = canvas.closest('.chart-container');
+                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik. Pastikan format data valid.</p>';
+                    }
+                }
+            });
+        }
+
         function renderStreamToBubble(bubble, text) {
             bubble.innerHTML = renderMarkdown(text);
-            
+
             // Highlight code
             bubble.querySelectorAll('pre code').forEach(b => {
                 try { hljs.highlightElement(b); } catch(e) {}
             });
 
             // Initialize Charts
-            bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
-                const chartId = provider.getAttribute('data-id');
-                const rawData = provider.value;
-                const canvas  = document.getElementById(chartId);
-                
-                if (canvas && !canvas.getAttribute('data-chart-initialized')) {
-                    try {
-                        const config = JSON.parse(rawData);
-                        new Chart(canvas, config);
-                        canvas.setAttribute('data-chart-initialized', 'true');
-                        provider.remove(); // Cleanup hidden input
-                    } catch (e) {
-                        console.error('Chart.js init error:', e);
-                    }
-                }
-            });
+            initChartsInBubble(bubble);
         }
 
         // ── Render pesan biasa ────────────────────────────────────────────────
@@ -569,6 +580,7 @@
             if (sender === 'ai') {
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch(e) {} });
+                initChartsInBubble(bubble);
             } else {
                 bubble.textContent = text;
             }
