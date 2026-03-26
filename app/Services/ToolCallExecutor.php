@@ -223,11 +223,13 @@ class ToolCallExecutor
         }
 
         // ── LAYER 6: ANTI-LIMIT — Hapus LIMIT/FETCH paksa jika AI menambahkannya ──
-        // Hapus LIMIT N dan FETCH FIRST N ROWS ONLY dari akhir query
-        $cleanSql = preg_replace('/\bLIMIT\s+\d+\b/i', '', $trimmedSql);
-        $cleanSql = preg_replace('/\bFETCH\s+FIRST\s+\d+\s+ROWS?\s+ONLY\b/i', '', $cleanSql);
+        // Menghapus LIMIT N, OFFSET N, dan FETCH FIRST N ROWS ONLY
+        $cleanSql = preg_replace('/\bLIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\b/i', '', $trimmedSql);
+        $cleanSql = preg_replace('/\bFETCH\s+(?:FIRST|NEXT)\s+\d+\s+ROWS?\s+ONLY\b/i', '', $cleanSql);
         $cleanSql = trim($cleanSql);
-        Log::info('[ToolCallExecutor] SQL setelah strip LIMIT: ' . substr($cleanSql, 0, 300));
+        if ($cleanSql !== $trimmedSql) {
+            Log::info('[ToolCallExecutor] SQL limit stripped. Original: ' . substr($trimmedSql, -50));
+        }
 
         Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 

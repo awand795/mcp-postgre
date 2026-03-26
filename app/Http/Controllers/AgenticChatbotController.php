@@ -193,19 +193,41 @@ class AgenticChatbotController extends Controller
 
                 Log::info("[Agentic] → Tool: {$toolName}", $arguments);
 
+                $toolResult = $this->toolExecutor->execute($toolName, $arguments);
+                Log::info("[Agentic] ← Result: " . strlen($toolResult) . " chars");
+
+                // Parse untuk keperluan AI context dan deteksi baris
+                $decodedRes = json_decode($toolResult, true);
+                
+                // --- TRUNCATION FOR AI CONTEXT (Keep it light for LLM) ---
+                $aiContent = $toolResult;
+                if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 50) {
+                    $truncatedRows = array_slice($decodedRes['rows'], 0, 50);
+                    $totalRows = count($decodedRes['rows']);
+                    $aiContent = json_encode([
+                        'label'   => $decodedRes['label'] ?? '',
+                        'columns' => $decodedRes['columns'] ?? [],
+                        'rows'    => $truncatedRows,
+                        'message' => "NOTE: Data is truncated for AI response. Showing only first 50 rows out of {$totalRows}. BUT user can see the FULL data in the Smart Table below."
+                    ]);
+                }
+
+                // Kirim update tool_call ke frontend TERMASUK hasilnya (FULL DATA) untuk SmartTable
                 echo "data: " . json_encode([
-                    'tool_call' => ['name' => $toolName, 'arguments' => $arguments, 'status' => 'running']
+                    'tool_call' => [
+                        'name'      => $toolName,
+                        'arguments' => $arguments,
+                        'status'    => 'success',
+                        'result'    => $decodedRes ?: $toolResult
+                    ]
                 ]) . "\n\n";
                 ob_flush();
                 flush();
 
-                $toolResult = $this->toolExecutor->execute($toolName, $arguments);
-                Log::info("[Agentic] ← Result: " . strlen($toolResult) . " chars");
-
                 $messages[] = [
                     'role' => 'tool',
                     'tool_call_id' => $toolCallId,
-                    'content' => $toolResult,
+                    'content' => $aiContent,
                 ];
 
                 echo "data: " . json_encode([
@@ -366,17 +388,20 @@ This database contains sales, stock, purchases, targets, customers, and product 
 4. `execute_query`   — Run a SQL SELECT query to retrieve business data.
 
 ## WORKFLOW
-1. Call `get_schema_info` first to understand the data structure.
-2. Write precise SQL. **CRITICAL: ONLY SELECT the columns you absolutely need.** Do not use `SELECT *` if the table has many columns, as it causes massive data overload.
-3. Call `execute_query` with that SQL.
-4. Analyze results and answer clearly in Markdown with tables where applicable. **NEVER BE LAZY.** If the user asks for 50 rows, you MUST write all 50 rows in the Markdown table. Do not summarize or tell the user to check manually.
-5. Run additional queries if deeper analysis is needed.
+4. Analyze results and answer clearly in Markdown with tables where applicable.
+5. **DIRECT SMART TABLE (PREFERRED for Large Data)**: If a tool result is a table with more than 20 rows, **DO NOT** write a Markdown table. Instead, use this special code block:
+   ```smart_table
+   {"tool_index": 0}
+   ```
+   (where `tool_index` is the 0-based index of the tool call in current turn). This is much faster and prevents data truncation.
+6. **STRICT NO-TRUNCATION POLICY**: If you choose to write a Markdown table (only for small data < 20 rows), you MUST display it ALL. Truncating data with "..." or "etc." is strictly forbidden.
+7. Run additional queries if deeper analysis is needed.
 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
-- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10" or "5 branches only"). Default is ALWAYS retrieve ALL rows with no limit.
-- **NEVER SUMMARIZE DATA**: If there are 500 rows, display ALL 500 rows in the Markdown table. Never write "and so on" or "see the full list manually" — that is a direct violation.
+- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows.
+- **NEVER SUMMARIZE OR TRUNCATE DATA**: If there are many rows, use the `smart_table` code block as described above.
 - **Select relevant columns**: Only pick columns truly needed to keep the response clean and readable.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '2025'`
@@ -464,17 +489,20 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 4. `execute_query`   — Ambil data bisnis dari database.
 
 ## ALUR KERJA
-1. Panggil `get_schema_info` untuk memahami struktur data.
-2. Tulis SQL yang tepat berdasarkan schema. **PENTING: HANYA SELECT kolom yang benar-benar dibutuhkan.** Jangan gunakan `SELECT *` karena akan membuat data yang dikembalikan terlalu besar.
-3. Panggil `execute_query` dengan SQL tersebut.
-4. Analisis hasilnya dan jawab dalam Markdown. **JANGAN MALAS.** Jika user meminta 50 data pelanggan, TAMPILKAN SEMUA 50 data tersebut dalam tabel Markdown. Jangan merangkum atau menyuruh user mengecek secara menyeluruh.
-5. Jalankan query tambahan jika diperlukan untuk analisis lebih dalam.
+4. Analisis hasilnya dan jawab dalam Markdown.
+5. **DIRECT SMART TABLE (UTAMA untuk Data Besar)**: Jika hasil tool adalah tabel dengan lebih dari 20 baris, **JANGAN** tulis tabel Markdown. Gunakan blok kode khusus ini:
+   ```smart_table
+   {"tool_index": 0}
+   ```
+   (di mana `tool_index` adalah index tool call mulai dari 0 dalam turn ini). Ini jauh lebih cepat dan mencegah pemotongan data.
+6. **KEBIJAKAN ANTI-PEMOTONGAN DATA**: Jika Anda memilih menulis tabel Markdown (hanya untuk data kecil < 20 baris), Anda WAJIB menampilkan SEMUANYA. Memotong data dengan "..." atau "dst." dilarang keras.
+7. Jalankan query tambahan jika diperlukan untuk analisis lebih dalam.
 
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
-- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data" atau "top 5 cabang"). Default SELALU ambil SEMUA baris tanpa batas.
-- **DILARANG MERANGKUM DATA**: Jika ada 500 baris, TAMPILKAN SEMUA 500 baris dalam tabel Markdown. Dilarang menulis "dan seterusnya" atau "silakan cek secara langsung" — itu pelanggaran instruksi.
+- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data"). Default SELALU ambil SEMUA baris tanpa batas.
+- **DILARANG MERANGKUM ATAU MEMOTONG DATA**: Jika ada banyak baris, gunakan blok kode `smart_table` seperti dijelaskan di atas.
 - **Pilih kolom relevan**: Pilih hanya kolom yang benar-benar dibutuhkan agar respons tetap bersih dan mudah dibaca.
 - Filter teks: gunakan `ILIKE '%keyword%'`
 - **Filter tahun**: `WHERE periode_tahun = '2025'`

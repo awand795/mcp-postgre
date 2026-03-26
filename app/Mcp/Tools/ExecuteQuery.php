@@ -49,12 +49,7 @@ class ExecuteQuery
             }
         }
 
-        // ── LAYER 4: Paksa LIMIT jika tidak ada ─────────────────────────────
-        $cleanQuery = rtrim($query, '; ');
-        if (!preg_match('/\blimit\b/i', $cleanQuery)) {
-            $cleanQuery .= ' LIMIT 100';
-        }
-
+        $cleanQuery = trim($query, '; ');
         return DB::connection('pgsql_mbi')->select($cleanQuery);
     }
 }

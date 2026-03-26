@@ -298,6 +298,7 @@
         const loadingIcon     = document.getElementById('loading-icon');
 
         let conversationHistory = [];
+        let currentToolResults  = []; // Untuk menyimpan hasil tool call agar bisa diakses Direct Smart Table
         let isLoading = false;
 
         // ── SmartTable Engine ─────────────────────────────────────────────────
@@ -307,13 +308,19 @@
         const PAGE_SIZE = 50;
 
         function parseMarkdownTable(header, body) {
-            const thM = [...header.matchAll(/<th[^>]*>(.*?)<\/th>/gi)];
+            // Parse headers — handle any HTML inside <th>
+            const thM = [...header.matchAll(/<th[^>]*>([\/\s\S]*?)<\/th>/gi)];
             const headers = thM.map(m => m[1].replace(/<[^>]+>/g, '').trim());
-            const trM = [...body.matchAll(/<tr[^>]*>(.*?)<\/tr>/gis)];
-            const rows = trM.map(tr => {
-                const tdM = [...tr[1].matchAll(/<td[^>]*>(.*?)<\/td>/gi)];
-                return tdM.map(td => td[1].replace(/<[^>]+>/g, '').trim());
-            }).filter(r => r.length > 0);
+
+            // Parse rows — use a DOM parser for reliability instead of regex
+            const tmpDiv = document.createElement('div');
+            tmpDiv.innerHTML = '<table><tbody>' + body + '</tbody></table>';
+            const rows = [];
+            tmpDiv.querySelectorAll('tr').forEach(tr => {
+                const cells = [];
+                tr.querySelectorAll('td').forEach(td => cells.push(td.textContent.trim()));
+                if (cells.length > 0) rows.push(cells);
+            });
             return { headers, rows };
         }
 
@@ -433,8 +440,16 @@
             bubble.querySelectorAll('.smart-table-wrap[data-table-id]:not([data-initialized])').forEach(wrap => {
                 const tableId = wrap.getAttribute('data-table-id');
                 try {
-                    const headers = JSON.parse(wrap.getAttribute('data-headers') || '[]');
-                    const allRows = JSON.parse(wrap.getAttribute('data-rows') || '[]');
+                    // Decode base64 → JSON (mendukung semua karakter termasuk kutip, unicode, dll)
+                    const hb64 = wrap.getAttribute('data-headers-b64') || '';
+                    const rb64 = wrap.getAttribute('data-rows-b64') || '';
+                    const headers = hb64
+                        ? JSON.parse(decodeURIComponent(escape(atob(hb64))))
+                        : JSON.parse(wrap.getAttribute('data-headers') || '[]'); // fallback lama
+                    const allRows = rb64
+                        ? JSON.parse(decodeURIComponent(escape(atob(rb64))))
+                        : JSON.parse(wrap.getAttribute('data-rows') || '[]'); // fallback lama
+
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: ''
@@ -449,25 +464,61 @@
                         });
                     }
                     buildSmartTable(tableId);
-                } catch (e) { console.error('SmartTable init error', e); }
+                } catch (e) { console.error('SmartTable init error', e, 'tableId:', tableId); }
             });
         }
 
         // ── marked.js setup ───────────────────────────────────────────────────
         const renderer = new marked.Renderer();
 
-        // Tabel → SmartTable (paginated + searchable + sortable)
-        renderer.table = (header, body) => {
-            const { headers, rows } = parseMarkdownTable(header, body);
-            // Tabel kecil (≤4 baris) → render biasa, tidak perlu overhead
-            if (rows.length <= 4) {
-                return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+        // ── Tabel → SmartTable (Hybrid API) ──────────────────────────────────
+        renderer.table = function(arg1, arg2) {
+            let headers = [];
+            let rows    = [];
+
+            try {
+                // Case A: token object (marked v4+)
+                if (arg1 && typeof arg1 === 'object' && arg1.type === 'table') {
+                    const token = arg1;
+                    if (Array.isArray(token.header)) {
+                        headers = token.header.map(h => {
+                            const raw = (typeof h === 'object' && h !== null) ? (h.text || '') : String(h || '');
+                            return raw.replace(/<[^>]+>/g, '').trim();
+                        });
+                    }
+                    if (Array.isArray(token.rows)) {
+                        rows = token.rows.map(row => 
+                            row.map(cell => {
+                                const raw = (typeof cell === 'object' && cell !== null) ? (cell.text || '') : String(cell || '');
+                                return raw.replace(/<[^>]+>/g, '').trim();
+                            })
+                        );
+                    }
+                } 
+                // Case B: (header, body) strings (legacy/marked v2)
+                else if (typeof arg1 === 'string') {
+                    const parsed = parseMarkdownTable(arg1, arg2 || '');
+                    headers = parsed.headers;
+                    rows    = parsed.rows;
+                }
+            } catch(e) { console.error('Table parse error', e); }
+
+            if (headers.length === 0) {
+                // Final fallback: standard table if all else fails
+                if (typeof arg1 === 'string' && typeof arg2 === 'string') {
+                    return `<div class="table-wrap"><table><thead>${arg1}</thead><tbody>${arg2}</tbody></table></div>`;
+                }
+                return '<div class="table-wrap">⚠️ Gagal render tabel</div>';
             }
+            
             const tableId = 'st-' + Math.random().toString(36).substr(2, 9);
-            // Encode JSON aman untuk data-attr HTML (single quote di-escape)
-            const hEnc = JSON.stringify(headers).replace(/'/g, "&#39;");
-            const rEnc = JSON.stringify(rows).replace(/'/g, "&#39;");
-            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers='${hEnc}' data-rows='${rEnc}'>
+            let hEnc, rEnc;
+            try {
+                hEnc = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
+                rEnc = btoa(unescape(encodeURIComponent(JSON.stringify(rows))));
+            } catch(e) { hEnc = btoa(JSON.stringify(headers)); rEnc = btoa(JSON.stringify(rows)); }
+
+            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers-b64="${hEnc}" data-rows-b64="${rEnc}">
                 <div class="smart-table-toolbar">
                     <span class="smart-table-info">📊 Memuat...</span>
                     <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
@@ -486,13 +537,93 @@
         };
 
         // Render custom Chart blocks
-        renderer.code = (code, language) => {
+        // marked v9: renderer.code dipanggil dengan (token) object jika menggunakan Renderer override
+        // atau dengan (code, infostring, escaped) jika memakai pendekatan lama.
+        // Kita handle keduanya:
+        renderer.code = function(token) {
+            // marked v9+ passes a token object; older versions pass (code, lang)
+            let code, language;
+            if (typeof token === 'object' && token !== null && 'text' in token) {
+                code = token.text;
+                language = token.lang || '';
+            } else {
+                // Fallback: token = code string, second arg = language
+                code = token;
+                language = arguments[1] || '';
+            }
             if (language === 'chart') {
                 const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                // Simpan data sebagai base64 untuk menghindari masalah encoding dengan karakter khusus
+                let encoded;
+                try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
                 return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
-                        <input type="hidden" class="chart-data-provider" data-id="${chartId}" value='${code.replace(/'/g, "&apos;")}'>`;
+                        <input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
             }
-            return `<pre><code class="language-${language}">${code}</code></pre>`;
+
+            // ── DIRECT SMART TABLE RENDERER ──────────────────────────────────
+            if (language === 'smart_table') {
+                try {
+                    // Jika JSON belum lengkap (masih streaming), jangan tampilkan error dulu
+                    if (!code.trim().endsWith('}')) {
+                        return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
+                    }
+
+                    const params = JSON.parse(code);
+                    const idx = params.tool_index !== undefined ? params.tool_index : -1;
+                    const toolRes = (idx >= 0 && currentToolResults[idx]) ? currentToolResults[idx] : null;
+
+                    if (toolRes) {
+                        let headers = [];
+                        let rows    = [];
+
+                        // Case A: Standard object with rows/columns (execute_query)
+                        if (toolRes.rows && Array.isArray(toolRes.rows)) {
+                            headers = toolRes.columns || (toolRes.rows[0] ? Object.keys(toolRes.rows[0]) : []);
+                            rows    = toolRes.rows.map(r => headers.map(h => r[h]));
+                        } 
+                        // Case B: Simple array of objects
+                        else if (Array.isArray(toolRes) && toolRes[0] && typeof toolRes[0] === 'object') {
+                            headers = Object.keys(toolRes[0]);
+                            rows    = toolRes.map(r => headers.map(h => r[h]));
+                        }
+                        // Case C: Array of strings/primitives
+                        else if (Array.isArray(toolRes)) {
+                            headers = ['Data'];
+                            rows    = toolRes.map(v => [v]);
+                        }
+
+                        if (rows.length > 0) {
+                            const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
+                            const hEnc = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
+                            const rEnc = btoa(unescape(encodeURIComponent(JSON.stringify(rows))));
+
+                            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers-b64="${hEnc}" data-rows-b64="${rEnc}">
+                                <div class="smart-table-toolbar">
+                                    <span class="smart-table-info">📊 Memuat...</span>
+                                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                                </div>
+                                <div class="smart-table-scroll">
+                                    <table>
+                                        <thead><tr>${headers.map(h => `<th>${h}<span class='sort-icon'>▲▼</span></th>`).join('')}</tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                                <div class="smart-table-pagination">
+                                    <span class="smart-table-page-info"></span>
+                                    <div class="smart-table-btns"></div>
+                                </div>
+                            </div>`;
+                        }
+                    }
+                } catch(e) { 
+                    // Selama streaming, JSON parse error adalah wajar
+                    return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
+                }
+                return '<div class="table-wrap">⚠️ Data tabel tidak ditemukan atau kosong (Tool #' + (idx || '?') + ')</div>';
+            }
+
+            const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return `<pre><code class="language-${language || 'plaintext'}">${escaped}</code></pre>`;
         };
 
         marked.use({ renderer, gfm: true, breaks: true, pedantic: false });
@@ -547,6 +678,7 @@
             chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
 
             let aiResponseText = '';
+            currentToolResults = []; // Reset tool results per turn
             const toolBadges = {};
 
             try {
@@ -610,7 +742,12 @@
                                     toolArea.appendChild(badge);
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
-                                } else if (tc.status === 'done') {
+                                } else if (tc.status === 'success') {
+                                    // Simpan hasil untuk Direct Smart Table
+                                    if (tc.result) {
+                                        currentToolResults.push(tc.result);
+                                    }
+                                    
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
                                     if (runningBadge) {
                                         runningBadge.classList.replace('running', 'done');
@@ -673,22 +810,47 @@
         function initChartsInBubble(bubble) {
             bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
                 const chartId = provider.getAttribute('data-id');
-                const rawData = provider.value.replace(/&apos;/g, "'");
                 const canvas  = document.getElementById(chartId);
-                if (canvas && !canvas.getAttribute('data-chart-initialized')) {
-                    try {
-                        const config = JSON.parse(rawData);
-                        config.options = config.options || {};
-                        config.options.responsive = true;
-                        config.options.maintainAspectRatio = false;
-                        new Chart(canvas, config);
-                        canvas.setAttribute('data-chart-initialized', 'true');
-                        provider.remove();
-                    } catch (e) {
-                        console.error('Chart.js init error:', e);
-                        const container = canvas.closest('.chart-container');
-                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik.</p>';
+                if (!canvas || canvas.getAttribute('data-chart-initialized')) return;
+
+                // Decode dari base64 (encoding aman untuk semua karakter)
+                let rawData = '';
+                try {
+                    const b64 = provider.getAttribute('data-b64') || '';
+                    if (b64) {
+                        rawData = decodeURIComponent(escape(atob(b64)));
+                    } else {
+                        // Fallback untuk data lama pakai value attribute
+                        rawData = provider.value.replace(/&apos;/g, "'");
                     }
+                } catch(decodeErr) {
+                    console.error('Chart decode error:', decodeErr);
+                    const container = canvas.closest('.chart-container');
+                    if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal decode data grafik.</p>';
+                    return;
+                }
+
+                // Bersihkan JSON — hapus komentar JS-style sebelum parse
+                const cleanJson = rawData
+                    .replace(/\/\/[^\n]*/g, '')       // hapus // komentar
+                    .replace(/\/\*[\s\S]*?\*\//g, '') // hapus /* */ komentar
+                    .trim();
+
+                try {
+                    const config = JSON.parse(cleanJson);
+                    config.options = config.options || {};
+                    config.options.responsive = true;
+                    config.options.maintainAspectRatio = false;
+                    // Pastikan warna label axis terisi default jika tidak ada
+                    if (!config.options.plugins) config.options.plugins = {};
+                    if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff' } };
+                    new Chart(canvas, config);
+                    canvas.setAttribute('data-chart-initialized', 'true');
+                    provider.remove();
+                } catch (e) {
+                    console.error('Chart.js init error:', e, 'JSON:', cleanJson.substring(0, 200));
+                    const container = canvas.closest('.chart-container');
+                    if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik: ' + e.message + '</p>';
                 }
             });
         }
