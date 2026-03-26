@@ -15,12 +15,12 @@ use Illuminate\Support\Facades\Log;
 class AgenticChatbotController extends Controller
 {
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private string $openaiModel = 'gpt-5.4';
+    private string $openaiModel = 'gpt-4o';
 
     // Fallback models jika model utama gagal (rate limit, overload, dll)
     private array $fallbackModels = [
-        'gpt-5.4-pro',
-        'gpt-5.4-mini',
+        'gpt-4-turbo',
+        'gpt-4o-mini',
     ];
 
     private int $maxToolLoops = 20;
