@@ -253,25 +253,17 @@ class ToolCallExecutor
 
         $data = array_map(fn($row) => (array) $row, $rows);
 
-        // PENTING: $total di sini hanya jumlah baris yang dikembalikan query ini (maks = LIMIT).
-        // Ini BUKAN total seluruh data di tabel. Jangan gunakan angka ini sebagai total keseluruhan.
-        // Untuk mendapat total keseluruhan, AI harus menjalankan query COUNT(*) terpisah.
         $returned = count($data);
-        $sample   = array_slice($data, 0, 50);
 
         $result = [
-            'label'            => $label,
-            'rows_returned'    => $returned,   // jumlah baris dari query ini (dibatasi LIMIT)
-            'rows_in_sample'   => count($sample),
-            'columns'          => array_keys($data[0]),
-            'rows'             => $sample,
-            'warning'          => 'rows_returned hanya mencerminkan baris yang dikembalikan query ini (dibatasi LIMIT). '
-                                 . 'Ini BUKAN total keseluruhan data di tabel. '
-                                 . 'Untuk total keseluruhan, jalankan query COUNT(*) secara terpisah.',
+            'label'         => $label,
+            'rows_returned' => $returned,
+            'columns'       => array_keys($data[0]),
+            'rows'          => $data,
         ];
 
-        if ($returned > 50) {
-            $result['sample_note'] = "Ditampilkan 50 dari {$returned} baris yang dikembalikan query ini.";
+        if ($returned === 100) {
+            $result['note'] = 'Query mengembalikan 100 baris (batas default). Gunakan LIMIT lebih kecil atau tambahkan kondisi WHERE untuk mempersempit data.';
         }
 
         return json_encode($result);

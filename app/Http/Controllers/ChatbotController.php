@@ -110,7 +110,7 @@ class ChatbotController extends Controller
     // ── Deteksi nama kolom total bayar di tabel transaksi ────────────────────
     private function getColTotalBayar(): string
     {
-        return 'total_harga';
+        return 'total_netto';
     }
 
     public function send(Request $request)
@@ -795,7 +795,9 @@ PROMPT;
                         continue;
                     }
 
-                    if (!preg_match('/\blimit\b/i', $sql)) {
+                    // Jangan tambahkan LIMIT ke query aggregate (COUNT, SUM, AVG)
+                    $isAggregate = preg_match('/^\s*SELECT\s+(COUNT|SUM|AVG|MIN|MAX)\s*\(/i', $sql);
+                    if (!$isAggregate && !preg_match('/\blimit\b/i', $sql)) {
                         $sql = rtrim($sql, ';') . ' LIMIT 50';
                     }
 
@@ -856,7 +858,8 @@ PROMPT;
                             continue;
                         }
 
-                        if (!preg_match('/\blimit\b/i', $sql)) {
+                        $isAggregate = preg_match('/^\s*SELECT\s+(COUNT|SUM|AVG|MIN|MAX)\s*\(/i', $sql);
+                        if (!$isAggregate && !preg_match('/\blimit\b/i', $sql)) {
                             $sql = rtrim($sql, ';') . ' LIMIT 50';
                         }
 
@@ -913,7 +916,6 @@ PROMPT;
     {
         $queries = [];
         $tgl     = 'tgl_fak_jl';
-        $bayar   = 'total_harga';
         $hasW    = !empty($wilayahFilter);
         $hasT    = !empty($tahunFilter);
         $safe    = $hasW ? addslashes($wilayahFilter) : '';
@@ -988,8 +990,8 @@ PROMPT;
                 SELECT nama_propinsi_cabang as provinsi,
                     COUNT(DISTINCT kode_pelanggan) as jumlah_pelanggan,
                     COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
-                    SUM(total_harga) as total_revenue,
-                    ROUND(AVG(total_harga), 0) as aov
+                    SUM(total_netto) as total_revenue,
+                    ROUND(AVG(total_netto), 0) as aov
                 FROM {$vSales}
                 GROUP BY nama_propinsi_cabang
                 ORDER BY total_revenue DESC";
@@ -1002,8 +1004,8 @@ PROMPT;
             $queries[$label] = "
                 SELECT periode_tahun || '-' || periode_bulan as bulan,
                     COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
-                    SUM(total_harga) as total_revenue,
-                    ROUND(AVG(total_harga), 0) as avg_order_value,
+                    SUM(total_netto) as total_revenue,
+                    ROUND(AVG(total_netto), 0) as avg_order_value,
                     COUNT(DISTINCT kode_pelanggan) as unique_pelanggan
                 FROM {$vSales}
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
@@ -1017,8 +1019,8 @@ PROMPT;
             $queries[$label] = "
                 SELECT periode_tahun as tahun,
                     COUNT(DISTINCT no_fak_jl) as jumlah_transaksi,
-                    SUM(total_harga) as total_revenue,
-                    ROUND(AVG(total_harga), 0) as avg_order_value,
+                    SUM(total_netto) as total_revenue,
+                    ROUND(AVG(total_netto), 0) as avg_order_value,
                     COUNT(DISTINCT kode_pelanggan) as unique_pelanggan
                 FROM {$vSales}
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
@@ -1034,7 +1036,7 @@ PROMPT;
                 SELECT nama_kategori_barang as nama_kategori,
                     COUNT(DISTINCT kode_barang) as jumlah_produk,
                     SUM(qty_jual) as total_terjual,
-                    SUM(total_harga) as total_pendapatan
+                    SUM(total_netto) as total_pendapatan
                 FROM {$vSales}
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
                 GROUP BY nama_kategori_barang
@@ -1050,7 +1052,7 @@ PROMPT;
                     MAX({$tgl}) as last_purchase,
                     CURRENT_DATE - MAX({$tgl}) as recency_days,
                     COUNT(DISTINCT no_fak_jl) as frequency,
-                    SUM(total_harga) as monetary,
+                    SUM(total_netto) as monetary,
                     CASE
                         WHEN CURRENT_DATE - MAX({$tgl}) <= 30 AND COUNT(DISTINCT no_fak_jl) >= 3 THEN 'Champions'
                         WHEN CURRENT_DATE - MAX({$tgl}) <= 60 AND COUNT(DISTINCT no_fak_jl) >= 2 THEN 'Loyal'
@@ -1070,8 +1072,8 @@ PROMPT;
             $queries[$label] = "
                 SELECT CASE WHEN hari_jth_tempo > 0 THEN 'Kredit' ELSE 'Tunai' END as metode_bayar,
                     COUNT(*) as jumlah_transaksi,
-                    SUM(total_harga) as total_revenue,
-                    ROUND(AVG(total_harga), 0) as avg_transaksi,
+                    SUM(total_netto) as total_revenue,
+                    ROUND(AVG(total_netto), 0) as avg_transaksi,
                     ROUND(COUNT(*) * 100.0 / NULLIF(SUM(COUNT(*)) OVER (), 0), 2) as persen_penggunaan
                 FROM {$vSales}
                 " . ($hasW ? $wWhere : "WHERE 1=1") . "
@@ -1085,8 +1087,8 @@ PROMPT;
             $queries['Efektivitas Diskon'] = "
                 SELECT CASE WHEN total_disc > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END as status_diskon,
                     COUNT(*) as jumlah_transaksi,
-                    ROUND(AVG(total_harga), 0) as rata_nilai,
-                    SUM(total_harga) as total_revenue,
+                    ROUND(AVG(total_netto), 0) as rata_nilai,
+                    SUM(total_netto) as total_revenue,
                     ROUND(SUM(total_disc), 2) as total_diskon_nominal
                 FROM {$vSales}
                 GROUP BY CASE WHEN total_disc > 0 THEN 'Ada Diskon' ELSE 'Tanpa Diskon' END";
