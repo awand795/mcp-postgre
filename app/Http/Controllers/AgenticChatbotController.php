@@ -360,6 +360,7 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Target vs realisasi: use `view_data_target_realisasi_mbi` or `view_data_trm_mbi`
 - Top selling products: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - Always cast numeric aggregates: SUM(qty_jual::numeric) if needed
+- **Total/grand total count**: ALWAYS run `SELECT COUNT(*) FROM sch_mbi.table WHERE ...` as a SEPARATE query FIRST. NEVER use `rows_returned` from a data query as the total — it only reflects rows returned by that query (limited by LIMIT).
 - Achievement %: (realisasi / target * 100), ready-made columns: `pencapaian_qty`, `pencapaian_amount` in view_data_trm_mbi
 - GPM (Gross Profit Margin %): use `gpm` column in view_data_ssr_mbi
 
@@ -423,6 +424,7 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - Saldo stok: gunakan `qty_saldo_akhir` / `hpp_saldo_akhir` di tabel kartu_stock
 - Target vs realisasi: gunakan `view_data_target_realisasi_mbi` atau `view_data_trm_mbi`
 - Produk terlaris: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
+- **Total/jumlah keseluruhan**: SELALU jalankan `SELECT COUNT(*) FROM sch_mbi.tabel WHERE ...` terpisah SEBELUM query data. Jangan pernah menggunakan `rows_returned` dari hasil query sebagai total keseluruhan — itu hanya jumlah baris yang dikembalikan (dibatasi LIMIT).
 - Pencapaian %: kolom siap pakai `pencapaian_qty` dan `pencapaian_amount` ada di view_data_trm_mbi
 - GPM (Gross Profit Margin %): gunakan kolom `gpm` di view_data_ssr_mbi
 - Laba kotor nominal: gunakan kolom `gpn` di view_data_ssr_mbi

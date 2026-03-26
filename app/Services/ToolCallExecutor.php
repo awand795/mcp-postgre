@@ -253,20 +253,25 @@ class ToolCallExecutor
 
         $data = array_map(fn($row) => (array) $row, $rows);
 
-        // FIX: Batasi ukuran response agar tidak overflow context window AI
-        // Jika data lebih dari 50 baris, kirim ringkasan + sample saja
-        $total = count($data);
-        $sample = array_slice($data, 0, 50);
+        // PENTING: $total di sini hanya jumlah baris yang dikembalikan query ini (maks = LIMIT).
+        // Ini BUKAN total seluruh data di tabel. Jangan gunakan angka ini sebagai total keseluruhan.
+        // Untuk mendapat total keseluruhan, AI harus menjalankan query COUNT(*) terpisah.
+        $returned = count($data);
+        $sample   = array_slice($data, 0, 50);
 
         $result = [
-            'label'   => $label,
-            'total'   => $total,
-            'columns' => array_keys($data[0]),
-            'rows'    => $sample,
+            'label'            => $label,
+            'rows_returned'    => $returned,   // jumlah baris dari query ini (dibatasi LIMIT)
+            'rows_in_sample'   => count($sample),
+            'columns'          => array_keys($data[0]),
+            'rows'             => $sample,
+            'warning'          => 'rows_returned hanya mencerminkan baris yang dikembalikan query ini (dibatasi LIMIT). '
+                                 . 'Ini BUKAN total keseluruhan data di tabel. '
+                                 . 'Untuk total keseluruhan, jalankan query COUNT(*) secara terpisah.',
         ];
 
-        if ($total > 50) {
-            $result['note'] = "Menampilkan 50 dari {$total} baris. Gunakan query lebih spesifik untuk mempersempit hasil.";
+        if ($returned > 50) {
+            $result['sample_note'] = "Ditampilkan 50 dari {$returned} baris yang dikembalikan query ini.";
         }
 
         return json_encode($result);
