@@ -267,6 +267,13 @@ class AgenticChatbotController extends Controller
                 ],
                 CURLOPT_TIMEOUT        => 300,
                 CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_NOPROGRESS     => false,
+                CURLOPT_PROGRESSFUNCTION => function($clientp, $dltotal, $dlnow, $ultotal, $ulnow) {
+                    if (connection_aborted()) return 1; // Stop curl if client closed connection
+                    echo ": keepalive\n\n";
+                    ob_flush(); flush();
+                    return 0;
+                },
             ]);
 
             $body     = curl_exec($ch);
