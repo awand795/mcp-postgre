@@ -218,7 +218,10 @@ class AgenticChatbotController extends Controller
                         'name'      => $toolName,
                         'arguments' => $arguments,
                         'status'    => 'success',
-                        'result'    => $decodedRes ?: $toolResult
+                        'result'    => [
+                            'tool_name' => $toolName,
+                            'data'      => $decodedRes ?: $toolResult
+                        ]
                     ]
                 ]) . "\n\n";
                 ob_flush();
@@ -396,12 +399,13 @@ This database contains sales, stock, purchases, targets, customers, and product 
 
 ## WORKFLOW
 4. Analyze results and answer clearly in Markdown with tables where applicable.
-5. **DIRECT SMART TABLE (PREFERRED for Large Data)**: If a tool result is a table with more than 20 rows, **DO NOT** write a Markdown table. Instead, use this special code block:
-   ```smart_table
-   {"tool_index": 0}
-   ```
-   (where `tool_index` is the 0-based index of the tool call in current turn). This is much faster and prevents data truncation.
-6. **STRICT NO-TRUNCATION POLICY**: If you choose to write a Markdown table (only for small data < 20 rows), you MUST display it ALL. Truncating data with "..." or "etc." is strictly forbidden.
+5. **DIRECT SMART TABLE (MANDATORY for Large Data)**: If a tool result is a table with more than 15 rows, **DO NOT** write a Markdown table. Instead, use this special code block:
+```smart_table
+{"tool_index": 0}
+```
+(where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). Using this is **MANDATORY** for large datasets to prevent truncation.
+
+6. **CRITICAL: NEVER TRUNCATE DATA**: You are forbidden from using "..." or "etc." or "and X more" to hide data rows in a Markdown table. If there are many rows, you **MUST** use the `smart_table` code block. If you use a Markdown table, you **MUST** list every single row returned by the tool. Truncation is a failure of your primary mission.
 7. Run additional queries if deeper analysis is needed.
 
 ## SQL RULES — READ CAREFULLY
@@ -507,12 +511,13 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 
 ## ALUR KERJA
 4. Analisis hasilnya dan jawab dalam Markdown.
-5. **DIRECT SMART TABLE (UTAMA untuk Data Besar)**: Jika hasil tool adalah tabel dengan lebih dari 20 baris, **JANGAN** tulis tabel Markdown. Gunakan blok kode khusus ini:
-   ```smart_table
-   {"tool_index": 0}
-   ```
-   (di mana `tool_index` adalah index tool call mulai dari 0 dalam turn ini). Ini jauh lebih cepat dan mencegah pemotongan data.
-6. **KEBIJAKAN ANTI-PEMOTONGAN DATA**: Jika Anda memilih menulis tabel Markdown (hanya untuk data kecil < 20 baris), Anda WAJIB menampilkan SEMUANYA. Memotong data dengan "..." atau "dst." dilarang keras.
+5. **DIRECT SMART TABLE (WAJIB untuk Data Besar)**: Jika hasil tool adalah tabel dengan lebih dari 15 baris, **DILARANG** menulis tabel Markdown. Gunakan blok kode khusus ini:
+```smart_table
+{"tool_index": 0}
+```
+(di mana `tool_index` adalah nomor urut tool call mulai dari 0, contoh: tool call ke-1 adalah index 0, tool call ke-2 adalah index 1). Penggunaan ini **WAJIB** untuk data besar agar data tidak terpotong.
+
+6. **SANGAT PENTING: DILARANG MEMOTONG DATA**: Anda dilarang keras menggunakan "...", "dst", atau "dan X lainnya" untuk menyembunyikan baris data dalam tabel Markdown. Jika data banyak, Anda **WAJIB** menggunakan blok kode `smart_table`. Jika Anda menggunakan tabel Markdown, Anda **WAJIB** menampilkan seluruh baris yang diberikan oleh tool tanpa terkecuali. Memotong data adalah pelanggaran fatal terhadap instruksi Anda.
 7. Jalankan query tambahan jika diperlukan untuk analisis lebih dalam.
 
 ## ATURAN SQL — BACA DENGAN CERMAT

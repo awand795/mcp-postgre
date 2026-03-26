@@ -66,6 +66,7 @@
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1.0)} }
 
+
         /* Markdown styles */
         .markdown-body { line-height: 1.6; }
         .markdown-body p { margin: 6px 0; font-size: 13px; }
@@ -130,9 +131,12 @@
         .smart-table-scroll th.sort-asc .sort-icon,
         .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #f53003; }
         .smart-table-scroll td {
-            padding: 7px 13px; border-bottom: 1px solid rgba(255,255,255,0.05);
-            color: #d4d4d0; white-space: nowrap; font-size: 11px;
+            padding: 7px 13px !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+            color: #d4d4d0 !important; max-width: 300px !important; font-size: 11px !important;
+            overflow: hidden !important; text-overflow: ellipsis !important;
+            white-space: nowrap !important;
         }
+        .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.4 !important; min-width: 200px !important; }
         .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
         .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
         .smart-table-pagination {
@@ -189,6 +193,25 @@
             #message-input { font-size: 14px !important; padding-left: 12px !important; }
             #send-btn { width: 36px !important; }
             .text-\[10px\] { font-size: 9px !important; }
+        }
+        .smart-table-btn {
+            background: rgba(245, 48, 3, 0.1);
+            color: #f53003;
+            border: 1px solid rgba(245, 48, 3, 0.2);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 0 2px;
+        }
+        .smart-table-btn:hover:not(:disabled) {
+            background: #f53003;
+            color: white;
+        }
+        .smart-table-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -261,6 +284,7 @@
         <div id="typing-inner" class="hidden"></div>
         <span id="typing-text" class="hidden"></span>
 
+
         <!-- Input -->
         <div class="p-5 bg-black/20 border-t border-white/10 flex-shrink-0">
             <div class="relative">
@@ -302,26 +326,34 @@
         let isLoading = false;
 
         // ── SmartTable Engine ─────────────────────────────────────────────────
-        // Data lengkap disimpan di memory (smartTables[id].allRows).
-        // DOM hanya merender PAGE_SIZE baris agar browser ringan meski data ribuan baris.
         const smartTables = {};
         const PAGE_SIZE = 50;
 
-        function parseMarkdownTable(header, body) {
-            // Parse headers — handle any HTML inside <th>
-            const thM = [...header.matchAll(/<th[^>]*>([\/\s\S]*?)<\/th>/gi)];
-            const headers = thM.map(m => m[1].replace(/<[^>]+>/g, '').trim());
-
-            // Parse rows — use a DOM parser for reliability instead of regex
-            const tmpDiv = document.createElement('div');
-            tmpDiv.innerHTML = '<table><tbody>' + body + '</tbody></table>';
-            const rows = [];
-            tmpDiv.querySelectorAll('tr').forEach(tr => {
-                const cells = [];
-                tr.querySelectorAll('td').forEach(td => cells.push(td.textContent.trim()));
-                if (cells.length > 0) rows.push(cells);
+        // Setup MutationObserver to watch for new smart tables
+        const tableObserver = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        if (node.classList && node.classList.contains('smart-table-wrap')) {
+                            const bubble = node.closest('.chat-bubble-ai') || node.closest('[class*="chat-bubble"]');
+                            if (bubble) {
+                                setTimeout(() => initSmartTablesInBubble(bubble), 10);
+                            }
+                        }
+                        node.querySelectorAll('.smart-table-wrap').forEach(wrap => {
+                            const bubble = wrap.closest('.chat-bubble-ai') || wrap.closest('[class*="chat-bubble"]');
+                            if (bubble && !wrap.getAttribute('data-initialized')) {
+                                setTimeout(() => initSmartTablesInBubble(bubble), 10);
+                            }
+                        });
+                    }
+                });
             });
-            return { headers, rows };
+        });
+
+        const chatContainer = document.getElementById('chat-messages');
+        if (chatContainer) {
+            tableObserver.observe(chatContainer, { childList: true, subtree: true });
         }
 
         const currencyFormatter = new Intl.NumberFormat('id-ID', {
@@ -337,27 +369,17 @@
             return h.includes('total') || h.includes('amount') || h.includes('dpp') || 
                    h.includes('netto') || h.includes('cogs') || h.includes('gpn') || 
                    h.includes('harga') || h.includes('price') || h.includes('nominal') ||
-                   h.includes('sales') || h.includes('laba') || h.includes('profit');
+                   h.includes('sales') || h.includes('laba') || h.includes('profit') ||
+                   h.includes('pencapaian');
         }
 
         function formatCellValue(val, header) {
             if (val === null || val === undefined || val === '') return '';
-            if (isCurrencyColumn(header)) {
-                let s = String(val).replace(/Rp|\s/gi, '');
-                const dotCount = (s.match(/\./g) || []).length;
-                const commaCount = (s.match(/,/g) || []).length;
-
-                // Detect Indonesian format: 1.234.567,89 or 1.234.567
-                if (dotCount > 1 || (dotCount === 1 && commaCount === 1)) {
-                    s = s.replace(/\./g, '').replace(',', '.');
-                } else if (dotCount === 1 && s.split('.')[1].length !== 2 && s.split('.')[1].length !== 3) {
-                    // Small heuristic: if 1 dot and not 2/3 digits after it, might be decimal. 
-                    // But if it's 1.000, it's almost always a thousand separator in this context.
-                }
-
-                const num = parseFloat(s.replace(/[^0-9.-]/g, ''));
+            if (header && isCurrencyColumn(header)) {
+                const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
                 if (!isNaN(num)) return currencyFormatter.format(num);
             }
+            if (typeof val === 'number') return val.toLocaleString('id-ID');
             return val;
         }
 
@@ -366,21 +388,17 @@
             if (!st) return;
             const { headers, allRows, sortCol, sortDir, query } = st;
 
-            // Filter
             let filtered = allRows;
             if (query) {
                 const q = query.toLowerCase();
                 filtered = allRows.filter(row => row.some(c => String(c).toLowerCase().includes(q)));
             }
-            // Sort
             if (sortCol >= 0) {
                 filtered = [...filtered].sort((a, b) => {
                     const va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
                     const na = parseFloat(String(va).replace(/[^0-9.-]/g, '')),
                           nb = parseFloat(String(vb).replace(/[^0-9.-]/g, ''));
-                    const cmp = (!isNaN(na) && !isNaN(nb))
-                        ? (na - nb)
-                        : String(va).localeCompare(String(vb), 'id');
+                    const cmp = (!isNaN(na) && !isNaN(nb)) ? (na - nb) : String(va).localeCompare(String(vb), 'id');
                     return sortDir === 'asc' ? cmp : -cmp;
                 });
             }
@@ -394,104 +412,145 @@
             const wrap = document.getElementById(tableId);
             if (!wrap) return;
 
-            // Info bar
             const info = wrap.querySelector('.smart-table-info');
-            if (info) {
-                const txt = filtered.length < allRows.length
-                    ? `${filtered.length.toLocaleString('id')} dari ${allRows.length.toLocaleString('id')} baris`
-                    : `${allRows.length.toLocaleString('id')} baris`;
-                info.textContent = `📊 ${txt} · ${headers.length} kolom`;
-            }
+            if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
 
-            // Thead (sortable)
             const thead = wrap.querySelector('thead');
             if (thead) {
                 thead.innerHTML = '<tr>' + headers.map((h, i) => {
-                    const cls  = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+                    const cls = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
                     const icon = sortCol === i ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼';
                     return `<th class="${cls}" data-col="${i}">${h}<span class="sort-icon">${icon}</span></th>`;
                 }).join('') + '</tr>';
                 thead.querySelectorAll('th').forEach(th => {
-                    th.addEventListener('click', () => {
+                    th.onclick = () => {
                         const col = parseInt(th.dataset.col);
                         st.sortDir = (st.sortCol === col && st.sortDir === 'asc') ? 'desc' : 'asc';
                         st.sortCol = col;
                         st.page = 0;
                         buildSmartTable(tableId);
-                    });
+                    };
                 });
             }
 
-            // Tbody
             const tbody = wrap.querySelector('tbody');
             if (tbody) {
                 tbody.innerHTML = pageRows.length === 0
-                    ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data yang cocok</td></tr>`
-                    : pageRows.map(row =>
-                        '<tr>' + headers.map((_, i) => `<td>${formatCellValue(row[i], headers[i])}</td>`).join('') + '</tr>'
-                    ).join('');
+                    ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`
+                    : pageRows.map(row => '<tr>' + headers.map((h, i) => {
+                        const isLong = String(row[i]).length > 40;
+                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h)}</td>`;
+                    }).join('') + '</tr>').join('');
             }
 
-            // Pagination
             const pag = wrap.querySelector('.smart-table-pagination');
             if (pag) {
                 const pageInfo = pag.querySelector('.smart-table-page-info');
-                if (pageInfo) {
-                    const from = curPage * PAGE_SIZE + 1;
-                    const to   = Math.min((curPage + 1) * PAGE_SIZE, filtered.length);
-                    pageInfo.textContent = `Baris ${from}–${to} · Hal ${curPage + 1}/${totalPages} · klik header = sort`;
-                }
+                if (pageInfo) pageInfo.textContent = `Hal ${curPage + 1}/${totalPages}`;
                 const btns = pag.querySelector('.smart-table-btns');
                 if (btns) {
-                    const nums = [];
-                    if (totalPages <= 7) {
-                        for (let i = 0; i < totalPages; i++) nums.push(i);
-                    } else {
-                        nums.push(0);
-                        if (curPage > 2) nums.push('...');
-                        for (let i = Math.max(1, curPage - 1); i <= Math.min(totalPages - 2, curPage + 1); i++) nums.push(i);
-                        if (curPage < totalPages - 3) nums.push('...');
-                        nums.push(totalPages - 1);
-                    }
-                    btns.innerHTML =
-                        `<button class="st-btn" data-action="prev" ${curPage === 0 ? 'disabled' : ''}>‹</button>` +
-                        nums.map(p => p === '...'
-                            ? `<span style="color:#706f6c;font-size:11px;padding:0 3px">…</span>`
-                            : `<button class="st-btn ${p === curPage ? 'active' : ''}" data-action="goto" data-page="${p}">${p + 1}</button>`
-                        ).join('') +
-                        `<button class="st-btn" data-action="next" ${curPage >= totalPages - 1 ? 'disabled' : ''}>›</button>`;
-                    btns.querySelectorAll('.st-btn').forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const action = btn.dataset.action;
-                            if (action === 'prev')      st.page = Math.max(0, st.page - 1);
-                            else if (action === 'next') st.page = Math.min(totalPages - 1, st.page + 1);
-                            else if (action === 'goto') st.page = parseInt(btn.dataset.page);
-                            buildSmartTable(tableId);
-                        });
-                    });
+                    btns.innerHTML = `<button class="st-btn" ${curPage === 0 ? 'disabled' : ''} id="${tableId}-prev">‹</button>` +
+                                   `<button class="st-btn" ${curPage >= totalPages - 1 ? 'disabled' : ''} id="${tableId}-next">›</button>`;
+                    document.getElementById(`${tableId}-prev`).onclick = () => { st.page--; buildSmartTable(tableId); };
+                    document.getElementById(`${tableId}-next`).onclick = () => { st.page++; buildSmartTable(tableId); };
                 }
             }
         }
-
         function initSmartTablesInBubble(bubble) {
-            bubble.querySelectorAll('.smart-table-wrap[data-table-id]:not([data-initialized])').forEach(wrap => {
-                const tableId = wrap.getAttribute('data-table-id');
-                try {
-                    // Decode base64 → JSON (mendukung semua karakter termasuk kutip, unicode, dll)
-                    const hb64 = wrap.getAttribute('data-headers-b64') || '';
-                    const rb64 = wrap.getAttribute('data-rows-b64') || '';
-                    const headers = hb64
-                        ? JSON.parse(decodeURIComponent(escape(atob(hb64))))
-                        : JSON.parse(wrap.getAttribute('data-headers') || '[]'); // fallback lama
-                    const allRows = rb64
-                        ? JSON.parse(decodeURIComponent(escape(atob(rb64))))
-                        : JSON.parse(wrap.getAttribute('data-rows') || '[]'); // fallback lama
+            bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
+                const tableId = wrap.getAttribute('data-table-id') || ('st-' + Math.random().toString(36).substr(2, 9));
+                const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
 
+                let headers = [];
+                let allRows = [];
+                let toolRes = null;
+
+                try {
+                    // CASE A: Static Data (from history/base64)
+                    const hb64 = wrap.getAttribute('data-headers-b64');
+                    const rb64 = wrap.getAttribute('data-rows-b64');
+
+                    if (hb64 && rb64) {
+                        headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
+                        allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                    }
+                    // CASE B: Dynamic Data (from tool result)
+                    else if (!isNaN(toolIdx)) {
+                        toolRes = currentToolResults[toolIdx];
+                        
+                        const hasValidData = (res) => {
+                            if (!res) return false;
+                            if (res.data && res.data.rows) return true;
+                            if (res.rows) return true;
+                            return false;
+                        };
+
+                        if (!hasValidData(toolRes)) {
+                            for (let i = currentToolResults.length - 1; i >= 0; i--) {
+                                const r = currentToolResults[i];
+                                if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
+                                    toolRes = r;
+                                    break;
+                                }
+                            }
+                            
+                            if (!hasValidData(toolRes)) {
+                                for (let i = currentToolResults.length - 1; i >= 0; i--) {
+                                    const r = currentToolResults[i];
+                                    if (r && hasValidData(r)) {
+                                        toolRes = r;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!toolRes) {
+                            wrap.setAttribute('data-initialized', 'waiting');
+                            return;
+                        }
+
+                        if (toolRes.error) {
+                            const thead = wrap.querySelector('thead');
+                            const tbody = wrap.querySelector('tbody');
+                            if (thead) thead.innerHTML = '<tr><th class="p-4 text-red-500">⚠️ Kesalahan Query</th></tr>';
+                            if (tbody) tbody.innerHTML = `<tr><td class="p-4 text-center opacity-60 italic text-red-400">${toolRes.error}</td></tr>`;
+                            wrap.setAttribute('data-initialized', 'true');
+                            return;
+                        }
+
+                        const tableData = toolRes.data || toolRes;
+                        
+                        if (tableData.rows && Array.isArray(tableData.rows)) {
+                            headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
+                            allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
+                        } else if (Array.isArray(tableData)) {
+                             if (tableData[0] && typeof tableData[0] === 'object') {
+                                headers = Object.keys(tableData[0]);
+                                allRows = tableData.map(r => headers.map(h => r[h]));
+                             } else {
+                                headers = ['Info'];
+                                allRows = tableData.map(r => [r]);
+                             }
+                        }
+                    }
+
+                    // If no data, don't initialize yet (wait for data to arrive)
+                    if (allRows.length === 0 && !toolRes) {
+                        wrap.setAttribute('data-initialized', 'waiting');
+                        return;
+                    }
+
+                    // Store state for pagination/sorting
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: ''
                     };
-                    wrap.setAttribute('data-initialized', '1');
+
+                    wrap.setAttribute('data-initialized', 'true');
+                    if (!wrap.id) wrap.id = tableId;
+
+                    // Init Search
                     const searchInput = wrap.querySelector('.smart-table-search');
                     if (searchInput) {
                         searchInput.addEventListener('input', () => {
@@ -500,170 +559,94 @@
                             buildSmartTable(tableId);
                         });
                     }
+
                     buildSmartTable(tableId);
-                } catch (e) { console.error('SmartTable init error', e, 'tableId:', tableId); }
+
+                } catch (e) { console.error('[SmartTable] Init failed:', e, 'tableId:', tableId); }
+            });
+            
+            // Re-check any tables that were waiting for data
+            bubble.querySelectorAll('.smart-table-wrap[data-initialized="waiting"]').forEach(wrap => {
+                const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
+                if (!isNaN(toolIdx) && currentToolResults[toolIdx]) {
+                    wrap.removeAttribute('data-initialized');
+                    initSmartTablesInBubble(bubble);
+                }
+            });
+            
+            // Auto-detect: if there are smart-table-wrap elements without data-initialized attribute, try to init them
+            bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
+                initSmartTablesInBubble(bubble);
             });
         }
 
         // ── marked.js setup ───────────────────────────────────────────────────
-        const renderer = new marked.Renderer();
+        marked.use({
+            renderer: {
+                table(header, body) {
+                    let headers = [];
+                    let rows    = [];
+                    
+                    try {
+                        // In marked.use renderer, header and body are HTML strings from inner tokens
+                        // We need to parse them back or use the fact that they are already HTML
+                        // But for SmartTable, we prefer raw data.
+                        // For now, let's just render it as a standard table if it's coming through this classic renderer
+                        return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+                    } catch(e) { console.error('Table parse error', e); }
+                    return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+                },
+                code(code, lang) {
+                    const langClean = (lang || '').trim();
 
-        // ── Tabel → SmartTable (Hybrid API) ──────────────────────────────────
-        renderer.table = function(arg1, arg2) {
-            let headers = [];
-            let rows    = [];
+                    if (langClean === 'chart') {
+                        const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                        let encoded;
+                        try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
+                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
+                                <input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
+                    }
 
-            try {
-                // Case A: token object (marked v4+)
-                if (arg1 && typeof arg1 === 'object' && arg1.type === 'table') {
-                    const token = arg1;
-                    if (Array.isArray(token.header)) {
-                        headers = token.header.map(h => {
-                            const raw = (typeof h === 'object' && h !== null) ? (h.text || '') : String(h || '');
-                            return raw.replace(/<[^>]+>/g, '').trim();
-                        });
+                    if (langClean === 'smart_table') {
+                        try {
+                            if (!code.trim().endsWith('}')) {
+                                return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
+                            }
+                            const params = JSON.parse(code.trim());
+                            const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
+
+                            if (idx >= 0 && !currentToolResults[idx]) {
+                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
+                                    <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                                    <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
+                                </div>`;
+                            }
+
+                            if (idx >= 0 && currentToolResults[idx]) {
+                                const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
+                                    <div class="smart-table-toolbar">
+                                        <span class="smart-table-info">📊 Memuat...</span>
+                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                                    </div>
+                                    <div class="smart-table-scroll">
+                                        <table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
+                                    </div>
+                                    <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
+                                </div>`;
+                            }
+                        } catch(e) { return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>'; }
+                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
                     }
-                    if (Array.isArray(token.rows)) {
-                        rows = token.rows.map(row => 
-                            row.map(cell => {
-                                const raw = (typeof cell === 'object' && cell !== null) ? (cell.text || '') : String(cell || '');
-                                return raw.replace(/<[^>]+>/g, '').trim();
-                            })
-                        );
-                    }
-                } 
-                // Case B: (header, body) strings (legacy/marked v2)
-                else if (typeof arg1 === 'string') {
-                    const parsed = parseMarkdownTable(arg1, arg2 || '');
-                    headers = parsed.headers;
-                    rows    = parsed.rows;
+
+                    const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    return `<pre><code class="language-${langClean || 'plaintext'}">${escaped}</code></pre>`;
                 }
-            } catch(e) { console.error('Table parse error', e); }
-
-            if (headers.length === 0) {
-                // Final fallback: standard table if all else fails
-                if (typeof arg1 === 'string' && typeof arg2 === 'string') {
-                    return `<div class="table-wrap"><table><thead>${arg1}</thead><tbody>${arg2}</tbody></table></div>`;
-                }
-                return '<div class="table-wrap">⚠️ Gagal render tabel</div>';
-            }
-            
-            const tableId = 'st-' + Math.random().toString(36).substr(2, 9);
-            let hEnc, rEnc;
-            try {
-                hEnc = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
-                rEnc = btoa(unescape(encodeURIComponent(JSON.stringify(rows))));
-            } catch(e) { hEnc = btoa(JSON.stringify(headers)); rEnc = btoa(JSON.stringify(rows)); }
-
-            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers-b64="${hEnc}" data-rows-b64="${rEnc}">
-                <div class="smart-table-toolbar">
-                    <span class="smart-table-info">📊 Memuat...</span>
-                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
-                </div>
-                <div class="smart-table-scroll">
-                    <table>
-                        <thead><tr>${headers.map(h => `<th>${h}<span class='sort-icon'>▲▼</span></th>`).join('')}</tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-                <div class="smart-table-pagination">
-                    <span class="smart-table-page-info"></span>
-                    <div class="smart-table-btns"></div>
-                </div>
-            </div>`;
-        };
-
-        // Render custom Chart blocks
-        // marked v9: renderer.code dipanggil dengan (token) object jika menggunakan Renderer override
-        // atau dengan (code, infostring, escaped) jika memakai pendekatan lama.
-        // Kita handle keduanya:
-        renderer.code = function(token) {
-            // marked v9+ passes a token object; older versions pass (code, lang)
-            let code, language;
-            if (typeof token === 'object' && token !== null && 'text' in token) {
-                code = token.text;
-                language = token.lang || '';
-            } else {
-                // Fallback: token = code string, second arg = language
-                code = token;
-                language = arguments[1] || '';
-            }
-            if (language === 'chart') {
-                const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
-                // Simpan data sebagai base64 untuk menghindari masalah encoding dengan karakter khusus
-                let encoded;
-                try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
-                return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
-                        <input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
-            }
-
-            // ── DIRECT SMART TABLE RENDERER ──────────────────────────────────
-            if (language === 'smart_table') {
-                try {
-                    // Jika JSON belum lengkap (masih streaming), jangan tampilkan error dulu
-                    if (!code.trim().endsWith('}')) {
-                        return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
-                    }
-
-                    const params = JSON.parse(code);
-                    const idx = params.tool_index !== undefined ? params.tool_index : -1;
-                    const toolRes = (idx >= 0 && currentToolResults[idx]) ? currentToolResults[idx] : null;
-
-                    if (toolRes) {
-                        let headers = [];
-                        let rows    = [];
-
-                        // Case A: Standard object with rows/columns (execute_query)
-                        if (toolRes.rows && Array.isArray(toolRes.rows)) {
-                            headers = toolRes.columns || (toolRes.rows[0] ? Object.keys(toolRes.rows[0]) : []);
-                            rows    = toolRes.rows.map(r => headers.map(h => r[h]));
-                        } 
-                        // Case B: Simple array of objects
-                        else if (Array.isArray(toolRes) && toolRes[0] && typeof toolRes[0] === 'object') {
-                            headers = Object.keys(toolRes[0]);
-                            rows    = toolRes.map(r => headers.map(h => r[h]));
-                        }
-                        // Case C: Array of strings/primitives
-                        else if (Array.isArray(toolRes)) {
-                            headers = ['Data'];
-                            rows    = toolRes.map(v => [v]);
-                        }
-
-                        if (rows.length > 0) {
-                            const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
-                            const hEnc = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
-                            const rEnc = btoa(unescape(encodeURIComponent(JSON.stringify(rows))));
-
-                            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers-b64="${hEnc}" data-rows-b64="${rEnc}">
-                                <div class="smart-table-toolbar">
-                                    <span class="smart-table-info">📊 Memuat...</span>
-                                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
-                                </div>
-                                <div class="smart-table-scroll">
-                                    <table>
-                                        <thead><tr>${headers.map(h => `<th>${h}<span class='sort-icon'>▲▼</span></th>`).join('')}</tr></thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                                <div class="smart-table-pagination">
-                                    <span class="smart-table-page-info"></span>
-                                    <div class="smart-table-btns"></div>
-                                </div>
-                            </div>`;
-                        }
-                    }
-                } catch(e) { 
-                    // Selama streaming, JSON parse error adalah wajar
-                    return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
-                }
-                return '<div class="table-wrap">⚠️ Data tabel tidak ditemukan atau kosong (Tool #' + (idx || '?') + ')</div>';
-            }
-
-            const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-            return `<pre><code class="language-${language || 'plaintext'}">${escaped}</code></pre>`;
-        };
-
-        marked.use({ renderer, gfm: true, breaks: true, pedantic: false });
+            },
+            gfm: true,
+            breaks: true,
+            pedantic: false
+        });
 
         function renderMarkdown(text) {
             if (!text) return '';
@@ -677,6 +660,7 @@
         // ── Label notifikasi bisnis ───────────────────────────────────────────
         const toolIcons  = { list_tables:'📊', describe_table:'🔎', execute_query:'📈', get_schema_info:'🗂️' };
         const toolLabels = { list_tables:'Melihat data yang tersedia', describe_table:'Memeriksa informasi data', execute_query:'Membaca data', get_schema_info:'Melihat data' };
+
 
         // ── Loading state ─────────────────────────────────────────────────────
         function setLoading(loading) {
@@ -780,9 +764,9 @@
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
                                 } else if (tc.status === 'success') {
-                                    // Simpan hasil untuk Direct Smart Table
                                     if (tc.result) {
                                         currentToolResults.push(tc.result);
+                                        renderStreamToBubble(bubble, aiResponseText);
                                     }
                                     
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
@@ -842,6 +826,7 @@
             wrap.appendChild(timeEl);
             return { bubble, toolArea, wrapper: wrap };
         }
+
 
         // ── Init Charts ───────────────────────────────────────────────────────
         function initChartsInBubble(bubble) {
