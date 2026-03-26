@@ -324,6 +324,43 @@
             return { headers, rows };
         }
 
+        const currencyFormatter = new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+
+        function isCurrencyColumn(header) {
+            if (!header) return false;
+            const h = header.toLowerCase();
+            return h.includes('total') || h.includes('amount') || h.includes('dpp') || 
+                   h.includes('netto') || h.includes('cogs') || h.includes('gpn') || 
+                   h.includes('harga') || h.includes('price') || h.includes('nominal') ||
+                   h.includes('sales') || h.includes('laba') || h.includes('profit');
+        }
+
+        function formatCellValue(val, header) {
+            if (val === null || val === undefined || val === '') return '';
+            if (isCurrencyColumn(header)) {
+                let s = String(val).replace(/Rp|\s/gi, '');
+                const dotCount = (s.match(/\./g) || []).length;
+                const commaCount = (s.match(/,/g) || []).length;
+
+                // Detect Indonesian format: 1.234.567,89 or 1.234.567
+                if (dotCount > 1 || (dotCount === 1 && commaCount === 1)) {
+                    s = s.replace(/\./g, '').replace(',', '.');
+                } else if (dotCount === 1 && s.split('.')[1].length !== 2 && s.split('.')[1].length !== 3) {
+                    // Small heuristic: if 1 dot and not 2/3 digits after it, might be decimal. 
+                    // But if it's 1.000, it's almost always a thousand separator in this context.
+                }
+
+                const num = parseFloat(s.replace(/[^0-9.-]/g, ''));
+                if (!isNaN(num)) return currencyFormatter.format(num);
+            }
+            return val;
+        }
+
         function buildSmartTable(tableId) {
             const st = smartTables[tableId];
             if (!st) return;
@@ -391,7 +428,7 @@
                 tbody.innerHTML = pageRows.length === 0
                     ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data yang cocok</td></tr>`
                     : pageRows.map(row =>
-                        '<tr>' + headers.map((_, i) => `<td>${row[i] ?? ''}</td>`).join('') + '</tr>'
+                        '<tr>' + headers.map((_, i) => `<td>${formatCellValue(row[i], headers[i])}</td>`).join('') + '</tr>'
                     ).join('');
             }
 
@@ -810,46 +847,91 @@
         function initChartsInBubble(bubble) {
             bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
                 const chartId = provider.getAttribute('data-id');
-                const canvas  = document.getElementById(chartId);
+                let canvas    = document.getElementById(chartId);
                 if (!canvas || canvas.getAttribute('data-chart-initialized')) return;
 
-                // Decode dari base64 (encoding aman untuk semua karakter)
+                const container = canvas.closest('.chart-container');
                 let rawData = '';
                 try {
                     const b64 = provider.getAttribute('data-b64') || '';
                     if (b64) {
                         rawData = decodeURIComponent(escape(atob(b64)));
                     } else {
-                        // Fallback untuk data lama pakai value attribute
+                        // Fallback data lama
                         rawData = provider.value.replace(/&apos;/g, "'");
                     }
-                } catch(decodeErr) {
-                    console.error('Chart decode error:', decodeErr);
-                    const container = canvas.closest('.chart-container');
-                    if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal decode data grafik.</p>';
+                } catch(e) { return; }
+
+                const cleanJson = rawData.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+
+                // Jika sedang streaming (belum tutup }), jangan parse, tampilkan loading
+                if (!cleanJson.endsWith('}')) {
+                    if (container && !container.querySelector('.chart-loading')) {
+                        container.insertAdjacentHTML('afterbegin', `<div class="chart-loading absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] rounded-xl z-20">
+                            <span class="opacity-60 animate-pulse text-xs flex items-center gap-2 text-white">
+                                <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                📊 Menyiapkan grafik...
+                            </span>
+                        </div>`);
+                        canvas.style.opacity = '0.3';
+                    }
                     return;
                 }
 
-                // Bersihkan JSON — hapus komentar JS-style sebelum parse
-                const cleanJson = rawData
-                    .replace(/\/\/[^\n]*/g, '')       // hapus // komentar
-                    .replace(/\/\*[\s\S]*?\*\//g, '') // hapus /* */ komentar
-                    .trim();
-
                 try {
                     const config = JSON.parse(cleanJson);
+                    // Hapus loader jika ada
+                    const loader = container ? container.querySelector('.chart-loading') : null;
+                    if (loader) loader.remove();
+                    canvas.style.opacity = '1';
+
                     config.options = config.options || {};
                     config.options.responsive = true;
                     config.options.maintainAspectRatio = false;
-                    // Pastikan warna label axis terisi default jika tidak ada
+                    
+                    // Pastikan warna tema gelap jika tidak diset AI
                     if (!config.options.plugins) config.options.plugins = {};
-                    if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff' } };
+                    if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff', font: { size: 10 } } };
+                    
+                    if (!config.options.scales) config.options.scales = {};
+                    const scales = config.options.scales;
+                    ['x', 'y'].forEach(axis => {
+                        if (!scales[axis]) scales[axis] = {};
+                        if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
+                        if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
+                        
+                        // Format currency di ticks Y jika datanya besar
+                        if (axis === 'y') {
+                            const oldCallback = scales[axis].ticks.callback;
+                            scales[axis].ticks.callback = function(value) {
+                                if (oldCallback) return oldCallback.call(this, value);
+                                if (value >= 1000 || value <= -1000) {
+                                    return 'Rp ' + value.toLocaleString('id-ID');
+                                }
+                                return value;
+                            };
+                        }
+                    });
+
+                    // Format tooltips sebagai Rupiah
+                    if (!config.options.plugins.tooltip) config.options.plugins.tooltip = {};
+                    if (!config.options.plugins.tooltip.callbacks) config.options.plugins.tooltip.callbacks = {};
+                    config.options.plugins.tooltip.callbacks.label = function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) {
+                            label += currencyFormatter.format(context.parsed.y);
+                        }
+                        return label;
+                    };
+
                     new Chart(canvas, config);
                     canvas.setAttribute('data-chart-initialized', 'true');
                     provider.remove();
                 } catch (e) {
-                    console.error('Chart.js init error:', e, 'JSON:', cleanJson.substring(0, 200));
-                    const container = canvas.closest('.chart-container');
+                    const loader = container ? container.querySelector('.chart-loading') : null;
+                    if (loader) loader.remove();
+                    console.error('Chart.js init error:', e);
                     if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik: ' + e.message + '</p>';
                 }
             });
