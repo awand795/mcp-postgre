@@ -21,68 +21,34 @@
             height: 100vh;
             overflow: hidden;
         }
-
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
-
         .chat-bubble-user {
             background: linear-gradient(135deg, #f53003, #ff4433);
             color: white;
             border-bottom-right-radius: 4px;
         }
-
         .chat-bubble-ai {
             background: rgba(255, 255, 255, 0.05);
             color: #eeeeec;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-bottom-left-radius: 4px;
         }
-
-        /* ── Tool Call Badge ── */
+        /* Tool Call Badge */
         .tool-call-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 500;
-            margin: 2px 0;
-            border: 1px solid;
-            transition: all 0.3s;
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 4px 10px; border-radius: 20px; font-size: 11px;
+            font-weight: 500; margin: 2px 0; border: 1px solid; transition: all 0.3s;
         }
-
-        .tool-call-badge.running {
-            background: rgba(245, 158, 11, 0.12);
-            border-color: rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
-        }
-
-        .tool-call-badge.done {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: rgba(16, 185, 129, 0.25);
-            color: #34d399;
-        }
-
-        .tool-call-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: currentColor;
-        }
-
-        .tool-call-dot.running {
-            animation: pulse-dot 1s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50%       { opacity: 0.4; transform: scale(0.7); }
-        }
+        .tool-call-badge.running { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fbbf24; }
+        .tool-call-badge.done    { background: rgba(16,185,129,0.1);  border-color: rgba(16,185,129,0.25); color: #34d399; }
+        .tool-call-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .tool-call-dot.running { animation: pulse-dot 1s infinite; }
+        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
@@ -92,28 +58,21 @@
 
         /* Typing dots */
         .typing-indicator span {
-            display: inline-block;
-            width: 4px;
-            height: 4px;
-            background-color: #A1A09A;
-            border-radius: 50%;
-            margin-right: 2px;
+            display: inline-block; width: 4px; height: 4px;
+            background-color: #A1A09A; border-radius: 50%; margin-right: 2px;
             animation: bounce 1.4s infinite ease-in-out both;
         }
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40%            { transform: scale(1.0); }
-        }
+        @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1.0)} }
 
-        /* ── Markdown styles ── */
+        /* Markdown styles */
         .markdown-body { line-height: 1.6; }
         .markdown-body p { margin: 6px 0; font-size: 13px; }
-        .markdown-body h1, .markdown-body h2 { font-size: 15px; font-weight: 700; color: #fff; margin: 16px 0 8px; }
+        .markdown-body h1,.markdown-body h2 { font-size: 15px; font-weight: 700; color: #fff; margin: 16px 0 8px; }
         .markdown-body h3 { font-size: 14px; font-weight: 600; color: #f97316; margin: 14px 0 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; }
         .markdown-body h4 { font-size: 13px; font-weight: 600; color: #fb923c; margin: 10px 0 4px; }
-        .markdown-body ul, .markdown-body ol { padding-left: 18px; margin: 6px 0; }
+        .markdown-body ul,.markdown-body ol { padding-left: 18px; margin: 6px 0; }
         .markdown-body li { margin: 3px 0; font-size: 13px; }
         .markdown-body strong { color: #ffffff; font-weight: 600; }
         .markdown-body em { color: #d4d4d0; font-style: italic; }
@@ -129,18 +88,71 @@
         .markdown-body table tbody tr:last-child td { border-bottom: none; }
         .markdown-body blockquote { border-left: 3px solid #f97316; padding-left: 12px; margin: 8px 0; color: #A1A09A; font-style: italic; font-size: 12px; }
         .markdown-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
-        
-        /* ── Chart Container ── */
+
+        /* Chart Container */
         .chart-container {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 15px;
-            margin: 15px 0;
-            width: 100%;
-            height: 300px;
-            position: relative;
+            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 15px; margin: 15px 0;
+            width: 100%; height: 300px; position: relative;
         }
+
+        /* ── Smart Table ── */
+        .smart-table-wrap {
+            margin: 12px 0; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden; background: rgba(0,0,0,0.2);
+        }
+        .smart-table-toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; padding: 8px 12px;
+            background: rgba(245,48,3,0.08);
+            border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap;
+        }
+        .smart-table-info { font-size: 11px; color: #A1A09A; white-space: nowrap; }
+        .smart-table-search {
+            flex: 1; min-width: 120px; max-width: 220px;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #fff;
+            outline: none; font-family: 'Outfit', sans-serif;
+        }
+        .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
+        .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
+        .smart-table-scroll { overflow-x: auto; }
+        .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+        .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
+        .smart-table-scroll th {
+            padding: 8px 13px; text-align: left; font-weight: 600; color: #fff;
+            white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.35);
+            cursor: pointer; user-select: none; font-size: 11px;
+        }
+        .smart-table-scroll th:hover { background: rgba(245,48,3,0.25); }
+        .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+        .smart-table-scroll th.sort-asc .sort-icon,
+        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #f53003; }
+        .smart-table-scroll td {
+            padding: 7px 13px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: #d4d4d0; white-space: nowrap; font-size: 11px;
+        }
+        .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
+        .smart-table-pagination {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; padding: 7px 12px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+            background: rgba(0,0,0,0.15); flex-wrap: wrap;
+        }
+        .smart-table-page-info { font-size: 11px; color: #706f6c; }
+        .smart-table-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+        .st-btn {
+            padding: 3px 9px; border-radius: 5px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04); color: #A1A09A;
+            font-size: 11px; cursor: pointer; transition: all 0.15s;
+            font-family: 'Outfit', sans-serif;
+        }
+        .st-btn:hover:not(:disabled) { background: rgba(245,48,3,0.15); color: #ff4433; border-color: rgba(245,48,3,0.3); }
+        .st-btn:disabled { opacity: 0.3; cursor: default; }
+        .st-btn.active { background: rgba(245,48,3,0.2); color: #ff4433; border-color: rgba(245,48,3,0.4); font-weight: 600; }
 
         .btn-clear { transition: all 0.2s; }
         .btn-clear:hover { background: rgba(245,48,3,0.15); color: #ff4433; }
@@ -240,8 +252,8 @@
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                     <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
                     <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
+                </div>
             </div>
-        </div>
         </div>
 
         <!-- Typing Indicator (hidden, kept for JS compatibility) -->
@@ -258,10 +270,8 @@
                 <button id="send-btn"
                     class="absolute right-2 top-1.5 bottom-1.5 w-10 bg-[#f53003] hover:bg-[#ff4433] disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all shadow-lg shadow-red-500/20">
                     <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                        stroke-linejoin="round">
-                        <path d="M5 12h14" />
-                        <path d="m12 5 7 7-7 7" />
+                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
                     </svg>
                     <svg id="loading-icon" class="w-4 h-4 hidden animate-spin" xmlns="http://www.w3.org/2000/svg"
                         fill="none" viewBox="0 0 24 24">
@@ -278,24 +288,203 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <script>
-        const messageInput   = document.getElementById('message-input');
-        const chatMessages   = document.getElementById('chat-messages');
-        const typingIndicator= document.getElementById('typing-indicator');
-        const typingText     = document.getElementById('typing-text');
-        const typingInner    = document.getElementById('typing-inner');
-        const btnClear       = document.getElementById('btn-clear-chat');
-        const sendBtn        = document.getElementById('send-btn');
-        const sendIcon       = document.getElementById('send-icon');
-        const loadingIcon    = document.getElementById('loading-icon');
+        const messageInput    = document.getElementById('message-input');
+        const chatMessages    = document.getElementById('chat-messages');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const typingText      = document.getElementById('typing-text');
+        const btnClear        = document.getElementById('btn-clear-chat');
+        const sendBtn         = document.getElementById('send-btn');
+        const sendIcon        = document.getElementById('send-icon');
+        const loadingIcon     = document.getElementById('loading-icon');
 
         let conversationHistory = [];
         let isLoading = false;
 
+        // ── SmartTable Engine ─────────────────────────────────────────────────
+        // Data lengkap disimpan di memory (smartTables[id].allRows).
+        // DOM hanya merender PAGE_SIZE baris agar browser ringan meski data ribuan baris.
+        const smartTables = {};
+        const PAGE_SIZE = 50;
+
+        function parseMarkdownTable(header, body) {
+            const thM = [...header.matchAll(/<th[^>]*>(.*?)<\/th>/gi)];
+            const headers = thM.map(m => m[1].replace(/<[^>]+>/g, '').trim());
+            const trM = [...body.matchAll(/<tr[^>]*>(.*?)<\/tr>/gis)];
+            const rows = trM.map(tr => {
+                const tdM = [...tr[1].matchAll(/<td[^>]*>(.*?)<\/td>/gi)];
+                return tdM.map(td => td[1].replace(/<[^>]+>/g, '').trim());
+            }).filter(r => r.length > 0);
+            return { headers, rows };
+        }
+
+        function buildSmartTable(tableId) {
+            const st = smartTables[tableId];
+            if (!st) return;
+            const { headers, allRows, sortCol, sortDir, query } = st;
+
+            // Filter
+            let filtered = allRows;
+            if (query) {
+                const q = query.toLowerCase();
+                filtered = allRows.filter(row => row.some(c => String(c).toLowerCase().includes(q)));
+            }
+            // Sort
+            if (sortCol >= 0) {
+                filtered = [...filtered].sort((a, b) => {
+                    const va = a[sortCol] ?? '', vb = b[sortCol] ?? '';
+                    const na = parseFloat(String(va).replace(/[^0-9.-]/g, '')),
+                          nb = parseFloat(String(vb).replace(/[^0-9.-]/g, ''));
+                    const cmp = (!isNaN(na) && !isNaN(nb))
+                        ? (na - nb)
+                        : String(va).localeCompare(String(vb), 'id');
+                    return sortDir === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            st.filteredRows = filtered;
+            const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+            st.page = Math.min(st.page, totalPages - 1);
+            const curPage = st.page;
+            const pageRows = filtered.slice(curPage * PAGE_SIZE, (curPage + 1) * PAGE_SIZE);
+
+            const wrap = document.getElementById(tableId);
+            if (!wrap) return;
+
+            // Info bar
+            const info = wrap.querySelector('.smart-table-info');
+            if (info) {
+                const txt = filtered.length < allRows.length
+                    ? `${filtered.length.toLocaleString('id')} dari ${allRows.length.toLocaleString('id')} baris`
+                    : `${allRows.length.toLocaleString('id')} baris`;
+                info.textContent = `📊 ${txt} · ${headers.length} kolom`;
+            }
+
+            // Thead (sortable)
+            const thead = wrap.querySelector('thead');
+            if (thead) {
+                thead.innerHTML = '<tr>' + headers.map((h, i) => {
+                    const cls  = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+                    const icon = sortCol === i ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼';
+                    return `<th class="${cls}" data-col="${i}">${h}<span class="sort-icon">${icon}</span></th>`;
+                }).join('') + '</tr>';
+                thead.querySelectorAll('th').forEach(th => {
+                    th.addEventListener('click', () => {
+                        const col = parseInt(th.dataset.col);
+                        st.sortDir = (st.sortCol === col && st.sortDir === 'asc') ? 'desc' : 'asc';
+                        st.sortCol = col;
+                        st.page = 0;
+                        buildSmartTable(tableId);
+                    });
+                });
+            }
+
+            // Tbody
+            const tbody = wrap.querySelector('tbody');
+            if (tbody) {
+                tbody.innerHTML = pageRows.length === 0
+                    ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data yang cocok</td></tr>`
+                    : pageRows.map(row =>
+                        '<tr>' + headers.map((_, i) => `<td>${row[i] ?? ''}</td>`).join('') + '</tr>'
+                    ).join('');
+            }
+
+            // Pagination
+            const pag = wrap.querySelector('.smart-table-pagination');
+            if (pag) {
+                const pageInfo = pag.querySelector('.smart-table-page-info');
+                if (pageInfo) {
+                    const from = curPage * PAGE_SIZE + 1;
+                    const to   = Math.min((curPage + 1) * PAGE_SIZE, filtered.length);
+                    pageInfo.textContent = `Baris ${from}–${to} · Hal ${curPage + 1}/${totalPages} · klik header = sort`;
+                }
+                const btns = pag.querySelector('.smart-table-btns');
+                if (btns) {
+                    const nums = [];
+                    if (totalPages <= 7) {
+                        for (let i = 0; i < totalPages; i++) nums.push(i);
+                    } else {
+                        nums.push(0);
+                        if (curPage > 2) nums.push('...');
+                        for (let i = Math.max(1, curPage - 1); i <= Math.min(totalPages - 2, curPage + 1); i++) nums.push(i);
+                        if (curPage < totalPages - 3) nums.push('...');
+                        nums.push(totalPages - 1);
+                    }
+                    btns.innerHTML =
+                        `<button class="st-btn" data-action="prev" ${curPage === 0 ? 'disabled' : ''}>‹</button>` +
+                        nums.map(p => p === '...'
+                            ? `<span style="color:#706f6c;font-size:11px;padding:0 3px">…</span>`
+                            : `<button class="st-btn ${p === curPage ? 'active' : ''}" data-action="goto" data-page="${p}">${p + 1}</button>`
+                        ).join('') +
+                        `<button class="st-btn" data-action="next" ${curPage >= totalPages - 1 ? 'disabled' : ''}>›</button>`;
+                    btns.querySelectorAll('.st-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const action = btn.dataset.action;
+                            if (action === 'prev')      st.page = Math.max(0, st.page - 1);
+                            else if (action === 'next') st.page = Math.min(totalPages - 1, st.page + 1);
+                            else if (action === 'goto') st.page = parseInt(btn.dataset.page);
+                            buildSmartTable(tableId);
+                        });
+                    });
+                }
+            }
+        }
+
+        function initSmartTablesInBubble(bubble) {
+            bubble.querySelectorAll('.smart-table-wrap[data-table-id]:not([data-initialized])').forEach(wrap => {
+                const tableId = wrap.getAttribute('data-table-id');
+                try {
+                    const headers = JSON.parse(wrap.getAttribute('data-headers') || '[]');
+                    const allRows = JSON.parse(wrap.getAttribute('data-rows') || '[]');
+                    smartTables[tableId] = {
+                        headers, allRows, filteredRows: allRows,
+                        page: 0, sortCol: -1, sortDir: 'asc', query: ''
+                    };
+                    wrap.setAttribute('data-initialized', '1');
+                    const searchInput = wrap.querySelector('.smart-table-search');
+                    if (searchInput) {
+                        searchInput.addEventListener('input', () => {
+                            smartTables[tableId].query = searchInput.value;
+                            smartTables[tableId].page  = 0;
+                            buildSmartTable(tableId);
+                        });
+                    }
+                    buildSmartTable(tableId);
+                } catch (e) { console.error('SmartTable init error', e); }
+            });
+        }
+
         // ── marked.js setup ───────────────────────────────────────────────────
         const renderer = new marked.Renderer();
-        renderer.table = (header, body) =>
-            `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
-            
+
+        // Tabel → SmartTable (paginated + searchable + sortable)
+        renderer.table = (header, body) => {
+            const { headers, rows } = parseMarkdownTable(header, body);
+            // Tabel kecil (≤4 baris) → render biasa, tidak perlu overhead
+            if (rows.length <= 4) {
+                return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+            }
+            const tableId = 'st-' + Math.random().toString(36).substr(2, 9);
+            // Encode JSON aman untuk data-attr HTML (single quote di-escape)
+            const hEnc = JSON.stringify(headers).replace(/'/g, "&#39;");
+            const rEnc = JSON.stringify(rows).replace(/'/g, "&#39;");
+            return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-headers='${hEnc}' data-rows='${rEnc}'>
+                <div class="smart-table-toolbar">
+                    <span class="smart-table-info">📊 Memuat...</span>
+                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                </div>
+                <div class="smart-table-scroll">
+                    <table>
+                        <thead><tr>${headers.map(h => `<th>${h}<span class='sort-icon'>▲▼</span></th>`).join('')}</tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="smart-table-pagination">
+                    <span class="smart-table-page-info"></span>
+                    <div class="smart-table-btns"></div>
+                </div>
+            </div>`;
+        };
+
         // Render custom Chart blocks
         renderer.code = (code, language) => {
             if (language === 'chart') {
@@ -312,32 +501,16 @@
             if (!text) return '';
             try {
                 return marked.parse(text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
-            } catch(e) {
+            } catch (e) {
                 return `<pre style="white-space:pre-wrap;font-size:12px">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>`;
             }
         }
 
-        // ── Label notifikasi bisnis (ramah pengguna) ──────────────────────────
-        const toolIcons = {
-            'list_tables':    '📊',
-            'describe_table': '🔎',
-            'execute_query':  '📈',
-            'get_schema_info':'🗂️',
-        };
-        const toolLabels = {
-            'list_tables':    'Melihat data yang tersedia',
-            'describe_table': 'Memeriksa informasi data',
-            'execute_query':  'Membaca data',
-            'get_schema_info':'Melihat data',
-        };
-        const toolLabelsEn = {
-            'list_tables':    'Checking available data',
-            'describe_table': 'Inspecting data details',
-            'execute_query':  'Reading data',
-            'get_schema_info':'Loading data overview',
-        };
+        // ── Label notifikasi bisnis ───────────────────────────────────────────
+        const toolIcons  = { list_tables:'📊', describe_table:'🔎', execute_query:'📈', get_schema_info:'🗂️' };
+        const toolLabels = { list_tables:'Melihat data yang tersedia', describe_table:'Memeriksa informasi data', execute_query:'Membaca data', get_schema_info:'Melihat data' };
 
-        // ── Loading state ──────────────────────────────────────────────────────
+        // ── Loading state ─────────────────────────────────────────────────────
         function setLoading(loading) {
             isLoading = loading;
             sendBtn.disabled = loading;
@@ -347,7 +520,7 @@
             typingIndicator.classList.toggle('hidden', !loading);
         }
 
-        // ── Event listeners ────────────────────────────────────────────────────
+        // ── Event listeners ───────────────────────────────────────────────────
         messageInput.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey && !isLoading) { e.preventDefault(); submitMessage(); }
         });
@@ -358,7 +531,7 @@
             addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
         });
 
-        // ── Submit ─────────────────────────────────────────────────────────────
+        // ── Submit ────────────────────────────────────────────────────────────
         async function submitMessage() {
             const message = messageInput.value.trim();
             if (!message || isLoading) return;
@@ -386,7 +559,7 @@
                     body: JSON.stringify({ message, history: conversationHistory }),
                 });
 
-                // FIX: Tangani error JSON response (non-stream) dari server
+                // Tangani error JSON response (non-stream) dari server
                 const contentType = response.headers.get('content-type') || '';
                 if (contentType.includes('application/json')) {
                     const json = await response.json();
@@ -413,83 +586,57 @@
                     for (const line of lines) {
                         const trimmed = line.trim();
                         if (!trimmed || !trimmed.startsWith('data:')) continue;
-
                         const dataStr = trimmed.slice(5).trim();
                         if (dataStr === '[DONE]') continue;
 
                         try {
                             const parsed = JSON.parse(dataStr);
 
-                            // ── Streaming text chunk ──────────────────────────
                             if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                 aiResponseText += parsed.chunk;
                                 renderStreamToBubble(bubble, aiResponseText);
                             }
 
-                            // ── Notifikasi proses (label bisnis) ──────────────
                             if (parsed.tool_call) {
-                                const tc = parsed.tool_call;
-                                const icon  = toolIcons[tc.name] || '🔄';
+                                const tc    = parsed.tool_call;
+                                const icon  = toolIcons[tc.name]  || '🔄';
                                 const label = toolLabels[tc.name] || 'Memproses data';
-
                                 if (tc.status === 'running') {
                                     const badge = document.createElement('div');
                                     badge.className = 'tool-call-badge running';
-                                    badge.dataset.tool = tc.name;
-
-                                    // Info konteks tambahan (nama tabel/label)
                                     let detail = '';
-                                    if (tc.name === 'execute_query' && tc.arguments?.label) {
-                                        detail = ` · ${tc.arguments.label}`;
-                                    }
-                                    if (tc.name === 'describe_table' && tc.arguments?.table_name) {
-                                        detail = '';  // Sembunyikan nama tabel teknis
-                                    }
-
-                                    badge.innerHTML = `
-                                        <span class="tool-call-dot running"></span>
-                                        <span>${icon} ${label}${detail}</span>
-                                    `;
+                                    if (tc.name === 'execute_query' && tc.arguments?.label) detail = ` · ${tc.arguments.label}`;
+                                    badge.innerHTML = `<span class="tool-call-dot running"></span><span>${icon} ${label}${detail}</span>`;
                                     toolArea.appendChild(badge);
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
                                 } else if (tc.status === 'done') {
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
                                     if (runningBadge) {
-                                        runningBadge.classList.remove('running');
-                                        runningBadge.classList.add('done');
+                                        runningBadge.classList.replace('running', 'done');
                                         const dot = runningBadge.querySelector('.tool-call-dot');
-                                        if (dot) { dot.classList.remove('running'); }
-                                        const dotEl = runningBadge.querySelector('.tool-call-dot');
-                                        if (dotEl) dotEl.textContent = '✓';
+                                        if (dot) { dot.classList.remove('running'); dot.textContent = '✓'; }
                                     }
                                     typingText.textContent = 'Menganalisis data...';
                                 }
                             }
 
-                            // ── History update ────────────────────────────────
                             if (parsed.history && Array.isArray(parsed.history)) {
                                 conversationHistory = parsed.history;
                             }
 
-                            // ── Error ─────────────────────────────────────────
                             if (parsed.error && parsed.response) {
                                 bubble.innerHTML = renderMarkdown(parsed.response);
                             }
 
-                        } catch(e) {
-                            // Abaikan parse error untuk line individual
-                        }
+                        } catch (e) { /* Abaikan parse error line individual */ }
                     }
-
                     chatMessages.scrollTop = chatMessages.scrollHeight;
                 }
 
-                if (toolArea.children.length === 0) {
-                    toolArea.style.display = 'none';
-                }
+                if (toolArea.children.length === 0) toolArea.style.display = 'none';
 
-            } catch(err) {
+            } catch (err) {
                 console.error('[Agentic] Error:', err);
                 bubble.innerHTML = renderMarkdown('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.');
             } finally {
@@ -502,7 +649,6 @@
         // ── Buat bubble AI ────────────────────────────────────────────────────
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
             const wrap = document.createElement('div');
             wrap.className = 'flex flex-col gap-1.5 items-start max-w-[95%]';
 
@@ -520,20 +666,18 @@
             wrap.appendChild(toolArea);
             wrap.appendChild(bubble);
             wrap.appendChild(timeEl);
-
             return { bubble, toolArea, wrapper: wrap };
         }
 
+        // ── Init Charts ───────────────────────────────────────────────────────
         function initChartsInBubble(bubble) {
             bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
                 const chartId = provider.getAttribute('data-id');
                 const rawData = provider.value.replace(/&apos;/g, "'");
                 const canvas  = document.getElementById(chartId);
-
                 if (canvas && !canvas.getAttribute('data-chart-initialized')) {
                     try {
                         const config = JSON.parse(rawData);
-                        // Pastikan options ada
                         config.options = config.options || {};
                         config.options.responsive = true;
                         config.options.maintainAspectRatio = false;
@@ -541,33 +685,27 @@
                         canvas.setAttribute('data-chart-initialized', 'true');
                         provider.remove();
                     } catch (e) {
-                        console.error('Chart.js init error:', e, rawData.substring(0, 200));
-                        // Tampilkan pesan error ringan di dalam chart container
+                        console.error('Chart.js init error:', e);
                         const container = canvas.closest('.chart-container');
-                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik. Pastikan format data valid.</p>';
+                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik.</p>';
                     }
                 }
             });
         }
 
+        // ── Render stream ke bubble ───────────────────────────────────────────
         function renderStreamToBubble(bubble, text) {
             bubble.innerHTML = renderMarkdown(text);
-
-            // Highlight code
-            bubble.querySelectorAll('pre code').forEach(b => {
-                try { hljs.highlightElement(b); } catch(e) {}
-            });
-
-            // Initialize Charts
+            bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
             initChartsInBubble(bubble);
+            initSmartTablesInBubble(bubble);
         }
 
         // ── Render pesan biasa ────────────────────────────────────────────────
         function addMessage(text, sender) {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
-            wrap.className = [
-                'flex flex-col gap-1.5',
+            wrap.className = ['flex flex-col gap-1.5',
                 sender === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
             ].join(' ');
 
@@ -579,8 +717,9 @@
 
             if (sender === 'ai') {
                 bubble.innerHTML = renderMarkdown(text);
-                bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch(e) {} });
+                bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
                 initChartsInBubble(bubble);
+                initSmartTablesInBubble(bubble);
             } else {
                 bubble.textContent = text;
             }

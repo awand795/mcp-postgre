@@ -10,22 +10,22 @@ use Illuminate\Support\Facades\Log;
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
  * Provider: OpenAI dengan fallback otomatis antar model
- * Urutan: gpt-5.4 → gpt-5.2 → gpt-4o
+ * Urutan: gpt-4.1 → gpt-4o → gpt-4o-mini
  */
 class AgenticChatbotController extends Controller
 {
     private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private string $openaiModel = 'gpt-5.4';
+    private string $openaiModel = 'gpt-4.1';
 
     // Fallback models jika model utama gagal (rate limit, overload, dll)
     private array $fallbackModels = [
-        'gpt-5.2',
         'gpt-4o',
+        'gpt-4o-mini',
     ];
 
     private int $maxToolLoops = 20;
     private int $maxHistory = 20;
-    private int $maxTokens = 65536; // Massive tokens for unlimited data rendering
+    private int $maxTokens = 32768; // Token besar untuk menampilkan data lengkap tanpa batas
 
     private LanguageDetector $langDetector;
     private ToolCallExecutor $toolExecutor;
@@ -256,23 +256,15 @@ class AgenticChatbotController extends Controller
         // GPT-5.x family (gpt-5.4, gpt-5.2, gpt-5-mini, dll) requires reasoning_effort='none'
         // agar parameter temperature & top_p bisa digunakan. Tanpa ini API akan return error.
         // Ref: https://developers.openai.com/api/docs/models/gpt-5.4
-        $isGpt5 = str_starts_with($model, 'gpt-5');
-
         $payload = [
             'model' => $model,
             'messages' => $cleanMessages,
             'tools' => $tools,
             'tool_choice' => 'auto',
             'max_tokens' => $this->maxTokens,
+            'temperature' => 0.2,
+            'top_p' => 0.9,
         ];
-
-        if ($isGpt5) {
-            // reasoning_effort=none = default, aktifkan temperature & top_p
-            $payload['reasoning_effort'] = 'none';
-        }
-
-        $payload['temperature'] = 0.2;
-        $payload['top_p'] = 0.9;
 
         Log::info("[Agentic] Calling OpenAI: {$model}");
 
@@ -383,8 +375,9 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
-- **ANTI-LIMIT POLICY**: No row limit required. You can retrieve as many rows as needed to answer the user fully.
-- **Select relevant columns**: While there is no limit, only select columns needed for the answer to maintain high performance.
+- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10" or "5 branches only"). Default is ALWAYS retrieve ALL rows with no limit.
+- **NEVER SUMMARIZE DATA**: If there are 500 rows, display ALL 500 rows in the Markdown table. Never write "and so on" or "see the full list manually" — that is a direct violation.
+- **Select relevant columns**: Only pick columns truly needed to keep the response clean and readable.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '2025'`
 - **Month filter**: `WHERE periode_bulan = '12'` ← use 2-digit string ('01'=Jan, '12'=Dec)
@@ -480,8 +473,9 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
-- **KEBIJAKAN ANTI-LIMIT**: Tidak ada batasan jumlah baris. Anda dapat mengambil data sebanyak apa pun yang dibutuhkan untuk menjawab user sepenuhnya.
-- **Pilih kolom relevan**: Meskipun tidak ada limit, pilihlah kolom yang benar-benar dibutuhkan agar performa tetap maksimal.
+- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data" atau "top 5 cabang"). Default SELALU ambil SEMUA baris tanpa batas.
+- **DILARANG MERANGKUM DATA**: Jika ada 500 baris, TAMPILKAN SEMUA 500 baris dalam tabel Markdown. Dilarang menulis "dan seterusnya" atau "silakan cek secara langsung" — itu pelanggaran instruksi.
+- **Pilih kolom relevan**: Pilih hanya kolom yang benar-benar dibutuhkan agar respons tetap bersih dan mudah dibaca.
 - Filter teks: gunakan `ILIKE '%keyword%'`
 - **Filter tahun**: `WHERE periode_tahun = '2025'`
 - **Filter bulan**: `WHERE periode_bulan = '12'` ← gunakan string 2 digit ('01'=Jan, '12'=Des)

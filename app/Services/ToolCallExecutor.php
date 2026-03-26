@@ -222,9 +222,12 @@ class ToolCallExecutor
             }
         }
 
-        // ── LAYER 6: ANTI-LIMIT - No forced LIMIT ──────────────────────────────
-        $cleanSql = $trimmedSql;
-        // Forced LIMIT removed to allow unlimited data retrieval as requested.
+        // ── LAYER 6: ANTI-LIMIT — Hapus LIMIT/FETCH paksa jika AI menambahkannya ──
+        // Hapus LIMIT N dan FETCH FIRST N ROWS ONLY dari akhir query
+        $cleanSql = preg_replace('/\bLIMIT\s+\d+\b/i', '', $trimmedSql);
+        $cleanSql = preg_replace('/\bFETCH\s+FIRST\s+\d+\s+ROWS?\s+ONLY\b/i', '', $cleanSql);
+        $cleanSql = trim($cleanSql);
+        Log::info('[ToolCallExecutor] SQL setelah strip LIMIT: ' . substr($cleanSql, 0, 300));
 
         Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 
