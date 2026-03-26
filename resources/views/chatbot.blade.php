@@ -120,6 +120,23 @@
             border-radius: 12px; padding: 15px; margin: 15px 0;
             width: 100%; height: 300px; position: relative;
         }
+        .chart-toolbar {
+            display: flex; justify-content: flex-end; gap: 8px;
+            margin-bottom: 10px; padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .chart-export-btn {
+            background: rgba(34,197,94,0.15); color: #22c55e;
+            border: 1px solid rgba(34,197,94,0.3);
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 11px; cursor: pointer;
+            transition: all 0.2s; font-family: 'Outfit', sans-serif;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .chart-export-btn:hover:not(:disabled) {
+            background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
+        }
+        .chart-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         /* ── Smart Table ── */
         .smart-table-wrap {
@@ -134,12 +151,25 @@
             border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap;
         }
         .smart-table-info { font-size: 11px; color: #A1A09A; white-space: nowrap; }
+        .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
             flex: 1; min-width: 120px; max-width: 220px;
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
             border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #fff;
             outline: none; font-family: 'Outfit', sans-serif;
         }
+        .smart-table-export-btn {
+            background: rgba(34,197,94,0.15); color: #22c55e;
+            border: 1px solid rgba(34,197,94,0.3);
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 11px; cursor: pointer;
+            transition: all 0.2s; font-family: 'Outfit', sans-serif;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .smart-table-export-btn:hover:not(:disabled) {
+            background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
+        }
+        .smart-table-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
         .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
         .smart-table-scroll { overflow-x: auto; }
@@ -387,6 +417,212 @@
             maximumFractionDigits: 0
         });
 
+        // ── Export Table to Excel ─────────────────────────────────────────────
+        async function exportTableToExcel(tableId, headers, rows) {
+            const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
+            if (exportBtn) {
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+            }
+
+            try {
+                // Clean data: remove HTML tags and formatting
+                const cleanRows = rows.map(row => 
+                    row.map(cell => {
+                        if (cell === null || cell === undefined) return '';
+                        // Remove HTML tags if any
+                        const temp = document.createElement('div');
+                        temp.innerHTML = cell;
+                        return temp.textContent || temp.innerText || String(cell);
+                    })
+                );
+
+                const cleanHeaders = headers.map(h => {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = h;
+                    return temp.textContent || temp.innerText || String(h);
+                });
+
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `table-export-${timestamp}.xlsx`;
+
+                // Send to backend for Excel generation
+                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        headers: cleanHeaders,
+                        rows: cleanRows,
+                        filename: filename
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+            } catch (error) {
+                console.error('[Export Error]', error);
+                alert('Gagal export tabel. Silakan coba lagi.');
+            } finally {
+                if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg> Export Excel`;
+                }
+            }
+        }
+
+        // ── Export Chart to Excel ──────────────────────────────────────────────
+        async function exportChartToExcel(chartId, chartConfig) {
+            const exportBtn = document.querySelector(`#${chartId}`).closest('.chart-container').querySelector('.chart-export-btn');
+            if (exportBtn) {
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+            }
+
+            try {
+                // Extract chart data EXACTLY as displayed
+                const labels = chartConfig.data?.labels || [];
+                const datasets = chartConfig.data?.datasets || [];
+                const chartType = chartConfig.type || 'bar';
+                const chartTitle = chartConfig.options?.plugins?.title?.text || 'Chart Data';
+                
+                // Prepare data for Excel - EXACT data from chart
+                const rows = [];
+                const headers = ['No', 'Label', ...datasets.map((d, i) => {
+                    // Use actual dataset label, or generate meaningful name
+                    if (d.label) return d.label;
+                    const typeLabel = chartType.charAt(0).toUpperCase() + chartType.slice(1);
+                    return `${typeLabel} ${i + 1}`;
+                })];
+                
+                // Find max length
+                const maxLength = Math.max(
+                    labels.length, 
+                    ...datasets.map(d => d.data?.length || 0)
+                );
+                
+                // Build rows with EXACT values from chart
+                for (let i = 0; i < maxLength; i++) {
+                    const row = [
+                        i + 1,  // No
+                        labels[i] || '-'  // Label
+                    ];
+                    
+                    // Add data for each dataset - use RAW numeric values
+                    datasets.forEach(d => {
+                        let value = d.data?.[i];
+                        if (value === null || value === undefined || value === '') {
+                            row.push(0);  // Excel treats 0 as empty for calculations
+                        } else {
+                            // Ensure numeric value for Excel calculations
+                            const numValue = parseFloat(value);
+                            row.push(isNaN(numValue) ? value : numValue);
+                        }
+                    });
+                    
+                    rows.push(row);
+                }
+
+                // Add summary statistics row
+                if (rows.length > 0) {
+                    rows.push([]); // Empty row
+                    
+                    const summaryRow = ['Summary', '', ''];
+                    datasets.forEach((d, idx) => {
+                        const values = d.data || [];
+                        const numericValues = values
+                            .map(v => parseFloat(v))
+                            .filter(v => !isNaN(v));
+                        
+                        if (numericValues.length > 0) {
+                            const sum = numericValues.reduce((a, b) => a + b, 0);
+                            const avg = sum / numericValues.length;
+                            const min = Math.min(...numericValues);
+                            const max = Math.max(...numericValues);
+                            
+                            // Add summary: Sum | Avg | Min | Max
+                            summaryRow.push(`Σ:${sum.toLocaleString('id-ID')} | Avg:${avg.toLocaleString('id-ID', {maximumFractionDigits: 1})} | Min:${min.toLocaleString('id-ID')} | Max:${max.toLocaleString('id-ID')}`);
+                        } else {
+                            summaryRow.push('No data');
+                        }
+                    });
+                    
+                    rows.push(summaryRow);
+                }
+
+                // Generate filename with timestamp
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const safeTitle = chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20);
+                const filename = `chart-${safeTitle || 'export'}-${timestamp}.xlsx`;
+
+                // Send to backend for Excel generation
+                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({
+                        headers: headers,
+                        rows: rows,
+                        filename: filename,
+                        chartInfo: {
+                            type: chartType,
+                            title: chartTitle,
+                            datasetCount: datasets.length,
+                            dataPoints: maxLength
+                        }
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Export response error:', errorText);
+                    throw new Error('Export failed: ' + response.status);
+                }
+
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+            } catch (error) {
+                console.error('[Chart Export Error]', error);
+                alert('Gagal export grafik: ' + error.message);
+            } finally {
+                if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg> Export Excel`;
+                }
+            }
+        }
+
         function isCurrencyColumn(header) {
             if (!header) return false;
             const h = header.toLowerCase();
@@ -438,6 +674,21 @@
 
             const info = wrap.querySelector('.smart-table-info');
             if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
+
+            const toolbar = wrap.querySelector('.smart-table-toolbar');
+            if (toolbar && !toolbar.querySelector('.smart-table-actions')) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'smart-table-actions';
+                actionsDiv.innerHTML = `<button class="smart-table-export-btn" title="Export ke Excel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export Excel
+                </button>`;
+                const exportBtn = actionsDiv.querySelector('.smart-table-export-btn');
+                exportBtn.onclick = () => exportTableToExcel(tableId, headers, filtered);
+                toolbar.appendChild(actionsDiv);
+            }
 
             const thead = wrap.querySelector('thead');
             if (thead) {
@@ -983,6 +1234,21 @@
                     new Chart(canvas, config);
                     canvas.setAttribute('data-chart-initialized', 'true');
                     provider.remove();
+
+                    // Add export toolbar
+                    if (container && !container.querySelector('.chart-toolbar')) {
+                        const toolbar = document.createElement('div');
+                        toolbar.className = 'chart-toolbar';
+                        toolbar.innerHTML = `<button class="chart-export-btn" title="Export data grafik ke Excel">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Export Excel
+                        </button>`;
+                        const exportBtn = toolbar.querySelector('.chart-export-btn');
+                        exportBtn.onclick = () => exportChartToExcel(chartId, config);
+                        container.insertBefore(toolbar, canvas);
+                    }
                 } catch (e) {
                     const loader = container ? container.querySelector('.chart-loading') : null;
                     if (loader) loader.remove();

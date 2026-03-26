@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ChatTableExport;
 use App\Helpers\LanguageDetector;
 use App\Services\ToolCallExecutor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
@@ -639,5 +641,53 @@ PROMPT;
             }
         }
         return array_slice($history, -($this->maxHistory * 2));
+    }
+
+    // ── Export Table/Chart to Excel ───────────────────────────────────────────
+    public function exportExcel(Request $request)
+    {
+        $request->validate([
+            'headers' => 'required|array',
+            'rows' => 'required|array',
+            'filename' => 'nullable|string|max:255',
+            'chartInfo' => 'nullable|array',
+        ]);
+
+        $headers = $request->input('headers');
+        $rows = $request->input('rows');
+        $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.xlsx');
+        $chartInfo = $request->input('chartInfo');
+
+        // Clean headers and rows (ensure they are strings for tables, numbers for charts)
+        $cleanHeaders = array_map(fn($h) => (string) $h, $headers);
+        
+        // For chart data, preserve numeric values in data columns (skip first 2 columns: No, Label)
+        $cleanRows = array_map(function($row, $index) use ($cleanHeaders) {
+            return array_map(function($cell, $cellIndex) {
+                // First two columns (No, Label) stay as string
+                if ($cellIndex < 2) {
+                    return (string) $cell;
+                }
+                // Check if it's a summary row (contains text)
+                if (is_string($cell) && (str_contains($cell, 'Σ:') || str_contains($cell, 'Avg:') || str_contains($cell, 'No data'))) {
+                    return $cell;
+                }
+                // Try to convert to numeric for data columns
+                if (is_numeric($cell)) {
+                    return floatval($cell);
+                }
+                return (string) $cell;
+            }, $row, array_keys($row));
+        }, $rows, array_keys($rows));
+
+        // Create export instance with optional chart info
+        $export = new ChatTableExport(
+            $cleanHeaders, 
+            $cleanRows, 
+            $chartInfo ? 'Chart Data' : 'Data Export',
+            $chartInfo
+        );
+
+        return Excel::download($export, $filename);
     }
 }

@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
     // ── CHATBOT ROUTES (Agentic Tool Calling) ──────────────────────────────
     Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
     Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
+    Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
 
     // Alias agentic (backward compat — mengarah ke controller yang sama)
     Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
