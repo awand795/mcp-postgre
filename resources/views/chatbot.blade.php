@@ -66,6 +66,30 @@
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
         @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1.0)} }
 
+        /* AI Loading Card */
+        .ai-loading-card { display:flex; flex-direction:column; gap:10px; min-width:240px; }
+        .ai-loading-top { display:flex; align-items:center; gap:10px; }
+        .ai-loading-icon-wrap {
+            width:32px; height:32px; border-radius:9px; flex-shrink:0;
+            background:linear-gradient(135deg,rgba(245,48,3,0.18),rgba(245,48,3,0.04));
+            border:1px solid rgba(245,48,3,0.22);
+            display:flex; align-items:center; justify-content:center; font-size:15px;
+            animation:icon-breathe 2s ease-in-out infinite;
+        }
+        @keyframes icon-breathe { 0%,100%{box-shadow:0 0 0 0 rgba(245,48,3,0.18)} 50%{box-shadow:0 0 0 6px rgba(245,48,3,0)} }
+        .ai-loading-text { flex:1; overflow:hidden; }
+        .ai-loading-label { font-size:12px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ai-loading-label.anim { animation:txt-in 0.35s ease; }
+        @keyframes txt-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+        .ai-loading-sub { font-size:10px; color:#706f6c; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ai-loading-bar-wrap { width:100%; height:2px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+        .ai-loading-bar {
+            height:100%; width:35%;
+            background:linear-gradient(90deg,transparent,#f53003,transparent);
+            animation:bar-sweep 1.5s ease-in-out infinite;
+        }
+        @keyframes bar-sweep { 0%{transform:translateX(-150%)} 100%{transform:translateX(450%)} }
+
 
         /* Markdown styles */
         .markdown-body { line-height: 1.6; }
@@ -747,7 +771,16 @@
 
                             if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                 aiResponseText += parsed.chunk;
-                                renderStreamToBubble(bubble, aiResponseText);
+                                
+                                // Hanya hapus loading card dan render jika sudah ada konten yang cukup
+                                if (aiResponseText.trim().length > 0 && bubble._loadInterval) {
+                                    clearInterval(bubble._loadInterval);
+                                    bubble._loadInterval = null;
+                                    renderStreamToBubble(bubble, aiResponseText);
+                                } else if (!bubble._loadInterval) {
+                                    // Loading card sudah dihapus, lanjut render
+                                    renderStreamToBubble(bubble, aiResponseText);
+                                }
                             }
 
                             if (parsed.tool_call) {
@@ -804,6 +837,18 @@
             }
         }
 
+        // ── Data pesan loading bisnis ──────────────────────────────────────────
+        const loadingSteps = [
+            { icon: '📂', label: 'Membaca data',                        sub: 'Menghubungkan ke sumber data...' },
+            { icon: '🔍', label: 'Memproses data',                      sub: 'Memvalidasi kelengkapan informasi...' },
+            { icon: '📊', label: 'Menganalisis data',                   sub: 'Menyusun insights yang relevan...' },
+            { icon: '📋', label: 'Menyiapkan ringkasan data',           sub: 'Mengumpulkan data...' },
+            { icon: '📈', label: 'Mengolah data',                       sub: 'Menghitung dan memverifikasi angka...' },
+            { icon: '🔎', label: 'Memverifikasi data',                  sub: 'Memastikan konsistensi informasi...' },
+            { icon: '🗂️', label: 'Membaca catatan transaksi',           sub: 'Memeriksa rekam jejak aktivitas...' },
+            { icon: '⚙️', label: 'Menampilkan hasil data',              sub: 'Menyiapkan tampilan yang jelas...' },
+        ];
+
         // ── Buat bubble AI ────────────────────────────────────────────────────
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -815,7 +860,32 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
-            bubble.innerHTML = '<span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses...</span>';
+
+            // Loading card awal
+            const s0 = loadingSteps[0];
+            bubble.innerHTML = `<div class="ai-loading-card">
+                <div class="ai-loading-top">
+                    <div class="ai-loading-icon-wrap" id="ai-load-icon">${s0.icon}</div>
+                    <div class="ai-loading-text">
+                        <div class="ai-loading-label anim" id="ai-load-label">${s0.label}</div>
+                        <div class="ai-loading-sub" id="ai-load-sub">${s0.sub}</div>
+                    </div>
+                </div>
+                <div class="ai-loading-bar-wrap"><div class="ai-loading-bar"></div></div>
+            </div>`;
+
+            // Rotasi pesan bisnis setiap 2.5 detik
+            let stepIdx = 1;
+            const loadInterval = setInterval(() => {
+                const labelEl = bubble.querySelector('#ai-load-label');
+                if (!labelEl) { clearInterval(loadInterval); return; }
+                const s = loadingSteps[stepIdx % loadingSteps.length]; stepIdx++;
+                bubble.querySelector('#ai-load-icon').textContent = s.icon;
+                labelEl.classList.remove('anim'); void labelEl.offsetWidth;
+                labelEl.classList.add('anim'); labelEl.textContent = s.label;
+                bubble.querySelector('#ai-load-sub').textContent = s.sub;
+            }, 2500);
+            bubble._loadInterval = loadInterval;
 
             const timeEl = document.createElement('span');
             timeEl.className = 'text-[10px] text-[#706f6c] ml-1';
@@ -924,6 +994,9 @@
 
         // ── Render stream ke bubble ───────────────────────────────────────────
         function renderStreamToBubble(bubble, text) {
+            // Jangan render jika text kosong, biarkan loading card tetap tampil
+            if (!text || text.trim().length === 0) return;
+            
             bubble.innerHTML = renderMarkdown(text);
             bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
             initChartsInBubble(bubble);
