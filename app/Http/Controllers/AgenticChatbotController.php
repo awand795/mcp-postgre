@@ -265,7 +265,7 @@ class AgenticChatbotController extends Controller
                     'Content-Type: application/json',
                     'Accept: application/json',
                 ],
-                CURLOPT_TIMEOUT        => 120,
+                CURLOPT_TIMEOUT        => 300,
                 CURLOPT_SSL_VERIFYPEER => true,
             ]);
 

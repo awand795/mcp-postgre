@@ -233,12 +233,15 @@ class ToolCallExecutor
         // FIX: Hapus SET TRANSACTION READ ONLY karena tidak kompatibel dengan Laravel DB::transaction()
         // Cukup jalankan langsung — validasi SELECT + forbidden keywords di atas sudah cukup aman
         try {
+            // Set statement timeout 60 detik agar query berat tidak hang terlalu lama
+            DB::connection('pgsql_mbi')->statement('SET statement_timeout = 60000');
             $rows = DB::connection('pgsql_mbi')->select($cleanSql);
         } catch (\Exception $e) {
             Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage() . " | SQL: " . $cleanSql);
-            return json_encode([
-                'error' => 'Data tidak dapat diambil saat ini. Silakan coba lagi atau hubungi administrator.',
-            ]);
+            $msg = str_contains($e->getMessage(), 'statement timeout')
+                ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah.'
+                : 'Data tidak dapat diambil saat ini. Silakan coba lagi atau hubungi administrator.';
+            return json_encode(['error' => $msg]);
         }
 
         if (empty($rows)) {
