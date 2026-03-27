@@ -351,20 +351,17 @@
             </div>
         </aside>
 
-        <!-- Overlay (hanya untuk mobile/backdrop click) -->
-        <div id="sidebar-overlay" class="absolute inset-0 bg-black/60 z-0 hidden backdrop-blur-sm transition-opacity opacity-0" style="pointer-events: none;"></div>
-
         <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
-        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10">
-        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 10; position: relative;">
+        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10 relative">
+        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
                 <!-- Hamburger and New Chat for Header -->
-                <div class="flex items-center" style="z-index: 20; position: relative;">
-                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="pointer-events: auto;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                <div class="flex items-center" style="z-index: 110; position: relative;">
+                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="z-index: 120; position: relative;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="pointer-events: auto;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="z-index: 120; position: relative;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                 </div>
                 
@@ -544,20 +541,19 @@
             let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
 
             const sidebar = document.getElementById('chat-sidebar');
-            const sidebarOverlay = document.getElementById('sidebar-overlay');
             const btnOpenSidebar = document.getElementById('btn-open-sidebar');
             const btnCloseSidebar = document.getElementById('btn-close-sidebar');
             const btnNewChat = document.getElementById('btn-new-chat');
             const btnNewChatHeader = document.getElementById('btn-new-chat-header');
             const historyList = document.getElementById('history-list');
-            
+
             // Delete modal elements
             const deleteModal = document.getElementById('delete-modal');
             const modalBackdrop = deleteModal.querySelector('.delete-modal-backdrop');
             const modalContent = deleteModal.querySelector('.delete-modal-content');
             const modalCancelBtn = document.getElementById('modal-cancel-btn');
             const modalDeleteBtn = document.getElementById('modal-delete-btn');
-            
+
             let deleteCallback = null;
 
             let isSidebarOpen = false;
@@ -588,13 +584,11 @@
                     // OPEN sidebar - show with width
                     sidebar.style.width = '288px';
                     sidebar.style.opacity = '1';
-                    sidebarOverlay.style.zIndex = '0';
                     if (btnNewChatHeader) btnNewChatHeader.classList.add('hidden');
                 } else {
                     // CLOSE sidebar - collapse width
                     sidebar.style.width = '0';
                     sidebar.style.opacity = '0';
-                    sidebarOverlay.style.zIndex = '0';
                     if (btnNewChatHeader) btnNewChatHeader.classList.remove('hidden');
                 }
             }
@@ -622,11 +616,6 @@
             });
 
             if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSidebar(false);
-            });
-            if (sidebarOverlay) sidebarOverlay.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 toggleSidebar(false);
