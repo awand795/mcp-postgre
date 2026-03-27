@@ -553,9 +553,10 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ```
 (where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). **Use this for ALL query results** - whether 1 row or 1000 rows.
 
-6. **CRITICAL: DISPLAY ALL ROWS - NEVER SUMMARIZE**: 
+6. **CRITICAL: DISPLAY ALL ROWS - NEVER SUMMARIZE**:
    - **FORBIDDEN**: Saying "Found 150 transactions" without showing the data
    - **FORBIDDEN**: Showing only count/summary like "There are 150 rows"
+   - **FORBIDDEN**: Using COUNT(*) result as smart_table data - smart_table MUST contain actual transaction rows
    - **REQUIRED**: ALWAYS display the FULL dataset using smart_table code block
    - **REQUIRED**: If user asks for "transactions in January 2026", show ALL transactions, not just the count
    - The smart_table will handle pagination automatically (50 rows per page)
@@ -565,11 +566,12 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows.
-- **NEVER USE COUNT() ALONE**: 
+- **NEVER USE COUNT() AS DATA**:
    - **FORBIDDEN**: `SELECT COUNT(*) FROM table` as the ONLY query
    - **FORBIDDEN**: "There are X rows" without showing the actual data
+   - **FORBIDDEN**: Using COUNT(*) result in smart_table - it must contain DETAIL rows
    - **REQUIRED**: ALWAYS run `SELECT column1, column2, ... FROM table WHERE conditions` to get ACTUAL data
-   - You can run COUNT(*) FIRST to know total, but MUST follow with SELECT to get ALL rows
+   - You can run COUNT(*) FIRST to know total for text summary, but MUST follow with SELECT to get ALL rows for smart_table
 - **Select relevant columns**: Pick columns needed to keep the response clean and readable.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '{$currentYear}'`
@@ -585,7 +587,7 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Target vs realisasi: use `view_data_target_realisasi_mbi` or `view_data_trm_mbi`
 - Top selling products: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - Always cast numeric aggregates: SUM(qty_jual::numeric) if needed
-- **Total/Overall count**: ALWAYS run a separate `SELECT COUNT(*) FROM sch_mbi.table WHERE ...` BEFORE querying detailed data. Never use `rows_returned` as the total count—it only represents the returned rows (limited).
+- **For text summary only**: You may run `SELECT COUNT(*)` to know total rows for your text explanation, but NEVER use COUNT result as smart_table data. The smart_table MUST contain the actual detailed data rows, NOT the count value.
 
 ## DATA VISUALIZATION (CHARTS)
 If the user asks for a chart/graph, or if you identify trend data that would look better visualized, provide the data in a custom `chart` code block using Chart.js JSON format:
