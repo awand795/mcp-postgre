@@ -300,7 +300,7 @@ class AgenticChatbotController extends Controller
                         'chat_session_id' => $chatSessionId,
                         'role' => 'assistant',
                         'content' => $processedContent,
-                        'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
+                        'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
                     ]);
                 }
 
@@ -388,7 +388,7 @@ class AgenticChatbotController extends Controller
                 'chat_session_id' => $chatSessionId,
                 'role' => 'assistant',
                 'content' => $processedMsg,
-                'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
+                'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
             ]);
         }
 
