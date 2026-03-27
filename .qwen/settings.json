@@ -11,7 +11,8 @@
       "Bash(type *)",
       "Bash(findstr *)",
       "Bash(copy *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(get-content *)"
     ]
   },
   "$version": 3

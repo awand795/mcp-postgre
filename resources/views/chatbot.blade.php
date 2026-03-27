@@ -672,9 +672,237 @@
 
             // Message input handlers
             messageInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey && !isLoading) { e.preventDefault(); submitMessage(); }
+                if (e.key === 'Enter' && !e.shiftKey && !isLoading) { 
+                    e.preventDefault(); 
+                    submitMessage(); 
+                }
             });
-            sendBtn.addEventListener('click', () => { if (!isLoading) submitMessage(); });
+            sendBtn.addEventListener('click', () => { 
+                if (!isLoading) { 
+                    submitMessage(); 
+                }
+            });
+            btnClear.addEventListener('click', () => {
+                conversationHistory = [];
+                chatMessages.innerHTML = '';
+                addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
+            });
+
+            // ── Submit ─────────────────────────────────────────────────────────────
+            async function submitMessage() {
+                const message = messageInput.value.trim();
+                if (!message || isLoading) return;
+
+                addMessage(message, 'user');
+                messageInput.value = '';
+                setLoading(true);
+                typingText.textContent = 'AI sedang berpikir...';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                const { bubble, toolArea, wrapper } = createStreamBubble();
+                chatMessages.appendChild(wrapper);
+                chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+
+                let aiResponseText = '';
+                const toolBadges = {};
+
+                try {
+                    const response = await fetch('{{ route("chatbot.send") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        },
+                        body: JSON.stringify({ 
+                            message, 
+                            history: conversationHistory,
+                            chat_session_id: currentSessionId
+                        }),
+                    });
+
+                    // FIX: Tangani error JSON response (non-stream) dari server
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const json = await response.json();
+                        const errMsg = json.error || 'Terjadi kesalahan pada server.';
+                        bubble.innerHTML = renderMarkdown('⚠️ ' + errMsg);
+                        setLoading(false);
+                        return;
+                    }
+
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                    const reader  = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split(/\r?\n/);
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+                            const dataStr = trimmed.slice(5).trim();
+                            if (dataStr === '[DONE]') continue;
+
+                            try {
+                                const parsed = JSON.parse(dataStr);
+
+                                // ── Streaming text chunk ──────────────────────────
+                                if (parsed.chunk !== undefined && parsed.chunk !== '') {
+                                    aiResponseText += parsed.chunk;
+                                    renderStreamToBubble(bubble, aiResponseText);
+                                }
+
+                                // ── Notifikasi proses (label bisnis) ──────────────
+                                if (parsed.tool_call) {
+                                    const tc = parsed.tool_call;
+                                    const icon  = toolIcons[tc.name] || '🔄';
+                                    const label = toolLabels[tc.name] || 'Memproses data';
+
+                                    if (tc.status === 'running') {
+                                        const badge = document.createElement('div');
+                                        badge.className = 'tool-call-badge running';
+                                        badge.dataset.tool = tc.name;
+
+                                        // Info konteks tambahan (nama tabel/label)
+                                        let detail = '';
+                                        if (tc.name === 'execute_query' && tc.arguments?.label) {
+                                            detail = ` · ${tc.arguments.label}`;
+                                        }
+                                        if (tc.name === 'describe_table' && tc.arguments?.table_name) {
+                                            detail = '';  // Sembunyikan nama tabel teknis
+                                        }
+
+                                        badge.innerHTML = `
+                                            <span class="tool-call-dot running"></span>
+                                            <span>${icon} ${label}${detail}</span>
+                                        `;
+                                        toolArea.appendChild(badge);
+                                        toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
+                                        typingText.textContent = label + '...';
+                                    } else if (tc.status === 'done' || tc.status === 'success') {
+                                        const runningBadge = toolArea.querySelector('.tool-call-badge.running');
+                                        if (runningBadge) {
+                                            runningBadge.classList.remove('running');
+                                            runningBadge.classList.add('done');
+                                            const dot = runningBadge.querySelector('.tool-call-dot');
+                                            if (dot) { dot.classList.remove('running'); }
+                                            const dotEl = runningBadge.querySelector('.tool-call-dot');
+                                            if (dotEl) dotEl.textContent = '✓';
+                                        }
+                                        typingText.textContent = 'Menganalisis data...';
+                                    }
+                                }
+
+                                // ── History update ────────────────────────────────
+                                if (parsed.history && Array.isArray(parsed.history)) {
+                                    conversationHistory = parsed.history;
+                                    // Update session ID if provided
+                                    if (parsed.chat_session_id) {
+                                        currentSessionId = parsed.chat_session_id;
+                                        window.history.pushState({}, '', '?chat=' + currentSessionId);
+                                    }
+                                }
+
+                                // ── Error ─────────────────────────────────────────
+                                if (parsed.error && parsed.response) {
+                                    bubble.innerHTML = renderMarkdown(parsed.response);
+                                }
+
+                            } catch(e) {
+                                // Abaikan parse error untuk line individual
+                            }
+                        }
+
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+
+                    if (toolArea.children.length === 0) {
+                        toolArea.style.display = 'none';
+                    }
+
+                } catch(err) {
+                    console.error('[Agentic] Error:', err);
+                    bubble.innerHTML = renderMarkdown('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.');
+                } finally {
+                    setLoading(false);
+                    typingText.textContent = 'AI sedang berpikir...';
+                    chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+                }
+            }
+
+            // ── Buat bubble AI ────────────────────────────────────────────────────
+            function createStreamBubble() {
+                const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                const wrap = document.createElement('div');
+                wrap.className = 'flex flex-col gap-1.5 items-start max-w-[95%]';
+
+                const toolArea = document.createElement('div');
+                toolArea.className = 'flex flex-col gap-1 pl-1 mb-1';
+
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
+                bubble.innerHTML = '<span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses...</span>';
+
+                const timeEl = document.createElement('span');
+                timeEl.className = 'text-[10px] text-[#706f6c] ml-1';
+                timeEl.textContent = time;
+
+                wrap.appendChild(toolArea);
+                wrap.appendChild(bubble);
+                wrap.appendChild(timeEl);
+
+                return { bubble, toolArea, wrapper: wrap };
+            }
+
+            function renderStreamToBubble(bubble, text) {
+                bubble.innerHTML = renderMarkdown(text);
+                bubble.querySelectorAll('pre code').forEach(b => {
+                    try { hljs.highlightElement(b); } catch(e) {}
+                });
+                initChartsInBubble(bubble);
+                initSmartTablesInBubble(bubble);
+            }
+
+            // ── Render pesan biasa ────────────────────────────────────────────────
+            function addMessage(text, sender) {
+                const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                const wrap = document.createElement('div');
+                wrap.className = [
+                    'flex flex-col gap-1.5',
+                    sender === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
+                ].join(' ');
+
+                const bubble = document.createElement('div');
+                bubble.className = [
+                    sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
+                    'p-4 rounded-2xl text-sm shadow-sm markdown-body'
+                ].join(' ');
+
+                if (sender === 'ai') {
+                    bubble.innerHTML = renderMarkdown(text);
+                    bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch(e) {} });
+                } else {
+                    bubble.textContent = text;
+                }
+
+                const timeEl = document.createElement('span');
+                timeEl.className = 'text-[10px] text-[#706f6c] ' + (sender === 'user' ? 'mr-1' : 'ml-1');
+                timeEl.textContent = time;
+
+                wrap.appendChild(bubble);
+                wrap.appendChild(timeEl);
+                chatMessages.appendChild(wrap);
+                requestAnimationFrame(() => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
+            }
 
         async function loadSessions() {
             try {
@@ -954,15 +1182,14 @@
             const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
             if (exportBtn) {
                 exportBtn.disabled = true;
-                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting ${rows.length} rows...`;
             }
 
             try {
-                // Clean data: remove HTML tags and formatting
-                const cleanRows = rows.map(row => 
+                // Clean data: remove HTML tags only
+                const cleanRows = rows.map(row =>
                     row.map(cell => {
                         if (cell === null || cell === undefined) return '';
-                        // Remove HTML tags if any
                         const temp = document.createElement('div');
                         temp.innerHTML = cell;
                         return temp.textContent || temp.innerText || String(cell);
@@ -979,7 +1206,7 @@
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                 const filename = `table-export-${timestamp}.xlsx`;
 
-                // Send to backend for Excel generation
+                // Send ALL data to backend for Excel generation
                 const response = await fetch('{{ route("chatbot.export.excel") }}', {
                     method: 'POST',
                     headers: {
@@ -994,11 +1221,17 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Export failed');
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || errorData.error || 'Export failed');
                 }
 
                 // Download the file
                 const blob = await response.blob();
+                
+                if (!blob || blob.size === 0) {
+                    throw new Error('File kosong atau tidak valid');
+                }
+                
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1008,11 +1241,32 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
 
+                alert(`✅ Export berhasil! ${rows.length} baris data telah diunduh.`);
+
             } catch (error) {
                 console.error('[Export Error]', error);
-                alert('Gagal export tabel. Silakan coba lagi.');
-            } finally {
+                
+                let errorMsg = 'Gagal export tabel.';
+                if (error.message.includes('timeout')) {
+                    errorMsg = 'Export timeout. Silakan coba lagi.';
+                } else if (error.message.includes('memory')) {
+                    errorMsg = 'Memory limit. Silakan coba lagi.';
+                } else if (error.message.includes('413')) {
+                    errorMsg = 'Data terlalu besar. Silakan filter data terlebih dahulu.';
+                } else {
+                    errorMsg = `❌ ${error.message}`;
+                }
+                
+                alert(errorMsg);
+                
                 if (exportBtn) {
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg> Export Excel`;
+                }
+            } finally {
+                if (exportBtn && exportBtn.disabled) {
                     exportBtn.disabled = false;
                     exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -1687,6 +1941,16 @@
                                     toolArea.appendChild(badge);
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
+                                    // Update loading card mengikuti state tool
+                                    const iconEl = bubble.querySelector('#ai-load-icon');
+                                    const labelEl = bubble.querySelector('#ai-load-label');
+                                    const subEl = bubble.querySelector('#ai-load-sub');
+                                    if (iconEl && labelEl && subEl) {
+                                        iconEl.textContent = icon;
+                                        labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
+                                        labelEl.textContent = label + (detail ? detail : '');
+                                        subEl.textContent = 'Sedang memproses...';
+                                    }
                                 } else if (tc.status === 'success') {
                                     if (tc.result) {
                                         currentToolResults.push(tc.result);
@@ -1700,6 +1964,16 @@
                                         if (dot) { dot.classList.remove('running'); dot.textContent = '✓'; }
                                     }
                                     typingText.textContent = 'Menganalisis data...';
+                                    // Update loading card ke state analisis
+                                    const iconEl = bubble.querySelector('#ai-load-icon');
+                                    const labelEl = bubble.querySelector('#ai-load-label');
+                                    const subEl = bubble.querySelector('#ai-load-sub');
+                                    if (iconEl && labelEl && subEl) {
+                                        iconEl.textContent = '📊';
+                                        labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
+                                        labelEl.textContent = 'Menganalisis data';
+                                        subEl.textContent = 'Menyusun hasil...';
+                                    }
                                 }
                             }
 
@@ -1735,18 +2009,6 @@
             }
         }
 
-        // ── Data pesan loading bisnis ──────────────────────────────────────────
-        const loadingSteps = [
-            { icon: '📂', label: 'Membaca data',                        sub: 'Menghubungkan ke sumber data...' },
-            { icon: '🔍', label: 'Memproses data',                      sub: 'Memvalidasi kelengkapan informasi...' },
-            { icon: '📊', label: 'Menganalisis data',                   sub: 'Menyusun insights yang relevan...' },
-            { icon: '📋', label: 'Menyiapkan ringkasan data',           sub: 'Mengumpulkan data...' },
-            { icon: '📈', label: 'Mengolah data',                       sub: 'Menghitung dan memverifikasi angka...' },
-            { icon: '🔎', label: 'Memverifikasi data',                  sub: 'Memastikan konsistensi informasi...' },
-            { icon: '🗂️', label: 'Membaca catatan transaksi',           sub: 'Memeriksa rekam jejak aktivitas...' },
-            { icon: '⚙️', label: 'Menampilkan hasil data',              sub: 'Menyiapkan tampilan yang jelas...' },
-        ];
-
         // ── Buat bubble AI ────────────────────────────────────────────────────
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -1758,32 +2020,16 @@
 
             const bubble = document.createElement('div');
             bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
-
-            // Loading card awal
-            const s0 = loadingSteps[0];
             bubble.innerHTML = `<div class="ai-loading-card">
                 <div class="ai-loading-top">
-                    <div class="ai-loading-icon-wrap" id="ai-load-icon">${s0.icon}</div>
+                    <div class="ai-loading-icon-wrap" id="ai-load-icon">🤔</div>
                     <div class="ai-loading-text">
-                        <div class="ai-loading-label anim" id="ai-load-label">${s0.label}</div>
-                        <div class="ai-loading-sub" id="ai-load-sub">${s0.sub}</div>
+                        <div class="ai-loading-label anim" id="ai-load-label">AI sedang berpikir</div>
+                        <div class="ai-loading-sub" id="ai-load-sub">Menunggu respons...</div>
                     </div>
                 </div>
                 <div class="ai-loading-bar-wrap"><div class="ai-loading-bar"></div></div>
             </div>`;
-
-            // Rotasi pesan bisnis setiap 2.5 detik
-            let stepIdx = 1;
-            const loadInterval = setInterval(() => {
-                const labelEl = bubble.querySelector('#ai-load-label');
-                if (!labelEl) { clearInterval(loadInterval); return; }
-                const s = loadingSteps[stepIdx % loadingSteps.length]; stepIdx++;
-                bubble.querySelector('#ai-load-icon').textContent = s.icon;
-                labelEl.classList.remove('anim'); void labelEl.offsetWidth;
-                labelEl.classList.add('anim'); labelEl.textContent = s.label;
-                bubble.querySelector('#ai-load-sub').textContent = s.sub;
-            }, 2500);
-            bubble._loadInterval = loadInterval;
 
             const timeEl = document.createElement('span');
             timeEl.className = 'text-[10px] text-[#706f6c] ml-1';

@@ -543,8 +543,12 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows.
-- **NEVER SUMMARIZE OR TRUNCATE DATA**: If there are many rows, use the `smart_table` code block as described above.
-- **Select relevant columns**: Only pick columns truly needed to keep the response clean and readable.
+- **NEVER USE COUNT() ALONE**: 
+   - **FORBIDDEN**: `SELECT COUNT(*) FROM table` as the ONLY query
+   - **FORBIDDEN**: "There are X rows" without showing the actual data
+   - **REQUIRED**: ALWAYS run `SELECT column1, column2, ... FROM table WHERE conditions` to get ACTUAL data
+   - You can run COUNT(*) FIRST to know total, but MUST follow with SELECT to get ALL rows
+- **Select relevant columns**: Pick columns needed to keep the response clean and readable.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '{$currentYear}'`
 - **Month filter**: `WHERE periode_bulan = '03'` ← use 2-digit string ('01'=Jan, '12'=Dec)
@@ -787,36 +791,39 @@ PROMPT;
         $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.xlsx');
         $chartInfo = $request->input('chartInfo');
 
-        // Clean headers and rows (ensure they are strings for tables, numbers for charts)
-        $cleanHeaders = array_map(fn($h) => (string) $h, $headers);
-        
-        // For chart data, preserve numeric values in data columns (skip first 2 columns: No, Label)
-        $cleanRows = array_map(function($row, $index) use ($cleanHeaders) {
-            return array_map(function($cell, $cellIndex) {
-                // First two columns (No, Label) stay as string
-                if ($cellIndex < 2) {
-                    return (string) $cell;
-                }
-                // Check if it's a summary row (contains text)
-                if (is_string($cell) && (str_contains($cell, 'Σ:') || str_contains($cell, 'Avg:') || str_contains($cell, 'No data'))) {
-                    return $cell;
-                }
-                // Try to convert to numeric for data columns
-                if (is_numeric($cell)) {
-                    return floatval($cell);
-                }
-                return (string) $cell;
-            }, $row, array_keys($row));
-        }, $rows, array_keys($rows));
+        // Increase time and memory limits for large exports
+        set_time_limit(300); // 5 minutes
+        ini_set('memory_limit', '512M');
 
-        // Create export instance with optional chart info
-        $export = new ChatTableExport(
-            $cleanHeaders, 
-            $cleanRows, 
-            $chartInfo ? 'Chart Data' : 'Data Export',
-            $chartInfo
-        );
+        try {
+            // Clear any previous output buffers to prevent corruption
+            if (ob_get_level()) {
+                ob_end_clean();
+            }
 
-        return Excel::download($export, $filename);
+            // Create export instance - pass data as-is, no manipulation
+            $export = new ChatTableExport(
+                $headers,
+                $rows,
+                $chartInfo ? 'Chart Data' : 'Data Export',
+                $chartInfo
+            );
+
+            return Excel::download($export, $filename);
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::error('Excel export failed: ' . $e->getMessage(), [
+                'rows_count' => count($rows),
+                'headers_count' => count($headers),
+                'filename' => $filename,
+                'exception' => get_class($e),
+            ]);
+
+            // Return user-friendly error message
+            return response()->json([
+                'error' => 'Export gagal: ' . $e->getMessage(),
+                'message' => 'Data terlalu besar atau terjadi kesalahan saat memproses export. Silakan coba dengan data yang lebih kecil atau hubungi administrator.',
+            ], 500);
+        }
     }
 }
