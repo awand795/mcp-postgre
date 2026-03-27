@@ -352,15 +352,15 @@
         </aside>
 
         <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
-        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10 relative">
+        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10" style="z-index: 1; position: relative;">
         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
                 <!-- Hamburger and New Chat for Header -->
                 <div class="flex items-center" style="z-index: 110; position: relative;">
-                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="z-index: 120; position: relative;">
+                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" onclick="console.log('Hamburger clicked!')" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="z-index: 120; position: relative;">
+                    <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                 </div>
@@ -608,12 +608,15 @@
 
             applySidebarState();
 
-            // Hamburger button click handler
-            btnOpenSidebar.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSidebar();
-            });
+            // Hamburger button click handler - use mousedown instead of click for better reliability
+            if (btnOpenSidebar) {
+                btnOpenSidebar.addEventListener('click', function(e) {
+                    console.log('Hamburger button clicked!', e);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebar();
+                });
+            }
 
             if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', (e) => {
                 e.preventDefault();
