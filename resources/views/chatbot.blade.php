@@ -356,8 +356,8 @@
         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
                 <div class="flex items-center" style="z-index: 9999; position: relative; pointer-events: auto;">
-                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-2 md:p-3 -ml-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto; -webkit-app-region: no-drag;" onclick="window.toggleSidebarNative(event)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
                     <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
@@ -609,11 +609,17 @@
 
             applySidebarState();
 
+            window.toggleSidebarNative = function(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                if (typeof isSidebarOpen !== 'undefined') {
+                    isSidebarOpen = !isSidebarOpen;
+                    applySidebarState();
+                }
+            };
+            
             if (btnOpenSidebar) {
                 btnOpenSidebar.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleSidebar();
+                    // handled by inline onclick, keeping just in case
                 });
             }
 
