@@ -356,14 +356,14 @@
 
         <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
         <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10">
-        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300">
+        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 10; position: relative;">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
                 <!-- Hamburger and New Chat for Header -->
-                <div class="flex items-center">
-                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                <div class="flex items-center" style="z-index: 20; position: relative;">
+                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="pointer-events: auto;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none" style="pointer-events: auto;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                 </div>
