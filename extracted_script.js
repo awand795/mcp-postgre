@@ -1,531 +1,4 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Darko AI</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <style>
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #1a1a1a, #000000);
-            height: 100vh;
-            overflow: hidden;
-        }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-        }
-        .chat-bubble-user {
-            background: linear-gradient(135deg, #f53003, #ff4433);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .chat-bubble-ai {
-            background: rgba(255, 255, 255, 0.05);
-            color: #eeeeec;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-bottom-left-radius: 4px;
-        }
-        /* Tool Call Badge */
-        .tool-call-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 10px; border-radius: 20px; font-size: 11px;
-            font-weight: 500; margin: 2px 0; border: 1px solid; transition: all 0.3s;
-        }
-        .tool-call-badge.running { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fbbf24; }
-        .tool-call-badge.done    { background: rgba(16,185,129,0.1);  border-color: rgba(16,185,129,0.25); color: #34d399; }
-        .tool-call-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-        .tool-call-dot.running { animation: pulse-dot 1s infinite; }
-        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-
-        /* Typing dots */
-        .typing-indicator span {
-            display: inline-block; width: 4px; height: 4px;
-            background-color: #A1A09A; border-radius: 50%; margin-right: 2px;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1.0)} }
-
-        /* AI Loading Card */
-        .ai-loading-card { display:flex; flex-direction:column; gap:10px; min-width:240px; }
-        .ai-loading-top { display:flex; align-items:center; gap:10px; }
-        .ai-loading-icon-wrap {
-            width:32px; height:32px; border-radius:9px; flex-shrink:0;
-            background:linear-gradient(135deg,rgba(245,48,3,0.18),rgba(245,48,3,0.04));
-            border:1px solid rgba(245,48,3,0.22);
-            display:flex; align-items:center; justify-content:center; font-size:15px;
-            animation:icon-breathe 2s ease-in-out infinite;
-        }
-        @keyframes icon-breathe { 0%,100%{box-shadow:0 0 0 0 rgba(245,48,3,0.18)} 50%{box-shadow:0 0 0 6px rgba(245,48,3,0)} }
-        .ai-loading-text { flex:1; overflow:hidden; }
-        .ai-loading-label { font-size:12px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .ai-loading-label.anim { animation:txt-in 0.35s ease; }
-        @keyframes txt-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
-        .ai-loading-sub { font-size:10px; color:#706f6c; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .ai-loading-bar-wrap { width:100%; height:2px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
-        .ai-loading-bar {
-            height:100%; width:35%;
-            background:linear-gradient(90deg,transparent,#f53003,transparent);
-            animation:bar-sweep 1.5s ease-in-out infinite;
-        }
-        @keyframes bar-sweep { 0%{transform:translateX(-150%)} 100%{transform:translateX(450%)} }
-
-        /* Status Bar */
-        .status-bar {
-            position: absolute; top: 0; left: 0; right: 0;
-            height: 3px; background: rgba(255,255,255,0.05);
-            z-index: 50; overflow: hidden;
-        }
-        .status-bar.active {
-            background: rgba(245,48,3,0.1);
-        }
-        .status-bar-progress {
-            position: absolute; top: 0; left: 0; bottom: 0;
-            width: 100%;
-            background: linear-gradient(90deg, #f53003, #ff6b6b, #f53003);
-            background-size: 200% 100%;
-            animation: progress-pulse 2s ease-in-out infinite;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-        }
-        .status-bar.active .status-bar-progress {
-            transform: translateX(0);
-        }
-        @keyframes progress-pulse {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-
-
-        /* Markdown styles */
-        .markdown-body { line-height: 1.6; }
-        .markdown-body p { margin: 6px 0; font-size: 13px; }
-        .markdown-body h1,.markdown-body h2 { font-size: 15px; font-weight: 700; color: #fff; margin: 16px 0 8px; }
-        .markdown-body h3 { font-size: 14px; font-weight: 600; color: #f97316; margin: 14px 0 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; }
-        .markdown-body h4 { font-size: 13px; font-weight: 600; color: #fb923c; margin: 10px 0 4px; }
-        .markdown-body ul,.markdown-body ol { padding-left: 18px; margin: 6px 0; }
-        .markdown-body li { margin: 3px 0; font-size: 13px; }
-        .markdown-body strong { color: #ffffff; font-weight: 600; }
-        .markdown-body em { color: #d4d4d0; font-style: italic; }
-        .markdown-body code { background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #fb923c; }
-        .markdown-body pre { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; margin: 8px 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.08); }
-        .markdown-body pre code { background: none; padding: 0; color: inherit; font-size: 12px; }
-        .markdown-body .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
-        .markdown-body table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
-        .markdown-body table thead tr { background: rgba(245,48,3,0.2); }
-        .markdown-body table th { padding: 9px 14px; text-align: left; font-weight: 600; color: #fff; white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.4); }
-        .markdown-body table td { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: #d4d4d0; white-space: nowrap; }
-        .markdown-body table tbody tr:hover { background: rgba(255,255,255,0.04); }
-        .markdown-body table tbody tr:last-child td { border-bottom: none; }
-        .markdown-body blockquote { border-left: 3px solid #f97316; padding-left: 12px; margin: 8px 0; color: #A1A09A; font-style: italic; font-size: 12px; }
-        .markdown-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
-
-        /* Chart Container */
-        .chart-container {
-            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px; padding: 15px; margin: 15px 0;
-            width: 100%; height: 300px; position: relative;
-        }
-        .chart-toolbar {
-            display: flex; justify-content: flex-end; gap: 8px;
-            margin-bottom: 10px; padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        .chart-export-btn {
-            background: rgba(34,197,94,0.15); color: #22c55e;
-            border: 1px solid rgba(34,197,94,0.3);
-            padding: 6px 12px; border-radius: 6px;
-            font-size: 11px; cursor: pointer;
-            transition: all 0.2s; font-family: 'Outfit', sans-serif;
-            display: inline-flex; align-items: center; gap: 4px;
-        }
-        .chart-export-btn:hover:not(:disabled) {
-            background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
-        }
-        .chart-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        /* ── Smart Table ── */
-        .smart-table-wrap {
-            margin: 12px 0; border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden; background: rgba(0,0,0,0.2);
-        }
-        .smart-table-toolbar {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 8px 12px;
-            background: rgba(245,48,3,0.08);
-            border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap;
-        }
-        .smart-table-info { font-size: 11px; color: #A1A09A; white-space: nowrap; }
-        .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-        .smart-table-search {
-            flex: 1; min-width: 120px; max-width: 220px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #fff;
-            outline: none; font-family: 'Outfit', sans-serif;
-        }
-        .smart-table-export-btn {
-            background: rgba(34,197,94,0.15); color: #22c55e;
-            border: 1px solid rgba(34,197,94,0.3);
-            padding: 4px 10px; border-radius: 6px;
-            font-size: 11px; cursor: pointer;
-            transition: all 0.2s; font-family: 'Outfit', sans-serif;
-            display: inline-flex; align-items: center; gap: 4px;
-        }
-        .smart-table-export-btn:hover:not(:disabled) {
-            background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
-        }
-        .smart-table-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
-        .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
-        .smart-table-scroll { overflow-x: auto; }
-        .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
-        .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
-        .smart-table-scroll th {
-            padding: 8px 13px; text-align: left; font-weight: 600; color: #fff;
-            white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.35);
-            cursor: pointer; user-select: none; font-size: 11px;
-        }
-        .smart-table-scroll th:hover { background: rgba(245,48,3,0.25); }
-        .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
-        .smart-table-scroll th.sort-asc .sort-icon,
-        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #f53003; }
-        .smart-table-scroll td {
-            padding: 7px 13px !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-            color: #d4d4d0 !important; max-width: 300px !important; font-size: 11px !important;
-            overflow: hidden !important; text-overflow: ellipsis !important;
-            white-space: nowrap !important;
-        }
-        .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.4 !important; min-width: 200px !important; }
-        .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
-        .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
-        .smart-table-pagination {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 7px 12px;
-            border-top: 1px solid rgba(255,255,255,0.07);
-            background: rgba(0,0,0,0.15); flex-wrap: wrap;
-        }
-        .smart-table-page-info { font-size: 11px; color: #706f6c; }
-        .smart-table-btns { display: flex; gap: 4px; flex-wrap: wrap; }
-        .st-btn {
-            padding: 3px 9px; border-radius: 5px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.04); color: #A1A09A;
-            font-size: 11px; cursor: pointer; transition: all 0.15s;
-            font-family: 'Outfit', sans-serif;
-        }
-        .st-btn:hover:not(:disabled) { background: rgba(245,48,3,0.15); color: #ff4433; border-color: rgba(245,48,3,0.3); }
-        .st-btn:disabled { opacity: 0.3; cursor: default; }
-        .st-btn.active { background: rgba(245,48,3,0.2); color: #ff4433; border-color: rgba(245,48,3,0.4); font-weight: 600; }
-
-        .btn-clear { transition: all 0.2s; }
-        .btn-clear:hover { background: rgba(245,48,3,0.15); color: #ff4433; }
-
-        /* Mobile */
-        @media (max-width: 768px) {
-            .glass-panel { border-radius: 20px !important; }
-            .header-actions .btn-text { display: none; }
-            .header-actions a, .header-actions button { padding: 0.5rem !important; min-width: 40px; justify-content: center; }
-            .chat-bubble-user, .chat-bubble-ai { max-width: 90% !important; }
-            .markdown-body p, .markdown-body li { font-size: 12px; }
-            .markdown-body h1, .markdown-body h2 { font-size: 14px; }
-            .markdown-body h3 { font-size: 13px; }
-            .markdown-body code { font-size: 10px; padding: 1px 4px; }
-            .markdown-body pre { padding: 8px; }
-            .markdown-body table { font-size: 11px; }
-            .markdown-body table th, .markdown-body table td { padding: 6px 10px; }
-        }
-        @media (max-width: 480px) {
-            body { padding: 0 !important; }
-            .glass-panel { height: 100vh !important; max-height: 100vh !important; border-radius: 0 !important; border: none !important; }
-            .p-5 { padding: 0.75rem !important; }
-            .p-6 { padding: 1rem !important; }
-            .w-10 { width: 2.25rem !important; height: 2.25rem !important; }
-            .header-actions { gap: 0.25rem !important; }
-            .chat-bubble-user, .chat-bubble-ai { max-width: 95% !important; }
-            .chat-bubble-ai { max-width: 98% !important; }
-            .markdown-body p, .markdown-body li { font-size: 11px; }
-            .markdown-body h1, .markdown-body h2 { font-size: 13px; }
-            .markdown-body h3 { font-size: 12px; }
-            .markdown-body code { font-size: 9px; }
-            .markdown-body table { font-size: 10px; }
-            .markdown-body table th, .markdown-body table td { padding: 5px 8px; }
-            #message-input { font-size: 14px !important; padding-left: 12px !important; }
-            #send-btn { width: 36px !important; }
-            .text-\[10px\] { font-size: 9px !important; }
-        }
-        .smart-table-btn {
-            background: rgba(245, 48, 3, 0.1);
-            color: #f53003;
-            border: 1px solid rgba(245, 48, 3, 0.2);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin: 0 2px;
-        }
-        .smart-table-btn:hover:not(:disabled) {
-            background: #f53003;
-            color: white;
-        }
-        .smart-table-btn:disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-        }
-        
-        /* Sidebar fixes */
-        #chat-sidebar {
-            background-color: #0a0a0a !important;
-        }
-        #chat-sidebar.open {
-            background-color: rgba(10, 10, 10, 0.98) !important;
-        }
-        
-        #history-list .group {
-            cursor: pointer;
-            user-select: none;
-        }
-        #history-list .group:active {
-            background-color: rgba(255,255,255,0.15) !important;
-        }
-        
-        /* Delete Modal Animations */
-        #delete-modal.show {
-            display: flex;
-        }
-        #delete-modal.show .delete-modal-backdrop {
-            opacity: 1;
-        }
-        #delete-modal.show .delete-modal-content {
-            transform: scale(1);
-            opacity: 1;
-        }
-    </style>
-</head>
-
-<body class="flex items-center justify-center p-2 md:p-4">
-
-    <!-- Main Container -->
-    <div class="flex w-full max-w-6xl h-[95vh] glass-panel rounded-3xl overflow-hidden relative">
-
-        <!-- Sidebar (Pushes content, not overlay) -->
-        <aside id="chat-sidebar" class="w-72 bg-[#0a0a0a]/95 border-r border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden" style="width: 0; opacity: 0;">
-
-            <!-- Sidebar Header / Mobile Close -->
-            <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0" style="min-width: 288px;">
-                <button id="btn-new-chat" class="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-[#f53003]/20 to-[#ff4433]/20 hover:from-[#f53003]/40 hover:to-[#ff4433]/40 text-white border border-[#f53003]/50 rounded-xl text-sm font-medium transition-all shadow-lg shadow-red-500/10">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    Chat Baru
-                </button>
-                <button id="btn-close-sidebar" class="ml-3 p-1.5 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors flex-shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-
-            <!-- History List -->
-            <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-white/40 uppercase tracking-wider flex-shrink-0" style="min-width: 288px;">Riwayat Terakhir</div>
-            <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar" style="min-width: 288px;">
-                <!-- JS populated -->
-                <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">Memuat riwayat...</div>
-            </div>
-        </aside>
-
-        <!-- Overlay (hanya untuk mobile/backdrop click) -->
-        <div id="sidebar-overlay" class="absolute inset-0 bg-black/60 z-0 hidden backdrop-blur-sm transition-opacity opacity-0" style="pointer-events: none;"></div>
-
-        <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
-        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10">
-        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300">
-            <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
-                <!-- Hamburger and New Chat for Header -->
-                <div class="flex items-center">
-                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-                    </button>
-                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                    </button>
-                </div>
-                
-                <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain ml-1">
-                <div class="min-w-0">
-                    <h1 class="text-white font-semibold text-base md:text-lg leading-tight truncate">darkotech AI</h1>
-                    <div class="flex items-center gap-2 mt-0.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-[11px] md:text-xs text-[#A1A09A]">Online</span>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 header-actions flex-shrink-0">
-                @if(auth()->user()->is_admin)
-                    <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
-                        class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#818cf8] text-xs border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                        </svg>
-                        <span class="btn-text">Admin Dashboard</span>
-                    </a>
-                @endif
-                <button id="btn-clear-chat" title="Hapus riwayat obrolan ini"
-                    class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30 hover:bg-black/20 transition-all focus:ring-1 focus:ring-red-500/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                    </svg>
-                    <span class="btn-text">Hapus Riwayat</span>
-                </button>
-                <button id="btn-clear-chat-mobile" title="Hapus riwayat obrolan ini"
-                    class="btn-clear md:hidden flex items-center p-2 rounded-xl text-[#A1A09A] border border-transparent hover:border-red-500/30 hover:bg-black/20 hover:text-red-500 transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                    </svg>
-                </button>
-                <form action="{{ route('logout') }}" method="POST" class="inline">
-                    @csrf
-                    <button type="submit" title="Keluar"
-                        class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30 hover:text-red-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                            <polyline points="16 17 21 12 16 7" />
-                            <line x1="21" y1="12" x2="9" y2="12" />
-                        </svg>
-                        <span class="btn-text">Logout</span>
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Chat Area -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 custom-scrollbar relative">
-            <!-- Status Bar -->
-            <div id="status-bar" class="status-bar">
-                <div class="status-bar-progress"></div>
-            </div>
-            
-            <!-- Initial content will be cleared if history is loaded, otherwise defaults to welcome message -->
-            <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
-                <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                    <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
-                    <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Typing Indicator (now integrated in input area) -->
-
-
-        <!-- Input -->
-        <div class="p-5 bg-black/20 border-t border-white/10 flex-shrink-0">
-            <div class="relative">
-                <input type="text" id="message-input" placeholder="Ketik pesan anda di sini..."
-                    class="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
-                    autocomplete="off">
-                <button id="send-btn"
-                    class="absolute right-2 top-1.5 bottom-1.5 w-10 bg-[#f53003] hover:bg-[#ff4433] disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all shadow-lg shadow-red-500/20">
-                    <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
-                    </svg>
-                    <svg id="loading-icon" class="w-4 h-4 hidden animate-spin" xmlns="http://www.w3.org/2000/svg"
-                        fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                </button>
-            </div>
-            
-            <!-- Floating Status Indicator -->
-            <div id="typing-indicator" class="hidden absolute -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 backdrop-blur-sm border border-white/10 shadow-lg">
-                    <svg class="animate-spin h-4 w-4 text-[#f53003]" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span id="typing-text" class="text-xs text-white font-medium">AI sedang berpikir...</span>
-                </div>
-            </div>
-            
-            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest leading-relaxed">
-                Powered by darkotech<br/>
-            </p>
-        </div>
-
-        </div> <!-- End Main Content -->
-    </div> <!-- End Glass Panel -->
-
-    <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="fixed inset-0 z-[100] hidden items-center justify-center">
-        <!-- Backdrop -->
-        <div class="delete-modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"></div>
-        
-        <!-- Modal Content -->
-        <div class="delete-modal-content relative w-full max-w-md mx-4 transform transition-all scale-95 opacity-0">
-            <div class="glass-panel bg-black/90 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-white font-semibold text-lg">Hapus Riwayat Chat</h3>
-                </div>
-                
-                <!-- Modal Body -->
-                <div class="px-6 py-5">
-                    <p class="text-[#A1A09A] text-sm leading-relaxed">
-                        Apakah Anda yakin ingin menghapus sesi obrolan ini? 
-                        <span class="text-red-400 font-medium">Tindakan ini tidak dapat dibatalkan.</span>
-                    </p>
-                </div>
-                
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3 bg-white/5">
-                    <button id="modal-cancel-btn" class="px-4 py-2 rounded-xl text-[#A1A09A] text-sm font-medium border border-white/10 hover:bg-white/5 hover:text-white transition-all">
-                        Batal
-                    </button>
-                    <button id="modal-delete-btn" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium border border-red-500/30 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        Hapus
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-
-    <script>
+﻿
         document.addEventListener('DOMContentLoaded', function() {
             const messageInput    = document.getElementById('message-input');
             const chatMessages    = document.getElementById('chat-messages');
@@ -544,20 +17,19 @@
             let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
 
             const sidebar = document.getElementById('chat-sidebar');
-            const sidebarOverlay = document.getElementById('sidebar-overlay');
             const btnOpenSidebar = document.getElementById('btn-open-sidebar');
             const btnCloseSidebar = document.getElementById('btn-close-sidebar');
             const btnNewChat = document.getElementById('btn-new-chat');
             const btnNewChatHeader = document.getElementById('btn-new-chat-header');
             const historyList = document.getElementById('history-list');
-            
+
             // Delete modal elements
             const deleteModal = document.getElementById('delete-modal');
             const modalBackdrop = deleteModal.querySelector('.delete-modal-backdrop');
             const modalContent = deleteModal.querySelector('.delete-modal-content');
             const modalCancelBtn = document.getElementById('modal-cancel-btn');
             const modalDeleteBtn = document.getElementById('modal-delete-btn');
-            
+
             let deleteCallback = null;
 
             let isSidebarOpen = false;
@@ -586,16 +58,16 @@
             function applySidebarState() {
                 if (isSidebarOpen) {
                     // OPEN sidebar - show with width
-                    sidebar.style.width = '288px';
+                    sidebar.style.width = window.innerWidth < 768 ? '100%' : '288px';
                     sidebar.style.opacity = '1';
-                    sidebarOverlay.style.zIndex = '0';
-                    if (btnNewChatHeader) btnNewChatHeader.classList.add('hidden');
+                    sidebar.style.pointerEvents = 'auto';
+                    if (btnNewChatHeader) btnNewChatHeader.style.display = 'none';
                 } else {
                     // CLOSE sidebar - collapse width
                     sidebar.style.width = '0';
                     sidebar.style.opacity = '0';
-                    sidebarOverlay.style.zIndex = '0';
-                    if (btnNewChatHeader) btnNewChatHeader.classList.remove('hidden');
+                    sidebar.style.pointerEvents = 'none';
+                    if (btnNewChatHeader) btnNewChatHeader.style.display = 'flex';
                 }
             }
 
@@ -614,19 +86,21 @@
 
             applySidebarState();
 
-            // Hamburger button click handler
-            btnOpenSidebar.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSidebar();
-            });
+            window.toggleSidebarNative = function(e) {
+                if (e) { e.preventDefault(); e.stopPropagation(); }
+                if (typeof isSidebarOpen !== 'undefined') {
+                    isSidebarOpen = !isSidebarOpen;
+                    applySidebarState();
+                }
+            };
+            
+            if (btnOpenSidebar) {
+                btnOpenSidebar.addEventListener('click', function(e) {
+                    // handled by inline onclick, keeping just in case
+                });
+            }
 
             if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleSidebar(false);
-            });
-            if (sidebarOverlay) sidebarOverlay.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 toggleSidebar(false);
@@ -688,7 +162,7 @@
                 addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
             });
 
-            // ── Submit ─────────────────────────────────────────────────────────────
+            // -- Submit -------------------------------------------------------------
             async function submitMessage() {
                 const message = messageInput.value.trim();
                 if (!message || isLoading) return;
@@ -707,7 +181,7 @@
                 const toolBadges = {};
 
                 try {
-                    const response = await fetch('{{ route("chatbot.send") }}', {
+                    const response = await fetch('/chatbot/send', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -754,13 +228,13 @@
                             try {
                                 const parsed = JSON.parse(dataStr);
 
-                                // ── Streaming text chunk ──────────────────────────
+                                // -- Streaming text chunk --------------------------
                                 if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                     aiResponseText += parsed.chunk;
                                     renderStreamToBubble(bubble, aiResponseText);
                                 }
 
-                                // ── Notifikasi proses (label bisnis) ──────────────
+                                // -- Notifikasi proses (label bisnis) --------------
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
                                     const icon  = toolIcons[tc.name] || '🔄';
@@ -773,17 +247,14 @@
 
                                         // Info konteks tambahan (nama tabel/label)
                                         let detail = '';
-                                        if (tc.name === 'execute_query' && tc.arguments?.label) {
-                                            detail = ` · ${tc.arguments.label}`;
+                                        if (tc.name === 'execute_query' && (tc.arguments && tc.arguments.label)) {
+                                            detail = ' \u00B7 ' + tc.arguments.label;
                                         }
                                         if (tc.name === 'describe_table' && tc.arguments?.table_name) {
                                             detail = '';  // Sembunyikan nama tabel teknis
                                         }
 
-                                        badge.innerHTML = `
-                                            <span class="tool-call-dot running"></span>
-                                            <span>${icon} ${label}${detail}</span>
-                                        `;
+                                        badge.innerHTML = '<span class="tool-call-dot running"></span><span>' + icon + ' ' + label + detail + '</span>';
                                         toolArea.appendChild(badge);
                                         toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                         typingText.textContent = label + '...';
@@ -801,7 +272,7 @@
                                     }
                                 }
 
-                                // ── History update ────────────────────────────────
+                                // -- History update --------------------------------
                                 if (parsed.history && Array.isArray(parsed.history)) {
                                     conversationHistory = parsed.history;
                                     // Update session ID if provided
@@ -811,7 +282,7 @@
                                     }
                                 }
 
-                                // ── Error ─────────────────────────────────────────
+                                // -- Error -----------------------------------------
                                 if (parsed.error && parsed.response) {
                                     bubble.innerHTML = renderMarkdown(parsed.response);
                                 }
@@ -838,7 +309,7 @@
                 }
             }
 
-            // ── Buat bubble AI ────────────────────────────────────────────────────
+            // -- Buat bubble AI ----------------------------------------------------
             function createStreamBubble() {
                 const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
@@ -863,16 +334,7 @@
                 return { bubble, toolArea, wrapper: wrap };
             }
 
-            function renderStreamToBubble(bubble, text) {
-                bubble.innerHTML = renderMarkdown(text);
-                bubble.querySelectorAll('pre code').forEach(b => {
-                    try { hljs.highlightElement(b); } catch(e) {}
-                });
-                initChartsInBubble(bubble);
-                initSmartTablesInBubble(bubble);
-            }
-
-            // ── Render pesan biasa ────────────────────────────────────────────────
+            // -- Render pesan biasa ------------------------------------------------
             function addMessage(text, sender) {
                 const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 const wrap = document.createElement('div');
@@ -906,7 +368,7 @@
 
         async function loadSessions() {
             try {
-                const res = await fetch('{{ route("chatbot.sessions") }}');
+                const res = await fetch('/chatbot/sessions');
                 const sessions = await res.json();
 
                 historyList.innerHTML = '';
@@ -970,9 +432,6 @@
             // Set loading flag to prevent concurrent operations
             isLoading = true;
             
-            // Skip MutationObserver during history load
-            skipObserver = true;
-            
             // Update history list visual state - show loading
             const historyItems = historyList.querySelectorAll('.group');
             historyItems.forEach(item => {
@@ -996,12 +455,39 @@
             chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
 
             try {
-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`);
+                const res = await fetch('/chatbot/sessions', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    // Timeout 10 menit untuk history dengan data besar
+                    signal: AbortSignal.timeout(600000)
+                });
+
+                const contentType = res.headers.get('content-type');
                 
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                
+                if (!res.ok) {
+                    let errorMsg = 'HTTP ' + res.status;
+                    
+                    // Try to get error details from response
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await res.json();
+                        errorMsg = errorData.message || errorData.error || errorMsg;
+                    } else {
+                        const text = await res.text();
+                        console.error('Server response:', text.substring(0, 500));
+                        if (text.includes('Allowed memory size')) {
+                            errorMsg = 'Memory limit exceeded. Data terlalu besar.';
+                        } else if (text.includes('timeout')) {
+                            errorMsg = 'Request timeout. Server terlalu lama meresponse.';
+                        }
+                    }
+                    
+                    throw new Error(errorMsg);
+                }
+
                 const data = await res.json();
-                
+
                 chatMessages.innerHTML = '';
                 conversationHistory = [];
 
@@ -1011,73 +497,80 @@
                     return;
                 }
 
-                data.history.forEach((msg, index) => {
-                    const wrap = document.createElement('div');
-                    wrap.className = ['flex flex-col gap-1.5',
-                        msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
-                    ].join(' ');
+                // Process messages with error handling - Load ALL smart tables
+                for (let index = 0; index < data.history.length; index++) {
+                    const msg = data.history[index];
+                    
+                    try {
+                        const wrap = document.createElement('div');
+                        wrap.className = ['flex flex-col gap-1.5',
+                            msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
+                        ].join(' ');
 
-                    const bubble = document.createElement('div');
-                    bubble.className = [
-                        msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
-                        'p-4 rounded-2xl text-sm shadow-sm markdown-body'
-                    ].join(' ');
+                        const bubble = document.createElement('div');
+                        bubble.className = [
+                            msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
+                            'p-4 rounded-2xl text-sm shadow-sm markdown-body'
+                        ].join(' ');
 
-                    if (msg.role === 'ai' || msg.role === 'assistant') {
-                        const toolResultsForMsg = msg.tool_results || [];
+                        if (msg.role === 'ai' || msg.role === 'assistant') {
+                            // Safely handle tool_results - ALL DATA
+                            let toolResultsForMsg = [];
+                            try {
+                                toolResultsForMsg = Array.isArray(msg.tool_results) ? msg.tool_results : [];
+                            } catch (e) {
+                                console.warn('Failed to parse tool_results for message', index, e);
+                            }
 
-                        // CRITICAL: Pre-populate currentToolResults BEFORE rendering
-                        // This ensures chart/smart_table indices match when markdown is parsed
-                        const originalGlobal = currentToolResults;
-                        currentToolResults = [];
+                            // Temporarily set global for markdown renderer
+                            const originalGlobal = currentToolResults;
+                            currentToolResults = toolResultsForMsg;
+
+                            try {
+                                bubble.innerHTML = renderMarkdown(msg.content);
+                                bubble.querySelectorAll('pre code').forEach(b => { 
+                                    try { hljs.highlightElement(b); } catch (e) {} 
+                                });
+
+                                initChartsInBubble(bubble);
+
+                                // INIT ALL SMART TABLES - No lazy load, show all data
+                                initSmartTablesInBubble(bubble, toolResultsForMsg);
+                            } catch (e) {
+                                console.error('Failed to render message', index, e);
+                                bubble.textContent = '[Pesan tidak dapat ditampilkan]';
+                            }
+
+                            // Restore global
+                            currentToolResults = originalGlobal;
+                        } else {
+                            bubble.textContent = msg.content;
+                        }
+
+                        const timeEl = document.createElement('span');
+                        timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
+                        timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                        wrap.appendChild(bubble);
+                        wrap.appendChild(timeEl);
+                        chatMessages.appendChild(wrap);
                         
-                        // First pass: Add all tool results from DB to currentToolResults
-                        // This preserves the original indices
-                        toolResultsForMsg.forEach((tr, idx) => {
-                            currentToolResults[idx] = tr;
-                        });
-
-                        bubble.innerHTML = renderMarkdown(msg.content);
-                        bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
-
-                        // CRITICAL: Capture currentToolResults (which now includes charts added during render)
-                        // and use it in setTimeout callback
-                        const toolResultsForInit = [...currentToolResults];
-                        
-                        // Restore global immediately
-                        currentToolResults = originalGlobal;
-                        
-                        // Defer init to next tick so DOM elements (canvas) are ready
-                        setTimeout(() => {
-                            console.log('[LoadSession] initChartsInBubble with toolResults length:', toolResultsForInit.length);
-                            initChartsInBubble(bubble, toolResultsForInit);
-                            initSmartTablesInBubble(bubble, toolResultsForInit);
-                        }, 50);
-                    } else {
-                        bubble.textContent = msg.content;
+                    } catch (e) {
+                        console.error('Failed to process message', index, e);
+                        // Continue to next message instead of failing completely
                     }
-
-                    const timeEl = document.createElement('span');
-                    timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
-                    timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                    wrap.appendChild(bubble);
-                    wrap.appendChild(timeEl);
-                    chatMessages.appendChild(wrap);
-                });
+                }
 
                 await loadSessions();
 
-                // CRITICAL: Wait for smart tables to initialize before releasing lock
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Re-enable MutationObserver after history load is complete
-                skipObserver = false;
+                // Wait for all smart tables to render (increased for large data)
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
                 chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'instant' });
-                
+
             } catch (e) {
-                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan.</div>';
+                console.error('Failed to load session:', e);
+                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan. ' + e.message + '</div>';
             } finally {
                 // CRITICAL: Always release loading flag, even on error
                 setTimeout(() => {
@@ -1095,6 +588,8 @@
                             }
                         });
                     }
+                    
+                    // Lazy load observer cleanup (removed - now loading all tables immediately)
                 }, 100);
             }
         }
@@ -1156,16 +651,12 @@
         if (btnNewChat) btnNewChat.addEventListener('click', startNewChat);
         if (btnNewChatHeader) btnNewChatHeader.addEventListener('click', startNewChat);
 
-        // ── SmartTable Engine ─────────────────────────────────────────────────
+        // -- SmartTable Engine -------------------------------------------------
         const smartTables = {};
         const PAGE_SIZE = 50;
 
         // Setup MutationObserver to watch for new smart tables
-        // Skip observer during history load - explicit init is used instead
-        let skipObserver = false;
         const tableObserver = new MutationObserver(mutations => {
-            if (skipObserver) return;
-            
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) {
@@ -1198,7 +689,7 @@
             maximumFractionDigits: 0
         });
 
-        // ── Export Table to Excel ─────────────────────────────────────────────
+        // -- Export Table to Excel ---------------------------------------------
         async function exportTableToExcel(tableId, headers, rows) {
             const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
             if (exportBtn) {
@@ -1228,7 +719,7 @@
                 const filename = `table-export-${timestamp}.xlsx`;
 
                 // Send ALL data to backend for Excel generation
-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                const response = await fetch('/chatbot/export/excel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1296,7 +787,7 @@
             }
         }
 
-        // ── Export Chart to Excel ──────────────────────────────────────────────
+        // -- Export Chart to Excel ----------------------------------------------
         async function exportChartToExcel(chartId, chartConfig) {
             const exportBtn = document.querySelector(`#${chartId}`).closest('.chart-container').querySelector('.chart-export-btn');
             if (exportBtn) {
@@ -1306,10 +797,10 @@
 
             try {
                 // Extract chart data EXACTLY as displayed
-                const labels = chartConfig.data?.labels || [];
-                const datasets = chartConfig.data?.datasets || [];
+                const labels = (chartConfig.data && chartConfig.data.labels ? chartConfig.data.labels : []) || [];
+                const datasets = (chartConfig.data && chartConfig.data.datasets ? chartConfig.data.datasets : []) || [];
                 const chartType = chartConfig.type || 'bar';
-                const chartTitle = chartConfig.options?.plugins?.title?.text || 'Chart Data';
+                const chartTitle = (chartConfig.options && chartConfig.options.plugins && chartConfig.options.plugins.title && chartConfig.options.plugins.title.text ? chartConfig.options.plugins.title.text : null) || 'Chart Data';
                 
                 // Prepare data for Excel - EXACT data from chart
                 const rows = [];
@@ -1323,7 +814,7 @@
                 // Find max length
                 const maxLength = Math.max(
                     labels.length, 
-                    ...datasets.map(d => d.data?.length || 0)
+                    ...datasets.map(d => (d.data ? d.data.length : 0) || 0)
                 );
                 
                 // Build rows with EXACT values from chart
@@ -1335,7 +826,7 @@
                     
                     // Add data for each dataset - use RAW numeric values
                     datasets.forEach(d => {
-                        let value = d.data?.[i];
+                        let value = (d.data ? d.data[i] : undefined);
                         if (value === null || value === undefined || value === '') {
                             row.push(0);  // Excel treats 0 as empty for calculations
                         } else {
@@ -1381,7 +872,7 @@
                 const filename = `chart-${safeTitle || 'export'}-${timestamp}.xlsx`;
 
                 // Send to backend for Excel generation
-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                const response = await fetch('/chatbot/export/excel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1494,7 +985,7 @@
             }
 
             const info = wrap.querySelector('.smart-table-info');
-            if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
+            if (info) info.textContent = '📊 ' + filtered.length.toLocaleString('id') + ' baris \u00B7 ' + headers.length + ' kol';
 
             const toolbar = wrap.querySelector('.smart-table-toolbar');
             if (toolbar && !toolbar.querySelector('.smart-table-actions')) {
@@ -1555,10 +1046,10 @@
                 }
             }
         }
-        
+
         function buildSmartTableByElement(wrap, tableId, st, headers, allRows, sortCol, sortDir, query, filtered, pageRows, curPage, totalPages) {
             const info = wrap.querySelector('.smart-table-info');
-            if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
+            if (info) info.textContent = '📊 ' + filtered.length.toLocaleString('id') + ' baris \u00B7 ' + headers.length + ' kol';
 
             const toolbar = wrap.querySelector('.smart-table-toolbar');
             if (toolbar && !toolbar.querySelector('.smart-table-actions')) {
@@ -1626,14 +1117,10 @@
         function initSmartTablesInBubble(bubble, messageToolResults = null) {
             // Use message-specific tool results if provided, otherwise fall back to global
             const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
-            
-            console.log('[SmartTable Init] initSmartTablesInBubble called, toolResults length:', toolResults ? toolResults.length : 0);
 
             bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach((wrap, idx) => {
                 const tableId = wrap.getAttribute('data-table-id') || ('st-' + Math.random().toString(36).substr(2, 9));
                 const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
-                
-                console.log(`[SmartTable Init] Processing table ${idx}: tableId=${tableId}, toolIdx=${toolIdx}`);
 
                 let headers = [];
                 let allRows = [];
@@ -1645,45 +1132,46 @@
                     const rb64 = wrap.getAttribute('data-rows-b64');
 
                     if (hb64 && rb64) {
-                        console.log('[SmartTable Init] Using static base64 data');
-                        headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
-                        allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                        try {
+                            headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
+                            allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                        } catch (e) {
+                            console.error('Failed to parse base64 data for table', tableId, e);
+                            wrap.innerHTML = '<div class="p-4 text-red-400">⚠️ Gagal memuat data tabel</div>';
+                            wrap.setAttribute('data-initialized', 'true');
+                            return;
+                        }
                     }
                     // CASE B: Dynamic Data (from tool result)
                     else if (!isNaN(toolIdx)) {
-                        console.log('[SmartTable Init] Looking for data at toolIdx:', toolIdx);
-                        toolRes = toolResults[toolIdx];
-                        console.log('[SmartTable Init] toolRes:', toolRes ? toolRes.tool_name : 'undefined');
+                        try {
+                            toolRes = toolResults[toolIdx];
+                        } catch (e) {
+                            console.warn('Failed to get tool result at index', toolIdx, e);
+                            toolRes = null;
+                        }
 
                         const hasValidData = (res) => {
                             if (!res) return false;
-                            // Must have rows (either direct or in data.rows)
                             if (res.data && res.data.rows && Array.isArray(res.data.rows) && res.data.rows.length > 0) return true;
                             if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) return true;
                             return false;
                         };
 
-                        // CRITICAL: If indexed tool doesn't have rows, find one that does
                         if (!hasValidData(toolRes)) {
-                            console.log('[SmartTable Init] No valid data at toolIdx', toolIdx, '- searching for execute_query...');
-                            // First try: find execute_query with rows
                             for (let i = toolResults.length - 1; i >= 0; i--) {
                                 const r = toolResults[i];
                                 if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
                                     toolRes = r;
-                                    console.log('[SmartTable Init] Found execute_query at index', i);
                                     break;
                                 }
                             }
 
-                            // Second try: find ANY tool with rows
                             if (!hasValidData(toolRes)) {
-                                console.log('[SmartTable Init] No execute_query found - searching for any tool with rows...');
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
                                     if (r && hasValidData(r)) {
                                         toolRes = r;
-                                        console.log('[SmartTable Init] Found data at index', i);
                                         break;
                                     }
                                 }
@@ -1691,7 +1179,6 @@
                         }
 
                         if (!toolRes) {
-                            console.log('[SmartTable Init] No toolRes found, setting waiting state');
                             wrap.setAttribute('data-initialized', 'waiting');
                             return;
                         }
@@ -1706,10 +1193,14 @@
                         }
 
                         const tableData = toolRes.data || toolRes;
-                        
+
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
+                            
+                            if (allRows.length > 1000) {
+                                console.log(`[SmartTable] Initializing table with ${allRows.length} rows`, tableId);
+                            }
                         } else if (Array.isArray(tableData)) {
                              if (tableData[0] && typeof tableData[0] === 'object') {
                                 headers = Object.keys(tableData[0]);
@@ -1721,44 +1212,45 @@
                         }
                     }
 
-                    // If no data, don't initialize yet (wait for data to arrive)
                     if (allRows.length === 0 && !toolRes) {
                         wrap.setAttribute('data-initialized', 'waiting');
                         return;
                     }
 
-                    // Store state for pagination/sorting
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: ''
                     };
 
-                    wrap.setAttribute('data-initialized', 'true');
-                    if (!wrap.id) wrap.id = tableId;
-
-                    // Init Search
-                    const searchInput = wrap.querySelector('.smart-table-search');
-                    if (searchInput) {
-                        searchInput.addEventListener('input', () => {
-                            smartTables[tableId].query = searchInput.value;
-                            smartTables[tableId].page  = 0;
-                            buildSmartTable(tableId);
-                        });
-                    }
-
                     buildSmartTable(tableId);
 
-                } catch (e) { console.error('[SmartTable] Init failed:', e, 'tableId:', tableId); }
-            });
-            
-            // Re-check any tables that were waiting for data
-            bubble.querySelectorAll('.smart-table-wrap[data-initialized="waiting"]').forEach(wrap => {
-                const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
-                if (!isNaN(toolIdx) && currentToolResults[toolIdx]) {
-                    wrap.removeAttribute('data-initialized');
-                    initSmartTablesInBubble(bubble);
+                    wrap.setAttribute('data-initialized', 'true');
+                    
+                } catch (e) {
+                    console.error('Failed to initialize smart table:', e, {
+                        tableId,
+                        toolIdx,
+                        rowsCount: allRows ? allRows.length : 0
+                    });
+                    
+                    wrap.innerHTML = `<div class="p-4 text-red-400">
+                        <p class="font-bold">⚠️ Gagal memuat tabel</p>
+                        <p class="text-sm opacity-75">${e.message}</p>
+                        <p class="text-xs mt-2 opacity-50">Data terlalu besar atau format tidak valid</p>
+                    </div>`;
+                    wrap.setAttribute('data-initialized', 'error');
                 }
             });
+        }
+
+        // Re-check any tables that were waiting for data
+        bubble.querySelectorAll('.smart-table-wrap[data-initialized="waiting"]').forEach(wrap => {
+            const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
+            if (!isNaN(toolIdx) && currentToolResults[toolIdx]) {
+                wrap.removeAttribute('data-initialized');
+                initSmartTablesInBubble(bubble);
+            }
+        });
             
             // Auto-detect: if there are smart-table-wrap elements without data-initialized attribute, try to init them
             bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
@@ -1766,18 +1258,11 @@
             });
         }
 
-        // ── marked.js setup ───────────────────────────────────────────────────
+        // -- marked.js setup ---------------------------------------------------
         marked.use({
             renderer: {
                 table(header, body) {
-                    let headers = [];
-                    let rows    = [];
-                    
                     try {
-                        // In marked.use renderer, header and body are HTML strings from inner tokens
-                        // We need to parse them back or use the fact that they are already HTML
-                        // But for SmartTable, we prefer raw data.
-                        // For now, let's just render it as a standard table if it's coming through this classic renderer
                         return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
                     } catch(e) { console.error('Table parse error', e); }
                     return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
@@ -1786,39 +1271,10 @@
                     const langClean = (lang || '').trim();
 
                     if (langClean === 'chart') {
-                        try {
-                            const chartData = JSON.parse(code.trim());
-                            let chartIdx = -1;
-                            
-                            if (chartData.tool_index !== undefined) {
-                                // Format dari backend: {"tool_index": N}
-                                chartIdx = parseInt(chartData.tool_index);
-                                console.log('[Chart Renderer] Chart with tool_index:', chartIdx);
-                                // Data should be in toolResults at this index (from backend)
-                                // If not found, it will be handled by initChartsInBubble
-                            } else if (chartData.type) {
-                                // Full chart config (legacy or direct from AI)
-                                // Add to currentToolResults and use that index
-                                chartIdx = currentToolResults.length;
-                                currentToolResults.push({
-                                    tool_name: 'chart',
-                                    data: { chart_config: chartData }
-                                });
-                                console.log('[Chart Renderer] Added chart to toolResults at index:', chartIdx);
-                            }
-                            
-                            if (chartIdx < 0) {
-                                return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Format grafik tidak valid</span></div></div>';
-                            }
-                            
-                            const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
-                            return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}">
-                                <canvas id="${chartId}-canvas"></canvas>
-                            </div>`;
-                        } catch(e) { 
-                            console.error('[Chart Renderer] Parse error:', e);
-                            return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Error memproses grafik</span></div></div>'; 
-                        }
+                        const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                        let encoded;
+                        try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
+                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div><input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
                     }
 
                     if (langClean === 'smart_table') {
@@ -1828,36 +1284,17 @@
                             }
                             const params = JSON.parse(code.trim());
                             const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
-                            
-                            console.log('[SmartTable Renderer] tool_index:', idx, 'currentToolResults length:', currentToolResults.length);
 
                             if (idx >= 0 && !currentToolResults[idx]) {
-                                console.log('[SmartTable Renderer] No data at index', idx);
-                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
-                                    <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                                    <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
-                                </div>`;
+                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span><span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span></div>`;
                             }
 
                             if (idx >= 0 && currentToolResults[idx]) {
-                                console.log('[SmartTable Renderer] Found data at index', idx, currentToolResults[idx].tool_name);
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
-                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
-                                    <div class="smart-table-toolbar">
-                                        <span class="smart-table-info">📊 Memuat...</span>
-                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
-                                    </div>
-                                    <div class="smart-table-scroll">
-                                        <table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
-                                    </div>
-                                    <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
-                                </div>`;
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"><div class="smart-table-toolbar"><span class="smart-table-info">📊 Memuat...</span><input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel..."></div><div class="smart-table-scroll"><table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table></div><div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div></div>`;
                             }
-                        } catch(e) { 
-                            console.error('[SmartTable Renderer] Error:', e);
-                            return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>'; 
-                        }
-                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
+                        } catch(e) { return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>'; }
+                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid</div>`;
                     }
 
                     const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1878,12 +1315,12 @@
             }
         }
 
-        // ── Label notifikasi bisnis ───────────────────────────────────────────
+        // -- Label notifikasi bisnis -------------------------------------------
         const toolIcons  = { list_tables:'📊', describe_table:'🔎', execute_query:'📈', get_schema_info:'🗂️' };
         const toolLabels = { list_tables:'Melihat data yang tersedia', describe_table:'Memeriksa informasi data', execute_query:'Membaca data', get_schema_info:'Melihat data' };
 
 
-        // ── Loading state ─────────────────────────────────────────────────────
+        // -- Loading state -----------------------------------------------------
         function setLoading(loading) {
             isLoading = loading;
             sendBtn.disabled = loading;
@@ -1922,7 +1359,7 @@
             let lastUpdateTime = Date.now();
 
             try {
-                const response = await fetch('{{ route("chatbot.send") }}', {
+                const response = await fetch('/chatbot/send', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2004,8 +1441,8 @@
                                     const badge = document.createElement('div');
                                     badge.className = 'tool-call-badge running';
                                     let detail = '';
-                                    if (tc.name === 'execute_query' && tc.arguments?.label) detail = ` · ${tc.arguments.label}`;
-                                    badge.innerHTML = `<span class="tool-call-dot running"></span><span>${icon} ${label}${detail}</span>`;
+                                    if (tc.name === 'execute_query' && (tc.arguments && tc.arguments.label)) detail = ' \u00B7 ' + tc.arguments.label;
+                                    badge.innerHTML = '<span class="tool-call-dot running"></span><span>' + icon + ' ' + label + detail + '</span>';
                                     toolArea.appendChild(badge);
                                     toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                     typingText.textContent = label + '...';
@@ -2077,7 +1514,7 @@
             }
         }
 
-        // ── Buat bubble AI ────────────────────────────────────────────────────
+        // -- Buat bubble AI ----------------------------------------------------
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
@@ -2110,59 +1547,8 @@
         }
 
 
-        // ── Init Charts ───────────────────────────────────────────────────────
-        function initChartsInBubble(bubble, messageToolResults = null) {
-            // Use message-specific tool results if provided, otherwise fall back to global
-            const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
-
-            console.log('[Chart] initChartsInBubble, toolResults length:', toolResults ? toolResults.length : 0);
-
-            // Handle new chart format with tool_index
-            bubble.querySelectorAll('.chart-container[data-tool-index]').forEach((container) => {
-                const chartId = container.id;
-                const canvas = document.getElementById(`${chartId}-canvas`);
-                const toolIdx = parseInt(container.getAttribute('data-tool-index'));
-
-                console.log(`[Chart] Chart "${chartId}": toolIdx=${toolIdx}, toolResults length=${toolResults ? toolResults.length : 0}`);
-
-                if (!canvas || canvas.getAttribute('data-chart-initialized')) return;
-                if (isNaN(toolIdx) || toolIdx < 0) return;
-
-                // Check if we have data at this index
-                if (!toolResults || toolIdx >= toolResults.length) {
-                    console.log(`[Chart] No data at index ${toolIdx} (toolResults length: ${toolResults ? toolResults.length : 0})`);
-                    return;
-                }
-
-                const toolRes = toolResults[toolIdx];
-                console.log('[Chart] toolRes:', toolRes ? toolRes.tool_name : 'undefined');
-
-                if (!toolRes || !toolRes.data) {
-                    console.log(`[Chart] toolRes.data is empty at index ${toolIdx}`);
-                    return;
-                }
-
-                // Extract chart config from tool result
-                let config = null;
-                if (toolRes.data.chart_config) {
-                    config = toolRes.data.chart_config;
-                } else if (toolRes.data.config) {
-                    config = toolRes.data.config;
-                } else if (toolRes.data.type) {
-                    config = toolRes.data;
-                }
-
-                if (!config || !config.type) {
-                    console.log('[Chart] Invalid chart config (missing type)');
-                    container.innerHTML = '<div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs text-red-400">⚠️ Format grafik tidak valid</span></div>';
-                    return;
-                }
-
-                console.log('[Chart] Initializing chart:', config.type);
-                initChartWithConfig(canvas, config, container, chartId);
-            });
-
-            // LEGACY: Handle old chart format with base64 data (for backward compatibility)
+        // -- Init Charts -------------------------------------------------------
+        function initChartsInBubble(bubble) {
             bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
                 const chartId = provider.getAttribute('data-id');
                 let canvas    = document.getElementById(chartId);
@@ -2175,12 +1561,14 @@
                     if (b64) {
                         rawData = decodeURIComponent(escape(atob(b64)));
                     } else {
+                        // Fallback data lama
                         rawData = provider.value.replace(/&apos;/g, "'");
                     }
                 } catch(e) { return; }
 
                 const cleanJson = rawData.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
 
+                // Jika sedang streaming (belum tutup }), jangan parse, tampilkan loading
                 if (!cleanJson.endsWith('}')) {
                     if (container && !container.querySelector('.chart-loading')) {
                         container.insertAdjacentHTML('afterbegin', `<div class="chart-loading absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] rounded-xl z-20">
@@ -2196,8 +1584,69 @@
 
                 try {
                     const config = JSON.parse(cleanJson);
-                    initChartWithConfig(canvas, config, container, chartId);
+                    // Hapus loader jika ada
+                    const loader = container ? container.querySelector('.chart-loading') : null;
+                    if (loader) loader.remove();
+                    canvas.style.opacity = '1';
+
+                    config.options = config.options || {};
+                    config.options.responsive = true;
+                    config.options.maintainAspectRatio = false;
+                    
+                    // Pastikan warna tema gelap jika tidak diset AI
+                    if (!config.options.plugins) config.options.plugins = {};
+                    if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff', font: { size: 10 } } };
+                    
+                    if (!config.options.scales) config.options.scales = {};
+                    const scales = config.options.scales;
+                    ['x', 'y'].forEach(axis => {
+                        if (!scales[axis]) scales[axis] = {};
+                        if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
+                        if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
+                        
+                        // Format currency di ticks Y jika datanya besar
+                        if (axis === 'y') {
+                            const oldCallback = scales[axis].ticks.callback;
+                            scales[axis].ticks.callback = function(value) {
+                                if (oldCallback) return oldCallback.call(this, value);
+                                if (value >= 1000 || value <= -1000) {
+                                    return 'Rp ' + value.toLocaleString('id-ID');
+                                }
+                                return value;
+                            };
+                        }
+                    });
+
+                    // Format tooltips sebagai Rupiah
+                    if (!config.options.plugins.tooltip) config.options.plugins.tooltip = {};
+                    if (!config.options.plugins.tooltip.callbacks) config.options.plugins.tooltip.callbacks = {};
+                    config.options.plugins.tooltip.callbacks.label = function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) {
+                            label += currencyFormatter.format(context.parsed.y);
+                        }
+                        return label;
+                    };
+
+                    new Chart(canvas, config);
+                    canvas.setAttribute('data-chart-initialized', 'true');
                     provider.remove();
+
+                    // Add export toolbar
+                    if (container && !container.querySelector('.chart-toolbar')) {
+                        const toolbar = document.createElement('div');
+                        toolbar.className = 'chart-toolbar';
+                        toolbar.innerHTML = `<button class="chart-export-btn" title="Export data grafik ke Excel">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Export Excel
+                        </button>`;
+                        const exportBtn = toolbar.querySelector('.chart-export-btn');
+                        exportBtn.onclick = () => exportChartToExcel(chartId, config);
+                        container.insertBefore(toolbar, canvas);
+                    }
                 } catch (e) {
                     const loader = container ? container.querySelector('.chart-loading') : null;
                     if (loader) loader.remove();
@@ -2206,75 +1655,8 @@
                 }
             });
         }
-        
-        function initChartWithConfig(canvas, config, container, chartId) {
-            if (!config || !canvas) return;
-            
-            config.options = config.options || {};
-            config.options.responsive = true;
-            config.options.maintainAspectRatio = false;
-            
-            // Pastikan warna tema gelap jika tidak diset AI
-            if (!config.options.plugins) config.options.plugins = {};
-            if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff', font: { size: 10 } } };
-            
-            if (!config.options.scales) config.options.scales = {};
-            const scales = config.options.scales;
-            ['x', 'y'].forEach(axis => {
-                if (!scales[axis]) scales[axis] = {};
-                if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
-                if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
-                
-                // Format currency di ticks Y jika datanya besar
-                if (axis === 'y') {
-                    const oldCallback = scales[axis].ticks.callback;
-                    scales[axis].ticks.callback = function(value) {
-                        if (oldCallback) return oldCallback.call(this, value);
-                        if (value >= 1000 || value <= -1000) {
-                            return 'Rp ' + value.toLocaleString('id-ID');
-                        }
-                        return value;
-                    };
-                }
-            });
 
-            // Format tooltips sebagai Rupiah
-            if (!config.options.plugins.tooltip) config.options.plugins.tooltip = {};
-            if (!config.options.plugins.tooltip.callbacks) config.options.plugins.tooltip.callbacks = {};
-            config.options.plugins.tooltip.callbacks.label = function(context) {
-                let label = context.dataset.label || '';
-                if (label) label += ': ';
-                if (context.parsed.y !== null) {
-                    label += currencyFormatter.format(context.parsed.y);
-                }
-                return label;
-            };
-
-            try {
-                new Chart(canvas, config);
-                canvas.setAttribute('data-chart-initialized', 'true');
-
-                // Add export toolbar
-                if (container && !container.querySelector('.chart-toolbar')) {
-                    const toolbar = document.createElement('div');
-                    toolbar.className = 'chart-toolbar';
-                    toolbar.innerHTML = `<button class="chart-export-btn" title="Export data grafik ke Excel">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        Export Excel
-                    </button>`;
-                    const exportBtn = toolbar.querySelector('.chart-export-btn');
-                    exportBtn.onclick = () => exportChartToExcel(chartId, config);
-                    container.insertBefore(toolbar, canvas);
-                }
-            } catch (e) {
-                console.error('Chart.js init error:', e);
-                if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik: ' + e.message + '</p>';
-            }
-        }
-
-        // ── Render stream ke bubble ───────────────────────────────────────────
+        // -- Render stream ke bubble -------------------------------------------
         function renderStreamToBubble(bubble, text, messageToolResults = null) {
             // Jangan render jika text kosong, biarkan loading card tetap tampil
             if (!text || text.trim().length === 0) return;
@@ -2285,7 +1667,7 @@
             initSmartTablesInBubble(bubble, messageToolResults);
         }
 
-        // ── Render pesan biasa ────────────────────────────────────────────────
+        // -- Render pesan biasa ------------------------------------------------
         function addMessage(text, sender, messageToolResults = null) {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
@@ -2324,6 +1706,4 @@
             if (currentSessionId) loadSession(currentSessionId);
         };
         });
-    </script>
-</body>
-</html>
+    

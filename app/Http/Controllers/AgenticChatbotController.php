@@ -275,17 +275,20 @@ class AgenticChatbotController extends Controller
                         ? "I'm sorry, I was unable to process your request at this time. Please try rephrasing your question."
                         : "Mohon maaf, permintaan Anda tidak dapat diproses saat ini. Silakan coba dengan pertanyaan yang berbeda.";
                 }
-                
+
+                // Process content for charts and add to tool_results
+                $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
+
                 if ($chatSessionId) {
                     ChatMessage::create([
                         'chat_session_id' => $chatSessionId,
                         'role' => 'assistant',
-                        'content' => $finalContent,
+                        'content' => $processedContent,
                         'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
                     ]);
                 }
-                
-                $this->streamText($finalContent);
+
+                $this->streamText($processedContent);
                 // History client takes directly from DB payload on reload now, but we'll leave this to avoid breaking legacy JS
                 echo "data: " . json_encode(['history' => $this->extractClientHistory($messages)]) . "\n\n";
                 echo "data: [DONE]\n\n";
@@ -360,17 +363,20 @@ class AgenticChatbotController extends Controller
         $msg = $lang === 'en'
             ? "I'm sorry, your request requires more processing than available. Please try a more specific question."
             : "Mohon maaf, permintaan Anda membutuhkan analisis yang terlalu kompleks. Silakan coba dengan pertanyaan yang lebih spesifik.";
-        
+
+        // Process content for charts and add to tool_results
+        $processedMsg = $this->processContentForCharts($msg, $allTurnToolResults);
+
         if ($chatSessionId) {
             ChatMessage::create([
                 'chat_session_id' => $chatSessionId,
                 'role' => 'assistant',
-                'content' => $msg,
+                'content' => $processedMsg,
                 'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
             ]);
         }
-            
-        $this->streamText($msg);
+
+        $this->streamText($processedMsg);
         echo "data: [DONE]\n\n";
         ob_flush();
         flush();
@@ -758,6 +764,17 @@ PROMPT;
 
         $messages[] = ['role' => 'user', 'content' => $userMessage];
         return $messages;
+    }
+
+    // ── Ekstrak chart dari content dan tambahkan ke tool_results ─────────────
+    private function processContentForCharts(string $content, array &$toolResults): string
+    {
+        // For now, we don't modify the content - we let the full chart JSON stay in content
+        // The frontend renderer will handle adding charts to toolResults automatically
+        // This function is kept for future use if needed
+        
+        // Just return content as-is - charts will be handled by frontend renderer
+        return $content;
     }
 
     // ── Ekstrak history untuk frontend ────────────────────────────────────────
