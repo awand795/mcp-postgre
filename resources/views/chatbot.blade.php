@@ -164,7 +164,7 @@
         }
         .chart-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* ── Smart Table ── */
+        /* -- Smart Table -- */
         .smart-table-wrap {
             margin: 12px 0; border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.1);
@@ -685,7 +685,7 @@
                 addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
             });
 
-            // ── Submit ─────────────────────────────────────────────────────────────
+            // -- Submit -------------------------------------------------------------
             async function submitMessage() {
                 const message = messageInput.value.trim();
                 if (!message || isLoading) return;
@@ -751,13 +751,13 @@
                             try {
                                 const parsed = JSON.parse(dataStr);
 
-                                // ── Streaming text chunk ──────────────────────────
+                                // -- Streaming text chunk --------------------------
                                 if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                     aiResponseText += parsed.chunk;
                                     renderStreamToBubble(bubble, aiResponseText);
                                 }
 
-                                // ── Notifikasi proses (label bisnis) ──────────────
+                                // -- Notifikasi proses (label bisnis) --------------
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
                                     const icon  = toolIcons[tc.name] || '🔄';
@@ -798,7 +798,7 @@
                                     }
                                 }
 
-                                // ── History update ────────────────────────────────
+                                // -- History update --------------------------------
                                 if (parsed.history && Array.isArray(parsed.history)) {
                                     conversationHistory = parsed.history;
                                     // Update session ID if provided
@@ -808,7 +808,7 @@
                                     }
                                 }
 
-                                // ── Error ─────────────────────────────────────────
+                                // -- Error -----------------------------------------
                                 if (parsed.error && parsed.response) {
                                     bubble.innerHTML = renderMarkdown(parsed.response);
                                 }
@@ -835,7 +835,7 @@
                 }
             }
 
-            // ── Buat bubble AI ────────────────────────────────────────────────────
+            // -- Buat bubble AI ----------------------------------------------------
             function createStreamBubble() {
                 const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
@@ -860,7 +860,7 @@
                 return { bubble, toolArea, wrapper: wrap };
             }
 
-            // ── Render pesan biasa ────────────────────────────────────────────────
+            // -- Render pesan biasa ------------------------------------------------
             function addMessage(text, sender) {
                 const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 const wrap = document.createElement('div');
@@ -1177,7 +1177,7 @@
         if (btnNewChat) btnNewChat.addEventListener('click', startNewChat);
         if (btnNewChatHeader) btnNewChatHeader.addEventListener('click', startNewChat);
 
-        // ── SmartTable Engine ─────────────────────────────────────────────────
+        // -- SmartTable Engine -------------------------------------------------
         const smartTables = {};
         const PAGE_SIZE = 50;
 
@@ -1215,7 +1215,7 @@
             maximumFractionDigits: 0
         });
 
-        // ── Export Table to Excel ─────────────────────────────────────────────
+        // -- Export Table to Excel ---------------------------------------------
         async function exportTableToExcel(tableId, headers, rows) {
             const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
             if (exportBtn) {
@@ -1313,7 +1313,7 @@
             }
         }
 
-        // ── Export Chart to Excel ──────────────────────────────────────────────
+        // -- Export Chart to Excel ----------------------------------------------
         async function exportChartToExcel(chartId, chartConfig) {
             const exportBtn = document.querySelector(`#${chartId}`).closest('.chart-container').querySelector('.chart-export-btn');
             if (exportBtn) {
@@ -1784,7 +1784,7 @@
             });
         }
 
-        // ── marked.js setup ───────────────────────────────────────────────────
+        // -- marked.js setup ---------------------------------------------------
         marked.use({
             renderer: {
                 table(header, body) {
@@ -1841,12 +1841,12 @@
             }
         }
 
-        // ── Label notifikasi bisnis ───────────────────────────────────────────
+        // -- Label notifikasi bisnis -------------------------------------------
         const toolIcons  = { list_tables:'📊', describe_table:'🔎', execute_query:'📈', get_schema_info:'🗂️' };
         const toolLabels = { list_tables:'Melihat data yang tersedia', describe_table:'Memeriksa informasi data', execute_query:'Membaca data', get_schema_info:'Melihat data' };
 
 
-        // ── Loading state ─────────────────────────────────────────────────────
+        // -- Loading state -----------------------------------------------------
         function setLoading(loading) {
             isLoading = loading;
             sendBtn.disabled = loading;
@@ -2040,7 +2040,7 @@
             }
         }
 
-        // ── Buat bubble AI ────────────────────────────────────────────────────
+        // -- Buat bubble AI ----------------------------------------------------
         function createStreamBubble() {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
@@ -2073,7 +2073,7 @@
         }
 
 
-        // ── Init Charts ───────────────────────────────────────────────────────
+        // -- Init Charts -------------------------------------------------------
         function initChartsInBubble(bubble) {
             bubble.querySelectorAll('.chart-data-provider').forEach(provider => {
                 const chartId = provider.getAttribute('data-id');
@@ -2182,7 +2182,7 @@
             });
         }
 
-        // ── Render stream ke bubble ───────────────────────────────────────────
+        // -- Render stream ke bubble -------------------------------------------
         function renderStreamToBubble(bubble, text, messageToolResults = null) {
             // Jangan render jika text kosong, biarkan loading card tetap tampil
             if (!text || text.trim().length === 0) return;
@@ -2193,7 +2193,7 @@
             initSmartTablesInBubble(bubble, messageToolResults);
         }
 
-        // ── Render pesan biasa ────────────────────────────────────────────────
+        // -- Render pesan biasa ------------------------------------------------
         function addMessage(text, sender, messageToolResults = null) {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
