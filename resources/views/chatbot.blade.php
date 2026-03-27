@@ -1046,10 +1046,9 @@
                         
                         // Restore global immediately
                         currentToolResults = originalGlobal;
-                        
+
                         // Defer init to next tick so DOM elements (canvas) are ready
                         setTimeout(() => {
-                            console.log('[LoadSession] initChartsInBubble with toolResults length:', toolResultsForInit.length);
                             initChartsInBubble(bubble, toolResultsForInit);
                             initSmartTablesInBubble(bubble, toolResultsForInit);
                         }, 50);
@@ -1620,70 +1619,52 @@
                     if (nextBtn) nextBtn.onclick = () => { st.page++; buildSmartTable(tableId); };
                 }
             }
-            
+
             wrap.setAttribute('data-initialized', 'true');
         }
         function initSmartTablesInBubble(bubble, messageToolResults = null) {
-            // Use message-specific tool results if provided, otherwise fall back to global
             const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
-            
-            console.log('[SmartTable Init] initSmartTablesInBubble called, toolResults length:', toolResults ? toolResults.length : 0);
 
             bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach((wrap, idx) => {
                 const tableId = wrap.getAttribute('data-table-id') || ('st-' + Math.random().toString(36).substr(2, 9));
                 const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
-                
-                console.log(`[SmartTable Init] Processing table ${idx}: tableId=${tableId}, toolIdx=${toolIdx}`);
 
                 let headers = [];
                 let allRows = [];
                 let toolRes = null;
 
                 try {
-                    // CASE A: Static Data (from history/base64)
                     const hb64 = wrap.getAttribute('data-headers-b64');
                     const rb64 = wrap.getAttribute('data-rows-b64');
 
                     if (hb64 && rb64) {
-                        console.log('[SmartTable Init] Using static base64 data');
                         headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
                         allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
                     }
-                    // CASE B: Dynamic Data (from tool result)
                     else if (!isNaN(toolIdx)) {
-                        console.log('[SmartTable Init] Looking for data at toolIdx:', toolIdx);
                         toolRes = toolResults[toolIdx];
-                        console.log('[SmartTable Init] toolRes:', toolRes ? toolRes.tool_name : 'undefined');
 
                         const hasValidData = (res) => {
                             if (!res) return false;
-                            // Must have rows (either direct or in data.rows)
                             if (res.data && res.data.rows && Array.isArray(res.data.rows) && res.data.rows.length > 0) return true;
                             if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) return true;
                             return false;
                         };
 
-                        // CRITICAL: If indexed tool doesn't have rows, find one that does
                         if (!hasValidData(toolRes)) {
-                            console.log('[SmartTable Init] No valid data at toolIdx', toolIdx, '- searching for execute_query...');
-                            // First try: find execute_query with rows
                             for (let i = toolResults.length - 1; i >= 0; i--) {
                                 const r = toolResults[i];
                                 if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
                                     toolRes = r;
-                                    console.log('[SmartTable Init] Found execute_query at index', i);
                                     break;
                                 }
                             }
 
-                            // Second try: find ANY tool with rows
                             if (!hasValidData(toolRes)) {
-                                console.log('[SmartTable Init] No execute_query found - searching for any tool with rows...');
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
                                     if (r && hasValidData(r)) {
                                         toolRes = r;
-                                        console.log('[SmartTable Init] Found data at index', i);
                                         break;
                                     }
                                 }
@@ -1691,7 +1672,6 @@
                         }
 
                         if (!toolRes) {
-                            console.log('[SmartTable Init] No toolRes found, setting waiting state');
                             wrap.setAttribute('data-initialized', 'waiting');
                             return;
                         }
@@ -1706,7 +1686,7 @@
                         }
 
                         const tableData = toolRes.data || toolRes;
-                        
+
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
@@ -1789,35 +1769,28 @@
                         try {
                             const chartData = JSON.parse(code.trim());
                             let chartIdx = -1;
-                            
+
                             if (chartData.tool_index !== undefined) {
-                                // Format dari backend: {"tool_index": N}
                                 chartIdx = parseInt(chartData.tool_index);
-                                console.log('[Chart Renderer] Chart with tool_index:', chartIdx);
-                                // Data should be in toolResults at this index (from backend)
-                                // If not found, it will be handled by initChartsInBubble
                             } else if (chartData.type) {
-                                // Full chart config (legacy or direct from AI)
-                                // Add to currentToolResults and use that index
                                 chartIdx = currentToolResults.length;
                                 currentToolResults.push({
                                     tool_name: 'chart',
                                     data: { chart_config: chartData }
                                 });
-                                console.log('[Chart Renderer] Added chart to toolResults at index:', chartIdx);
                             }
-                            
+
                             if (chartIdx < 0) {
                                 return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Format grafik tidak valid</span></div></div>';
                             }
-                            
+
                             const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
                             return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}">
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
-                        } catch(e) { 
+                        } catch(e) {
                             console.error('[Chart Renderer] Parse error:', e);
-                            return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Error memproses grafik</span></div></div>'; 
+                            return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Error memproses grafik</span></div></div>';
                         }
                     }
 
@@ -1828,11 +1801,8 @@
                             }
                             const params = JSON.parse(code.trim());
                             const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
-                            
-                            console.log('[SmartTable Renderer] tool_index:', idx, 'currentToolResults length:', currentToolResults.length);
 
                             if (idx >= 0 && !currentToolResults[idx]) {
-                                console.log('[SmartTable Renderer] No data at index', idx);
                                 return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
                                     <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
                                     <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
@@ -1840,7 +1810,6 @@
                             }
 
                             if (idx >= 0 && currentToolResults[idx]) {
-                                console.log('[SmartTable Renderer] Found data at index', idx, currentToolResults[idx].tool_name);
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
                                 return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
                                     <div class="smart-table-toolbar">
@@ -1853,9 +1822,9 @@
                                     <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
                                 </div>`;
                             }
-                        } catch(e) { 
+                        } catch(e) {
                             console.error('[SmartTable Renderer] Error:', e);
-                            return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>'; 
+                            return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
                         }
                         return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
                     }
@@ -2112,37 +2081,26 @@
 
         // ── Init Charts ───────────────────────────────────────────────────────
         function initChartsInBubble(bubble, messageToolResults = null) {
-            // Use message-specific tool results if provided, otherwise fall back to global
             const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
 
-            console.log('[Chart] initChartsInBubble, toolResults length:', toolResults ? toolResults.length : 0);
-
-            // Handle new chart format with tool_index
             bubble.querySelectorAll('.chart-container[data-tool-index]').forEach((container) => {
                 const chartId = container.id;
                 const canvas = document.getElementById(`${chartId}-canvas`);
                 const toolIdx = parseInt(container.getAttribute('data-tool-index'));
 
-                console.log(`[Chart] Chart "${chartId}": toolIdx=${toolIdx}, toolResults length=${toolResults ? toolResults.length : 0}`);
-
                 if (!canvas || canvas.getAttribute('data-chart-initialized')) return;
                 if (isNaN(toolIdx) || toolIdx < 0) return;
 
-                // Check if we have data at this index
                 if (!toolResults || toolIdx >= toolResults.length) {
-                    console.log(`[Chart] No data at index ${toolIdx} (toolResults length: ${toolResults ? toolResults.length : 0})`);
                     return;
                 }
 
                 const toolRes = toolResults[toolIdx];
-                console.log('[Chart] toolRes:', toolRes ? toolRes.tool_name : 'undefined');
 
                 if (!toolRes || !toolRes.data) {
-                    console.log(`[Chart] toolRes.data is empty at index ${toolIdx}`);
                     return;
                 }
 
-                // Extract chart config from tool result
                 let config = null;
                 if (toolRes.data.chart_config) {
                     config = toolRes.data.chart_config;
@@ -2153,12 +2111,10 @@
                 }
 
                 if (!config || !config.type) {
-                    console.log('[Chart] Invalid chart config (missing type)');
                     container.innerHTML = '<div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs text-red-400">⚠️ Format grafik tidak valid</span></div>';
                     return;
                 }
 
-                console.log('[Chart] Initializing chart:', config.type);
                 initChartWithConfig(canvas, config, container, chartId);
             });
 

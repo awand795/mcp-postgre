@@ -1197,10 +1197,6 @@
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
-                            
-                            if (allRows.length > 1000) {
-                                console.log(`[SmartTable] Initializing table with ${allRows.length} rows`, tableId);
-                            }
                         } else if (Array.isArray(tableData)) {
                              if (tableData[0] && typeof tableData[0] === 'object') {
                                 headers = Object.keys(tableData[0]);

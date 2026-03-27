@@ -253,9 +253,6 @@
             let allTables = window.allTables || [];
             let hasChanges = false;
 
-            console.log('allTables:', allTables);
-            console.log('allRoles:', allRoles);
-
             const availableList = document.getElementById('available-tables');
             const allowedList = document.getElementById('allowed-tables');
             const unsavedIndicator = document.getElementById('unsaved-indicator');
@@ -289,15 +286,12 @@
 
             // Render tables based on role
             function renderTablesForRole(roleId) {
-                console.log('Rendering tables for roleId:', roleId);
                 const role = allRoles.find(r => r.id == roleId);
                 if (!role) {
-                    console.log('Role not found!');
                     return;
                 }
 
                 const allowedTables = (role.permissions || []).map(p => p.table_name);
-                console.log('Allowed tables for this role:', allowedTables);
 
                 // Clear both lists
                 availableList.innerHTML = '';
@@ -315,7 +309,6 @@
 
                 // Reset changes indicator
                 setHasChanges(false);
-                console.log('Rendered. Available:', availableList.children.length, 'Allowed:', allowedList.children.length);
             }
 
             // Initialize Sortable with change tracking
@@ -338,7 +331,6 @@
             });
 
             function selectRole(roleId, el) {
-                console.log('Selecting role:', roleId);
                 const role = allRoles.find(r => r.id == roleId);
                 if (!role) return;
 
@@ -380,8 +372,6 @@
             if (allRoles.length > 0 && allTables.length > 0) {
                 currentRoleId = allRoles[0].id;
                 renderTablesForRole(currentRoleId);
-            } else {
-                console.log('No roles or tables to initialize');
             }
 
             // Select All - move all from available to allowed
@@ -465,7 +455,6 @@
                             body: JSON.stringify({ tables })
                         }).then(res => res.json())
                             .then(data => {
-                                console.log('Save response:', data);
                                 if (data.success) {
                                     // Update role data in allRoles array
                                     const roleIndex = allRoles.findIndex(r => r.id == currentRoleId);
