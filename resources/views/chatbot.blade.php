@@ -993,12 +993,39 @@
             chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
 
             try {
-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`);
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    // Timeout 10 menit untuk history dengan data besar
+                    signal: AbortSignal.timeout(600000)
+                });
+
+                const contentType = res.headers.get('content-type');
                 
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                
+                if (!res.ok) {
+                    let errorMsg = 'HTTP ' + res.status;
+                    
+                    // Try to get error details from response
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await res.json();
+                        errorMsg = errorData.message || errorData.error || errorMsg;
+                    } else {
+                        const text = await res.text();
+                        console.error('Server response:', text.substring(0, 500));
+                        if (text.includes('Allowed memory size')) {
+                            errorMsg = 'Memory limit exceeded. Data terlalu besar.';
+                        } else if (text.includes('timeout')) {
+                            errorMsg = 'Request timeout. Server terlalu lama meresponse.';
+                        }
+                    }
+                    
+                    throw new Error(errorMsg);
+                }
+
                 const data = await res.json();
-                
+
                 chatMessages.innerHTML = '';
                 conversationHistory = [];
 
@@ -1008,59 +1035,80 @@
                     return;
                 }
 
-                data.history.forEach((msg, index) => {
-                    const wrap = document.createElement('div');
-                    wrap.className = ['flex flex-col gap-1.5',
-                        msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
-                    ].join(' ');
+                // Process messages with error handling - Load ALL smart tables
+                for (let index = 0; index < data.history.length; index++) {
+                    const msg = data.history[index];
+                    
+                    try {
+                        const wrap = document.createElement('div');
+                        wrap.className = ['flex flex-col gap-1.5',
+                            msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
+                        ].join(' ');
 
-                    const bubble = document.createElement('div');
-                    bubble.className = [
-                        msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
-                        'p-4 rounded-2xl text-sm shadow-sm markdown-body'
-                    ].join(' ');
+                        const bubble = document.createElement('div');
+                        bubble.className = [
+                            msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
+                            'p-4 rounded-2xl text-sm shadow-sm markdown-body'
+                        ].join(' ');
 
-                    if (msg.role === 'ai' || msg.role === 'assistant') {
-                        const toolResultsForMsg = msg.tool_results || [];
+                        if (msg.role === 'ai' || msg.role === 'assistant') {
+                            // Safely handle tool_results - ALL DATA
+                            let toolResultsForMsg = [];
+                            try {
+                                toolResultsForMsg = Array.isArray(msg.tool_results) ? msg.tool_results : [];
+                            } catch (e) {
+                                console.warn('Failed to parse tool_results for message', index, e);
+                            }
 
-                        // CRITICAL: Temporarily set global for markdown renderer, then pass to init
-                        const originalGlobal = currentToolResults;
-                        currentToolResults = toolResultsForMsg;
+                            // Temporarily set global for markdown renderer
+                            const originalGlobal = currentToolResults;
+                            currentToolResults = toolResultsForMsg;
+
+                            try {
+                                bubble.innerHTML = renderMarkdown(msg.content);
+                                bubble.querySelectorAll('pre code').forEach(b => { 
+                                    try { hljs.highlightElement(b); } catch (e) {} 
+                                });
+
+                                initChartsInBubble(bubble);
+
+                                // INIT ALL SMART TABLES - No lazy load, show all data
+                                initSmartTablesInBubble(bubble, toolResultsForMsg);
+                            } catch (e) {
+                                console.error('Failed to render message', index, e);
+                                bubble.textContent = '[Pesan tidak dapat ditampilkan]';
+                            }
+
+                            // Restore global
+                            currentToolResults = originalGlobal;
+                        } else {
+                            bubble.textContent = msg.content;
+                        }
+
+                        const timeEl = document.createElement('span');
+                        timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
+                        timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                        wrap.appendChild(bubble);
+                        wrap.appendChild(timeEl);
+                        chatMessages.appendChild(wrap);
                         
-                        bubble.innerHTML = renderMarkdown(msg.content);
-                        bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
-                        
-                        initChartsInBubble(bubble);
-                        
-                        // CRITICAL: Defer smart table init to next tick so DOM is ready
-                        setTimeout(() => {
-                            initSmartTablesInBubble(bubble, toolResultsForMsg);
-                        }, 0);
-                        
-                        // Restore global
-                        currentToolResults = originalGlobal;
-                    } else {
-                        bubble.textContent = msg.content;
+                    } catch (e) {
+                        console.error('Failed to process message', index, e);
+                        // Continue to next message instead of failing completely
                     }
-
-                    const timeEl = document.createElement('span');
-                    timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
-                    timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                    wrap.appendChild(bubble);
-                    wrap.appendChild(timeEl);
-                    chatMessages.appendChild(wrap);
-                });
+                }
 
                 await loadSessions();
-                
-                // CRITICAL: Wait for smart tables to initialize before releasing lock
-                await new Promise(resolve => setTimeout(resolve, 300));
-                
+
+                // Wait for all smart tables to render (increased for large data)
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
                 chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'instant' });
-                
+
             } catch (e) {
-                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan.</div>';
+                console.error('Failed to load session:', e);
+                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan. ' + e.message + '</div>';
             } finally {
                 // CRITICAL: Always release loading flag, even on error
                 setTimeout(() => {
@@ -1078,6 +1126,8 @@
                             }
                         });
                     }
+                    
+                    // Lazy load observer cleanup (removed - now loading all tables immediately)
                 }, 100);
             }
         }
@@ -1673,7 +1723,7 @@
                         }
 
                         const tableData = toolRes.data || toolRes;
-                        
+
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));

@@ -57,29 +57,45 @@ class AgenticChatbotController extends Controller
 
     public function getSession($id)
     {
-        $session = ChatSession::with('messages')->where('user_id', Auth::id())->findOrFail($id);
-        
-        $history = [];
-        foreach ($session->messages as $msg) {
-            if ($msg->role === 'assistant') {
-                $toolRes = json_decode($msg->tool_results, true);
-                $history[] = [
-                    'role' => 'assistant', 
-                    'content' => $msg->content,
-                    'tool_results' => is_array($toolRes) ? $toolRes : []
-                ];
-            } else {
-                $history[] = [
-                    'role' => 'user',
-                    'content' => $msg->content
-                ];
+        try {
+            // Increase memory limit for large history
+            ini_set('memory_limit', '1024M');
+            
+            $session = ChatSession::with('messages')->where('user_id', Auth::id())->findOrFail($id);
+
+            $history = [];
+            foreach ($session->messages as $msg) {
+                // tool_results sudah di-cast ke array oleh model - SEMUA DATA DIKEMBALIKAN
+                if ($msg->role === 'assistant') {
+                    $history[] = [
+                        'role' => 'assistant',
+                        'content' => $msg->content,
+                        'tool_results' => $msg->tool_results ?: []
+                    ];
+                } else {
+                    $history[] = [
+                        'role' => 'user',
+                        'content' => $msg->content
+                    ];
+                }
             }
+
+            return response()->json([
+                'session' => ['id' => $session->id, 'title' => $session->title],
+                'history' => $history
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Failed to load chat session: ' . $e->getMessage(), [
+                'session_id' => $id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return response()->json([
+                'error' => 'Gagal memuat riwayat chat',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-        
-        return response()->json([
-            'session' => ['id' => $session->id, 'title' => $session->title],
-            'history' => $history
-        ]);
     }
 
     public function deleteSession($id)
