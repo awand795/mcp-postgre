@@ -90,6 +90,32 @@
         }
         @keyframes bar-sweep { 0%{transform:translateX(-150%)} 100%{transform:translateX(450%)} }
 
+        /* Status Bar */
+        .status-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 3px; background: rgba(255,255,255,0.05);
+            z-index: 50; overflow: hidden;
+        }
+        .status-bar.active {
+            background: rgba(245,48,3,0.1);
+        }
+        .status-bar-progress {
+            position: absolute; top: 0; left: 0; bottom: 0;
+            width: 100%;
+            background: linear-gradient(90deg, #f53003, #ff6b6b, #f53003);
+            background-size: 200% 100%;
+            animation: progress-pulse 2s ease-in-out infinite;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        .status-bar.active .status-bar-progress {
+            transform: translateX(0);
+        }
+        @keyframes progress-pulse {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
 
         /* Markdown styles */
         .markdown-body { line-height: 1.6; }
@@ -267,26 +293,91 @@
             opacity: 0.3;
             cursor: not-allowed;
         }
+        
+        /* Sidebar fixes */
+        #chat-sidebar {
+            background-color: #0a0a0a !important;
+        }
+        #chat-sidebar.open {
+            background-color: rgba(10, 10, 10, 0.98) !important;
+        }
+        
+        #history-list .group {
+            cursor: pointer;
+            user-select: none;
+        }
+        #history-list .group:active {
+            background-color: rgba(255,255,255,0.15) !important;
+        }
+        
+        /* Delete Modal Animations */
+        #delete-modal.show {
+            display: flex;
+        }
+        #delete-modal.show .delete-modal-backdrop {
+            opacity: 1;
+        }
+        #delete-modal.show .delete-modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
 
-<body class="flex items-center justify-center p-4">
+<body class="flex items-center justify-center p-2 md:p-4">
 
-    <div class="flex flex-col w-full max-w-4xl h-[90vh] glass-panel rounded-3xl overflow-hidden">
+    <!-- Main Container -->
+    <div class="flex w-full max-w-6xl h-[95vh] glass-panel rounded-3xl overflow-hidden relative">
 
-        <!-- Header -->
-        <div class="p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-            <div class="flex items-center gap-3">
-                <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-10 h-10 object-contain">
-                <div>
-                    <h1 class="text-white font-semibold text-lg leading-tight">darkotech AI</h1>
+        <!-- Sidebar (Pushes content, not overlay) -->
+        <aside id="chat-sidebar" class="w-72 bg-[#0a0a0a]/95 border-r border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden" style="width: 0; opacity: 0;">
+
+            <!-- Sidebar Header / Mobile Close -->
+            <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0" style="min-width: 288px;">
+                <button id="btn-new-chat" class="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-[#f53003]/20 to-[#ff4433]/20 hover:from-[#f53003]/40 hover:to-[#ff4433]/40 text-white border border-[#f53003]/50 rounded-xl text-sm font-medium transition-all shadow-lg shadow-red-500/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Chat Baru
+                </button>
+                <button id="btn-close-sidebar" class="ml-3 p-1.5 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <!-- History List -->
+            <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-white/40 uppercase tracking-wider flex-shrink-0" style="min-width: 288px;">Riwayat Terakhir</div>
+            <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar" style="min-width: 288px;">
+                <!-- JS populated -->
+                <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">Memuat riwayat...</div>
+            </div>
+        </aside>
+
+        <!-- Overlay (hanya untuk mobile/backdrop click) -->
+        <div id="sidebar-overlay" class="absolute inset-0 bg-black/60 z-0 hidden backdrop-blur-sm transition-opacity opacity-0" style="pointer-events: none;"></div>
+
+        <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
+        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10">
+        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300">
+            <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
+                <!-- Hamburger and New Chat for Header -->
+                <div class="flex items-center">
+                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                    </button>
+                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                </div>
+                
+                <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain ml-1">
+                <div class="min-w-0">
+                    <h1 class="text-white font-semibold text-base md:text-lg leading-tight truncate">darkotech AI</h1>
                     <div class="flex items-center gap-2 mt-0.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span class="text-xs text-[#A1A09A]">Online</span>
+                        <span class="text-[11px] md:text-xs text-[#A1A09A]">Online</span>
                     </div>
                 </div>
             </div>
-            <div class="flex items-center gap-2 header-actions">
+            <div class="flex items-center gap-2 header-actions flex-shrink-0">
                 @if(auth()->user()->is_admin)
                     <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
                         class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#818cf8] text-xs border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
@@ -297,8 +388,8 @@
                         <span class="btn-text">Admin Dashboard</span>
                     </a>
                 @endif
-                <button id="btn-clear-chat" title="Hapus riwayat"
-                    class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30">
+                <button id="btn-clear-chat" title="Hapus riwayat obrolan ini"
+                    class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30 hover:bg-black/20 transition-all focus:ring-1 focus:ring-red-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6" />
@@ -306,6 +397,12 @@
                         <path d="M10 11v6M14 11v6M9 6V4h6v2" />
                     </svg>
                     <span class="btn-text">Hapus Riwayat</span>
+                </button>
+                <button id="btn-clear-chat-mobile" title="Hapus riwayat obrolan ini"
+                    class="btn-clear md:hidden flex items-center p-2 rounded-xl text-[#A1A09A] border border-transparent hover:border-red-500/30 hover:bg-black/20 hover:text-red-500 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4h6v2" />
+                    </svg>
                 </button>
                 <form action="{{ route('logout') }}" method="POST" class="inline">
                     @csrf
@@ -324,8 +421,14 @@
         </div>
 
         <!-- Chat Area -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-5">
-            <div class="flex flex-col items-start gap-1.5 max-w-[85%]">
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 custom-scrollbar relative">
+            <!-- Status Bar -->
+            <div id="status-bar" class="status-bar">
+                <div class="status-bar-progress"></div>
+            </div>
+            
+            <!-- Initial content will be cleared if history is loaded, otherwise defaults to welcome message -->
+            <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
                     <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
                     <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
@@ -333,10 +436,7 @@
             </div>
         </div>
 
-        <!-- Typing Indicator (hidden, kept for JS compatibility) -->
-        <div id="typing-indicator" class="hidden"></div>
-        <div id="typing-inner" class="hidden"></div>
-        <span id="typing-text" class="hidden"></span>
+        <!-- Typing Indicator (now integrated in input area) -->
 
 
         <!-- Input -->
@@ -358,7 +458,67 @@
                     </svg>
                 </button>
             </div>
-            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest">Powered by darkotech</p>
+            
+            <!-- Floating Status Indicator -->
+            <div id="typing-indicator" class="hidden absolute -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 backdrop-blur-sm border border-white/10 shadow-lg">
+                    <svg class="animate-spin h-4 w-4 text-[#f53003]" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span id="typing-text" class="text-xs text-white font-medium">AI sedang berpikir...</span>
+                </div>
+            </div>
+            
+            <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest leading-relaxed">
+                Powered by darkotech<br/>
+            </p>
+        </div>
+
+        </div> <!-- End Main Content -->
+    </div> <!-- End Glass Panel -->
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 z-[100] hidden items-center justify-center">
+        <!-- Backdrop -->
+        <div class="delete-modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"></div>
+        
+        <!-- Modal Content -->
+        <div class="delete-modal-content relative w-full max-w-md mx-4 transform transition-all scale-95 opacity-0">
+            <div class="glass-panel bg-black/90 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-white/10 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-white font-semibold text-lg">Hapus Riwayat Chat</h3>
+                </div>
+                
+                <!-- Modal Body -->
+                <div class="px-6 py-5">
+                    <p class="text-[#A1A09A] text-sm leading-relaxed">
+                        Apakah Anda yakin ingin menghapus sesi obrolan ini? 
+                        <span class="text-red-400 font-medium">Tindakan ini tidak dapat dibatalkan.</span>
+                    </p>
+                </div>
+                
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3 bg-white/5">
+                    <button id="modal-cancel-btn" class="px-4 py-2 rounded-xl text-[#A1A09A] text-sm font-medium border border-white/10 hover:bg-white/5 hover:text-white transition-all">
+                        Batal
+                    </button>
+                    <button id="modal-delete-btn" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium border border-red-500/30 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Hapus
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -366,18 +526,390 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <script>
-        const messageInput    = document.getElementById('message-input');
-        const chatMessages    = document.getElementById('chat-messages');
-        const typingIndicator = document.getElementById('typing-indicator');
-        const typingText      = document.getElementById('typing-text');
-        const btnClear        = document.getElementById('btn-clear-chat');
-        const sendBtn         = document.getElementById('send-btn');
-        const sendIcon        = document.getElementById('send-icon');
-        const loadingIcon     = document.getElementById('loading-icon');
+        document.addEventListener('DOMContentLoaded', function() {
+            const messageInput    = document.getElementById('message-input');
+            const chatMessages    = document.getElementById('chat-messages');
+            const typingIndicator = document.getElementById('typing-indicator');
+            const typingText      = document.getElementById('typing-text');
+            const btnClear        = document.getElementById('btn-clear-chat');
+            const btnClearMobile  = document.getElementById('btn-clear-chat-mobile');
+            const sendBtn         = document.getElementById('send-btn');
+            const sendIcon        = document.getElementById('send-icon');
+            const loadingIcon     = document.getElementById('loading-icon');
+            const statusBar       = document.getElementById('status-bar');
 
-        let conversationHistory = [];
-        let currentToolResults  = []; // Untuk menyimpan hasil tool call agar bisa diakses Direct Smart Table
-        let isLoading = false;
+            let conversationHistory = [];
+            let currentToolResults  = [];
+            let isLoading = false;
+            let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
+
+            const sidebar = document.getElementById('chat-sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            const btnOpenSidebar = document.getElementById('btn-open-sidebar');
+            const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+            const btnNewChat = document.getElementById('btn-new-chat');
+            const btnNewChatHeader = document.getElementById('btn-new-chat-header');
+            const historyList = document.getElementById('history-list');
+            
+            // Delete modal elements
+            const deleteModal = document.getElementById('delete-modal');
+            const modalBackdrop = deleteModal.querySelector('.delete-modal-backdrop');
+            const modalContent = deleteModal.querySelector('.delete-modal-content');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalDeleteBtn = document.getElementById('modal-delete-btn');
+            
+            let deleteCallback = null;
+
+            let isSidebarOpen = false;
+
+            // Modal functions
+            function showDeleteModal(sessionId, callback) {
+                deleteCallback = { sessionId, callback };
+                deleteModal.classList.add('show');
+                deleteModal.classList.remove('hidden');
+                setTimeout(() => {
+                    modalBackdrop.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-95', 'opacity-0');
+                }, 10);
+            }
+
+            function hideDeleteModal() {
+                modalBackdrop.classList.add('opacity-0');
+                modalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    deleteModal.classList.remove('show');
+                    deleteModal.classList.add('hidden');
+                    deleteCallback = null;
+                }, 300);
+            }
+
+            function applySidebarState() {
+                if (isSidebarOpen) {
+                    // OPEN sidebar - show with width
+                    sidebar.style.width = '288px';
+                    sidebar.style.opacity = '1';
+                    sidebarOverlay.style.zIndex = '0';
+                    if (btnNewChatHeader) btnNewChatHeader.classList.add('hidden');
+                } else {
+                    // CLOSE sidebar - collapse width
+                    sidebar.style.width = '0';
+                    sidebar.style.opacity = '0';
+                    sidebarOverlay.style.zIndex = '0';
+                    if (btnNewChatHeader) btnNewChatHeader.classList.remove('hidden');
+                }
+            }
+
+            function toggleSidebar(show) {
+                if (typeof show === 'boolean') {
+                    isSidebarOpen = show;
+                } else {
+                    isSidebarOpen = !isSidebarOpen;
+                }
+                applySidebarState();
+            }
+
+            window.addEventListener('resize', () => {
+                applySidebarState();
+            });
+
+            applySidebarState();
+
+            // Hamburger button click handler
+            btnOpenSidebar.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            });
+
+            if (btnCloseSidebar) btnCloseSidebar.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar(false);
+            });
+            if (sidebarOverlay) sidebarOverlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar(false);
+            });
+            if (btnNewChat) btnNewChat.addEventListener('click', () => { startNewChat(); if (window.innerWidth < 768) toggleSidebar(false); });
+            if (btnNewChatHeader) btnNewChatHeader.addEventListener('click', () => startNewChat());
+
+            // Modal event listeners
+            if (modalCancelBtn) {
+                modalCancelBtn.addEventListener('click', hideDeleteModal);
+            }
+            if (modalDeleteBtn) {
+                modalDeleteBtn.addEventListener('click', () => {
+                    if (deleteCallback) {
+                        hideDeleteModal();
+                        deleteCallback.callback(deleteCallback.sessionId);
+                    }
+                });
+            }
+            if (modalBackdrop) {
+                modalBackdrop.addEventListener('click', hideDeleteModal);
+            }
+            // Close modal on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && deleteModal.classList.contains('show')) {
+                    hideDeleteModal();
+                }
+            });
+
+            // Clear chat handlers
+            const handleClear = () => {
+                if (currentSessionId) {
+                    deleteSession(currentSessionId, { stopPropagation: () => {} });
+                } else {
+                    conversationHistory = [];
+                    chatMessages.innerHTML = '';
+                    addWelcomeMessage();
+                }
+            };
+
+            if (btnClear) btnClear.addEventListener('click', handleClear);
+            if (btnClearMobile) btnClearMobile.addEventListener('click', handleClear);
+
+            // Message input handlers
+            messageInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey && !isLoading) { e.preventDefault(); submitMessage(); }
+            });
+            sendBtn.addEventListener('click', () => { if (!isLoading) submitMessage(); });
+
+        async function loadSessions() {
+            try {
+                const res = await fetch('{{ route("chatbot.sessions") }}');
+                const sessions = await res.json();
+
+                historyList.innerHTML = '';
+                historyList.style.pointerEvents = 'auto';
+                historyList.style.opacity = '1';
+
+                if (sessions.length === 0) {
+                    historyList.innerHTML = '<div class="flex flex-col items-center justify-center p-4 text-center opacity-50"><svg class="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="text-xs">Belum ada obrolan</span></div>';
+                    return;
+                }
+
+                sessions.forEach(s => {
+                    const isActive = s.id == currentSessionId;
+                    const item = document.createElement('div');
+                    item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-white/10 text-white' : 'text-[#A1A09A] hover:bg-white/5 hover:text-white'}`;
+                    item.style.pointerEvents = 'auto';
+
+                    // History item click area
+                    const clickArea = document.createElement('div');
+                    clickArea.className = 'flex items-center gap-2 overflow-hidden flex-1';
+                    clickArea.style.pointerEvents = 'auto';
+                    clickArea.style.cursor = isLoading ? 'not-allowed' : 'pointer';
+                    clickArea.style.opacity = isLoading ? '0.5' : '1';
+                    clickArea.innerHTML = `
+                        <svg class="w-4 h-4 flex-shrink-0 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span class="text-[11px] md:text-xs truncate select-none">${s.title}</span>
+                    `;
+                    clickArea.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isLoading) {
+                            loadSession(s.id);
+                        }
+                    });
+
+                    // Delete button
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.className = 'delete-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/20 hover:text-red-500';
+                    deleteBtn.style.pointerEvents = 'auto';
+                    deleteBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                    deleteBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteSession(s.id, e);
+                    });
+
+                    item.appendChild(clickArea);
+                    item.appendChild(deleteBtn);
+                    historyList.appendChild(item);
+                });
+            } catch (e) {
+                historyList.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">Gagal memuat riwayat</div>';
+            }
+        }
+
+        async function loadSession(id) {
+            if (isLoading) {
+                return;
+            }
+            
+            // Set loading flag to prevent concurrent operations
+            isLoading = true;
+            
+            // Update history list visual state - show loading
+            const historyItems = historyList.querySelectorAll('.group');
+            historyItems.forEach(item => {
+                const clickArea = item.querySelector('div[class*="flex items-center gap-2"]');
+                if (clickArea) {
+                    clickArea.style.cursor = 'not-allowed';
+                    clickArea.style.opacity = '0.5';
+                }
+            });
+            
+            // Reset global tool results for new session
+            currentToolResults = [];
+            
+            currentSessionId = id;
+            window.history.pushState({}, '', '?chat=' + id);
+
+            // Close sidebar on mobile only
+            if (window.innerWidth < 768) toggleSidebar(false);
+
+            // Show loading state with spinner
+            chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
+
+            try {
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`);
+                
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                
+                const data = await res.json();
+                
+                chatMessages.innerHTML = '';
+                conversationHistory = [];
+
+                if (data.history.length === 0) {
+                    addWelcomeMessage();
+                    await loadSessions();
+                    return;
+                }
+
+                data.history.forEach((msg, index) => {
+                    const wrap = document.createElement('div');
+                    wrap.className = ['flex flex-col gap-1.5',
+                        msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
+                    ].join(' ');
+
+                    const bubble = document.createElement('div');
+                    bubble.className = [
+                        msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
+                        'p-4 rounded-2xl text-sm shadow-sm markdown-body'
+                    ].join(' ');
+
+                    if (msg.role === 'ai' || msg.role === 'assistant') {
+                        const toolResultsForMsg = msg.tool_results || [];
+
+                        // CRITICAL: Temporarily set global for markdown renderer, then pass to init
+                        const originalGlobal = currentToolResults;
+                        currentToolResults = toolResultsForMsg;
+                        
+                        bubble.innerHTML = renderMarkdown(msg.content);
+                        bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
+                        
+                        initChartsInBubble(bubble);
+                        
+                        // CRITICAL: Defer smart table init to next tick so DOM is ready
+                        setTimeout(() => {
+                            initSmartTablesInBubble(bubble, toolResultsForMsg);
+                        }, 0);
+                        
+                        // Restore global
+                        currentToolResults = originalGlobal;
+                    } else {
+                        bubble.textContent = msg.content;
+                    }
+
+                    const timeEl = document.createElement('span');
+                    timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
+                    timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+                    wrap.appendChild(bubble);
+                    wrap.appendChild(timeEl);
+                    chatMessages.appendChild(wrap);
+                });
+
+                await loadSessions();
+                
+                // CRITICAL: Wait for smart tables to initialize before releasing lock
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'instant' });
+                
+            } catch (e) {
+                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan.</div>';
+            } finally {
+                // CRITICAL: Always release loading flag, even on error
+                setTimeout(() => {
+                    isLoading = false;
+                    // Ensure history list is clickable and restore visual state
+                    if (historyList) {
+                        historyList.style.pointerEvents = 'auto';
+                        historyList.style.opacity = '1';
+                        const historyItems = historyList.querySelectorAll('.group');
+                        historyItems.forEach(item => {
+                            const clickArea = item.querySelector('div[class*="flex items-center gap-2"]');
+                            if (clickArea) {
+                                clickArea.style.cursor = 'pointer';
+                                clickArea.style.opacity = '1';
+                            }
+                        });
+                    }
+                }, 100);
+            }
+        }
+
+        // Internal delete function (called after modal confirmation)
+        async function performDelete(id) {
+            // Show loading state on history list
+            historyList.style.opacity = '0.5';
+            historyList.style.pointerEvents = 'none';
+
+            try {
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                });
+                if (res.ok) {
+                    if (currentSessionId == id) {
+                        startNewChat();
+                    } else {
+                        // Reload sessions and ensure click handlers are re-attached
+                        await loadSessions();
+                    }
+                }
+            } catch (e) {
+                console.error('Gagal menghapus sesi', e);
+                alert('Gagal menghapus sesi. Silakan coba lagi.');
+            } finally {
+                // Restore pointer events
+                historyList.style.opacity = '1';
+                historyList.style.pointerEvents = 'auto';
+            }
+        }
+
+        // Show delete confirmation modal
+        function deleteSession(id, event) {
+            if (event) event.stopPropagation();
+            showDeleteModal(id, performDelete);
+        }
+
+        function addWelcomeMessage() {
+            chatMessages.innerHTML = `
+            <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
+                <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
+                    <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
+                    <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
+                </div>
+            </div>`;
+        }
+
+        function startNewChat() {
+            currentSessionId = null;
+            conversationHistory = [];
+            window.history.pushState({}, '', window.location.pathname);
+            loadSessions();
+            addWelcomeMessage();
+            if (window.innerWidth < 768) toggleSidebar(false);
+        }
+
+        if (btnNewChat) btnNewChat.addEventListener('click', startNewChat);
+        if (btnNewChatHeader) btnNewChatHeader.addEventListener('click', startNewChat);
 
         // ── SmartTable Engine ─────────────────────────────────────────────────
         const smartTables = {};
@@ -645,7 +1177,10 @@
 
         function buildSmartTable(tableId) {
             const st = smartTables[tableId];
-            if (!st) return;
+            if (!st) {
+                return;
+            }
+            
             const { headers, allRows, sortCol, sortDir, query } = st;
 
             let filtered = allRows;
@@ -670,7 +1205,18 @@
             const pageRows = filtered.slice(curPage * PAGE_SIZE, (curPage + 1) * PAGE_SIZE);
 
             const wrap = document.getElementById(tableId);
-            if (!wrap) return;
+            
+            // Fallback: try to find by data-table-id
+            if (!wrap) {
+                const wrapByData = document.querySelector(`[data-table-id="${tableId}"]`);
+                if (wrapByData) {
+                    return buildSmartTableByElement(wrapByData, tableId, st, headers, allRows, sortCol, sortDir, query, filtered, pageRows, curPage, totalPages);
+                }
+            }
+            
+            if (!wrap) {
+                return;
+            }
 
             const info = wrap.querySelector('.smart-table-info');
             if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
@@ -709,13 +1255,16 @@
             }
 
             const tbody = wrap.querySelector('tbody');
+            
             if (tbody) {
-                tbody.innerHTML = pageRows.length === 0
-                    ? `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`
-                    : pageRows.map(row => '<tr>' + headers.map((h, i) => {
+                if (pageRows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`;
+                } else {
+                    tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
                         const isLong = String(row[i]).length > 40;
                         return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h)}</td>`;
                     }).join('') + '</tr>').join('');
+                }
             }
 
             const pag = wrap.querySelector('.smart-table-pagination');
@@ -731,7 +1280,78 @@
                 }
             }
         }
-        function initSmartTablesInBubble(bubble) {
+        
+        function buildSmartTableByElement(wrap, tableId, st, headers, allRows, sortCol, sortDir, query, filtered, pageRows, curPage, totalPages) {
+            const info = wrap.querySelector('.smart-table-info');
+            if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
+
+            const toolbar = wrap.querySelector('.smart-table-toolbar');
+            if (toolbar && !toolbar.querySelector('.smart-table-actions')) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'smart-table-actions';
+                actionsDiv.innerHTML = `<button class="smart-table-export-btn" title="Export ke Excel">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export Excel
+                </button>`;
+                const exportBtn = actionsDiv.querySelector('.smart-table-export-btn');
+                exportBtn.onclick = () => exportTableToExcel(tableId, headers, filtered);
+                toolbar.appendChild(actionsDiv);
+            }
+
+            const thead = wrap.querySelector('thead');
+            if (thead) {
+                thead.innerHTML = '<tr>' + headers.map((h, i) => {
+                    const cls = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
+                    const icon = sortCol === i ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼';
+                    return `<th class="${cls}" data-col="${i}">${h}<span class="sort-icon">${icon}</span></th>`;
+                }).join('') + '</tr>';
+                thead.querySelectorAll('th').forEach(th => {
+                    th.onclick = () => {
+                        const col = parseInt(th.dataset.col);
+                        st.sortDir = (st.sortCol === col && st.sortDir === 'asc') ? 'desc' : 'asc';
+                        st.sortCol = col;
+                        st.page = 0;
+                        buildSmartTable(tableId);
+                    };
+                });
+            }
+
+            const tbody = wrap.querySelector('tbody');
+            
+            if (tbody) {
+                if (pageRows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`;
+                } else {
+                    tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
+                        const isLong = String(row[i]).length > 40;
+                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h)}</td>`;
+                    }).join('') + '</tr>').join('');
+                }
+            }
+
+            const pag = wrap.querySelector('.smart-table-pagination');
+            if (pag) {
+                const pageInfo = pag.querySelector('.smart-table-page-info');
+                if (pageInfo) pageInfo.textContent = `Hal ${curPage + 1}/${totalPages}`;
+                const btns = pag.querySelector('.smart-table-btns');
+                if (btns) {
+                    btns.innerHTML = `<button class="st-btn" ${curPage === 0 ? 'disabled' : ''} id="${tableId}-prev">‹</button>` +
+                                   `<button class="st-btn" ${curPage >= totalPages - 1 ? 'disabled' : ''} id="${tableId}-next">›</button>`;
+                    const prevBtn = document.getElementById(`${tableId}-prev`);
+                    const nextBtn = document.getElementById(`${tableId}-next`);
+                    if (prevBtn) prevBtn.onclick = () => { st.page--; buildSmartTable(tableId); };
+                    if (nextBtn) nextBtn.onclick = () => { st.page++; buildSmartTable(tableId); };
+                }
+            }
+            
+            wrap.setAttribute('data-initialized', 'true');
+        }
+        function initSmartTablesInBubble(bubble, messageToolResults = null) {
+            // Use message-specific tool results if provided, otherwise fall back to global
+            const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
+            
             bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
                 const tableId = wrap.getAttribute('data-table-id') || ('st-' + Math.random().toString(36).substr(2, 9));
                 const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
@@ -751,27 +1371,31 @@
                     }
                     // CASE B: Dynamic Data (from tool result)
                     else if (!isNaN(toolIdx)) {
-                        toolRes = currentToolResults[toolIdx];
-                        
+                        toolRes = toolResults[toolIdx];
+
                         const hasValidData = (res) => {
                             if (!res) return false;
-                            if (res.data && res.data.rows) return true;
-                            if (res.rows) return true;
+                            // Must have rows (either direct or in data.rows)
+                            if (res.data && res.data.rows && Array.isArray(res.data.rows) && res.data.rows.length > 0) return true;
+                            if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) return true;
                             return false;
                         };
 
+                        // CRITICAL: If indexed tool doesn't have rows, find one that does
                         if (!hasValidData(toolRes)) {
-                            for (let i = currentToolResults.length - 1; i >= 0; i--) {
-                                const r = currentToolResults[i];
+                            // First try: find execute_query with rows
+                            for (let i = toolResults.length - 1; i >= 0; i--) {
+                                const r = toolResults[i];
                                 if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
                                     toolRes = r;
                                     break;
                                 }
                             }
-                            
+
+                            // Second try: find ANY tool with rows
                             if (!hasValidData(toolRes)) {
-                                for (let i = currentToolResults.length - 1; i >= 0; i--) {
-                                    const r = currentToolResults[i];
+                                for (let i = toolResults.length - 1; i >= 0; i--) {
+                                    const r = toolResults[i];
                                     if (r && hasValidData(r)) {
                                         toolRes = r;
                                         break;
@@ -945,37 +1569,35 @@
             sendIcon.classList.toggle('hidden', loading);
             loadingIcon.classList.toggle('hidden', !loading);
             typingIndicator.classList.toggle('hidden', !loading);
+            
+            // Update status bar
+            if (statusBar) {
+                statusBar.classList.toggle('active', loading);
+            }
         }
 
-        // ── Event listeners ───────────────────────────────────────────────────
-        messageInput.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey && !isLoading) { e.preventDefault(); submitMessage(); }
-        });
-        sendBtn.addEventListener('click', () => { if (!isLoading) submitMessage(); });
-        btnClear.addEventListener('click', () => {
-            conversationHistory = [];
-            chatMessages.innerHTML = '';
-            addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
-        });
-
-        // ── Submit ────────────────────────────────────────────────────────────
         async function submitMessage() {
             const message = messageInput.value.trim();
             if (!message || isLoading) return;
 
+            // Add user message immediately
             addMessage(message, 'user');
-            messageInput.value = '';
+            conversationHistory.push({ role: 'user', content: message });
+            
             setLoading(true);
-            typingText.textContent = 'AI sedang berpikir...';
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            messageInput.disabled = true;
+            messageInput.placeholder = 'AI sedang memproses...';
+            sendBtn.disabled = true;
+            messageInput.value = '';
 
             const { bubble, toolArea, wrapper } = createStreamBubble();
             chatMessages.appendChild(wrapper);
             chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
 
             let aiResponseText = '';
-            currentToolResults = []; // Reset tool results per turn
+            currentToolResults = [];
             const toolBadges = {};
+            let lastUpdateTime = Date.now();
 
             try {
                 const response = await fetch('{{ route("chatbot.send") }}', {
@@ -984,16 +1606,22 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
-                    body: JSON.stringify({ message, history: conversationHistory }),
+                    body: JSON.stringify({
+                        message,
+                        history: conversationHistory,
+                        chat_session_id: currentSessionId
+                    }),
                 });
 
-                // Tangani error JSON response (non-stream) dari server
                 const contentType = response.headers.get('content-type') || '';
                 if (contentType.includes('application/json')) {
                     const json = await response.json();
                     const errMsg = json.error || 'Terjadi kesalahan pada server.';
                     bubble.innerHTML = renderMarkdown('⚠️ ' + errMsg);
                     setLoading(false);
+                    messageInput.disabled = false;
+                    messageInput.placeholder = 'Ketik pesan anda di sini...';
+                    sendBtn.disabled = false;
                     return;
                 }
 
@@ -1020,17 +1648,29 @@
                         try {
                             const parsed = JSON.parse(dataStr);
 
+                            if (parsed.chat_session_id !== undefined) {
+                                currentSessionId = parsed.chat_session_id;
+                                window.history.pushState({}, '', '?chat=' + currentSessionId);
+                                loadSessions();
+                            }
+
                             if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                 aiResponseText += parsed.chunk;
-                                
-                                // Hanya hapus loading card dan render jika sudah ada konten yang cukup
-                                if (aiResponseText.trim().length > 0 && bubble._loadInterval) {
+
+                                // Update loading state to show progress
+                                if (bubble._loadInterval && aiResponseText.trim().length > 50) {
                                     clearInterval(bubble._loadInterval);
                                     bubble._loadInterval = null;
-                                    renderStreamToBubble(bubble, aiResponseText);
-                                } else if (!bubble._loadInterval) {
-                                    // Loading card sudah dihapus, lanjut render
-                                    renderStreamToBubble(bubble, aiResponseText);
+                                }
+
+                                if (!bubble._loadInterval) {
+                                    renderStreamToBubble(bubble, aiResponseText, currentToolResults);
+                                }
+
+                                // Scroll smoothly as content arrives
+                                if (Date.now() - lastUpdateTime > 200) {
+                                    chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+                                    lastUpdateTime = Date.now();
                                 }
                             }
 
@@ -1050,9 +1690,9 @@
                                 } else if (tc.status === 'success') {
                                     if (tc.result) {
                                         currentToolResults.push(tc.result);
-                                        renderStreamToBubble(bubble, aiResponseText);
+                                        renderStreamToBubble(bubble, aiResponseText, currentToolResults);
                                     }
-                                    
+
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
                                     if (runningBadge) {
                                         runningBadge.classList.replace('running', 'done');
@@ -1071,18 +1711,25 @@
                                 bubble.innerHTML = renderMarkdown(parsed.response);
                             }
 
-                        } catch (e) { /* Abaikan parse error line individual */ }
+                        } catch (e) { /* Ignore individual parse errors */ }
                     }
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+
+                if (toolArea.children.length === 0 && aiResponseText.trim().length === 0) {
+                    bubble.innerHTML = renderMarkdown('Maaf, saya tidak dapat memproses permintaan Anda.');
                 }
 
                 if (toolArea.children.length === 0) toolArea.style.display = 'none';
 
             } catch (err) {
                 console.error('[Agentic] Error:', err);
-                bubble.innerHTML = renderMarkdown('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.');
+                bubble.innerHTML = renderMarkdown('⚠️ **Maaf, terjadi kesalahan koneksi ke server.**<br/>Silakan coba lagi atau periksa koneksi internet Anda.');
             } finally {
                 setLoading(false);
+                messageInput.disabled = false;
+                messageInput.placeholder = 'Ketik pesan anda di sini...';
+                sendBtn.disabled = false;
+                messageInput.focus();
                 typingText.textContent = 'AI sedang berpikir...';
                 chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
             }
@@ -1259,18 +1906,18 @@
         }
 
         // ── Render stream ke bubble ───────────────────────────────────────────
-        function renderStreamToBubble(bubble, text) {
+        function renderStreamToBubble(bubble, text, messageToolResults = null) {
             // Jangan render jika text kosong, biarkan loading card tetap tampil
             if (!text || text.trim().length === 0) return;
-            
+
             bubble.innerHTML = renderMarkdown(text);
             bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
             initChartsInBubble(bubble);
-            initSmartTablesInBubble(bubble);
+            initSmartTablesInBubble(bubble, messageToolResults);
         }
 
         // ── Render pesan biasa ────────────────────────────────────────────────
-        function addMessage(text, sender) {
+        function addMessage(text, sender, messageToolResults = null) {
             const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             const wrap = document.createElement('div');
             wrap.className = ['flex flex-col gap-1.5',
@@ -1287,7 +1934,7 @@
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
                 initChartsInBubble(bubble);
-                initSmartTablesInBubble(bubble);
+                initSmartTablesInBubble(bubble, messageToolResults);
             } else {
                 bubble.textContent = text;
             }
@@ -1302,7 +1949,12 @@
             requestAnimationFrame(() => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
         }
 
-        window.onload = () => messageInput.focus();
+        window.onload = () => {
+            messageInput.focus();
+            loadSessions();
+            if (currentSessionId) loadSession(currentSessionId);
+        };
+        });
     </script>
 </body>
 </html>

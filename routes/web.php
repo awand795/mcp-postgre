@@ -43,6 +43,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
     Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
 
+    // Chat History API Endpoints
+    Route::get('/chatbot/sessions', [AgenticChatbotController::class, 'getSessions'])->name('chatbot.sessions');
+    Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
+    Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
+    Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
+
     // ── ADMIN ROUTES ─────────────────────────────────────────────────────────
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('dashboard');

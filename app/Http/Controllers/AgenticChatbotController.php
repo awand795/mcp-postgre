@@ -7,7 +7,10 @@ use App\Helpers\LanguageDetector;
 use App\Services\ToolCallExecutor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\ChatSession;
+use App\Models\ChatMessage;
 
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
@@ -43,6 +46,56 @@ class AgenticChatbotController extends Controller
         return view('chatbot');
     }
 
+    // ── Chat History Endpoints ───────────────────────────────────────────────
+    public function getSessions()
+    {
+        $sessions = ChatSession::where('user_id', Auth::id())
+            ->orderBy('updated_at', 'desc')
+            ->get(['id', 'title', 'updated_at']);
+        return response()->json($sessions);
+    }
+
+    public function getSession($id)
+    {
+        $session = ChatSession::with('messages')->where('user_id', Auth::id())->findOrFail($id);
+        
+        $history = [];
+        foreach ($session->messages as $msg) {
+            if ($msg->role === 'assistant') {
+                $toolRes = json_decode($msg->tool_results, true);
+                $history[] = [
+                    'role' => 'assistant', 
+                    'content' => $msg->content,
+                    'tool_results' => is_array($toolRes) ? $toolRes : []
+                ];
+            } else {
+                $history[] = [
+                    'role' => 'user',
+                    'content' => $msg->content
+                ];
+            }
+        }
+        
+        return response()->json([
+            'session' => ['id' => $session->id, 'title' => $session->title],
+            'history' => $history
+        ]);
+    }
+
+    public function deleteSession($id)
+    {
+        $session = ChatSession::where('user_id', Auth::id())->findOrFail($id);
+        $session->delete();
+        return response()->json(['success' => true]);
+    }
+
+    public function updateSessionTitle(Request $request, $id)
+    {
+        $session = ChatSession::where('user_id', Auth::id())->findOrFail($id);
+        $session->update(['title' => $request->input('title')]);
+        return response()->json(['success' => true]);
+    }
+
     // ── Endpoint utama ────────────────────────────────────────────────────────
     public function send(Request $request)
     {
@@ -50,7 +103,7 @@ class AgenticChatbotController extends Controller
         ini_set('memory_limit', '-1'); // UNLIMITED - NO MEMORY LIMIT
 
         $message = $request->input('message', '');
-        $history = $request->input('history', []);
+        $chatSessionId = $request->input('chat_session_id');
         $openaiKey = env('OPENAI_API_KEY');
 
         Log::info("[Agentic] New message: " . substr($message, 0, 100));
@@ -72,14 +125,54 @@ class AgenticChatbotController extends Controller
             ]);
         }
 
+        if ($chatSessionId) {
+            $session = ChatSession::where('user_id', Auth::id())->find($chatSessionId);
+            if (!$session) {
+                return response()->json(['error' => 'Sesi tidak ditemukan']);
+            }
+            $session->touch();
+            
+            // Build history array from DB
+            $dbMessages = ChatMessage::where('chat_session_id', $session->id)->orderBy('created_at', 'asc')->get();
+            $history = [];
+            foreach ($dbMessages as $dbm) {
+                // Ignore the tool results for standard AI context, we only send text
+                $history[] = ['role' => $dbm->role, 'content' => $dbm->content];
+            }
+            
+            // Store new user message
+            ChatMessage::create([
+                'chat_session_id' => $session->id,
+                'role' => 'user',
+                'content' => $message,
+                'tool_results' => null
+            ]);
+            
+        } else {
+            $title = strlen($message) > 40 ? substr($message, 0, 40) . '...' : $message;
+            $session = ChatSession::create([
+                'user_id' => Auth::id(),
+                'title' => $title
+            ]);
+            $chatSessionId = $session->id;
+            
+            ChatMessage::create([
+                'chat_session_id' => $session->id,
+                'role' => 'user',
+                'content' => $message,
+                'tool_results' => null
+            ]);
+            $history = [];
+        }
+
         $systemPrompt = $this->buildSystemPrompt($detectedLang, $allowedTables);
         $messages = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
 
         session_write_close();
 
         return response()->stream(
-            function () use ($messages, $openaiKey, $detectedLang, $allowedTables) {
-            $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel, $allowedTables);
+            function () use ($messages, $openaiKey, $detectedLang, $allowedTables, $chatSessionId) {
+            $this->runAgenticLoop($messages, $openaiKey, $detectedLang, $this->openaiModel, $allowedTables, $chatSessionId);
         },
             200,
         [
@@ -92,8 +185,11 @@ class AgenticChatbotController extends Controller
     }
 
     // ── Agentic Loop ──────────────────────────────────────────────────────────
-    private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model, array $allowedTables = []): void
+    private function runAgenticLoop(array $messages, string $openaiKey, string $lang, string $model, array $allowedTables = [], $chatSessionId = null): void
     {
+        if ($chatSessionId) {
+            echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
+        }
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
         ob_flush();
         flush();
@@ -103,6 +199,7 @@ class AgenticChatbotController extends Controller
 
         $tools = ToolCallExecutor::getToolDefinitions();
         $loopCount = 0;
+        $allTurnToolResults = [];
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -178,7 +275,18 @@ class AgenticChatbotController extends Controller
                         ? "I'm sorry, I was unable to process your request at this time. Please try rephrasing your question."
                         : "Mohon maaf, permintaan Anda tidak dapat diproses saat ini. Silakan coba dengan pertanyaan yang berbeda.";
                 }
+                
+                if ($chatSessionId) {
+                    ChatMessage::create([
+                        'chat_session_id' => $chatSessionId,
+                        'role' => 'assistant',
+                        'content' => $finalContent,
+                        'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
+                    ]);
+                }
+                
                 $this->streamText($finalContent);
+                // History client takes directly from DB payload on reload now, but we'll leave this to avoid breaking legacy JS
                 echo "data: " . json_encode(['history' => $this->extractClientHistory($messages)]) . "\n\n";
                 echo "data: [DONE]\n\n";
                 ob_flush();
@@ -228,6 +336,12 @@ class AgenticChatbotController extends Controller
                 ]) . "\n\n";
                 ob_flush();
                 flush();
+                
+                // Store to allTurnToolResults for DB saving
+                $allTurnToolResults[] = [
+                    'tool_name' => $toolName,
+                    'data'      => $decodedRes ?: $toolResult
+                ];
 
                 $messages[] = [
                     'role' => 'tool',
@@ -246,6 +360,16 @@ class AgenticChatbotController extends Controller
         $msg = $lang === 'en'
             ? "I'm sorry, your request requires more processing than available. Please try a more specific question."
             : "Mohon maaf, permintaan Anda membutuhkan analisis yang terlalu kompleks. Silakan coba dengan pertanyaan yang lebih spesifik.";
+        
+        if ($chatSessionId) {
+            ChatMessage::create([
+                'chat_session_id' => $chatSessionId,
+                'role' => 'assistant',
+                'content' => $msg,
+                'tool_results' => !empty($allTurnToolResults) ? json_encode($allTurnToolResults) : null
+            ]);
+        }
+            
         $this->streamText($msg);
         echo "data: [DONE]\n\n";
         ob_flush();
@@ -401,13 +525,18 @@ This database contains sales, stock, purchases, targets, customers, and product 
 
 ## WORKFLOW
 4. Analyze results and answer clearly in Markdown with tables where applicable.
-5. **DIRECT SMART TABLE (MANDATORY for Large Data)**: If a tool result is a table with more than 15 rows, **DO NOT** write a Markdown table. Instead, use this special code block:
+5. **SMART TABLE FORMAT (MANDATORY for ALL tabular data)**: When presenting query results with rows/columns, **ALWAYS** use the smart_table code block below. This enables Excel export, search, sort, and pagination features:
 ```smart_table
 {"tool_index": 0}
 ```
-(where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). Using this is **MANDATORY** for large datasets to prevent truncation.
+(where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). **Use this for ALL query results** - whether 1 row or 1000 rows.
 
-6. **CRITICAL: NEVER TRUNCATE DATA**: You are forbidden from using "..." or "etc." or "and X more" to hide data rows in a Markdown table. If there are many rows, you **MUST** use the `smart_table` code block. If you use a Markdown table, you **MUST** list every single row returned by the tool. Truncation is a failure of your primary mission.
+6. **CRITICAL: DISPLAY ALL ROWS - NEVER SUMMARIZE**: 
+   - **FORBIDDEN**: Saying "Found 150 transactions" without showing the data
+   - **FORBIDDEN**: Showing only count/summary like "There are 150 rows"
+   - **REQUIRED**: ALWAYS display the FULL dataset using smart_table code block
+   - **REQUIRED**: If user asks for "transactions in January 2026", show ALL transactions, not just the count
+   - The smart_table will handle pagination automatically (50 rows per page)
 7. Run additional queries if deeper analysis is needed.
 
 ## SQL RULES — READ CAREFULLY
