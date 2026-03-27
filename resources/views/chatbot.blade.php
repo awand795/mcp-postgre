@@ -927,25 +927,16 @@
                     // History item click area
                     const clickArea = document.createElement('div');
                     clickArea.className = 'flex items-center gap-2 overflow-hidden flex-1';
-                    clickArea.style.pointerEvents = 'auto';
-                    clickArea.style.cursor = isLoading ? 'not-allowed' : 'pointer';
-                    clickArea.style.opacity = isLoading ? '0.5' : '1';
+                    clickArea.style.pointerEvents = 'none'; // Let clicks pass through to parent
                     clickArea.innerHTML = `
                         <svg class="w-4 h-4 flex-shrink-0 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                         <span class="text-[11px] md:text-xs truncate select-none">${s.title}</span>
                     `;
-                    clickArea.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!isLoading) {
-                            loadSession(s.id);
-                        }
-                    });
 
                     // Delete button
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'delete-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/20 hover:text-red-500';
-                    deleteBtn.style.pointerEvents = 'auto';
+                    deleteBtn.style.pointerEvents = 'auto'; // Must be clickable
                     deleteBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
                     deleteBtn.addEventListener('click', function(e) {
                         e.preventDefault();
@@ -955,6 +946,19 @@
 
                     item.appendChild(clickArea);
                     item.appendChild(deleteBtn);
+                    
+                    // Attach click listener to the entire item
+                    item.addEventListener('click', function(e) {
+                        // If delete button was clicked, stopPropagation handles it.
+                        // But we check target just in case
+                        if (e.target.closest('.delete-session')) return;
+                        
+                        e.preventDefault();
+                        if (!isLoading) {
+                            loadSession(s.id);
+                        }
+                    });
+
                     historyList.appendChild(item);
                 });
             } catch (e) {
