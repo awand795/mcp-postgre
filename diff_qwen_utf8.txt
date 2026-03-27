@@ -1,0 +1,276 @@
+﻿commit 5f149f716cc3f9284a3ba19cb6f752d21f3dd7e7
+Author: awand795 <awand795@gmail.com>
+Date:   Fri Mar 27 10:38:05 2026 +0700
+
+    fix hamburger1
+
+diff --git a/resources/views/chatbot.blade.php b/resources/views/chatbot.blade.php
+index 4101988..9a7e67f 100644
+--- a/resources/views/chatbot.blade.php
++++ b/resources/views/chatbot.blade.php
+@@ -356,8 +356,8 @@
+         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
+             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
+                 <div class="flex items-center" style="z-index: 9999; position: relative; pointer-events: auto;">
+-                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto;">
+-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
++                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-2 md:p-3 -ml-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto; -webkit-app-region: no-drag;" onclick="window.toggleSidebarNative(event)">
++                        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                     </button>
+                     <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer;">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+@@ -609,11 +609,17 @@ function toggleSidebar(show) {
+ 
+             applySidebarState();
+ 
++            window.toggleSidebarNative = function(e) {
++                if (e) { e.preventDefault(); e.stopPropagation(); }
++                if (typeof isSidebarOpen !== 'undefined') {
++                    isSidebarOpen = !isSidebarOpen;
++                    applySidebarState();
++                }
++            };
++            
+             if (btnOpenSidebar) {
+                 btnOpenSidebar.addEventListener('click', function(e) {
+-                    e.preventDefault();
+-                    e.stopPropagation();
+-                    toggleSidebar();
++                    // handled by inline onclick, keeping just in case
+                 });
+             }
+ 
+
+commit 8af5fe4c4491fbb23ec5d197b57f42ee0b9a4328
+Author: awand795 <awand795@gmail.com>
+Date:   Fri Mar 27 10:33:52 2026 +0700
+
+    Pernaikina
+
+diff --git a/resources/views/chatbot.blade.php b/resources/views/chatbot.blade.php
+index 83a9fc6..4101988 100644
+--- a/resources/views/chatbot.blade.php
++++ b/resources/views/chatbot.blade.php
+@@ -330,7 +330,7 @@
+     <div class="flex w-full max-w-6xl h-[95vh] glass-panel rounded-3xl overflow-hidden relative">
+ 
+         <!-- Sidebar (Pushes content, not overlay) -->
+-        <aside id="chat-sidebar" class="w-72 bg-[#0a0a0a]/95 border-r border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden" style="width: 0; opacity: 0;">
++        <aside id="chat-sidebar" class="w-72 bg-[#0a0a0a]/95 border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden absolute md:relative h-full z-[200] md:border-r" style="width: 0; opacity: 0; pointer-events: none;">
+ 
+             <!-- Sidebar Header / Mobile Close -->
+             <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0" style="min-width: 288px;">
+@@ -355,12 +355,12 @@
+         <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10" style="z-index: 1; position: relative;">
+         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
+             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
+-                <div class="flex items-center" style="z-index: 110; position: relative;">
+-                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
+-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
++                <div class="flex items-center" style="z-index: 9999; position: relative; pointer-events: auto;">
++                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto;">
++                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                     </button>
+-                    <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
+-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
++                    <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer;">
++                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                     </button>
+                 </div>
+                 
+@@ -581,13 +581,15 @@ function hideDeleteModal() {
+             function applySidebarState() {
+                 if (isSidebarOpen) {
+                     // OPEN sidebar - show with width
+-                    sidebar.style.width = '288px';
++                    sidebar.style.width = window.innerWidth < 768 ? '100%' : '288px';
+                     sidebar.style.opacity = '1';
++                    sidebar.style.pointerEvents = 'auto';
+                     if (btnNewChatHeader) btnNewChatHeader.classList.add('hidden');
+                 } else {
+                     // CLOSE sidebar - collapse width
+                     sidebar.style.width = '0';
+                     sidebar.style.opacity = '0';
++                    sidebar.style.pointerEvents = 'none';
+                     if (btnNewChatHeader) btnNewChatHeader.classList.remove('hidden');
+                 }
+             }
+@@ -608,7 +610,9 @@ function toggleSidebar(show) {
+             applySidebarState();
+ 
+             if (btnOpenSidebar) {
+-                btnOpenSidebar.addEventListener('click', function() {
++                btnOpenSidebar.addEventListener('click', function(e) {
++                    e.preventDefault();
++                    e.stopPropagation();
+                     toggleSidebar();
+                 });
+             }
+
+commit 2dd7497fff84cb61a7316b70e9fd327899be41aa
+Author: awand795 <awand795@gmail.com>
+Date:   Fri Mar 27 10:24:56 2026 +0700
+
+    fix: simplify marked.js renderer
+
+diff --git a/resources/views/chatbot.blade.php b/resources/views/chatbot.blade.php
+index 30d1946..83a9fc6 100644
+--- a/resources/views/chatbot.blade.php
++++ b/resources/views/chatbot.blade.php
+@@ -1778,14 +1778,7 @@ function initSmartTablesInBubble(bubble, messageToolResults = null) {
+         marked.use({
+             renderer: {
+                 table(header, body) {
+-                    let headers = [];
+-                    let rows    = [];
+-                    
+                     try {
+-                        // In marked.use renderer, header and body are HTML strings from inner tokens
+-                        // We need to parse them back or use the fact that they are already HTML
+-                        // But for SmartTable, we prefer raw data.
+-                        // For now, let's just render it as a standard table if it's coming through this classic renderer
+                         return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+                     } catch(e) { console.error('Table parse error', e); }
+                     return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
+@@ -1797,8 +1790,7 @@ function initSmartTablesInBubble(bubble, messageToolResults = null) {
+                         const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
+                         let encoded;
+                         try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
+-                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
+-                                <input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
++                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div><input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
+                     }
+ 
+                     if (langClean === 'smart_table') {
+@@ -1810,27 +1802,15 @@ function initSmartTablesInBubble(bubble, messageToolResults = null) {
+                             const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
+ 
+                             if (idx >= 0 && !currentToolResults[idx]) {
+-                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
+-                                    <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+-                                    <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
+-                                </div>`;
++                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span><span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span></div>`;
+                             }
+ 
+                             if (idx >= 0 && currentToolResults[idx]) {
+                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
+-                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
+-                                    <div class="smart-table-toolbar">
+-                                        <span class="smart-table-info">≡ƒôè Memuat...</span>
+-                                        <input class="smart-table-search" type="text" placeholder="≡ƒöì Cari di tabel...">
+-                                    </div>
+-                                    <div class="smart-table-scroll">
+-                                        <table><thead><tr><th class="p-4">ΓÅ│ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
+-                                    </div>
+-                                    <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
+-                                </div>`;
++                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"><div class="smart-table-toolbar"><span class="smart-table-info">≡ƒôè Memuat...</span><input class="smart-table-search" type="text" placeholder="≡ƒöì Cari di tabel..."></div><div class="smart-table-scroll"><table><thead><tr><th class="p-4">ΓÅ│ Menginisialisasi...</th></tr></thead><tbody></tbody></table></div><div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div></div>`;
+                             }
+                         } catch(e) { return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">ΓÅ│ Sedang memproses data...</span></div>'; }
+-                        return `<div class="table-wrap">ΓÜá∩╕Å Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
++                        return `<div class="table-wrap">ΓÜá∩╕Å Konfigurasi tabel tidak valid</div>`;
+                     }
+ 
+                     const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+commit 658c76f79988236d18b4a792194c934c59b00338
+Author: awand795 <awand795@gmail.com>
+Date:   Fri Mar 27 10:21:47 2026 +0700
+
+    fix: hamburger button tanpa console.log
+
+diff --git a/resources/views/chatbot.blade.php b/resources/views/chatbot.blade.php
+index 89c080e..30d1946 100644
+--- a/resources/views/chatbot.blade.php
++++ b/resources/views/chatbot.blade.php
+@@ -355,9 +355,8 @@
+         <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10" style="z-index: 1; position: relative;">
+         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
+             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
+-                <!-- Hamburger and New Chat for Header -->
+                 <div class="flex items-center" style="z-index: 110; position: relative;">
+-                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" onclick="console.log('Hamburger clicked!')" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
++                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                     </button>
+                     <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 120; position: relative; cursor: pointer;">
+@@ -608,12 +607,8 @@ function toggleSidebar(show) {
+ 
+             applySidebarState();
+ 
+-            // Hamburger button click handler - use mousedown instead of click for better reliability
+             if (btnOpenSidebar) {
+-                btnOpenSidebar.addEventListener('click', function(e) {
+-                    console.log('Hamburger button clicked!', e);
+-                    e.preventDefault();
+-                    e.stopPropagation();
++                btnOpenSidebar.addEventListener('click', function() {
+                     toggleSidebar();
+                 });
+             }
+
+commit 43943e1038001702ed0e7a32ca60300fe36a916f
+Author: awand795 <awand795@gmail.com>
+Date:   Fri Mar 27 10:18:07 2026 +0700
+
+    fix: ganti semua Blade route() dengan URL hardcoded
+
+diff --git a/resources/views/chatbot.blade.php b/resources/views/chatbot.blade.php
+index 5367e4b..89c080e 100644
+--- a/resources/views/chatbot.blade.php
++++ b/resources/views/chatbot.blade.php
+@@ -699,7 +699,7 @@ function toggleSidebar(show) {
+                 const toolBadges = {};
+ 
+                 try {
+-                    const response = await fetch('{{ route("chatbot.send") }}', {
++                    const response = await fetch('/chatbot/send', {
+                         method: 'POST',
+                         headers: {
+                             'Content-Type': 'application/json',
+@@ -889,7 +889,7 @@ function addMessage(text, sender) {
+ 
+         async function loadSessions() {
+             try {
+-                const res = await fetch('{{ route("chatbot.sessions") }}');
++                const res = await fetch('/chatbot/sessions');
+                 const sessions = await res.json();
+ 
+                 historyList.innerHTML = '';
+@@ -976,7 +976,7 @@ function addMessage(text, sender) {
+             chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
+ 
+             try {
+-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, {
++                const res = await fetch('/chatbot/sessions', {
+                     method: 'GET',
+                     headers: {
+                         'Accept': 'application/json',
+@@ -1240,7 +1240,7 @@ function startNewChat() {
+                 const filename = `table-export-${timestamp}.xlsx`;
+ 
+                 // Send ALL data to backend for Excel generation
+-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
++                const response = await fetch('/chatbot/export/excel', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+@@ -1393,7 +1393,7 @@ function startNewChat() {
+                 const filename = `chart-${safeTitle || 'export'}-${timestamp}.xlsx`;
+ 
+                 // Send to backend for Excel generation
+-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
++                const response = await fetch('/chatbot/export/excel', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+@@ -1900,7 +1900,7 @@ function setLoading(loading) {
+             let lastUpdateTime = Date.now();
+ 
+             try {
+-                const response = await fetch('{{ route("chatbot.send") }}', {
++                const response = await fetch('/chatbot/send', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',

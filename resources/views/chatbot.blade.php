@@ -355,12 +355,12 @@
         <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10" style="z-index: 1; position: relative;">
         <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300" style="z-index: 100; position: relative;">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
-                <div class="flex items-center" style="z-index: 9999; position: relative; pointer-events: auto;">
-                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="p-2 md:p-3 -ml-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer; pointer-events: auto; -webkit-app-region: no-drag;" onclick="window.toggleSidebarNative(event)">
+                <div class="flex items-center gap-2" style="z-index: 9999; position: relative;">
+                    <button id="btn-open-sidebar" type="button" title="Toggle Sidebar" class="flex items-center justify-center p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer" style="-webkit-app-region: no-drag;" onclick="window.toggleSidebarNative(event)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <button id="btn-new-chat-header" type="button" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors" style="z-index: 9999; position: relative; cursor: pointer;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <button id="btn-new-chat-header" type="button" title="Chat Baru" class="flex items-center justify-center p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer" style="-webkit-app-region: no-drag;" onclick="document.getElementById('btn-new-chat').click()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                 </div>
                 
@@ -584,13 +584,13 @@
                     sidebar.style.width = window.innerWidth < 768 ? '100%' : '288px';
                     sidebar.style.opacity = '1';
                     sidebar.style.pointerEvents = 'auto';
-                    if (btnNewChatHeader) btnNewChatHeader.classList.add('hidden');
+                    if (btnNewChatHeader) btnNewChatHeader.style.display = 'none';
                 } else {
                     // CLOSE sidebar - collapse width
                     sidebar.style.width = '0';
                     sidebar.style.opacity = '0';
                     sidebar.style.pointerEvents = 'none';
-                    if (btnNewChatHeader) btnNewChatHeader.classList.remove('hidden');
+                    if (btnNewChatHeader) btnNewChatHeader.style.display = 'flex';
                 }
             }
 
