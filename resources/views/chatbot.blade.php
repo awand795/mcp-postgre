@@ -699,7 +699,7 @@
                 const toolBadges = {};
 
                 try {
-                    const response = await fetch('{{ route("chatbot.send") }}', {
+                    const response = await fetch('/chatbot/send', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -889,7 +889,7 @@
 
         async function loadSessions() {
             try {
-                const res = await fetch('{{ route("chatbot.sessions") }}');
+                const res = await fetch('/chatbot/sessions');
                 const sessions = await res.json();
 
                 historyList.innerHTML = '';
@@ -976,7 +976,7 @@
             chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
 
             try {
-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, {
+                const res = await fetch('/chatbot/sessions', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
@@ -1240,7 +1240,7 @@
                 const filename = `table-export-${timestamp}.xlsx`;
 
                 // Send ALL data to backend for Excel generation
-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                const response = await fetch('/chatbot/export/excel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1393,7 +1393,7 @@
                 const filename = `chart-${safeTitle || 'export'}-${timestamp}.xlsx`;
 
                 // Send to backend for Excel generation
-                const response = await fetch('{{ route("chatbot.export.excel") }}', {
+                const response = await fetch('/chatbot/export/excel', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1900,7 +1900,7 @@
             let lastUpdateTime = Date.now();
 
             try {
-                const response = await fetch('{{ route("chatbot.send") }}', {
+                const response = await fetch('/chatbot/send', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
