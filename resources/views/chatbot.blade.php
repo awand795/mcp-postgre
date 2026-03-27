@@ -1655,8 +1655,8 @@
         function initSmartTablesInBubble(bubble, messageToolResults = null) {
             // Use message-specific tool results if provided, otherwise fall back to global
             const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
-            
-            bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
+
+            bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach((wrap, idx) => {
                 const tableId = wrap.getAttribute('data-table-id') || ('st-' + Math.random().toString(36).substr(2, 9));
                 const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
 
@@ -1670,24 +1670,33 @@
                     const rb64 = wrap.getAttribute('data-rows-b64');
 
                     if (hb64 && rb64) {
-                        headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
-                        allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                        try {
+                            headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
+                            allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                        } catch (e) {
+                            console.error('Failed to parse base64 data for table', tableId, e);
+                            wrap.innerHTML = '<div class="p-4 text-red-400">⚠️ Gagal memuat data tabel</div>';
+                            wrap.setAttribute('data-initialized', 'true');
+                            return;
+                        }
                     }
                     // CASE B: Dynamic Data (from tool result)
                     else if (!isNaN(toolIdx)) {
-                        toolRes = toolResults[toolIdx];
+                        try {
+                            toolRes = toolResults[toolIdx];
+                        } catch (e) {
+                            console.warn('Failed to get tool result at index', toolIdx, e);
+                            toolRes = null;
+                        }
 
                         const hasValidData = (res) => {
                             if (!res) return false;
-                            // Must have rows (either direct or in data.rows)
                             if (res.data && res.data.rows && Array.isArray(res.data.rows) && res.data.rows.length > 0) return true;
                             if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) return true;
                             return false;
                         };
 
-                        // CRITICAL: If indexed tool doesn't have rows, find one that does
                         if (!hasValidData(toolRes)) {
-                            // First try: find execute_query with rows
                             for (let i = toolResults.length - 1; i >= 0; i--) {
                                 const r = toolResults[i];
                                 if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
@@ -1696,7 +1705,6 @@
                                 }
                             }
 
-                            // Second try: find ANY tool with rows
                             if (!hasValidData(toolRes)) {
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
@@ -1727,6 +1735,10 @@
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
+                            
+                            if (allRows.length > 1000) {
+                                console.log(`[SmartTable] Initializing table with ${allRows.length} rows`, tableId);
+                            }
                         } else if (Array.isArray(tableData)) {
                              if (tableData[0] && typeof tableData[0] === 'object') {
                                 headers = Object.keys(tableData[0]);
@@ -1738,44 +1750,45 @@
                         }
                     }
 
-                    // If no data, don't initialize yet (wait for data to arrive)
                     if (allRows.length === 0 && !toolRes) {
                         wrap.setAttribute('data-initialized', 'waiting');
                         return;
                     }
 
-                    // Store state for pagination/sorting
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: ''
                     };
 
-                    wrap.setAttribute('data-initialized', 'true');
-                    if (!wrap.id) wrap.id = tableId;
-
-                    // Init Search
-                    const searchInput = wrap.querySelector('.smart-table-search');
-                    if (searchInput) {
-                        searchInput.addEventListener('input', () => {
-                            smartTables[tableId].query = searchInput.value;
-                            smartTables[tableId].page  = 0;
-                            buildSmartTable(tableId);
-                        });
-                    }
-
                     buildSmartTable(tableId);
 
-                } catch (e) { console.error('[SmartTable] Init failed:', e, 'tableId:', tableId); }
-            });
-            
-            // Re-check any tables that were waiting for data
-            bubble.querySelectorAll('.smart-table-wrap[data-initialized="waiting"]').forEach(wrap => {
-                const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
-                if (!isNaN(toolIdx) && currentToolResults[toolIdx]) {
-                    wrap.removeAttribute('data-initialized');
-                    initSmartTablesInBubble(bubble);
+                    wrap.setAttribute('data-initialized', 'true');
+                    
+                } catch (e) {
+                    console.error('Failed to initialize smart table:', e, {
+                        tableId,
+                        toolIdx,
+                        rowsCount: allRows ? allRows.length : 0
+                    });
+                    
+                    wrap.innerHTML = `<div class="p-4 text-red-400">
+                        <p class="font-bold">⚠️ Gagal memuat tabel</p>
+                        <p class="text-sm opacity-75">${e.message}</p>
+                        <p class="text-xs mt-2 opacity-50">Data terlalu besar atau format tidak valid</p>
+                    </div>`;
+                    wrap.setAttribute('data-initialized', 'error');
                 }
             });
+        }
+
+        // Re-check any tables that were waiting for data
+        bubble.querySelectorAll('.smart-table-wrap[data-initialized="waiting"]').forEach(wrap => {
+            const toolIdx = parseInt(wrap.getAttribute('data-tool-index'));
+            if (!isNaN(toolIdx) && currentToolResults[toolIdx]) {
+                wrap.removeAttribute('data-initialized');
+                initSmartTablesInBubble(bubble);
+            }
+        });
             
             // Auto-detect: if there are smart-table-wrap elements without data-initialized attribute, try to init them
             bubble.querySelectorAll('.smart-table-wrap:not([data-initialized])').forEach(wrap => {
