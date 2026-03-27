@@ -1778,14 +1778,7 @@
         marked.use({
             renderer: {
                 table(header, body) {
-                    let headers = [];
-                    let rows    = [];
-                    
                     try {
-                        // In marked.use renderer, header and body are HTML strings from inner tokens
-                        // We need to parse them back or use the fact that they are already HTML
-                        // But for SmartTable, we prefer raw data.
-                        // For now, let's just render it as a standard table if it's coming through this classic renderer
                         return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
                     } catch(e) { console.error('Table parse error', e); }
                     return `<div class="table-wrap"><table><thead>${header}</thead><tbody>${body}</tbody></table></div>`;
@@ -1797,8 +1790,7 @@
                         const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
                         let encoded;
                         try { encoded = btoa(unescape(encodeURIComponent(code))); } catch(e) { encoded = btoa(code); }
-                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div>
-                                <input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
+                        return `<div class="chart-container"><canvas id="${chartId}"></canvas></div><input type="hidden" class="chart-data-provider" data-id="${chartId}" data-b64="${encoded}">`;
                     }
 
                     if (langClean === 'smart_table') {
@@ -1810,27 +1802,15 @@
                             const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
 
                             if (idx >= 0 && !currentToolResults[idx]) {
-                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
-                                    <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                                    <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
-                                </div>`;
+                                return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span><span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span></div>`;
                             }
 
                             if (idx >= 0 && currentToolResults[idx]) {
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
-                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
-                                    <div class="smart-table-toolbar">
-                                        <span class="smart-table-info">📊 Memuat...</span>
-                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
-                                    </div>
-                                    <div class="smart-table-scroll">
-                                        <table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
-                                    </div>
-                                    <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
-                                </div>`;
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"><div class="smart-table-toolbar"><span class="smart-table-info">📊 Memuat...</span><input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel..."></div><div class="smart-table-scroll"><table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table></div><div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div></div>`;
                             }
                         } catch(e) { return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>'; }
-                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
+                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid</div>`;
                     }
 
                     const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
