@@ -855,15 +855,6 @@
                 return { bubble, toolArea, wrapper: wrap };
             }
 
-            function renderStreamToBubble(bubble, text) {
-                bubble.innerHTML = renderMarkdown(text);
-                bubble.querySelectorAll('pre code').forEach(b => {
-                    try { hljs.highlightElement(b); } catch(e) {}
-                });
-                initChartsInBubble(bubble);
-                initSmartTablesInBubble(bubble);
-            }
-
             // ── Render pesan biasa ────────────────────────────────────────────────
             function addMessage(text, sender) {
                 const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
