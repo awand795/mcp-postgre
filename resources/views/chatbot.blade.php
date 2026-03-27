@@ -997,11 +997,11 @@
 
             try {
                 const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`);
-                
+
                 if (!res.ok) throw new Error('HTTP ' + res.status);
-                
+
                 const data = await res.json();
-                
+
                 chatMessages.innerHTML = '';
                 conversationHistory = [];
 
@@ -1024,13 +1024,22 @@
                     ].join(' ');
 
                     if (msg.role === 'ai' || msg.role === 'assistant') {
-                        const toolResultsForMsg = msg.tool_results || [];
+                        // Parse tool_results if it's a string (for backward compatibility)
+                        let toolResultsForMsg = msg.tool_results || [];
+                        if (typeof toolResultsForMsg === 'string') {
+                            try {
+                                toolResultsForMsg = JSON.parse(toolResultsForMsg);
+                            } catch (e) {
+                                console.error('[LoadSession] Failed to parse tool_results:', e);
+                                toolResultsForMsg = [];
+                            }
+                        }
 
                         // CRITICAL: Pre-populate currentToolResults BEFORE rendering
                         // This ensures chart/smart_table indices match when markdown is parsed
                         const originalGlobal = currentToolResults;
                         currentToolResults = [];
-                        
+
                         // First pass: Add all tool results from DB to currentToolResults
                         // This preserves the original indices
                         toolResultsForMsg.forEach((tr, idx) => {
@@ -1043,7 +1052,7 @@
                         // CRITICAL: Capture currentToolResults (which now includes charts added during render)
                         // and use it in setTimeout callback
                         const toolResultsForInit = [...currentToolResults];
-                        
+
                         // Restore global immediately
                         currentToolResults = originalGlobal;
 
@@ -1069,14 +1078,15 @@
 
                 // CRITICAL: Wait for smart tables to initialize before releasing lock
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
+
                 // Re-enable MutationObserver after history load is complete
                 skipObserver = false;
 
                 chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'instant' });
-                
+
             } catch (e) {
-                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan.</div>';
+                console.error('[LoadSession] Error:', e);
+                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan: ' + e.message + '</div>';
             } finally {
                 // CRITICAL: Always release loading flag, even on error
                 setTimeout(() => {
