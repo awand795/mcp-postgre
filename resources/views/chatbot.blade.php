@@ -1565,13 +1565,45 @@
         function isCurrencyColumn(header) {
             if (!header) return false;
             const h = header.toLowerCase();
-            // Exclude qty columns (even if they have 'total' prefix)
-            if (h.includes('qty')) return false;
-            return h.includes('total') || h.includes('amount') || h.includes('dpp') ||
-                   h.includes('netto') || h.includes('cogs') || h.includes('gpn') ||
-                   h.includes('harga') || h.includes('price') || h.includes('nominal') ||
-                   h.includes('sales') || h.includes('laba') || h.includes('profit') ||
-                   h.includes('pencapaian');
+            
+            // ── EXCLUSIONS (Columns that are definitely NOT currency) ──
+            // Exclude quantities, counts, percentages, and IDs
+            if (h.includes('qty') || 
+                h.includes('terjual') || 
+                h.includes('jumlah') || 
+                h.includes('count') || 
+                h.includes('pencapaian') || 
+                h.includes('growth') ||
+                h.includes('unit') || 
+                h.includes('stok') || 
+                h.includes('stock') ||
+                h.includes('poin') ||
+                h.includes('point') ||
+                h.includes('persen') ||
+                h.includes('percent') ||
+                h.includes('id') ||
+                h.includes('nomor') ||
+                h.includes('kode')) {
+                return false;
+            }
+
+            // ── INCLUSIONS (Columns that are definitely currency) ──
+            return h.includes('amount') || 
+                   h.includes('dpp') ||
+                   h.includes('netto') || 
+                   h.includes('cogs') || 
+                   h.includes('gpn') ||
+                   h.includes('hpp') ||
+                   h.includes('harga') || 
+                   h.includes('price') || 
+                   h.includes('nominal') ||
+                   h.includes('sales') || 
+                   h.includes('laba') || 
+                   h.includes('profit') ||
+                   h.includes('saldo') ||
+                   h.includes('biaya') ||
+                   h.includes('fee') ||
+                   (h.includes('total') && !h.includes('terjual') && !h.includes('qty'));
         }
 
         function toHumanLabel(str) {
