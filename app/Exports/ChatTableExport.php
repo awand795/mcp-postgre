@@ -4,34 +4,23 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCharts;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-<<<<<<< HEAD
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-=======
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
->>>>>>> 69db8d709f0d43e7a2fc0f9038a2bb1d41f91906
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
 use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title as ChartTitle;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
-<<<<<<< HEAD
 class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, ShouldAutoSize
-=======
-class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting
->>>>>>> 69db8d709f0d43e7a2fc0f9038a2bb1d41f91906
 {
     protected $headers;
     protected $rows;
@@ -78,7 +67,6 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
     }
 
     /**
-<<<<<<< HEAD
      * @return array
      */
     public function columnFormats(): array
@@ -90,46 +78,23 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
             $colLetter = Coordinate::stringFromColumnIndex($i);
             $headerName = strtolower($this->headers[$i - 1] ?? '');
 
-            // Detect ID/String columns to format as Text instead of Number
-            // This prevents scientific notation for things like Invoice Numbers or IDs
+            // 1. Detect ID/Fixed String columns to format as Text instead of Number
+            // This prevents scientific notation FOR GOOD for long codes/IDs
             if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe)/i', $headerName)) {
                 $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
-            } else {
-                // For numeric values (Sales, Qty, Target, etc.), use a format that avoids scientific notation
-                // and includes thousand separators for better readability in business context.
+            } 
+            // 2. Detect Value/Currency columns (Sales, Amount, Harga, Netto, GPN, COGS)
+            // Use format with thousand separator for better readability in Excel
+            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target)/i', $headerName)) {
                 $formats[$colLetter] = '#,##0'; 
+            }
+            // 3. For generic numbers (Qty, Points, Index), use plain number WITHOUT scientific notation
+            else {
+                $formats[$colLetter] = '0'; // Forces plain display without separators but avoids scientific
             }
         }
         
         return $formats;
-=======
-     * @param mixed $row
-     * @return array
-     */
-    public function map($row): array
-    {
-        // Convert large numbers to string with apostrophe prefix to prevent scientific notation
-        return array_map(function($cell) {
-            if ($cell === null || $cell === '') {
-                return '';
-            }
-            
-            // Check if cell is a large number (10+ digits)
-            $strValue = (string)$cell;
-            
-            // Remove apostrophe if already present from frontend
-            if (strpos($strValue, "'") === 0) {
-                return $strValue;
-            }
-            
-            // Check if it's a large number that would trigger scientific notation
-            if (preg_match('/^\d{10,}$/', $strValue)) {
-                return "'" . $strValue;
-            }
-            
-            return $cell;
-        }, $row);
->>>>>>> 69db8d709f0d43e7a2fc0f9038a2bb1d41f91906
     }
 
     /**
@@ -141,21 +106,16 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
     {
         $startRow = $this->chartInfo ? 25 : 1;
         $lastCol = $sheet->getHighestColumn();
-<<<<<<< HEAD
         $lastRow = $sheet->getHighestRow();
         
-        // Apply header styling
-=======
-
->>>>>>> 69db8d709f0d43e7a2fc0f9038a2bb1d41f91906
+        // Apply header styling (White text on Red background - MBI Theme)
         $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F53003']],
             'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
         ]);
 
-<<<<<<< HEAD
-        // Add borders to the entire table if data exists
+        // Add thin black/grey borders to the entire data table
         if ($lastRow >= $startRow) {
             $sheet->getStyle("A{$startRow}:{$lastCol}{$lastRow}")->applyFromArray([
                 'borders' => [
@@ -165,14 +125,14 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
                     ],
                 ],
             ]);
+            
+            // Zebra striping for better readability (Optional but looks premium)
+            for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
+                $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F9F9F9']],
+                ]);
+            }
         }
-=======
-        // Format semua data cells sebagai text untuk mencegah notasi ilmiah (1E+09)
-        $dataStartRow = $startRow + 1; // Data starts after header
-        $lastRow = $sheet->getHighestRow();
-        $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$lastRow}")->getNumberFormat()
-            ->setFormatCode(NumberFormat::FORMAT_TEXT);
->>>>>>> 69db8d709f0d43e7a2fc0f9038a2bb1d41f91906
     }
 
     /**
@@ -204,7 +164,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
         $values = [];
         $labels = [];
         for ($i = 0; $i < $datasetCount; $i++) {
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(3 + $i); // Starting from column C
+            $colLetter = Coordinate::stringFromColumnIndex(3 + $i); // Starting from column C
             $labels[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$this->title}'!\${$colLetter}\$25", null, 1);
             $values[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$this->title}'!\${$colLetter}\$26:\${$colLetter}\$" . (25 + $dataPoints), null, $dataPoints);
         }
@@ -241,23 +201,5 @@ class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyle
     public function title(): string
     {
         return $this->title;
-    }
-
-    /**
-     * @return array
-     */
-    public function columnFormats(): array
-    {
-        $formats = [];
-        $colCount = count($this->headers);
-
-        // Format semua kolom yang mungkin berisi angka besar sebagai TEXT
-        // Ini mencegah Excel mengubah angka besar jadi notasi ilmiah (1E+09)
-        for ($i = 1; $i <= $colCount; $i++) {
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-            $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
-        }
-
-        return $formats;
     }
 }
