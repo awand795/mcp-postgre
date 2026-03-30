@@ -7,8 +7,10 @@ use Maatwebsite\Excel\Concerns\WithCharts;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
@@ -18,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Chart\Title as ChartTitle;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting
+class ChatTableExport implements FromArray, WithHeadings, WithMapping, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting
 {
     protected $headers;
     protected $rows;
@@ -65,6 +67,35 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     }
 
     /**
+     * @param mixed $row
+     * @return array
+     */
+    public function map($row): array
+    {
+        // Convert large numbers to string with apostrophe prefix to prevent scientific notation
+        return array_map(function($cell) {
+            if ($cell === null || $cell === '') {
+                return '';
+            }
+            
+            // Check if cell is a large number (10+ digits)
+            $strValue = (string)$cell;
+            
+            // Remove apostrophe if already present from frontend
+            if (strpos($strValue, "'") === 0) {
+                return $strValue;
+            }
+            
+            // Check if it's a large number that would trigger scientific notation
+            if (preg_match('/^\d{10,}$/', $strValue)) {
+                return "'" . $strValue;
+            }
+            
+            return $cell;
+        }, $row);
+    }
+
+    /**
      * @param Worksheet $sheet
      *
      * @return void
@@ -73,7 +104,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     {
         $startRow = $this->chartInfo ? 25 : 1;
         $lastCol = $sheet->getHighestColumn();
-        
+
         $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
             'font' => ['bold' => true],
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F53003']],
@@ -160,8 +191,6 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     public function columnFormats(): array
     {
         $formats = [];
-        $startRow = $this->chartInfo ? 25 : 1;
-        $lastRow = $startRow + count($this->rows);
         $colCount = count($this->headers);
 
         // Format semua kolom yang mungkin berisi angka besar sebagai TEXT
