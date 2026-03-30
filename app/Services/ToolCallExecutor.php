@@ -241,9 +241,13 @@ class ToolCallExecutor
             $rows = DB::connection('pgsql_mbi')->select($cleanSql);
         } catch (\Exception $e) {
             Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage() . " | SQL: " . $cleanSql);
-            $msg = str_contains($e->getMessage(), 'statement timeout')
+            
+            $dbError = $e->getMessage();
+            
+            $msg = str_contains($dbError, 'statement timeout')
                 ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah.'
-                : 'Data tidak dapat diambil saat ini. Silakan coba lagi atau hubungi administrator.';
+                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, gunakan tool 'describe_table' atau 'get_schema_info' untuk memverifikasi skema yang benar, lalu perbaiki SQL dan coba lagi.";
+
             return json_encode(['error' => $msg]);
         }
 

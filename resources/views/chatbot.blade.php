@@ -1233,7 +1233,8 @@
                 const cleanHeaders = headers.map(h => {
                     const temp = document.createElement('div');
                     temp.innerHTML = h;
-                    return temp.textContent || temp.innerText || String(h);
+                    const rawLabel = temp.textContent || temp.innerText || String(h);
+                    return toHumanLabel(rawLabel);
                 });
 
                 // Generate filename with timestamp
@@ -1453,6 +1454,42 @@
                    h.includes('pencapaian');
         }
 
+        function toHumanLabel(str) {
+            if (!str) return '';
+            
+            // Custom mappings for technical abbreviations
+            const mapping = {
+                'gpn': 'Laba Kotor',
+                'gpm': 'GPM (%)',
+                'cogs': 'HPP',
+                'qty': 'Qty',
+                'dpp': 'DPP',
+                'ttl': 'Total',
+                'ssr': 'SSR (Sales Summary)',
+                'trm': 'TRM (Target Realisasi)',
+                'hpp': 'HPP',
+                'pencapaian_amount': 'Pencapaian (%)',
+                'pencapaian_qty': 'Pencapaian Qty (%)',
+                'total_netto': 'Total Netto',
+                'total_dpp': 'Total DPP',
+                'periode_tahun': 'Tahun',
+                'periode_bulan': 'Bulan'
+            };
+
+            const lower = str.toLowerCase();
+            if (mapping[lower]) return mapping[lower];
+
+            // General formatting: snake_case to Title Case
+            return str
+                .split('_')
+                .map(word => {
+                    const mappedWord = mapping[word.toLowerCase()];
+                    if (mappedWord) return mappedWord;
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                })
+                .join(' ');
+        }
+
         function formatCellValue(val, header) {
             if (val === null || val === undefined || val === '') return '';
             if (header && isCurrencyColumn(header)) {
@@ -1529,7 +1566,8 @@
                 thead.innerHTML = '<tr>' + headers.map((h, i) => {
                     const cls = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
                     const icon = sortCol === i ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼';
-                    return `<th class="${cls}" data-col="${i}">${h}<span class="sort-icon">${icon}</span></th>`;
+                    const label = toHumanLabel(h);
+                    return `<th class="${cls}" data-col="${i}">${label}<span class="sort-icon">${icon}</span></th>`;
                 }).join('') + '</tr>';
                 thead.querySelectorAll('th').forEach(th => {
                     th.onclick = () => {
@@ -1593,7 +1631,8 @@
                 thead.innerHTML = '<tr>' + headers.map((h, i) => {
                     const cls = sortCol === i ? (sortDir === 'asc' ? 'sort-asc' : 'sort-desc') : '';
                     const icon = sortCol === i ? (sortDir === 'asc' ? '▲' : '▼') : '▲▼';
-                    return `<th class="${cls}" data-col="${i}">${h}<span class="sort-icon">${icon}</span></th>`;
+                    const label = toHumanLabel(h);
+                    return `<th class="${cls}" data-col="${i}">${label}<span class="sort-icon">${icon}</span></th>`;
                 }).join('') + '</tr>';
                 thead.querySelectorAll('th').forEach(th => {
                     th.onclick = () => {

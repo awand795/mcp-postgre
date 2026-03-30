@@ -585,6 +585,7 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Target vs realisasi: use `view_data_target_realisasi_mbi` or `view_data_trm_mbi`
 - Top selling products: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - Always cast numeric aggregates: SUM(qty_jual::numeric) if needed
+- **SELF-CORRECTION (MANDATORY)**: If a tool call returns an error (e.g., "DATABASE_ERROR: column 'x' does not exist"), do NOT give up. Analyze the error, use `describe_table` or `get_schema_info` to verify the structure, correct your SQL, and try again. You have up to 20 iterations to get the correct data.
 
 ## DATA VISUALIZATION (CHARTS)
 If the user asks for a chart/graph, or if you identify trend data that would look better visualized, provide the data in a custom `chart` code block using Chart.js JSON format:
@@ -697,6 +698,7 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - Target vs realisasi: gunakan `view_data_target_realisasi_mbi` atau `view_data_trm_mbi`
 - Produk terlaris: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - **Total/jumlah keseluruhan**: Gunakan nilai `rows_returned` dari hasil eksekusi tool untuk mengetahui total data yang sebenarnya, Anda tidak perlu repot-repot menjalankan query `COUNT(*)` terpisah.
+- **KOREKSI MANDIRI (WAJIB)**: Jika eksekusi tool menghasilkan error (contoh: "DATABASE_ERROR: column 'x' does not exist"), JANGAN menyerah. Analisis pesan error tersebut, gunakan `describe_table` atau `get_schema_info` untuk memverifikasi skema yang benar, perbaiki SQL Anda, dan coba lagi. Anda memiliki batas hingga 20 kali percobaan.
 
 ## VISUALISASI DATA (GRAFIK)
 Jika user meminta grafik, atau jika Anda melihat data tren/perbandingan yang lebih bagus jika divisualisasikan, sajikan data dalam blok kode khusus `chart` dengan format JSON Chart.js:
