@@ -1459,8 +1459,10 @@
         function isCurrencyColumn(header) {
             if (!header) return false;
             const h = header.toLowerCase();
-            return h.includes('total') || h.includes('amount') || h.includes('dpp') || 
-                   h.includes('netto') || h.includes('cogs') || h.includes('gpn') || 
+            // Exclude qty columns (even if they have 'total' prefix)
+            if (h.includes('qty')) return false;
+            return h.includes('total') || h.includes('amount') || h.includes('dpp') ||
+                   h.includes('netto') || h.includes('cogs') || h.includes('gpn') ||
                    h.includes('harga') || h.includes('price') || h.includes('nominal') ||
                    h.includes('sales') || h.includes('laba') || h.includes('profit') ||
                    h.includes('pencapaian');
