@@ -334,10 +334,11 @@ class AgenticChatbotController extends Controller
                     $truncatedRows = array_slice($decodedRes['rows'], 0, 50);
                     $totalRows = count($decodedRes['rows']);
                     $aiContent = json_encode([
-                        'label'   => $decodedRes['label'] ?? '',
-                        'columns' => $decodedRes['columns'] ?? [],
-                        'rows'    => $truncatedRows,
-                        'message' => "NOTE: Data is truncated for AI response. Showing only first 50 rows out of {$totalRows}. BUT user can see the FULL data in the Smart Table below."
+                        'label'         => $decodedRes['label'] ?? '',
+                        'rows_returned' => $totalRows,
+                        'columns'       => $decodedRes['columns'] ?? [],
+                        'rows'          => $truncatedRows,
+                        'message'       => "NOTE: Data is truncated for AI response. Showing only first 50 rows out of {$totalRows}. BUT user can see the FULL data in the Smart Table below if you use the smart_table markdown block."
                     ]);
                 }
 
@@ -553,13 +554,10 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ```
 (where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). **Use this for ALL query results** - whether 1 row or 1000 rows.
 
-6. **CRITICAL: DISPLAY ALL ROWS - NEVER SUMMARIZE**:
-   - **FORBIDDEN**: Saying "Found 150 transactions" without showing the data
-   - **FORBIDDEN**: Showing only count/summary like "There are 150 rows"
-   - **FORBIDDEN**: Using COUNT(*) result as smart_table data - smart_table MUST contain actual transaction rows
-   - **REQUIRED**: ALWAYS display the FULL dataset using smart_table code block
-   - **REQUIRED**: If user asks for "transactions in January 2026", show ALL transactions, not just the count
-   - The smart_table will handle pagination automatically (50 rows per page)
+6. **CRITICAL: NEVER SUMMARIZE DATA & NEVER JUST GIVE ROW COUNTS**:
+   - **FORBIDDEN**: Replying with just row counts like "There are 1500 rows." You MUST always use the `smart_table` block to show the actual data.
+   - **REQUIRED**: ALWAYS display the dataset using the `smart_table` code block for ANY `execute_query` result.
+   - **REQUIRED**: The frontend will handle large data gracefully, you just need to provide the `smart_table` block.
 7. Run additional queries if deeper analysis is needed.
 
 ## SQL RULES — READ CAREFULLY
@@ -587,7 +585,6 @@ This database contains sales, stock, purchases, targets, customers, and product 
 - Target vs realisasi: use `view_data_target_realisasi_mbi` or `view_data_trm_mbi`
 - Top selling products: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
 - Always cast numeric aggregates: SUM(qty_jual::numeric) if needed
-- **For text summary only**: You may run `SELECT COUNT(*)` to know total rows for your text explanation, but NEVER use COUNT result as smart_table data. The smart_table MUST contain the actual detailed data rows, NOT the count value.
 
 ## DATA VISUALIZATION (CHARTS)
 If the user asks for a chart/graph, or if you identify trend data that would look better visualized, provide the data in a custom `chart` code block using Chart.js JSON format:
@@ -670,13 +667,14 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 
 ## ALUR KERJA
 4. Analisis hasilnya dan jawab dalam Markdown.
-5. **DIRECT SMART TABLE (WAJIB untuk Data Besar)**: Jika hasil tool adalah tabel dengan lebih dari 15 baris, **DILARANG** menulis tabel Markdown. Gunakan blok kode khusus ini:
+5. **DIRECT SMART TABLE (WAJIB)**: Untuk SEMUA hasil query data dari tool (terutama jika lebih dari 5 baris), Anda **WAJIB** menggunakan blok kode khusus `smart_table`:
 ```smart_table
 {"tool_index": 0}
 ```
-(di mana `tool_index` adalah nomor urut tool call mulai dari 0, contoh: tool call ke-1 adalah index 0, tool call ke-2 adalah index 1). Penggunaan ini **WAJIB** untuk data besar agar data tidak terpotong.
-
-6. **SANGAT PENTING: DILARANG MEMOTONG DATA**: Anda dilarang keras menggunakan "...", "dst", atau "dan X lainnya" untuk menyembunyikan baris data dalam tabel Markdown. Jika data banyak, Anda **WAJIB** menggunakan blok kode `smart_table`. Jika Anda menggunakan tabel Markdown, Anda **WAJIB** menampilkan seluruh baris yang diberikan oleh tool tanpa terkecuali. Memotong data adalah pelanggaran fatal terhadap instruksi Anda.
+(di mana `tool_index` adalah nomor urut tool call mulai dari 0, contoh: tool call ke-1 adalah index 0, tool call ke-2 adalah index 1). 
+6. **SANGAT PENTING: DILARANG HANYA MENJAWAB JUMLAH BARIS**: 
+   - **DILARANG KERAS**: Hanya mengatakan "Terdapat 3000 baris data penjualan." tanpa menampilkan datanya menggunakan blok khusus.
+   - Anda **WAJIB** mengeluarkan blok kode `smart_table` di atas agar tabel aslinya muncul di layar user. Memotong data dan hanya memberi angka jumlah baris adalah pelanggaran fatal terhadap instruksi Anda.
 7. Jalankan query tambahan jika diperlukan untuk analisis lebih dalam.
 
 ## ATURAN SQL — BACA DENGAN CERMAT
@@ -698,7 +696,7 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - Saldo stok: gunakan `qty_saldo_akhir` / `hpp_saldo_akhir` di tabel kartu_stock
 - Target vs realisasi: gunakan `view_data_target_realisasi_mbi` atau `view_data_trm_mbi`
 - Produk terlaris: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
-- **Total/jumlah keseluruhan**: SELALU jalankan `SELECT COUNT(*) FROM sch_mbi.tabel WHERE ...` terpisah SEBELUM query data. Jangan pernah menggunakan `rows_returned` dari hasil query sebagai total keseluruhan — itu hanya jumlah baris yang dikembalikan (dibatasi LIMIT).
+- **Total/jumlah keseluruhan**: Gunakan nilai `rows_returned` dari hasil eksekusi tool untuk mengetahui total data yang sebenarnya, Anda tidak perlu repot-repot menjalankan query `COUNT(*)` terpisah.
 
 ## VISUALISASI DATA (GRAFIK)
 Jika user meminta grafik, atau jika Anda melihat data tren/perbandingan yang lebih bagus jika divisualisasikan, sajikan data dalam blok kode khusus `chart` dengan format JSON Chart.js:
