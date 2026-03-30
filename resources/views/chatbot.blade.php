@@ -1238,7 +1238,14 @@
                         if (cell === null || cell === undefined) return '';
                         const temp = document.createElement('div');
                         temp.innerHTML = cell;
-                        return temp.textContent || temp.innerText || String(cell);
+                        let value = temp.textContent || temp.innerText || String(cell);
+                        
+                        // Prepend apostrophe for large numbers to force Excel text format
+                        // This prevents scientific notation (1E+09, 3.63E+09, etc.)
+                        if (/^\d{10,}$/.test(value)) {
+                            value = "'" + value;
+                        }
+                        return value;
                     })
                 );
 
