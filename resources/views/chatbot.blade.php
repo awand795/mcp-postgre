@@ -1232,13 +1232,24 @@
             }
 
             try {
-                // Clean data: remove HTML tags only
+                // Clean data: remove HTML tags only AND force string format for large numbers
                 const cleanRows = rows.map(row =>
                     row.map(cell => {
                         if (cell === null || cell === undefined) return '';
                         const temp = document.createElement('div');
                         temp.innerHTML = cell;
-                        return temp.textContent || temp.innerText || String(cell);
+                        let value = temp.textContent || temp.innerText || String(cell);
+                        
+                        // Remove any existing formatting
+                        value = value.replace(/Rp\s|\.|\s/g, ''); // Remove Rp, dots, spaces
+                        
+                        // Force ALL numeric values to string with tab prefix for Excel
+                        // This ensures Excel treats them as text, not numbers
+                        if (/^\d+$/.test(value)) {
+                            // Pure numbers: add tab prefix to force text format
+                            return '\t' + value;
+                        }
+                        return value;
                     })
                 );
 
