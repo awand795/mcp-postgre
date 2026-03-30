@@ -13,6 +13,7 @@
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         body {
@@ -114,6 +115,45 @@
         @keyframes progress-pulse {
             0%, 100% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
+        }
+
+        /* SweetAlert2 Toast Custom Styles */
+        .swal2-toast {
+            background: rgba(0, 0, 0, 0.85) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
+        }
+        .swal2-toast .swal2-title {
+            color: #fff !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+        }
+        .swal2-toast.swal2-success {
+            border-color: rgba(16, 185, 129, 0.3) !important;
+        }
+        .swal2-toast.swal2-success .swal2-title {
+            color: #34d399 !important;
+        }
+        .swal2-toast.swal2-error {
+            border-color: rgba(239, 68, 68, 0.3) !important;
+        }
+        .swal2-toast.swal2-error .swal2-title {
+            color: #f87171 !important;
+        }
+        .swal2-toast.swal2-info {
+            border-color: rgba(59, 130, 246, 0.3) !important;
+        }
+        .swal2-toast.swal2-info .swal2-title {
+            color: #60a5fa !important;
+        }
+        .swal2-confirm {
+            background-color: #f53003 !important;
+            font-size: 13px !important;
+            padding: 8px 16px !important;
+            border-radius: 8px !important;
         }
 
 
@@ -1299,24 +1339,50 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
 
-                alert(`✅ Export berhasil! ${rows.length} baris data telah diunduh.`);
+                // Show success toast
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `✅ Export berhasil! ${rows.length} baris data telah diunduh.`,
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
 
             } catch (error) {
                 console.error('[Export Error]', error);
-                
+
                 let errorMsg = 'Gagal export tabel.';
                 if (error.message.includes('timeout')) {
-                    errorMsg = 'Export timeout. Silakan coba lagi.';
+                    errorMsg = '⏱️ Export timeout. Silakan coba lagi.';
                 } else if (error.message.includes('memory')) {
-                    errorMsg = 'Memory limit. Silakan coba lagi.';
+                    errorMsg = '💾 Memory limit. Silakan coba lagi.';
                 } else if (error.message.includes('413')) {
-                    errorMsg = 'Data terlalu besar. Silakan filter data terlebih dahulu.';
+                    errorMsg = '⚠️ Data terlalu besar. Silakan filter data terlebih dahulu.';
                 } else {
                     errorMsg = `❌ ${error.message}`;
                 }
-                
-                alert(errorMsg);
-                
+
+                // Show error toast
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: errorMsg,
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
+
                 if (exportBtn) {
                     exportBtn.disabled = false;
                     exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1454,9 +1520,38 @@
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
 
+                // Show success toast
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: `✅ Export grafik berhasil! Data telah diunduh.`,
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
+
             } catch (error) {
                 console.error('[Chart Export Error]', error);
-                alert('Gagal export grafik: ' + error.message);
+                
+                // Show error toast
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'error',
+                    title: `❌ Gagal export grafik: ${error.message}`,
+                    showConfirmButton: false,
+                    timer: 4000,
+                    timerProgressBar: true,
+                    didOpen: (toast) => {
+                        toast.addEventListener('mouseenter', Swal.stopTimer)
+                        toast.addEventListener('mouseleave', Swal.resumeTimer)
+                    }
+                });
             } finally {
                 if (exportBtn) {
                     exportBtn.disabled = false;
