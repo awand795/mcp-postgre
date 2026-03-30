@@ -78,13 +78,13 @@ class ToolCallExecutor
                 'type' => 'function',
                 'function' => [
                     'name'        => 'execute_query',
-                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi." (e.g. SELECT * FROM sch_mbi.view_data_penjualan_rinci_mbi). Only SELECT queries are allowed. Do NOT add LIMIT unless the user explicitly asks for a limited number of rows — always retrieve full data by default.',
+                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi.". USE LIMIT when the user asks for a specific number (e.g. "top 10"), but do NOT use LIMIT for general "show/list" requests where the user wants to see all data.',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
                             'sql'   => [
                                 'type'        => 'string',
-                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Do NOT add LIMIT unless user explicitly requests limited rows. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC',
+                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Use LIMIT only if explicitly requested or for performance on "Top N" queries. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC LIMIT 10',
                             ],
                             'label' => [
                                 'type'        => 'string',
@@ -222,15 +222,8 @@ class ToolCallExecutor
             }
         }
 
-        // ── LAYER 6: ANTI-LIMIT — Hapus LIMIT/FETCH paksa jika AI menambahkannya ──
-        // Menghapus LIMIT N, OFFSET N, dan FETCH FIRST N ROWS ONLY
-        $cleanSql = preg_replace('/\bLIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\b/i', '', $trimmedSql);
-        $cleanSql = preg_replace('/\bFETCH\s+(?:FIRST|NEXT)\s+\d+\s+ROWS?\s+ONLY\b/i', '', $cleanSql);
-        $cleanSql = trim($cleanSql);
-        if ($cleanSql !== $trimmedSql) {
-            Log::info('[ToolCallExecutor] SQL limit stripped. Original: ' . substr($trimmedSql, -50));
-        }
-
+        // ── LAYER 6: Execute Query ─────────────────────────────────────────────
+        $cleanSql = $trimmedSql;
         Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 
         // FIX: Hapus SET TRANSACTION READ ONLY karena tidak kompatibel dengan Laravel DB::transaction()

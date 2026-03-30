@@ -566,7 +566,9 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
-- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows when the user wants to SEE/LIST data.
+- **SMART LIMIT POLICY**: 
+  - **DEFAULT**: Retrieve ALL rows when the user wants to "SEE", "LIST", "SHOW", or "TAMPILKAN" data (no LIMIT). This ensures full data is available for search/sort/export in the Smart Table.
+  - **SPECIFIC LIMIT**: ALWAYS use `LIMIT` when the user asks for a specific number (e.g., "top 10", "display 5", "5 teratas"). This is CRITICAL for performance.
 - **SMART USE OF AGGREGATES**:
    - **ALLOWED**: Using `COUNT(*)`, `SUM()`, `AVG()` when specifically asked for "total", "average", "summary", or "berapa jumlah".
    - **FORBIDDEN**: Showing a `smart_table` with just 1 row/1 column (e.g. just the count result) when the user expected to see the transaction details.
@@ -685,7 +687,9 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
-- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data"). Default SELALU ambil SEMUA baris tanpa batas saat user ingin MELIHAT data.
+- **KEBIJAKAN LIMIT PINTAR**: 
+  - **DEFAULT**: Ambil SEMUA baris jika user ingin "MELIHAT", "MENAMPILKAN", atau "DAFTAR" data (tanpa LIMIT). Ini memastikan data lengkap tersedia untuk pencarian/pengurutan/export di Smart Table.
+  - **LIMIT SPESIFIK**: SELALU gunakan `LIMIT` jika user meminta angka tertentu (contoh: "top 10", "tampilkan 5 data", "5 teratas"). Ini SANGAT PENTING untuk performa pada tabel besar.
 - **PENGGUNAAN AGREGAT YANG BIJAK**:
    - **DIPERBOLEHKAN**: Menggunakan `COUNT(*)`, `SUM()`, `AVG()` saat ditanya "total", "rata-rata", atau "jumlah" secara spesifik.
    - **DILARANG**: Menampilkan `smart_table` yang hanya berisi 1 baris hasil COUNT jika user mengharapkan melihat rincian transaksi.
