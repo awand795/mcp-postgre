@@ -554,22 +554,23 @@ This database contains sales, stock, purchases, targets, customers, and product 
 ```
 (where `tool_index` is the exact 0-based index of the tool call that produced the data, e.g., the 1st tool call is 0, the 2nd is 1). **Use this for ALL query results** - whether 1 row or 1000 rows.
 
-6. **CRITICAL: NEVER SUMMARIZE DATA & NEVER JUST GIVE ROW COUNTS**:
-   - **FORBIDDEN**: Replying with just row counts like "There are 1500 rows." You MUST always use the `smart_table` block to show the actual data.
-   - **REQUIRED**: ALWAYS display the dataset using the `smart_table` code block for ANY `execute_query` result.
-   - **REQUIRED**: The frontend will handle large data gracefully, you just need to provide the `smart_table` block.
+6. **CRITICAL: PREFER SHOWING ALL DATA (NO LIMITS) UNLESS ONLY TOTAL IS ASKED**:
+   - **REQUIRED**: If the user asks to "show", "list", "render", or "tampilkan" data, ALWAYS retrieve ALL rows using the `smart_table` code block. **NEVER** use LIMIT in these cases.
+   - **ALLOWED**: If the user **ONLY** asks "How many...", "What is the total...", or "Berapa jumlah...", you may run `SELECT COUNT(*)` or a similar aggregate query to give a fast, pure numeric answer.
+   - **REQUIRED**: Even if you give just a count, it's often helpful to mention you can provide the full list if they ask for it.
+   - **PROMPT AWARENESS**:
+      - Prompt: "How many sales in 2025?" -> Result: "1,500 sales were made in 2025." (Simple count ok)
+      - Prompt: "Show sales in 2025." -> Result: Run full query + `smart_table` (Full data mandatory)
 7. Run additional queries if deeper analysis is needed.
 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `sch_mbi.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
-- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows.
-- **NEVER USE COUNT() AS DATA**:
-   - **FORBIDDEN**: `SELECT COUNT(*) FROM table` as the ONLY query
-   - **FORBIDDEN**: "There are X rows" without showing the actual data
-   - **FORBIDDEN**: Using COUNT(*) result in smart_table - it must contain DETAIL rows
-   - **REQUIRED**: ALWAYS run `SELECT column1, column2, ... FROM table WHERE conditions` to get ACTUAL data
-   - You can run COUNT(*) FIRST to know total for text summary, but MUST follow with SELECT to get ALL rows for smart_table
+- **ANTI-LIMIT POLICY — MANDATORY**: NEVER add LIMIT or FETCH FIRST to any query unless the user explicitly states a number (e.g., "show top 10"). Default is ALWAYS retrieve ALL rows when the user wants to SEE/LIST data.
+- **SMART USE OF AGGREGATES**:
+   - **ALLOWED**: Using `COUNT(*)`, `SUM()`, `AVG()` when specifically asked for "total", "average", "summary", or "berapa jumlah".
+   - **FORBIDDEN**: Showing a `smart_table` with just 1 row/1 column (e.g. just the count result) when the user expected to see the transaction details.
+   - **RECOMMENDED**: If the user asks for "total and details", run both or use the `rows_returned` feature from `smart_table` results for the count.
 - **Select relevant columns**: Pick columns needed to keep the response clean and readable.
 - Text filter: use `ILIKE '%keyword%'`
 - **Year filter**: `WHERE periode_tahun = '{$currentYear}'`
@@ -673,31 +674,22 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 {"tool_index": 0}
 ```
 (di mana `tool_index` adalah nomor urut tool call mulai dari 0, contoh: tool call ke-1 adalah index 0, tool call ke-2 adalah index 1). 
-6. **SANGAT PENTING: DILARANG HANYA MENJAWAB JUMLAH BARIS**: 
-   - **DILARANG KERAS**: Hanya mengatakan "Terdapat 3000 baris data penjualan." tanpa menampilkan datanya menggunakan blok khusus.
-   - Anda **WAJIB** mengeluarkan blok kode `smart_table` di atas agar tabel aslinya muncul di layar user. Memotong data dan hanya memberi angka jumlah baris adalah pelanggaran fatal terhadap instruksi Anda.
+6. **SANGAT PENTING: BEDAKAN ANTARA "HITUNG JUMLAH" DAN "TAMPILKAN DATA"**:
+   - **WAJIB**: Jika user meminta untuk "lihat", "tampilkan", "daftar", atau "rincian" data, Anda **WAJIB** mengambil SEMUA baris dan menampilkannya menggunakan blok `smart_table`. **JANGAN** gunakan LIMIT.
+   - **DIPERBOLEHKAN**: Jika user **HANYA** bertanya "Berapa total...", "Berapa jumlah...", atau "Berapa unit...", Anda boleh menjalankan query `SELECT COUNT(*)` atau agregat lainnya untuk memberi jawaban angka yang cepat.
+   - **KESADARAN PROMPT**:
+      - Prompt: "Berapa jumlah transaksi 2025?" -> Jawaban: "Terdapat 1.500 transaksi di 2025." (Cukup angka ok)
+      - Prompt: "Tampilkan transaksi 2025." -> Jawaban: Jalankan SELECT penuh + `smart_table` (Wajib data penuh)
 7. Jalankan query tambahan jika diperlukan untuk analisis lebih dalam.
 
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
-- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data"). Default SELALU ambil SEMUA baris tanpa batas.
-- **DILARANG MERANGKUM ATAU MEMOTONG DATA**: Jika ada banyak baris, gunakan blok kode `smart_table` seperti dijelaskan di atas.
-- **Pilih kolom relevan**: Pilih hanya kolom yang benar-benar dibutuhkan agar respons tetap bersih dan mudah dibaca.
-- Filter teks: gunakan `ILIKE '%keyword%'`
-- **Filter tahun**: `WHERE periode_tahun = '{$currentYear}'`
-- **Filter bulan**: `WHERE periode_bulan = '03'` ← gunakan string 2 digit ('01'=Jan, '12'=Des)
-- **Filter tahun + bulan**: `WHERE periode_tahun = '{$currentYear}' AND periode_bulan = '03'`
-- **Kolom periode**: format 'YYYY-MM', contoh: `WHERE periode = '{$currentYear}-03'`
-- Filter provinsi: `WHERE nama_propinsi_cabang ILIKE '%jawa barat%'`
-- Filter kota/kabupaten: `WHERE nama_kabupaten_cabang ILIKE '%medan%'`
-- Filter regional: `WHERE nama_regional ILIKE '%sumatera%'`
-- Nilai penjualan: gunakan `total_netto` (setelah diskon+PPN) atau `total_dpp` (harga dasar)
-- Laba kotor: gunakan kolom `gpn` di view_data_ssr_mbi
-- Saldo stok: gunakan `qty_saldo_akhir` / `hpp_saldo_akhir` di tabel kartu_stock
-- Target vs realisasi: gunakan `view_data_target_realisasi_mbi` atau `view_data_trm_mbi`
-- Produk terlaris: GROUP BY nama_barang, ORDER BY SUM(qty_jual) DESC
-- **Total/jumlah keseluruhan**: Gunakan nilai `rows_returned` dari hasil eksekusi tool untuk mengetahui total data yang sebenarnya, Anda tidak perlu repot-repot menjalankan query `COUNT(*)` terpisah.
+- **KEBIJAKAN ANTI-LIMIT — WAJIB**: JANGAN PERNAH menambahkan LIMIT atau FETCH FIRST ke query manapun, kecuali user secara eksplisit menyebut angka (contoh: "tampilkan 10 data"). Default SELALU ambil SEMUA baris tanpa batas saat user ingin MELIHAT data.
+- **PENGGUNAAN AGREGAT YANG BIJAK**:
+   - **DIPERBOLEHKAN**: Menggunakan `COUNT(*)`, `SUM()`, `AVG()` saat ditanya "total", "rata-rata", atau "jumlah" secara spesifik.
+   - **DILARANG**: Menampilkan `smart_table` yang hanya berisi 1 baris hasil COUNT jika user mengharapkan melihat rincian transaksi.
+   - **SARAN**: Jika user bertanya "Berapa jumlah dan bagaimana rinciannya...", Anda harus memberikan angka totalnya DAN menampilkan tabel rinciannya secara lengkap.
 - **KOREKSI MANDIRI (WAJIB)**: Jika eksekusi tool menghasilkan error (contoh: "DATABASE_ERROR: column 'x' does not exist"), JANGAN menyerah. Analisis pesan error tersebut, gunakan `describe_table` atau `get_schema_info` untuk memverifikasi skema yang benar, perbaiki SQL Anda, dan coba lagi. Anda memiliki batas hingga 20 kali percobaan.
 
 ## VISUALISASI DATA (GRAFIK)
