@@ -143,8 +143,20 @@
         /* Chart Container */
         .chart-container {
             background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px; padding: 15px; margin: 15px 0;
-            width: 100%; height: 300px; position: relative;
+            border-radius: 12px; padding: 15px 15px 25px 15px; margin: 20px 0;
+            width: 100%; height: 400px; position: relative;
+        }
+        .chart-container canvas {
+            position: relative; z-index: 1;
+            max-height: 330px;
+        }
+        .chart-container .chart-toolbar {
+            margin-bottom: 5px;
+        }
+        .chart-container + .markdown-body,
+        .chart-container + p,
+        .chart-container + div {
+            margin-top: 10px;
         }
         .chart-toolbar {
             display: flex; justify-content: flex-end; gap: 8px;
@@ -2218,22 +2230,31 @@
         
         function initChartWithConfig(canvas, config, container, chartId) {
             if (!config || !canvas) return;
-            
+
             config.options = config.options || {};
             config.options.responsive = true;
             config.options.maintainAspectRatio = false;
-            
+
+            // Tambahkan padding layout untuk memberi ruang label
+            if (!config.options.layout) config.options.layout = {};
+            config.options.layout.padding = {
+                top: 10,
+                bottom: 15,
+                left: 5,
+                right: 5
+            };
+
             // Pastikan warna tema gelap jika tidak diset AI
             if (!config.options.plugins) config.options.plugins = {};
             if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff', font: { size: 10 } } };
-            
+
             if (!config.options.scales) config.options.scales = {};
             const scales = config.options.scales;
             ['x', 'y'].forEach(axis => {
                 if (!scales[axis]) scales[axis] = {};
                 if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
                 if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
-                
+
                 // Format currency di ticks Y jika datanya besar
                 if (axis === 'y') {
                     const oldCallback = scales[axis].ticks.callback;
