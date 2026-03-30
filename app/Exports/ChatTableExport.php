@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithCharts;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
@@ -14,9 +15,10 @@ use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
 use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title as ChartTitle;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell
+class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting
 {
     protected $headers;
     protected $rows;
@@ -76,6 +78,12 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             'font' => ['bold' => true],
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F53003']],
         ]);
+
+        // Format semua data cells sebagai text untuk mencegah notasi ilmiah (1E+09)
+        $dataStartRow = $startRow + 1; // Data starts after header
+        $lastRow = $sheet->getHighestRow();
+        $sheet->getStyle("A{$dataStartRow}:{$lastCol}{$lastRow}")->getNumberFormat()
+            ->setFormatCode(NumberFormat::FORMAT_TEXT);
     }
 
     /**
@@ -144,5 +152,25 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     public function title(): string
     {
         return $this->title;
+    }
+
+    /**
+     * @return array
+     */
+    public function columnFormats(): array
+    {
+        $formats = [];
+        $startRow = $this->chartInfo ? 25 : 1;
+        $lastRow = $startRow + count($this->rows);
+        $colCount = count($this->headers);
+
+        // Format semua kolom yang mungkin berisi angka besar sebagai TEXT
+        // Ini mencegah Excel mengubah angka besar jadi notasi ilmiah (1E+09)
+        for ($i = 1; $i <= $colCount; $i++) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
+        }
+
+        return $formats;
     }
 }
