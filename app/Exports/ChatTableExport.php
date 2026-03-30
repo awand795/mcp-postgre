@@ -8,6 +8,8 @@ use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
@@ -15,8 +17,10 @@ use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title as ChartTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
-class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell
+class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, ShouldAutoSize
 {
     protected $headers;
     protected $rows;
@@ -63,6 +67,32 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     }
 
     /**
+     * @return array
+     */
+    public function columnFormats(): array
+    {
+        $formats = [];
+        $lastColIndex = count($this->headers);
+        
+        for ($i = 1; $i <= $lastColIndex; $i++) {
+            $colLetter = Coordinate::stringFromColumnIndex($i);
+            $headerName = strtolower($this->headers[$i - 1] ?? '');
+
+            // Detect ID/String columns to format as Text instead of Number
+            // This prevents scientific notation for things like Invoice Numbers or IDs
+            if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe)/i', $headerName)) {
+                $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
+            } else {
+                // For numeric values (Sales, Qty, Target, etc.), use a format that avoids scientific notation
+                // and includes thousand separators for better readability in business context.
+                $formats[$colLetter] = '#,##0'; 
+            }
+        }
+        
+        return $formats;
+    }
+
+    /**
      * @param Worksheet $sheet
      *
      * @return void
@@ -71,11 +101,26 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     {
         $startRow = $this->chartInfo ? 25 : 1;
         $lastCol = $sheet->getHighestColumn();
+        $lastRow = $sheet->getHighestRow();
         
+        // Apply header styling
         $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
-            'font' => ['bold' => true],
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F53003']],
+            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
         ]);
+
+        // Add borders to the entire table if data exists
+        if ($lastRow >= $startRow) {
+            $sheet->getStyle("A{$startRow}:{$lastCol}{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => 'CCCCCC'],
+                    ],
+                ],
+            ]);
+        }
     }
 
     /**
