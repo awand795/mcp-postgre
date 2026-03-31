@@ -823,8 +823,8 @@ PROMPT;
         $chartInfo = $request->input('chartInfo');
 
         // Increase time and memory limits for large exports
-        set_time_limit(300); // 5 minutes
-        ini_set('memory_limit', '512M');
+        set_time_limit(600); // 10 minutes
+        ini_set('memory_limit', '1024M'); // Match server's max for large datasets
 
         try {
             // Clear any previous output buffers to prevent corruption

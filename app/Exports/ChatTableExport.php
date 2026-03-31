@@ -22,12 +22,13 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
-class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, ShouldAutoSize, WithEvents
+class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, WithEvents
 {
     protected $headers;
     protected $rows;
     protected $title;
     protected $chartInfo;
+    protected $isLargeData;
 
     /**
      * @param array $headers Table headers
@@ -41,6 +42,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         $this->rows = $rows;
         $this->title = substr($title, 0, 31); // Excel sheet title max 31 chars
         $this->chartInfo = $chartInfo;
+        $this->isLargeData = count($rows) > 1000;
     }
 
     /**
@@ -157,16 +159,21 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 ],
             ]);
             
-            // Zebra striping with slightly softer color
-            for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
-                $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDFDFD']],
-                ]);
-            }
-
             // Set a comfortable row height for all data rows (Spasi)
-            for ($row = $startRow + 1; $row <= $lastRow; $row++) {
-                $sheet->getRowDimension($row)->setRowHeight(20);
+            // Use default for speed if data is large
+            if ($this->isLargeData) {
+                $sheet->getDefaultRowDimension()->setRowHeight(20);
+            } else {
+                // Zebra striping - disabled for very large tables for performance
+                for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
+                    $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
+                        'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDFDFD']],
+                    ]);
+                }
+
+                for ($row = $startRow + 1; $row <= $lastRow; $row++) {
+                    $sheet->getRowDimension($row)->setRowHeight(20);
+                }
             }
         }
     }
@@ -215,15 +222,21 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                     ],
                 ]);
 
-                // 3. Add column padding (Extra Spasi)
-                // This manually increases the width slightly and adds horizontal indent
+                // 3. Add column padding (Extra Spasi) and Sizing
                 $dataTableStart = $this->chartInfo ? 28 : 4;
                 foreach (range(1, $lastColIndex) as $columnIndex) {
                     $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
                     
-                    // Increase width by roughly 10% or at least 4 units for padding
-                    $currentWidth = $sheet->getColumnDimension($columnLetter)->getWidth();
-                    if ($currentWidth > 0) {
+                    if ($this->isLargeData) {
+                        // For large tables, use a fixed comfortable width for speed
+                        $sheet->getColumnDimension($columnLetter)->setWidth(20);
+                    } else {
+                        // For smaller tables, use AutoSize for perfection
+                        $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
+                        // Force calculate width so we can add padding
+                        $event->sheet->calculateColumnWidths(); 
+                        $currentWidth = $sheet->getColumnDimension($columnLetter)->getWidth();
+                        $sheet->getColumnDimension($columnLetter)->setAutoSize(false);
                         $sheet->getColumnDimension($columnLetter)->setWidth($currentWidth + 4);
                     }
                     
