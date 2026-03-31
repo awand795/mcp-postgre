@@ -823,13 +823,16 @@
                                         badge.className = 'tool-call-badge running';
                                         badge.dataset.tool = tc.name;
 
-                                        // Info konteks tambahan (nama tabel/label)
+                                        // Info konteks tambahan (label bisnis)
                                         let detail = '';
                                         if (tc.name === 'execute_query' && tc.arguments?.label) {
+                                            // Gunakan label bisnis jika ada, jika tidak, biarkan kosong (jangan tampilkan SQL)
                                             detail = ` · ${tc.arguments.label}`;
                                         }
-                                        if (tc.name === 'describe_table' && tc.arguments?.table_name) {
-                                            detail = '';  // Sembunyikan nama tabel teknis
+                                        
+                                        // Hilangkan detail nama tabel teknis untuk tool schema
+                                        if (['describe_table', 'list_tables', 'get_schema_info'].includes(tc.name)) {
+                                            detail = '';
                                         }
 
                                         badge.innerHTML = `
@@ -849,7 +852,7 @@
                                             const dotEl = runningBadge.querySelector('.tool-call-dot');
                                             if (dotEl) dotEl.textContent = '✓';
                                         }
-                                        typingText.textContent = 'Menganalisis data...';
+                                        typingText.textContent = 'Menyusun laporan...';
                                     }
                                 }
 
@@ -1586,8 +1589,7 @@
             if (!header) return false;
             const h = header.toLowerCase();
             
-            // ── EXCLUSIONS (Columns that are definitely NOT currency) ──
-            // Exclude quantities, counts, percentages, and IDs
+            // Exclude quantities, counts, percentages, IDs, and various count-based entities
             if (h.includes('qty') || 
                 h.includes('terjual') || 
                 h.includes('jumlah') || 
@@ -1601,6 +1603,16 @@
                 h.includes('point') ||
                 h.includes('persen') ||
                 h.includes('percent') ||
+                h.includes('cabang') ||
+                h.includes('branch') ||
+                h.includes('pelanggan') ||
+                h.includes('customer') ||
+                h.includes('user') ||
+                h.includes('faktur') ||
+                h.includes('nota') ||
+                h.includes('invoice') ||
+                h.includes('barang') ||
+                h.includes('produk') ||
                 h.includes('id') ||
                 h.includes('nomor') ||
                 h.includes('kode')) {

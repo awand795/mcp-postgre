@@ -238,8 +238,8 @@ class ToolCallExecutor
             $dbError = $e->getMessage();
             
             $msg = str_contains($dbError, 'statement timeout')
-                ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah.'
-                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, gunakan tool 'describe_table' atau 'get_schema_info' untuk memverifikasi skema yang benar, lalu perbaiki SQL dan coba lagi.";
+                ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah (misal: WHERE periode_tahun = \'2025\').'
+                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_schema_info' atau 'describe_table' untuk memverifikasi struktur tabel sch_mbi yang benar sebelum mencoba query lagi. Jangan menebak nama kolom.";
 
             return json_encode(['error' => $msg]);
         }
