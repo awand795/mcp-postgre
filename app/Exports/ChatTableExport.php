@@ -9,6 +9,8 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
@@ -20,7 +22,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
-class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, ShouldAutoSize
+class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithCharts, WithCustomStartCell, WithColumnFormatting, ShouldAutoSize, WithEvents
 {
     protected $headers;
     protected $rows;
@@ -46,8 +48,17 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
      */
     public function startCell(): string
     {
-        // If there is a chart, start data at row 25 to leave space for chart at top
-        return $this->chartInfo ? 'A25' : 'A1';
+        // Layout: 
+        // A1: Title
+        // A2: Metadata (Date)
+        // A3: Empty
+        // A4-A26: Chart (if exists)
+        // A28: Table Header (if chart exists) or A4: Table Header (if no chart)
+        
+        if ($this->chartInfo) {
+            return 'A28';
+        }
+        return 'A4';
     }
 
     /**
@@ -104,16 +115,29 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
      */
     public function styles(Worksheet $sheet)
     {
-        $startRow = $this->chartInfo ? 25 : 1;
+        $startRow = $this->chartInfo ? 28 : 4;
         $lastCol = $sheet->getHighestColumn();
         $lastRow = $sheet->getHighestRow();
         
-        // Apply header styling (White text on Red background - MBI Theme)
+        // Apply header styling (Premium Red Theme)
         $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
-            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F53003']],
-            'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER],
+            'font' => [
+                'bold' => true, 
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11
+            ],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 
+                'startColor' => ['rgb' => 'D32F2F'] // Slightly deeper red for premium look
+            ],
+            'alignment' => [
+                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
         ]);
+
+        // Explicitly set header row height
+        $sheet->getRowDimension($startRow)->setRowHeight(25);
 
         // Add thin black/grey borders to the entire data table
         if ($lastRow >= $startRow) {
@@ -126,13 +150,60 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 ],
             ]);
             
-            // Zebra striping for better readability (Optional but looks premium)
+            // Zebra striping with slightly softer color
             for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
                 $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F9F9F9']],
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDFDFD']],
                 ]);
             }
         }
+    }
+
+    /**
+     * @return array
+     */
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $lastCol = $sheet->getHighestColumn();
+                $lastColIndex = Coordinate::columnIndexFromString($lastCol);
+                
+                // 1. Set Title at Row 1
+                $reportTitle = strtoupper($this->title ?: 'MBI DATA REPORT');
+                $sheet->setCellValue('A1', $reportTitle);
+                $sheet->mergeCells("A1:{$lastCol}1");
+                
+                $sheet->getStyle('A1')->applyFromArray([
+                    'font' => [
+                        'bold' => true,
+                        'size' => 16,
+                        'color' => ['rgb' => '333333'],
+                    ],
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    ],
+                ]);
+                $sheet->getRowDimension(1)->setRowHeight(30);
+
+                // 2. Set Metadata at Row 2
+                $generatedAt = 'Generated on: ' . date('d M Y H:i');
+                $sheet->setCellValue('A2', $generatedAt);
+                $sheet->mergeCells("A2:{$lastCol}2");
+                
+                $sheet->getStyle('A2')->applyFromArray([
+                    'font' => [
+                        'italic' => true,
+                        'size' => 10,
+                        'color' => ['rgb' => '666666'],
+                    ],
+                    'alignment' => [
+                        'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                    ],
+                ]);
+            },
+        ];
     }
 
     /**
@@ -155,18 +226,18 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         if ($type === 'pie') $chartType = DataSeries::TYPE_PIECHART;
         if ($type === 'doughnut') $chartType = DataSeries::TYPE_DONUTCHART;
 
-        // Data starts at row 26 (header is at 25)
+        // Data starts at row 29 (header is at 28)
         // Labels are in column B (A is 'No', B is 'Label')
         $categories = [
-            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$this->title}'!\$B\$26:\$B$" . (25 + $dataPoints), null, $dataPoints),
+            new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$this->title}'!\$B\$29:\$B$" . (28 + $dataPoints), null, $dataPoints),
         ];
 
         $values = [];
         $labels = [];
         for ($i = 0; $i < $datasetCount; $i++) {
             $colLetter = Coordinate::stringFromColumnIndex(3 + $i); // Starting from column C
-            $labels[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$this->title}'!\${$colLetter}\$25", null, 1);
-            $values[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$this->title}'!\${$colLetter}\$26:\${$colLetter}\$" . (25 + $dataPoints), null, $dataPoints);
+            $labels[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'{$this->title}'!\${$colLetter}\$28", null, 1);
+            $values[] = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'{$this->title}'!\${$colLetter}\$29:\${$colLetter}\$" . (28 + $dataPoints), null, $dataPoints);
         }
 
         $series = new DataSeries(
@@ -189,8 +260,8 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             $plotArea
         );
 
-        $chart->setTopLeftPosition('A1');
-        $chart->setBottomRightPosition('L23');
+        $chart->setTopLeftPosition('A4');
+        $chart->setBottomRightPosition('L26');
 
         return $chart;
     }
