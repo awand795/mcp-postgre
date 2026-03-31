@@ -1276,20 +1276,40 @@
                 const cleanRows = rows.map(row =>
                     row.map(cell => {
                         if (cell === null || cell === undefined) return '';
+
+                        // 1. Handle already numeric values first
+                        if (typeof cell === 'number') return cell;
+                        
+                        // 2. Remove HTML tags
                         const temp = document.createElement('div');
                         temp.innerHTML = cell;
                         let value = temp.textContent || temp.innerText || String(cell);
                         
-                        // Remove any existing formatting
-                        value = value.replace(/Rp\s|\.|\s/g, ''); // Remove Rp, dots, spaces
-                        
-                        // Force ALL numeric values to string with tab prefix for Excel
-                        // This ensures Excel treats them as text, not numbers
-                        if (/^\d+$/.test(value)) {
-                            // Pure numbers: add tab prefix to force text format
-                            return '\t' + value;
+                        // 3. Smart Cleanup for Currency
+                        // If it contains 'Rp', it's definitely a formatted Indonesian currency string.
+                        // We remove 'Rp', thousand separators (.), and handle decimal comma (,) if present.
+                        if (value.includes('Rp')) {
+                            value = value.replace(/Rp\s?/g, '');
+                            // If it has multiple dots, they are thousand separators (e.g., 1.000.000)
+                            if ((value.match(/\./g) || []).length > 1) {
+                                value = value.replace(/\./g, '');
+                            } 
+                            // If it has one dot followed by 3 digits at the end, it's likely a thousand separator
+                            else if (/\.\d{3}$/.test(value)) {
+                                value = value.replace(/\./g, '');
+                            }
+                            // Convert decimal comma to dot for parseFloat
+                            value = value.replace(',', '.');
                         }
-                        return value;
+
+                        // 4. Final attempt to get a clean number
+                        // If it looks like a number now, convert it to float for proper Excel handling
+                        const cleanValue = value.replace(/\s/g, ''); 
+                        if (/^-?\d+(\.\d+)?$/.test(cleanValue)) {
+                            return parseFloat(cleanValue);
+                        }
+
+                        return value.trim();
                     })
                 );
 

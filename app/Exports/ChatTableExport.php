@@ -74,7 +74,11 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
      */
     public function headings(): array
     {
-        return $this->headers;
+        // Format underscores to spaces and capitalize (e.g. nama_cabang -> Nama Cabang)
+        return array_map(function($header) {
+            $formatted = str_replace(['_', '-'], ' ', $header);
+            return mb_convert_case($formatted, MB_CASE_TITLE, "UTF-8");
+        }, $this->headers);
     }
 
     /**
@@ -91,17 +95,17 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
 
             // 1. Detect ID/Fixed String columns to format as Text instead of Number
             // This prevents scientific notation FOR GOOD for long codes/IDs
-            if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe)/i', $headerName)) {
+            if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
                 $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
             } 
             // 2. Detect Value/Currency columns (Sales, Amount, Harga, Netto, GPN, COGS)
             // Use format with thousand separator for better readability in Excel
-            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target)/i', $headerName)) {
+            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian)/i', $headerName)) {
                 $formats[$colLetter] = '#,##0'; 
             }
             // 3. For generic numbers (Qty, Points, Index), use plain number WITHOUT scientific notation
             else {
-                $formats[$colLetter] = '0'; // Forces plain display without separators but avoids scientific
+                $formats[$colLetter] = '#,##0'; // Default to number with separators
             }
         }
         
@@ -139,7 +143,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         // Explicitly set header row height
         $sheet->getRowDimension($startRow)->setRowHeight(25);
 
-        // Add thin black/grey borders to the entire data table
+        // Add thin black/grey borders and center vertical alignment to the entire data table
         if ($lastRow >= $startRow) {
             $sheet->getStyle("A{$startRow}:{$lastCol}{$lastRow}")->applyFromArray([
                 'borders' => [
@@ -148,6 +152,9 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                         'color' => ['rgb' => 'CCCCCC'],
                     ],
                 ],
+                'alignment' => [
+                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                ],
             ]);
             
             // Zebra striping with slightly softer color
@@ -155,6 +162,11 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
                     'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDFDFD']],
                 ]);
+            }
+
+            // Set a comfortable row height for all data rows (Spasi)
+            for ($row = $startRow + 1; $row <= $lastRow; $row++) {
+                $sheet->getRowDimension($row)->setRowHeight(20);
             }
         }
     }
@@ -202,6 +214,24 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                     ],
                 ]);
+
+                // 3. Add column padding (Extra Spasi)
+                // This manually increases the width slightly and adds horizontal indent
+                $dataTableStart = $this->chartInfo ? 28 : 4;
+                foreach (range(1, $lastColIndex) as $columnIndex) {
+                    $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
+                    
+                    // Increase width by roughly 10% or at least 4 units for padding
+                    $currentWidth = $sheet->getColumnDimension($columnLetter)->getWidth();
+                    if ($currentWidth > 0) {
+                        $sheet->getColumnDimension($columnLetter)->setWidth($currentWidth + 4);
+                    }
+                    
+                    // Add indent to make text not touch the borders, starting from data table headers
+                    $sheet->getStyle("{$columnLetter}{$dataTableStart}:{$columnLetter}{$sheet->getHighestRow()}")
+                        ->getAlignment()
+                        ->setIndent(1);
+                }
             },
         ];
     }
