@@ -1585,11 +1585,29 @@
             }
         }
 
-        function isCurrencyColumn(header) {
+        function isCurrencyColumn(header, tableId = null) {
             if (!header) return false;
             const h = header.toLowerCase();
             
-            // Exclude quantities, counts, percentages, IDs, and various count-based entities
+            // 0. AI-Selected Priority
+            if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
+                // Check exact match and lowercase match
+                if (smartTables[tableId].currencyColumns.includes(header) || 
+                    smartTables[tableId].currencyColumns.includes(h)) {
+                    return true;
+                }
+            }
+
+            // Definite Inclusions (Money markers)
+            const isMoneyMarker = h.includes('harga') || 
+                                 h.includes('price') || 
+                                 h.includes('nominal') || 
+                                 h.includes('nilai') || 
+                                 h.includes('amount') ||
+                                 h.includes('biaya') ||
+                                 h.includes('fee');
+
+            // 1. Exclude quantities, counts, percentages, IDs, and various count-based entities
             if (h.includes('qty') || 
                 h.includes('terjual') || 
                 h.includes('jumlah') || 
@@ -1608,34 +1626,39 @@
                 h.includes('pelanggan') ||
                 h.includes('customer') ||
                 h.includes('user') ||
+                h.includes('pengguna') ||
                 h.includes('faktur') ||
                 h.includes('nota') ||
                 h.includes('invoice') ||
                 h.includes('barang') ||
                 h.includes('produk') ||
+                h.includes('transaksi') ||
+                h.includes('hari') ||
+                h.includes('bulan') ||
+                h.includes('tahun') ||
                 h.includes('id') ||
                 h.includes('nomor') ||
                 h.includes('kode')) {
+                
+                // EXCEPTION: If it has an exclusion term but also a definite money marker, it's still money
+                // e.g. "Nilai Transaksi" should be money, but "Total Transaksi" should not.
+                if (isMoneyMarker) return true;
+                
                 return false;
             }
 
-            // ── INCLUSIONS (Columns that are definitely currency) ──
-            return h.includes('amount') || 
+            // 2. ── INCLUSIONS (Columns that are definitely currency) ──
+            return isMoneyMarker ||
                    h.includes('dpp') ||
                    h.includes('netto') || 
                    h.includes('cogs') || 
                    h.includes('gpn') ||
                    h.includes('hpp') ||
-                   h.includes('harga') || 
-                   h.includes('price') || 
-                   h.includes('nominal') ||
                    h.includes('sales') || 
                    h.includes('laba') || 
                    h.includes('profit') ||
                    h.includes('saldo') ||
-                   h.includes('biaya') ||
-                   h.includes('fee') ||
-                   (h.includes('total') && !h.includes('terjual') && !h.includes('qty'));
+                   (h.includes('total') && !h.includes('terjual') && !h.includes('qty') && !h.includes('transaksi'));
         }
 
         function toHumanLabel(str) {
@@ -1674,13 +1697,29 @@
                 .join(' ');
         }
 
-        function formatCellValue(val, header) {
+        function formatCellValue(val, header, tableId = null) {
             if (val === null || val === undefined || val === '') return '';
-            if (header && isCurrencyColumn(header)) {
-                const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
-                if (!isNaN(num)) return currencyFormatter.format(num);
+            
+            const isMoney = header && isCurrencyColumn(header, tableId);
+            const strVal = String(val);
+            // Clean number for parsing
+            const num = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
+            
+            if (isMoney && !isNaN(num)) {
+                return currencyFormatter.format(num);
             }
-            if (typeof val === 'number') return val.toLocaleString('id-ID');
+            
+            // Format as standard number with thousands separator if it's numeric
+            // but avoid formatting small numbers or things that look like IDs
+            if (typeof val === 'number') {
+                return val.toLocaleString('id-ID');
+            }
+            
+            // If string looks like a pure number and is long, format it
+            if (!isNaN(num) && /^-?\d+$/.test(strVal) && strVal.length > 3 && (!header || (!header.toLowerCase().includes('id') && !header.toLowerCase().includes('kode')))) {
+                return num.toLocaleString('id-ID');
+            }
+            
             return val;
         }
 
@@ -1772,7 +1811,7 @@
                 } else {
                     tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
                         const isLong = String(row[i]).length > 40;
-                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h)}</td>`;
+                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h, tableId)}</td>`;
                     }).join('') + '</tr>').join('');
                 }
             }
@@ -1837,7 +1876,7 @@
                 } else {
                     tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
                         const isLong = String(row[i]).length > 40;
-                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h)}</td>`;
+                        return `<td class="${isLong ? 'wrap' : ''}">${formatCellValue(row[i], h, tableId)}</td>`;
                     }).join('') + '</tr>').join('');
                 }
             }
@@ -1923,6 +1962,7 @@
                         }
 
                         const tableData = toolRes.data || toolRes;
+                        currencyColumns = tableData.currency_columns || [];
 
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
@@ -1947,7 +1987,8 @@
                     // Store state for pagination/sorting
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
-                        page: 0, sortCol: -1, sortDir: 'asc', query: ''
+                        page: 0, sortCol: -1, sortDir: 'asc', query: '',
+                        currencyColumns: currencyColumns || []
                     };
 
                     wrap.setAttribute('data-initialized', 'true');
@@ -2352,7 +2393,8 @@
                     return;
                 }
 
-                initChartWithConfig(canvas, config, container, chartId);
+                const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
+                initChartWithConfig(canvas, config, container, chartId, currencyColumns);
             });
 
             // LEGACY: Handle old chart format with base64 data (for backward compatibility)
@@ -2389,7 +2431,8 @@
 
                 try {
                     const config = JSON.parse(cleanJson);
-                    initChartWithConfig(canvas, config, container, chartId);
+                    // Legacy charts don't usually have currency_columns, but we add placeholder
+                    initChartWithConfig(canvas, config, container, chartId, []);
                     provider.remove();
                 } catch (e) {
                     const loader = container ? container.querySelector('.chart-loading') : null;
@@ -2400,7 +2443,7 @@
             });
         }
         
-        function initChartWithConfig(canvas, config, container, chartId) {
+        function initChartWithConfig(canvas, config, container, chartId, currencyColumns = []) {
             if (!config || !canvas) return;
 
             config.options = config.options || {};
@@ -2432,10 +2475,22 @@
                     const oldCallback = scales[axis].ticks.callback;
                     scales[axis].ticks.callback = function(value) {
                         if (oldCallback) return oldCallback.call(this, value);
-                        if (value >= 1000 || value <= -1000) {
+                        
+                        // Check if ANY dataset in this chart is a currency column
+                        let isCurrencyChart = false;
+                        if (currencyColumns && currencyColumns.length > 0) {
+                            isCurrencyChart = true;
+                        } else {
+                            const firstLabel = config.data?.datasets?.[0]?.label;
+                            if (firstLabel && isCurrencyColumn(firstLabel)) {
+                                isCurrencyChart = true;
+                            }
+                        }
+
+                        if (isCurrencyChart) {
                             return 'Rp ' + value.toLocaleString('id-ID');
                         }
-                        return value;
+                        return value.toLocaleString('id-ID');
                     };
                 }
             });
@@ -2445,9 +2500,18 @@
             if (!config.options.plugins.tooltip.callbacks) config.options.plugins.tooltip.callbacks = {};
             config.options.plugins.tooltip.callbacks.label = function(context) {
                 let label = context.dataset.label || '';
+                
+                // Priority Check: If AI explicitly listed this column or it matches general rules
+                let isMoney = false;
+                if (currencyColumns && (currencyColumns.includes(label) || currencyColumns.includes(label.toLowerCase()))) {
+                    isMoney = true;
+                } else {
+                    isMoney = isCurrencyColumn(label);
+                }
+
                 if (label) label += ': ';
                 if (context.parsed.y !== null) {
-                    label += currencyFormatter.format(context.parsed.y);
+                    label += isMoney ? currencyFormatter.format(context.parsed.y) : context.parsed.y.toLocaleString('id-ID');
                 }
                 return label;
             };

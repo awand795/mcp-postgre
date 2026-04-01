@@ -83,6 +83,11 @@ class ToolCallExecutor
                             'type'        => 'string',
                             'description' => 'A short business-friendly description of what this query retrieves, e.g. "10 produk terlaris" or "Total penjualan per cabang"',
                         ],
+                        'currency_columns' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'string'],
+                            'description' => 'A list of column names in the result that should be formatted as Indonesian Rupiah (currency), e.g. ["total_netto", "harga_satuan", "profit"]. ONLY include columns that represent monetary values.',
+                        ],
                     ],
                     'required' => ['sql', 'label'],
                 ],
@@ -99,7 +104,7 @@ class ToolCallExecutor
             return match ($toolName) {
                 'list_tables'     => $this->listTables(),
                 'describe_table'  => $this->describeTable($arguments['table_name'] ?? ''),
-                'execute_query'   => $this->executeQuery($arguments['sql'] ?? '', $arguments['label'] ?? ''),
+                'execute_query'   => $this->executeQuery($arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
                 'get_schema_info' => $this->getSchemaInfo(),
                 default           => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
@@ -162,7 +167,7 @@ class ToolCallExecutor
     }
 
     // ── execute_query ─────────────────────────────────────────────────────────
-    private function executeQuery(string $sql, string $label): string
+    private function executeQuery(string $sql, string $label, array $currencyColumns = []): string
     {
         if (empty($sql)) {
             return json_encode(['error' => 'sql is required']);
@@ -263,10 +268,11 @@ class ToolCallExecutor
         $returned = count($data);
 
         $result = [
-            'label'         => $label,
-            'rows_returned' => $returned,
-            'columns'       => array_keys($data[0]),
-            'rows'          => $data,
+            'label'            => $label,
+            'rows_returned'    => $returned,
+            'columns'          => array_keys($data[0]),
+            'currency_columns' => $currencyColumns,
+            'rows'             => $data,
         ];
 
         // ANTI-LIMIT: Note removed for cleaner large data output
