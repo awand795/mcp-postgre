@@ -15,17 +15,18 @@ use App\Models\ChatMessage;
 /**
  * AgenticChatbotController — Tool Calling (Agentic Loop)
  * Provider: OpenAI dengan fallback otomatis antar model
- * Urutan: gpt-4.1 → gpt-4o → gpt-4o-mini
+ * Urutan: gpt-5.4 → gpt-5.4-mini → gpt-5.4-nano → gpt-5.4-pro
  */
 class AgenticChatbotController extends Controller
 {
-    private string $openaiUrl = 'https://api.openai.com/v1/chat/completions';
-    private string $openaiModel = 'gpt-4.1';
+    private string $openaiUrl = 'https://api.openai.com/v1/responses';
+    private string $openaiModel = 'gpt-5.4';
 
     // Fallback models jika model utama gagal (rate limit, overload, dll)
     private array $fallbackModels = [
-        'gpt-4o',
-        'gpt-4o-mini',
+        'gpt-5.4-mini',
+        'gpt-5.4-nano',
+        'gpt-5.4-pro',
     ];
 
     private int $maxToolLoops = 20;
@@ -269,23 +270,59 @@ class AgenticChatbotController extends Controller
                 }
             }
 
-            $choice = $response['choices'][0] ?? null;
-            $finishReason = $choice['finish_reason'] ?? 'stop';
-            $messageObj = $choice['message'] ?? [];
-            $toolCalls = $messageObj['tool_calls'] ?? [];
+            $finishReason = $response['output'][0]['finish_reason'] ?? 'stop';
+            
+            $toolCalls = [];
+            $textContent = null;
+            
+            $outputs = $response['output'] ?? [];
+            foreach ($outputs as $outItem) {
+                if (($outItem['type'] ?? '') === 'function_call') {
+                    $toolCalls[] = [
+                        'id' => $outItem['call_id'] ?? ('call_' . uniqid()),
+                        'function' => [
+                            'name' => $outItem['name'] ?? '',
+                            'arguments' => $outItem['arguments'] ?? '{}'
+                        ]
+                    ];
+                } elseif (($outItem['type'] ?? '') === 'message') {
+                    $contents = $outItem['content'] ?? [];
+                    if (is_array($contents)) {
+                        foreach ($contents as $block) {
+                            if (($block['type'] ?? '') === 'output_text') {
+                                $textContent .= $block['text'] ?? '';
+                            }
+                        }
+                    } else {
+                        $textContent .= (string)$contents;
+                    }
+                } else {
+                    // Fallback for objects that might just have content or tool_calls
+                    if (!empty($outItem['tool_calls'])) {
+                        $toolCalls = array_merge($toolCalls, $outItem['tool_calls']);
+                    }
+                    if (!empty($outItem['tool_choice'])) {
+                        $toolCalls[] = $outItem['tool_choice'];
+                    }
+                    if (isset($outItem['content']) && is_array($outItem['content'])) {
+                        $textContent .= $outItem['content'][0]['text'] ?? '';
+                    }
+                }
+            }
 
             $assistantMsg = [
                 'role' => 'assistant',
-                'content' => $messageObj['content'] ?? null,
+                'content' => $textContent,
             ];
             if (!empty($toolCalls)) {
                 $assistantMsg['tool_calls'] = $toolCalls;
+                $finishReason = 'tool_calls'; // Force loop continuation
             }
             $messages[] = $assistantMsg;
 
             // ── Jawaban final ─────────────────────────────────────────────────
             if (empty($toolCalls) || $finishReason === 'stop') {
-                $finalContent = trim($messageObj['content'] ?? '');
+                $finalContent = trim($textContent ?? '');
                 if (empty($finalContent)) {
                     $finalContent = $lang === 'en'
                         ? "I'm sorry, I was unable to process your request at this time. Please try rephrasing your question."
@@ -316,8 +353,8 @@ class AgenticChatbotController extends Controller
             // ── Eksekusi tool calls ───────────────────────────────────────────
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
-                $toolName = $toolCall['function']['name'] ?? '';
-                $argsRaw = $toolCall['function']['arguments'] ?? '{}';
+                $toolName = $toolCall['function']['name'] ?? $toolCall['name'] ?? '';
+                $argsRaw = $toolCall['function']['arguments'] ?? $toolCall['arguments'] ?? '{}';
                 $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 Log::info("[Agentic] → Tool: {$toolName}", $arguments);
@@ -404,27 +441,56 @@ class AgenticChatbotController extends Controller
     {
         if (empty($model))
             $model = $this->openaiModel;
-        // Bersihkan messages sesuai OpenAI spec
+        // Bersihkan messages sesuai API yg baru
         $cleanMessages = [];
         foreach ($messages as $msg) {
             $role = $msg['role'] ?? '';
-            $clean = ['role' => $role];
+            $textVal = $msg['content'] ?? '';
+            if (is_array($textVal)) {
+                $textVal = $textVal[0]['text'] ?? '';
+            }
 
             if ($role === 'tool') {
-                $clean['tool_call_id'] = $msg['tool_call_id'] ?? '';
-                $clean['content'] = $msg['content'] ?? '';
-            }
-            elseif ($role === 'assistant') {
-                if (!empty($msg['tool_calls'])) {
-                    $clean['tool_calls'] = $msg['tool_calls'];
-                }
-                $clean['content'] = $msg['content'];
-            }
-            else {
-                $clean['content'] = $msg['content'] ?? '';
+                $cleanMessages[] = [
+                    'type' => 'function_call_output',
+                    'call_id' => $msg['tool_call_id'] ?? '',
+                    'output' => (string)$textVal
+                ];
+                continue;
             }
 
-            $cleanMessages[] = $clean;
+            $contentType = ($role === 'assistant') ? 'output_text' : 'input_text';
+            $clean = [
+                'role' => $role,
+                'content' => []
+            ];
+
+            if ((string)$textVal !== '') {
+                $clean['content'][] = ['type' => $contentType, 'text' => (string)$textVal];
+            } else if (empty($msg['tool_calls'])) {
+                $clean['content'][] = ['type' => $contentType, 'text' => ''];
+            }
+
+            if ($role === 'assistant') {
+                if (!empty($clean['content'])) {
+                    $cleanMessages[] = $clean;
+                }
+                if (!empty($msg['tool_calls'])) {
+                    foreach ($msg['tool_calls'] as $tc) {
+                        $funcData = $tc['function'] ?? $tc;
+                        $args = $funcData['arguments'] ?? '{}';
+                        
+                        $cleanMessages[] = [
+                            'type'      => 'function_call',
+                            'call_id'   => $tc['id'] ?? ($tc['call_id'] ?? ''),
+                            'name'      => $funcData['name'] ?? '',
+                            'arguments' => is_string($args) ? $args : json_encode($args)
+                        ];
+                    }
+                }
+            } else {
+                $cleanMessages[] = $clean;
+            }
         }
 
         // GPT-5.x family (gpt-5.4, gpt-5.2, gpt-5-mini, dll) requires reasoning_effort='none'
@@ -432,10 +498,10 @@ class AgenticChatbotController extends Controller
         // Ref: https://developers.openai.com/api/docs/models/gpt-5.4
         $payload = [
             'model' => $model,
-            'messages' => $cleanMessages,
+            'input' => $cleanMessages,
             'tools' => $tools,
             'tool_choice' => 'auto',
-            'max_tokens' => $this->maxTokens,
+            'max_output_tokens' => $this->maxTokens,
             'temperature' => 0.2,
             'top_p' => 0.9,
         ];
@@ -497,8 +563,8 @@ class AgenticChatbotController extends Controller
                 Log::error("[Agentic] API error detail: {$errDetail}");
                 return null;
             }
-            if (empty($decoded['choices'])) {
-                Log::error("[Agentic] No choices in response");
+            if (empty($decoded['output'])) {
+                Log::error("[Agentic] No output in response");
                 return null;
             }
 
@@ -664,7 +730,7 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 - **Tone**: Sopan, eksekutif, dan informatif. Gunakan sapaan profesional seperti "Bapak/Ibu" atau kalimat yang menyiratkan rasa hormat.
 - **Struktur Jawaban (WAJIB)**:
     1. **Ringkasan Eksekutif**: 1-2 kalimat pembuka yang menyimpulkan hasil temuan secara langsung.
-    2. **Visualisasi/Data**: Gunakan Smart Table atau Chart untuk menampilkan data pendukung.
+    2. **Visualisasi/Data (Opsional)**: Gunakan Smart Table atau Chart untuk menampilkan data pendukung. Jika hasil HANYA berupa satu agregat angka (tidak ada tabel), BAGIAN INI BOLEH DIHILANGKAN (jangan menulis narasi penjelas ketiadaan tabel).
     3. **Analisis & Rekomendasi**: Berikan wawasan (insight) singkat jika data tersebut menunjukkan tren atau masalah tertentu.
 
 ## KEBIJAKAN PRIVASI & TEKNIS (SANGAT PENTING)
@@ -700,10 +766,14 @@ Database ini berisi data penjualan, stok, pembelian, target, pelanggan, dan mast
 ## ATURAN SQL — BACA DENGAN CERMAT
 - Selalu prefix nama tabel: `sch_mbi.nama_tabel`
 - Hanya SELECT — tidak boleh INSERT/UPDATE/DELETE/DROP
+- **FORMAT DATA & ALIAS (WAJIB)**:
+  - Selalu berikan **alias kolom yang elegan & mudah dibaca** dengan Title Case. Jangan gunakan alias mentah seperti `jumlah_baris`, `sum`, atau `qty`. Gunakan `AS "Total Transaksi"`, `AS "Total Qty Terjual"`, dll.
+  - Untuk hasil penjumlahan (`SUM`) berupa **barang/kuantitas** yang mengembalikan desimal jelek (`.00000`), **WAJIB dibulatkan/dikonversi ke angka bulat** menggunakan `CAST(SUM(kolom) AS INTEGER)` atau `ROUND()`. Jangan biarkan desimal nol muncul di Smart Table.
 - **KEBIJAKAN LIMIT PINTAR**: 
   - **DEFAULT**: Ambil SEMUA baris jika user ingin "MELIHAT", "MENAMPILKAN", atau "DAFTAR" data (tanpa LIMIT).
   - **LIMIT SPESIFIK**: SELALU gunakan `LIMIT` jika user meminta angka tertentu (contoh: "top 10").
 - **KOREKSI MANDIRI (WAJIB)**: Jika eksekusi tool menghasilkan error, JANGAN menyerah. Analisis pesan error tersebut secara internal, gunakan `describe_table` atau `get_schema_info` untuk memverifikasi skema yang benar, perbaiki SQL Anda, dan coba lagi. Anda memiliki batas hingga 20 kali percobaan.
+
 
 ## VISUALISASI DATA (GRAFIK)
 Jika user meminta grafik, atau jika Anda melihat data tren/perbandingan yang lebih bagus jika divisualisasikan, sajikan data dalam blok kode khusus `chart` dengan format JSON Chart.js:

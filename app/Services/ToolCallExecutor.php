@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * ToolCallExecutor
  *
- * Mengeksekusi tool calls yang diminta AI (OpenAI gpt-4o-mini).
+ * Mengeksekusi tool calls yang diminta AI (OpenAI gpt-5.4).
  * Tools:
  *   - list_tables     : Daftar tabel yang boleh diakses user
  *   - describe_table  : Struktur kolom sebuah tabel
@@ -34,65 +34,57 @@ class ToolCallExecutor
     {
         return [
             [
-                'type' => 'function',
-                'function' => [
-                    'name'        => 'get_schema_info',
-                    'description' => 'Get a complete overview of all accessible tables with their columns and data types in one single call. ALWAYS call this first before writing any SQL query. This gives you everything you need to understand the database structure.',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => new \stdClass(),  // FIX: {} bukan []
-                        'required'   => [],
-                    ],
+                'type'        => 'function',
+                'name'        => 'get_schema_info',
+                'description' => 'Get a complete overview of all accessible tables with their columns and data types in one single call. ALWAYS call this first before writing any SQL query. This gives you everything you need to understand the database structure.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => new \stdClass(),  // FIX: {} bukan []
+                    'required'   => [],
                 ],
             ],
             [
-                'type' => 'function',
-                'function' => [
-                    'name'        => 'list_tables',
-                    'description' => 'List all database table names the current user is allowed to access. Use this only if you need a quick list of table names without column details.',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => new \stdClass(),  // FIX: {} bukan []
-                        'required'   => [],
-                    ],
+                'type'        => 'function',
+                'name'        => 'list_tables',
+                'description' => 'List all database table names the current user is allowed to access. Use this only if you need a quick list of table names without column details.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => new \stdClass(),  // FIX: {} bukan []
+                    'required'   => [],
                 ],
             ],
             [
-                'type' => 'function',
-                'function' => [
-                    'name'        => 'describe_table',
-                    'description' => 'Get all columns and their data types for a specific table. Use this when you need detailed information about a single table after already knowing the table name.',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => [
-                            'table_name' => [
-                                'type'        => 'string',
-                                'description' => 'The exact table name without schema prefix, e.g. "view_data_penjualan_rinci_mbi"',
-                            ],
+                'type'        => 'function',
+                'name'        => 'describe_table',
+                'description' => 'Get all columns and their data types for a specific table. Use this when you need detailed information about a single table after already knowing the table name.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'table_name' => [
+                            'type'        => 'string',
+                            'description' => 'The exact table name without schema prefix, e.g. "view_data_penjualan_rinci_mbi"',
                         ],
-                        'required' => ['table_name'],
                     ],
+                    'required' => ['table_name'],
                 ],
             ],
             [
-                'type' => 'function',
-                'function' => [
-                    'name'        => 'execute_query',
-                    'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi.". USE LIMIT when the user asks for a specific number (e.g. "top 10"), but do NOT use LIMIT for general "show/list" requests where the user wants to see all data.',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => [
-                            'sql'   => [
-                                'type'        => 'string',
-                                'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Use LIMIT only if explicitly requested or for performance on "Top N" queries. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC LIMIT 10',
-                            ],
-                            'label' => [
-                                'type'        => 'string',
-                                'description' => 'A short business-friendly description of what this query retrieves, e.g. "10 produk terlaris" or "Total penjualan per cabang"',
-                            ],
+                'type'        => 'function',
+                'name'        => 'execute_query',
+                'description' => 'Execute a SQL SELECT query to retrieve business data from the PostgreSQL database (schema: sch_mbi). Always prefix table names with "sch_mbi.". USE LIMIT when the user asks for a specific number (e.g. "top 10"), but do NOT use LIMIT for general "show/list" requests where the user wants to see all data.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'sql'   => [
+                            'type'        => 'string',
+                            'description' => 'A valid PostgreSQL SELECT query. Must include sch_mbi. prefix for all table names. Use LIMIT only if explicitly requested or for performance on "Top N" queries. Example: SELECT nama_barang, SUM(qty_jual) as total FROM sch_mbi.view_data_penjualan_rinci_mbi GROUP BY nama_barang ORDER BY total DESC LIMIT 10',
                         ],
-                        'required' => ['sql', 'label'],
+                        'label' => [
+                            'type'        => 'string',
+                            'description' => 'A short business-friendly description of what this query retrieves, e.g. "10 produk terlaris" or "Total penjualan per cabang"',
+                        ],
                     ],
+                    'required' => ['sql', 'label'],
                 ],
             ],
         ];
@@ -254,7 +246,19 @@ class ToolCallExecutor
             ]);
         }
 
-        $data = array_map(fn($row) => (array) $row, $rows);
+        $data = array_map(function($row) {
+            $r = (array) $row;
+            foreach ($r as $k => $v) {
+                if (is_string($v) && preg_match('/^-?\d+\.\d+$/', $v)) {
+                    if (preg_match('/\.0+$/', $v)) {
+                        $r[$k] = (int) $v;
+                    } else {
+                        $r[$k] = (float) $v;
+                    }
+                }
+            }
+            return $r;
+        }, $rows);
 
         $returned = count($data);
 
