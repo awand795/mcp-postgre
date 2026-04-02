@@ -698,6 +698,7 @@ If the user asks for a chart/graph, or if you identify trend data that would loo
 ```
 **IMPORTANT**: Always include a text summary or Markdown table below the chart for details.
 
+- **CRITICAL: CURRENCY IDENTIFICATION**: When calling `execute_query`, you **MUST** identify all columns in your SELECT statement that represent monetary values (money) and include their exact column names in the `currency_columns` array parameter. This ensures the UI displays "Rp" prefixes and proper formatting correctly. Focus on columns like sales, price, cost, profit, and fees.
 - For any field containing money/amount (e.g., total_netto, total_dpp, cogs, gpn, target_amount, etc.), treat them as **IDR (Indonesian Rupiah)**.
 - In text responses, format them like: `Rp 1.250.000`.
 - **STRICT RULE**: In JSON blocks (`chart` or `smart_table`), ALWAYS use raw numbers (e.g. `5000000`). NEVER include "Rp", dots, or commas as thousand separators in the JSON `data` array or `rows`.
@@ -820,6 +821,7 @@ Jika user meminta grafik, atau jika Anda melihat data tren/perbandingan yang leb
 **PENTING**: Selalu sertakan ringkasan teks atau tabel Markdown di bawah grafik untuk penjelasan detail.
 
 ## MATA UANG VS HITUNGAN (SANGAT PENTING)
+- **IDENTIFIKASI MATA UANG (WAJIB)**: Saat memanggil `execute_query`, Anda **WAJIB** mengidentifikasi semua kolom yang berisi nilai uang dan memasukannya ke dalam parameter `currency_columns`. Hal ini sangat penting agar sistem dapat menampilkan simbol "Rp" secara otomatis. Kolom yang biasanya berupa uang: total, netto, dpp, harga, biaya, laba, profit, ongkir, pajak, diskon.
 - **RUPIAH (IDR)**: Gunakan "Rp" hanya untuk nilai moneter/uang (contoh: total_netto, total_dpp, hpp, laba, harga, biaya, nominal).
 - **ANGKA MURNI (HITUNGAN)**: JANGAN gunakan sapaan "Rp" untuk jumlah entitas (contoh: jumlah cabang, jumlah faktur/nota, jumlah pelanggan, jumlah barang/unit). Tampilkan sebagai angka biasa (misal: 91, bukan Rp91).
 - Dalam jawaban teks, format mata uang seperti: `Rp 1.250.000`.

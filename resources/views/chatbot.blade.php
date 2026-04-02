@@ -1645,76 +1645,37 @@
             if (!header) return false;
             const h = header.toLowerCase();
             
-            // 0. AI-Selected Priority
+            // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
+            // This now contains both AI-selected and Backend auto-detected columns
             if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
-                // Check exact match and lowercase match
-                if (smartTables[tableId].currencyColumns.includes(header) || 
-                    smartTables[tableId].currencyColumns.includes(h)) {
+                const aiCols = smartTables[tableId].currencyColumns.map(c => c.toLowerCase());
+                if (aiCols.includes(h)) {
                     return true;
                 }
             }
 
-            // Definite Inclusions (Money markers)
-            const isMoneyMarker = h.includes('harga') || 
-                                 h.includes('price') || 
-                                 h.includes('nominal') || 
-                                 h.includes('nilai') || 
-                                 h.includes('amount') ||
-                                 h.includes('biaya') ||
-                                 h.includes('fee');
-
-            // 1. Exclude quantities, counts, percentages, IDs, and various count-based entities
-            if (h.includes('qty') || 
-                h.includes('terjual') || 
-                h.includes('jumlah') || 
-                h.includes('count') || 
-                h.includes('pencapaian') || 
-                h.includes('growth') ||
-                h.includes('unit') || 
-                h.includes('stok') || 
-                h.includes('stock') ||
-                h.includes('poin') ||
-                h.includes('point') ||
-                h.includes('persen') ||
-                h.includes('percent') ||
-                h.includes('cabang') ||
-                h.includes('branch') ||
-                h.includes('pelanggan') ||
-                h.includes('customer') ||
-                h.includes('user') ||
-                h.includes('pengguna') ||
-                h.includes('faktur') ||
-                h.includes('nota') ||
-                h.includes('invoice') ||
-                h.includes('barang') ||
-                h.includes('produk') ||
-                h.includes('transaksi') ||
-                h.includes('hari') ||
-                h.includes('bulan') ||
-                h.includes('tahun') ||
-                h.includes('id') ||
-                h.includes('nomor') ||
-                h.includes('kode')) {
-                
-                // EXCEPTION: If it has an exclusion term but also a definite money marker, it's still money
-                // e.g. "Nilai Transaksi" should be money, but "Total Transaksi" should not.
-                if (isMoneyMarker) return true;
-                
-                return false;
+            // 1. Minimal Fallback logic (Only for very common unambiguous terms)
+            // We use this only if the column wasn't explicitly tagged by AI/Backend
+            const moneyMarkers = ['netto', 'dpp', 'harga', 'price', 'laba', 'profit', 'nominal', 'biaya', 'fee', 'ongkir'];
+            const isMoney = moneyMarkers.some(p => h.includes(p));
+            
+            if (isMoney) {
+                // Exclusion check for quantities/counts even with money markers
+                const excludes = ['qty', 'jumlah', 'count', 'unit', 'terjual', 'stok', 'stock', 'persen', 'percent'];
+                if (excludes.some(e => h.includes(e))) {
+                    // Exception: "total_netto" is still money
+                    if (h === 'total_netto' || h === 'total_dpp') return true;
+                    return false;
+                }
+                return true;
             }
 
-            // 2. ── INCLUSIONS (Columns that are definitely currency) ──
-            return isMoneyMarker ||
-                   h.includes('dpp') ||
-                   h.includes('netto') || 
-                   h.includes('cogs') || 
-                   h.includes('gpn') ||
-                   h.includes('hpp') ||
-                   h.includes('sales') || 
-                   h.includes('laba') || 
-                   h.includes('profit') ||
-                   h.includes('saldo') ||
-                   (h.includes('total') && !h.includes('terjual') && !h.includes('qty') && !h.includes('transaksi'));
+            // If it's a "total" column and not a count, it's likely money in this business context
+            if (h.includes('total') && !h.includes('qty') && !h.includes('terjual') && !h.includes('jumlah') && !h.includes('count') && !h.includes('unit')) {
+                return true;
+            }
+
+            return false;
         }
 
         function toHumanLabel(str) {

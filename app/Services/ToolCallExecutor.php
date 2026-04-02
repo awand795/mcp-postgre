@@ -86,7 +86,7 @@ class ToolCallExecutor
                         'currency_columns' => [
                             'type'        => 'array',
                             'items'       => ['type' => 'string'],
-                            'description' => 'A list of column names in the result that should be formatted as Indonesian Rupiah (currency), e.g. ["total_netto", "harga_satuan", "profit"]. ONLY include columns that represent monetary values.',
+                            'description' => 'A list of column names in the result that should be formatted as Indonesian Rupiah (currency), e.g. ["total_netto", "harga_satuan", "profit", "biaya", "ongkir"]. YOU MUST ALWAYS IDENTIFY and include columns that represent MONEY/MONETARY values from the schema.',
                         ],
                     ],
                     'required' => ['sql', 'label'],
@@ -411,12 +411,15 @@ class ToolCallExecutor
         }, $rows);
 
         $returned = count($data);
+        
+        // --- SMARTER AI: Auto-detect currency columns as a safety net ---
+        $detectedCurrencyCols = $this->autoDetectCurrencyColumns($data[0], $currencyColumns);
 
         $result = [
             'label'            => $label,
             'rows_returned'    => $returned,
             'columns'          => array_keys($data[0]),
-            'currency_columns' => $currencyColumns,
+            'currency_columns' => $detectedCurrencyCols,
             'rows'             => $data,
         ];
 
@@ -753,5 +756,80 @@ class ToolCallExecutor
         return cache()->remember("agentic_allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
             return RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
         });
+    }
+
+    /**
+     * Helper to auto-detect currency columns based on common business naming patterns.
+     * This acts as a safety net if the AI forgot to include them.
+     */
+    private function autoDetectCurrencyColumns(array $sampleRow, array $existingCols): array
+    {
+        $cols = [];
+        
+        // Base currency patterns (Monetary terms)
+        $moneyPatterns = [
+            'total_netto', 'total_dpp', 'harga', 'price', 
+            'nominal', 'nilai', 'amount', 'biaya', 'fee',
+            'ongkir', 'pajak', 'tax', 'diskon', 'discount',
+            'laba', 'profit', 'cogs', 'gpn', 'hpp', 'netto',
+            'dpp', 'saldo', 'revenue', 'omzet', 'income'
+        ];
+
+        // Exclusion patterns (Quantities, IDs, Percents)
+        $excludePatterns = [
+            'qty', 'count', 'jumlah', 'terjual', 'unit', 
+            'stok', 'stock', 'persen', 'percent', 'pencapaian',
+            'growth', 'id', 'kode', 'nomor', 'no_', 'bulan', 'tahun',
+            'transaksi', 'faktur', 'nota', 'cabang', 'pelanggan',
+            'barang', 'produk', 'hari', 'baris', 'freq', 'frekuensi'
+        ];
+
+        // 1. FILTER ASURANSI: Kadang AI salah memasukkan kolom non-uang ke currency_columns
+        foreach ($existingCols as $col) {
+            $lowCol = strtolower($col);
+            $shouldExclude = false;
+            foreach ($excludePatterns as $e) {
+                if (str_contains($lowCol, $e)) {
+                    $shouldExclude = true;
+                    break;
+                }
+            }
+            // Khusus: Kalau match exclude tapi namanya memang valid uang
+            if (!$shouldExclude || in_array($lowCol, ['total_netto', 'total_dpp'])) {
+                $cols[] = $col;
+            }
+        }
+
+        // 2. AUTO-DETECT: Tambahkan kolom uji coba jika cocok dengan pattern uang
+        $currentColsLower = array_map('strtolower', $cols);
+        foreach (array_keys($sampleRow) as $col) {
+            $lowCol = strtolower($col);
+            
+            if (in_array($lowCol, $currentColsLower)) continue;
+
+            $isMoney = false;
+            foreach ($moneyPatterns as $p) {
+                if (str_contains($lowCol, $p)) {
+                    $isMoney = true;
+                    break;
+                }
+            }
+
+            if ($isMoney) {
+                $shouldExclude = false;
+                foreach ($excludePatterns as $e) {
+                    if (str_contains($lowCol, $e)) {
+                        $shouldExclude = true;
+                        break;
+                    }
+                }
+
+                if (!$shouldExclude || in_array($lowCol, ['total_netto', 'total_dpp'])) {
+                    $cols[] = $col;
+                }
+            }
+        }
+
+        return array_unique($cols);
     }
 }
