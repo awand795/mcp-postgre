@@ -92,6 +92,92 @@ class ToolCallExecutor
                     'required' => ['sql', 'label'],
                 ],
             ],
+            [
+                'type'        => 'function',
+                'name'        => 'get_business_context',
+                'description' => 'Retrieve documentation about business metrics (KPIs), definitions, calculations, and regional hierarchies. Use this when you need to understand how to interpret specific data fields or calculate metrics like Gross Profit Margin or Turnover.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => new \stdClass(),
+                    'required'   => [],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'analyze_trend',
+                'description' => 'Perform statistical trend analysis on a dataset. Calculates growth rates and identifies the overall direction (upward/downward) of a series of values over time.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'object'],
+                            'description' => 'The dataset returned by execute_query.',
+                        ],
+                        'value_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name containing the numeric values to analyze.',
+                        ],
+                        'period_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name containing the time periods (e.g., month, year).',
+                        ],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'detect_anomalies',
+                'description' => 'Identify significant outliers in a dataset that deviate from the business norm (e.g., unusually low sales or high stock).',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'object'],
+                            'description' => 'The dataset to check for anomalies.',
+                        ],
+                        'value_column' => [
+                            'type'        => 'string',
+                            'description' => 'The numeric column to check for outliers.',
+                        ],
+                    ],
+                    'required' => ['data', 'value_column'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'compare_periods',
+                'description' => 'Precisely compare two specific time periods in a dataset to calculate growth or decline in absolute and percentage terms (MoM/YoY analysis).',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'object'],
+                            'description' => 'The dataset containing multiple periods.',
+                        ],
+                        'value_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name for the values being compared.',
+                        ],
+                        'period_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name for time periods.',
+                        ],
+                        'base_period' => [
+                            'type'        => 'string',
+                            'description' => 'The period to use as a baseline (e.g., "2024-01").',
+                        ],
+                        'compare_period' => [
+                            'type'        => 'string',
+                            'description' => 'The period to compare against the baseline (e.g., "2024-02").',
+                        ],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column', 'base_period', 'compare_period'],
+                ],
+            ],
         ];
     }
 
@@ -106,6 +192,10 @@ class ToolCallExecutor
                 'describe_table'  => $this->describeTable($arguments['table_name'] ?? ''),
                 'execute_query'   => $this->executeQuery($arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
                 'get_schema_info' => $this->getSchemaInfo(),
+                'get_business_context' => $this->getBusinessContext(),
+                'analyze_trend'    => $this->analyzeTrend($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? ''),
+                'detect_anomalies' => $this->detectAnomalies($arguments['data'] ?? [], $arguments['value_column'] ?? ''),
+                'compare_periods'  => $this->comparePeriods($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['base_period'] ?? '', $arguments['compare_period'] ?? ''),
                 default           => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
         } catch (\Throwable $e) {
@@ -275,6 +365,23 @@ class ToolCallExecutor
             'rows'             => $data,
         ];
 
+        // ── LAYER 7: Business Validation Note (Common Sense Check) ───────────
+        $validationNotes = [];
+        $monetaryCols = ['total_netto', 'total_dpp', 'harga', 'gpn', 'hpp', 'nominal'];
+        
+        foreach ($data as $row) {
+            foreach ($row as $col => $val) {
+                if (in_array(strtolower($col), $monetaryCols) && is_numeric($val) && (float)$val < 0) {
+                    $validationNotes[] = "Warning: Found negative value in monetary column '{$col}'. Please verify if this is expected (e.g., returns or cancellations).";
+                    break 2; // Only need one warning of this type
+                }
+            }
+        }
+        
+        if (!empty($validationNotes)) {
+            $result['business_validation_notes'] = $validationNotes;
+        }
+
         // ANTI-LIMIT: Note removed for cleaner large data output
         return json_encode($result);
     }
@@ -335,6 +442,121 @@ class ToolCallExecutor
         }
 
         return $fullJson;
+    }
+
+    // ── get_business_context ──────────────────────────────────────────────────
+    private function getBusinessContext(): string
+    {
+        $path = config_path('business_metrics.json');
+        if (!file_exists($path)) {
+            return json_encode(['error' => 'Business metrics configuration not found.']);
+        }
+
+        $content = file_get_contents($path);
+        return $content ?: json_encode(['error' => 'Failed to read business metrics config.']);
+    }
+
+    // ── analyze_trend ─────────────────────────────────────────────────────────
+    private function analyzeTrend(array $data, string $valueCol, string $periodCol): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+        
+        $series = collect($data)->sortBy($periodCol)->values();
+        $count = $series->count();
+        
+        if ($count < 2) return json_encode(['error' => 'Not enough data points for trend analysis.']);
+
+        $first = (float)($series[0][$valueCol] ?? 0);
+        $last = (float)($series[$count - 1][$valueCol] ?? 0);
+        
+        $totalGrowth = $first != 0 ? (($last - $first) / abs($first)) * 100 : 0;
+        $avgGrowth = 0;
+        $growths = [];
+
+        for ($i = 1; $i < $count; $i++) {
+            $prev = (float)($series[$i-1][$valueCol] ?? 0);
+            $curr = (float)($series[$i][$valueCol] ?? 0);
+            $g = $prev != 0 ? (($curr - $prev) / abs($prev)) * 100 : 0;
+            $growths[] = $g;
+        }
+        
+        $avgGrowth = count($growths) > 0 ? array_sum($growths) / count($growths) : 0;
+        
+        return json_encode([
+            'trend' => $last > $first ? 'UPWARD' : ($last < $first ? 'DOWNWARD' : 'STABLE'),
+            'total_growth_pct' => round($totalGrowth, 2),
+            'avg_periodic_growth_pct' => round($avgGrowth, 2),
+            'start_value' => $first,
+            'end_value' => $last,
+            'data_points' => $count
+        ]);
+    }
+
+    // ── detect_anomalies ──────────────────────────────────────────────────────
+    private function detectAnomalies(array $data, string $valueCol): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $values = collect($data)->pluck($valueCol)->map(fn($v) => (float)$v);
+        $count = $values->count();
+        
+        if ($count < 3) return json_encode(['error' => 'Insufficient data for anomaly detection.']);
+
+        $avg = $values->avg();
+        // Calculate Standard Deviation
+        $variance = $values->reduce(fn($carry, $val) => $carry + pow($val - $avg, 2), 0) / $count;
+        $stdDev = sqrt($variance);
+        
+        $anomalies = [];
+        foreach ($data as $index => $row) {
+            $val = (float)($row[$valueCol] ?? 0);
+            if ($stdDev > 0) {
+                $zScore = ($val - $avg) / $stdDev;
+                if (abs($zScore) > 2) { // 2 Sigma Threshold
+                    $anomalies[] = [
+                        'row_index' => $index,
+                        'value' => $val,
+                        'z_score' => round($zScore, 2),
+                        'severity' => abs($zScore) > 3 ? 'HIGH' : 'MEDIUM',
+                        'data' => $row
+                    ];
+                }
+            }
+        }
+
+        return json_encode([
+            'avg_value' => round($avg, 2),
+            'std_dev' => round($stdDev, 2),
+            'anomalies_found' => count($anomalies),
+            'anomalies' => $anomalies
+        ]);
+    }
+
+    // ── compare_periods ───────────────────────────────────────────────────────
+    private function comparePeriods(array $data, string $valueCol, string $periodCol, string $base, string $compare): string
+    {
+        $baseData = collect($data)->firstWhere($periodCol, $base);
+        $compareData = collect($data)->firstWhere($periodCol, $compare);
+
+        if (!$baseData || !$compareData) {
+            return json_encode(['error' => "Could not find one or both periods: {$base} or {$compare}"]);
+        }
+
+        $vBase = (float)($baseData[$valueCol] ?? 0);
+        $vComp = (float)($compareData[$valueCol] ?? 0);
+        
+        $diff = $vComp - $vBase;
+        $diffPct = $vBase != 0 ? ($diff / abs($vBase)) * 100 : 0;
+
+        return json_encode([
+            'base_period' => $base,
+            'compare_period' => $compare,
+            'base_value' => $vBase,
+            'compare_value' => $vComp,
+            'absolute_difference' => $diff,
+            'percentage_difference' => round($diffPct, 2),
+            'status' => $diff > 0 ? 'INCREASE' : ($diff < 0 ? 'DECREASE' : 'NO_CHANGE')
+        ]);
     }
 
     // ── Helper: daftar tabel yang boleh diakses ───────────────────────────────

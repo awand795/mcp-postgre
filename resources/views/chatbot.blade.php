@@ -216,6 +216,61 @@
         }
         .chart-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
+        /* ── Dashboard ── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+            width: 100%;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(245, 48, 3, 0.3);
+            transform: translateY(-2px);
+        }
+        .metric-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #A1A09A;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .metric-change {
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .metric-change.up { color: #34d399; }
+        .metric-change.down { color: #f87171; }
+        .metric-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
         /* ── Smart Table ── */
         .smart-table-wrap {
             margin: 12px 0; border-radius: 10px;
@@ -1118,6 +1173,7 @@
                         // Defer init to next tick so DOM elements (canvas) are ready
                         setTimeout(() => {
                             initChartsInBubble(bubble, toolResultsForInit);
+                            initDashboardsInBubble(bubble);
                             initSmartTablesInBubble(bubble, toolResultsForInit);
                         }, 50);
                     } else {
@@ -2104,7 +2160,18 @@
                             console.error('[SmartTable Renderer] Error:', e);
                             return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
                         }
-                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan (Index #${params ? params.tool_index : '?'})</div>`;
+                        return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan</div>`;
+                    }
+
+                    if (langClean === 'dashboard') {
+                        try {
+                            const dashboardData = JSON.parse(code.trim());
+                            const id = 'db-' + Math.random().toString(36).substr(2, 9);
+                            return `<div class="dashboard-grid" id="${id}" data-config='${JSON.stringify(dashboardData).replace(/'/g, "&apos;")}'></div>`;
+                        } catch(e) {
+                            console.error('[Dashboard Renderer] Error:', e);
+                            return '<div class="p-4 text-red-400 opacity-60 text-xs italic">⚠️ Gagal memproses dashboard</div>';
+                        }
                     }
 
                     const escaped = code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -2540,6 +2607,55 @@
             }
         }
 
+        // ── Init Dashboards ───────────────────────────────────────────────────
+        function initDashboardsInBubble(bubble) {
+            bubble.querySelectorAll('.dashboard-grid:not([data-initialized])').forEach(grid => {
+                try {
+                    const configStr = grid.getAttribute('data-config');
+                    if (!configStr) return;
+                    const config = JSON.parse(configStr.replace(/&apos;/g, "'"));
+                    
+                    grid.innerHTML = (config.metrics || []).map(m => {
+                        const isUp = m.change_type === 'up';
+                        const changeColor = isUp ? 'text-emerald-400' : 'text-red-400';
+                        const changeIcon = isUp ? '▲' : '▼';
+                        
+                        // Sanitize and format value
+                        let formattedVal = m.value;
+                        if (m.type === 'currency' && typeof m.value === 'number') {
+                            formattedVal = currencyFormatter.format(m.value);
+                        } else if (typeof m.value === 'number') {
+                            formattedVal = m.value.toLocaleString('id-ID');
+                        }
+
+                        return `
+                            <div class="metric-card">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <div class="metric-label">${m.label || 'Metric'}</div>
+                                        <div class="metric-value">${formattedVal}</div>
+                                    </div>
+                                    <div class="metric-icon" style="background: ${m.icon_bg || 'rgba(245,48,3,0.1)'}; color: ${m.icon_color || '#f53003'}">
+                                        ${m.icon || '📊'}
+                                    </div>
+                                </div>
+                                ${m.change ? `
+                                    <div class="metric-change ${m.change_type || ''}">
+                                        <span class="${changeColor}">${changeIcon} ${m.change}</span>
+                                        <span class="text-[10px] text-[#706f6c] ml-1">${m.change_label || 'vs last month'}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    grid.setAttribute('data-initialized', 'true');
+                } catch(e) {
+                    console.error('[Dashboard Init] Error:', e);
+                }
+            });
+        }
+
         // ── Render stream ke bubble ───────────────────────────────────────────
         function renderStreamToBubble(bubble, text, messageToolResults = null) {
             // Jangan render jika text kosong, biarkan loading card tetap tampil
@@ -2548,6 +2664,7 @@
             bubble.innerHTML = renderMarkdown(text);
             bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
             initChartsInBubble(bubble);
+            initDashboardsInBubble(bubble);
             initSmartTablesInBubble(bubble, messageToolResults);
         }
 
@@ -2569,6 +2686,7 @@
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
                 initChartsInBubble(bubble);
+                initDashboardsInBubble(bubble);
                 initSmartTablesInBubble(bubble, messageToolResults);
             } else {
                 bubble.textContent = text;
