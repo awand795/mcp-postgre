@@ -231,6 +231,149 @@ class ToolCallExecutor
                     'required' => ['data', 'value_column', 'label_column'],
                 ],
             ],
+            // ── ADVANCED BUSINESS ANALYST TOOLS ─────────────────────────────
+            [
+                'type'        => 'function',
+                'name'        => 'analyze_root_cause',
+                'description' => 'Decompose WHY a KPI changed by ranking contribution of each dimension (e.g. region, product_category, channel). Use when absolute KPI change > 3%. Returns ranked drivers sorted by impact.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'             => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Dataset with at least two period rows per dimension.'],
+                        'value_column'     => ['type' => 'string', 'description' => 'The KPI column to decompose (e.g. "total_netto").'],
+                        'dimension_column' => ['type' => 'string', 'description' => 'The grouping column (e.g. "nama_cabang", "nama_regional", "kategori").'],
+                        'period_column'    => ['type' => 'string', 'description' => 'Column that identifies the time period.'],
+                        'base_period'      => ['type' => 'string', 'description' => 'The baseline period (e.g. "2025-01").'],
+                        'compare_period'   => ['type' => 'string', 'description' => 'The comparison period (e.g. "2025-02").'],
+                    ],
+                    'required' => ['data', 'value_column', 'dimension_column', 'period_column', 'base_period', 'compare_period'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'analyze_kpi_correlation',
+                'description' => 'Calculate Pearson correlation between a target KPI and candidate driver columns to identify which metrics most strongly influence the KPI. Use when an optimization decision is needed.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'              => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Dataset with numeric columns.'],
+                        'target_kpi'        => ['type' => 'string', 'description' => 'The KPI column to analyze (e.g. "gpn").'],
+                        'candidate_columns' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'List of numeric columns to test as drivers.'],
+                    ],
+                    'required' => ['data', 'target_kpi', 'candidate_columns'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'forecast_metric',
+                'description' => 'Forecast a single KPI using linear regression with 95% confidence intervals. Better than predict_future — use this when a user asks for forecast/projection.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'                      => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Historical dataset.'],
+                        'value_column'             => ['type' => 'string', 'description' => 'Numeric column to forecast.'],
+                        'period_column'            => ['type' => 'string', 'description' => 'Time period column for sorting.'],
+                        'periods_to_forecast'      => ['type' => 'integer', 'description' => 'Number of future periods (default: 3, max: 6).', 'default' => 3],
+                        'include_confidence_interval' => ['type' => 'boolean', 'description' => 'Include 95% CI in output.', 'default' => true],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column', 'periods_to_forecast'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'forecast_hierarchy',
+                'description' => 'Forecast multiple entities (e.g. each branch/region) separately and ensure totals align with a parent-level forecast. Use when hierarchy consistency is required.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'                => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Dataset with hierarchy, period, and value columns.'],
+                        'value_column'        => ['type' => 'string', 'description' => 'The numeric KPI to forecast.'],
+                        'period_column'       => ['type' => 'string', 'description' => 'Time column.'],
+                        'hierarchy_column'    => ['type' => 'string', 'description' => 'Column that defines entities (e.g. "nama_cabang").'],
+                        'periods_to_forecast' => ['type' => 'integer', 'description' => 'Future periods to project.', 'default' => 3],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column', 'hierarchy_column', 'periods_to_forecast'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'detect_risk_signals',
+                'description' => 'Forward-looking risk detection. Combines Z-score anomaly detection with momentum analysis to identify early warning signals. Use for proactive risk alerts.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'          => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Time-series dataset.'],
+                        'value_column'  => ['type' => 'string', 'description' => 'The KPI column to monitor.'],
+                        'period_column' => ['type' => 'string', 'description' => 'Time column for ordering.'],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'simulate_scenario',
+                'description' => 'What-if simulation: apply price/cost/volume changes to baseline data and measure impact on output metric. Use when user asks "what if price increases 10%" or wants target planning.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'base_data'     => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Baseline dataset.'],
+                        'scenario_name' => ['type' => 'string', 'description' => 'Label for the scenario (e.g. "Price +10%").'],
+                        'changes'       => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'List of changes: [{"column": "harga", "change_type": "pct", "value": 10}]. change_type: pct (percentage) or abs (absolute).'],
+                        'output_metric' => ['type' => 'string', 'description' => 'Column to measure as outcome (e.g. "gpn", "total_netto").'],
+                    ],
+                    'required' => ['base_data', 'scenario_name', 'changes', 'output_metric'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'segment_entities',
+                'description' => 'Cluster entities (branches, products, customers) into performance segments using a simplified K-means approach. Use to identify high-value clusters.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'            => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Dataset to segment.'],
+                        'entity_column'   => ['type' => 'string', 'description' => 'Column to identify each entity (e.g. "nama_cabang").'],
+                        'feature_columns' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Numeric columns to use for clustering.'],
+                        'n_segments'      => ['type' => 'integer', 'description' => 'Number of segments/clusters (default: 3).', 'default' => 3],
+                    ],
+                    'required' => ['data', 'entity_column', 'feature_columns', 'n_segments'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'analyze_cohort',
+                'description' => 'Lifecycle and retention analysis. Groups entities by a cohort definition and tracks their value trajectory over periods. Use for customer behavior or branch maturity analysis.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data'                     => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Dataset with entity, period, value, and cohort columns.'],
+                        'entity_column'            => ['type' => 'string', 'description' => 'Column identifying entities (e.g. "nama_pelanggan").'],
+                        'period_column'            => ['type' => 'string', 'description' => 'Time period column.'],
+                        'value_column'             => ['type' => 'string', 'description' => 'Numeric metric to track.'],
+                        'cohort_definition_column' => ['type' => 'string', 'description' => 'Column defining cohort membership (e.g. "tahun_bergabung", "kategori").'],
+                    ],
+                    'required' => ['data', 'entity_column', 'period_column', 'value_column', 'cohort_definition_column'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'generate_business_insight',
+                'description' => 'ALWAYS call this as the FINAL step after all analysis is complete. Synthesizes all findings into a structured executive-level narrative: Executive Summary, Key Drivers, Risk/Opportunity, and Recommended Action.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'question'      => ['type' => 'string', 'description' => 'The original user question.'],
+                        'data_summary'  => ['type' => 'string', 'description' => 'Brief description of data retrieved (e.g. "Monthly sales 2025, 12 periods, 91 branches").'],
+                        'trend_result'  => ['type' => 'object', 'description' => 'Output from analyze_trend or forecast_metric (optional).'],
+                        'anomalies'     => ['type' => 'array', 'items' => ['type' => 'object'], 'description' => 'Anomalies found (optional).'],
+                        'root_cause'    => ['type' => 'object', 'description' => 'Output from analyze_root_cause (optional).'],
+                        'forecast'      => ['type' => 'object', 'description' => 'Output from forecast_metric (optional).'],
+                        'risks'         => ['type' => 'object', 'description' => 'Output from detect_risk_signals (optional).'],
+                        'language'      => ['type' => 'string', 'description' => 'Response language: "id" for Indonesian, "en" for English.', 'default' => 'id'],
+                    ],
+                    'required' => ['question', 'data_summary'],
+                ],
+            ],
         ];
     }
 
@@ -241,17 +384,27 @@ class ToolCallExecutor
 
         try {
             return match ($toolName) {
-                'list_tables'     => $this->listTables(),
-                'describe_table'  => $this->describeTable($arguments['table_name'] ?? ''),
-                'execute_query'   => $this->executeQuery($arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
-                'get_schema_info' => $this->getSchemaInfo(),
-                'get_business_context' => $this->getBusinessContext(),
-                'analyze_trend'    => $this->analyzeTrend($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? ''),
-                'detect_anomalies' => $this->detectAnomalies($arguments['data'] ?? [], $arguments['value_column'] ?? ''),
-                'compare_periods'  => $this->comparePeriods($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['base_period'] ?? '', $arguments['compare_period'] ?? ''),
-                'predict_future'   => $this->predictFuture($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['periods_to_project'] ?? 3),
-                'audit_dataset'    => $this->auditDataset($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['label_column'] ?? ''),
-                default           => json_encode(['error' => "Unknown tool: {$toolName}"]),
+                'list_tables'           => $this->listTables(),
+                'describe_table'        => $this->describeTable($arguments['table_name'] ?? ''),
+                'execute_query'         => $this->executeQuery($arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
+                'get_schema_info'       => $this->getSchemaInfo(),
+                'get_business_context'  => $this->getBusinessContext(),
+                'analyze_trend'         => $this->analyzeTrend($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? ''),
+                'detect_anomalies'      => $this->detectAnomalies($arguments['data'] ?? [], $arguments['value_column'] ?? ''),
+                'compare_periods'       => $this->comparePeriods($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['base_period'] ?? '', $arguments['compare_period'] ?? ''),
+                'predict_future'        => $this->predictFuture($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['periods_to_project'] ?? 3),
+                'audit_dataset'         => $this->auditDataset($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['label_column'] ?? ''),
+                // ── Advanced Business Analyst Tools ──────────────────────────
+                'analyze_root_cause'    => $this->analyzeRootCause($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['dimension_column'] ?? '', $arguments['period_column'] ?? '', $arguments['base_period'] ?? '', $arguments['compare_period'] ?? ''),
+                'analyze_kpi_correlation' => $this->analyzeKpiCorrelation($arguments['data'] ?? [], $arguments['target_kpi'] ?? '', $arguments['candidate_columns'] ?? []),
+                'forecast_metric'       => $this->forecastMetric($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['periods_to_forecast'] ?? 3, $arguments['include_confidence_interval'] ?? true),
+                'forecast_hierarchy'    => $this->forecastHierarchy($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['hierarchy_column'] ?? '', $arguments['periods_to_forecast'] ?? 3),
+                'detect_risk_signals'   => $this->detectRiskSignals($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? ''),
+                'simulate_scenario'     => $this->simulateScenario($arguments['base_data'] ?? [], $arguments['scenario_name'] ?? '', $arguments['changes'] ?? [], $arguments['output_metric'] ?? ''),
+                'segment_entities'      => $this->segmentEntities($arguments['data'] ?? [], $arguments['entity_column'] ?? '', $arguments['feature_columns'] ?? [], $arguments['n_segments'] ?? 3),
+                'analyze_cohort'        => $this->analyzeCohort($arguments['data'] ?? [], $arguments['entity_column'] ?? '', $arguments['period_column'] ?? '', $arguments['value_column'] ?? '', $arguments['cohort_definition_column'] ?? ''),
+                'generate_business_insight' => $this->generateBusinessInsight($arguments['question'] ?? '', $arguments['data_summary'] ?? '', $arguments['trend_result'] ?? null, $arguments['anomalies'] ?? null, $arguments['root_cause'] ?? null, $arguments['forecast'] ?? null, $arguments['risks'] ?? null, $arguments['language'] ?? 'id'),
+                default                 => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
         } catch (\Throwable $e) {
             Log::error("[ToolCallExecutor] Tool {$toolName} failed: " . $e->getMessage());
@@ -831,5 +984,512 @@ class ToolCallExecutor
         }
 
         return array_unique($cols);
+    }
+
+    // ── analyze_root_cause ────────────────────────────────────────────────────
+    private function analyzeRootCause(array $data, string $valueCol, string $dimCol, string $periodCol, string $base, string $compare): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $col = collect($data);
+        $baseData    = $col->where($periodCol, $base)->values();
+        $compareData = $col->where($periodCol, $compare)->values();
+
+        if ($baseData->isEmpty() || $compareData->isEmpty()) {
+            return json_encode(['error' => "Could not find periods: {$base} or {$compare} in column {$periodCol}."]);
+        }
+
+        // Index by dimension
+        $baseMap    = $baseData->keyBy($dimCol);
+        $compareMap = $compareData->keyBy($dimCol);
+
+        $totalBase    = $baseData->sum(fn($r) => (float)($r[$valueCol] ?? 0));
+        $totalCompare = $compareData->sum(fn($r) => (float)($r[$valueCol] ?? 0));
+        $totalDelta   = $totalCompare - $totalBase;
+
+        $drivers = [];
+        $allDims = $baseMap->keys()->merge($compareMap->keys())->unique();
+
+        foreach ($allDims as $dim) {
+            $bVal = (float)(($baseMap->get($dim) ?? [])[$valueCol] ?? 0);
+            $cVal = (float)(($compareMap->get($dim) ?? [])[$valueCol] ?? 0);
+            $delta = $cVal - $bVal;
+            $contribution = $totalDelta != 0 ? round(($delta / abs($totalDelta)) * 100, 1) : 0;
+            $drivers[] = [
+                'dimension'        => $dim,
+                'base_value'       => $bVal,
+                'compare_value'    => $cVal,
+                'delta'            => round($delta, 2),
+                'contribution_pct' => $contribution,
+                'direction'        => $delta >= 0 ? 'POSITIVE' : 'NEGATIVE',
+            ];
+        }
+
+        usort($drivers, fn($a, $b) => abs($b['delta']) <=> abs($a['delta']));
+
+        return json_encode([
+            'base_period'           => $base,
+            'compare_period'        => $compare,
+            'total_base'            => round($totalBase, 2),
+            'total_compare'         => round($totalCompare, 2),
+            'total_change'          => round($totalDelta, 2),
+            'total_change_pct'      => $totalBase != 0 ? round(($totalDelta / abs($totalBase)) * 100, 2) : 0,
+            'trigger_threshold_met' => abs($totalDelta / ($totalBase ?: 1)) * 100 > 3,
+            'top_drivers'           => array_slice($drivers, 0, 10),
+        ]);
+    }
+
+    // ── analyze_kpi_correlation ───────────────────────────────────────────────
+    private function analyzeKpiCorrelation(array $data, string $targetKpi, array $candidateCols): string
+    {
+        if (empty($data) || empty($candidateCols)) return json_encode(['error' => 'Data or candidate_columns is empty.']);
+
+        $n = count($data);
+        if ($n < 3) return json_encode(['error' => 'Minimum 3 rows required for correlation.']);
+
+        $yValues = array_map(fn($r) => (float)($r[$targetKpi] ?? 0), $data);
+        $yMean   = array_sum($yValues) / $n;
+
+        $correlations = [];
+        foreach ($candidateCols as $col) {
+            if ($col === $targetKpi) continue;
+            $xValues = array_map(fn($r) => (float)($r[$col] ?? 0), $data);
+            $xMean   = array_sum($xValues) / $n;
+
+            $num = 0; $denX = 0; $denY = 0;
+            for ($i = 0; $i < $n; $i++) {
+                $dx   = $xValues[$i] - $xMean;
+                $dy   = $yValues[$i] - $yMean;
+                $num  += $dx * $dy;
+                $denX += $dx * $dx;
+                $denY += $dy * $dy;
+            }
+            $denom = sqrt($denX * $denY);
+            $r     = $denom != 0 ? $num / $denom : 0;
+
+            $correlations[] = [
+                'column'    => $col,
+                'r'         => round($r, 4),
+                'strength'  => abs($r) > 0.7 ? 'STRONG' : (abs($r) > 0.4 ? 'MODERATE' : 'WEAK'),
+                'direction' => $r >= 0 ? 'POSITIVE' : 'NEGATIVE',
+            ];
+        }
+
+        usort($correlations, fn($a, $b) => abs($b['r']) <=> abs($a['r']));
+
+        return json_encode(['target_kpi' => $targetKpi, 'correlations' => $correlations]);
+    }
+
+    // ── forecast_metric ───────────────────────────────────────────────────────
+    private function forecastMetric(array $data, string $valueCol, string $periodCol, int $periods, bool $includeCI = true): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+        $series = collect($data)->sortBy($periodCol)->values();
+        $n = $series->count();
+        if ($n < 3) return json_encode(['error' => 'Minimum 3 data points required.']);
+
+        $sumX = 0; $sumY = 0; $sumXY = 0; $sumXX = 0;
+        foreach ($series as $i => $row) {
+            $y = (float)($row[$valueCol] ?? 0);
+            $sumX += $i; $sumY += $y; $sumXY += $i * $y; $sumXX += $i * $i;
+        }
+        $denom = ($n * $sumXX) - ($sumX * $sumX);
+        if ($denom == 0) return json_encode(['error' => 'Cannot calculate regression.']);
+
+        $slope     = (($n * $sumXY) - ($sumX * $sumY)) / $denom;
+        $intercept = ($sumY - ($slope * $sumX)) / $n;
+        $avgY      = $sumY / $n;
+
+        $ssTot = 0; $ssRes = 0; $residuals = [];
+        foreach ($series as $i => $row) {
+            $y    = (float)($row[$valueCol] ?? 0);
+            $yHat = ($slope * $i) + $intercept;
+            $ssTot   += pow($y - $avgY, 2);
+            $ssRes   += pow($y - $yHat, 2);
+            $residuals[] = pow($y - $yHat, 2);
+        }
+        $rSquared = $ssTot != 0 ? 1 - ($ssRes / $ssTot) : 0;
+        $se       = $n > 2 ? sqrt($ssRes / ($n - 2)) : 0; // Standard Error
+
+        $projections = [];
+        for ($i = 0; $i < $periods; $i++) {
+            $futureX = $n + $i;
+            $val     = ($slope * $futureX) + $intercept;
+            $proj    = ['period_index' => $futureX, 'projected_value' => round($val, 2)];
+            if ($includeCI && $se > 0) {
+                $proj['ci_95_lower'] = round($val - 1.96 * $se, 2);
+                $proj['ci_95_upper'] = round($val + 1.96 * $se, 2);
+            }
+            $projections[] = $proj;
+        }
+
+        return json_encode([
+            'r_squared'          => round($rSquared, 4),
+            'confidence_score'   => round($rSquared, 2),
+            'prediction_strength'=> $rSquared > 0.8 ? 'STRONG' : ($rSquared > 0.5 ? 'MODERATE' : 'WEAK'),
+            'slope'              => round($slope, 2),
+            'projections'        => $projections,
+        ]);
+    }
+
+    // ── forecast_hierarchy ────────────────────────────────────────────────────
+    private function forecastHierarchy(array $data, string $valueCol, string $periodCol, string $hierarchyCol, int $periods): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $col      = collect($data);
+        $entities = $col->pluck($hierarchyCol)->unique()->values();
+
+        $hierarchyForecasts = [];
+        $totalProjections   = array_fill(0, $periods, 0);
+
+        foreach ($entities as $entity) {
+            $entityData = $col->where($hierarchyCol, $entity)->values()->toArray();
+            $decoded    = json_decode($this->forecastMetric($entityData, $valueCol, $periodCol, $periods, false), true);
+
+            if (isset($decoded['error'])) continue;
+
+            $projs = $decoded['projections'] ?? [];
+            foreach ($projs as $idx => $p) {
+                $totalProjections[$idx] += $p['projected_value'] ?? 0;
+            }
+
+            $hierarchyForecasts[] = [
+                'entity'         => $entity,
+                'r_squared'      => $decoded['r_squared'] ?? 0,
+                'strength'       => $decoded['prediction_strength'] ?? 'N/A',
+                'projections'    => $projs,
+            ];
+        }
+
+        // Parent-level total forecast
+        $totalData = $col->groupBy($periodCol)->map(fn($g) => [
+            $periodCol => $g->first()[$periodCol],
+            $valueCol  => $g->sum(fn($r) => (float)($r[$valueCol] ?? 0)),
+        ])->values()->toArray();
+        $totalForecast = json_decode($this->forecastMetric($totalData, $valueCol, $periodCol, $periods, false), true);
+        $parentProjections = $totalForecast['projections'] ?? [];
+
+        // Check alignment
+        $aligned = true;
+        foreach ($parentProjections as $idx => $p) {
+            $childSum = $totalProjections[$idx] ?? 0;
+            $parentVal = $p['projected_value'] ?? 0;
+            if ($parentVal != 0 && abs(($childSum - $parentVal) / $parentVal) > 0.05) {
+                $aligned = false;
+                break;
+            }
+        }
+
+        return json_encode([
+            'totals_aligned'       => $aligned,
+            'parent_forecast'      => $parentProjections,
+            'hierarchy_forecasts'  => $hierarchyForecasts,
+        ]);
+    }
+
+    // ── detect_risk_signals ───────────────────────────────────────────────────
+    private function detectRiskSignals(array $data, string $valueCol, string $periodCol): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $series = collect($data)->sortBy($periodCol)->values();
+        $n      = $series->count();
+        if ($n < 3) return json_encode(['error' => 'Minimum 3 data points required.']);
+
+        $values = $series->map(fn($r) => (float)($r[$valueCol] ?? 0));
+        $avg    = $values->avg();
+        $std    = sqrt($values->reduce(fn($c, $v) => $c + pow($v - $avg, 2), 0) / $n);
+
+        $signals = [];
+
+        // Z-score check last point
+        $last   = $values->last();
+        $zScore = $std > 0 ? ($last - $avg) / $std : 0;
+        if ($zScore < -1.5) {
+            $signals[] = ['type' => 'ANOMALY_LOW', 'message' => "Latest value is {$zScore} std deviations below average.", 'severity' => $zScore < -2 ? 'HIGH' : 'MEDIUM'];
+        }
+
+        // Momentum: trailing 3-period slope
+        $recent = $values->slice(max(0, $n - 3))->values();
+        $rN     = $recent->count();
+        if ($rN >= 2) {
+            $momentum = ($recent->last() - $recent->first()) / $rN;
+            if ($momentum < 0) {
+                $signals[] = ['type' => 'NEGATIVE_MOMENTUM', 'message' => 'Declining trend in last 3 periods.', 'severity' => $momentum < -($avg * 0.1) ? 'HIGH' : 'MEDIUM'];
+            }
+        }
+
+        // Consecutive decline
+        $declines = 0;
+        for ($i = $n - 1; $i > 0; $i--) {
+            if ($values[$i] < $values[$i - 1]) $declines++;
+            else break;
+        }
+        if ($declines >= 2) {
+            $signals[] = ['type' => 'CONSECUTIVE_DECLINE', 'message' => "{$declines} consecutive periods of decline.", 'severity' => $declines >= 3 ? 'HIGH' : 'MEDIUM'];
+        }
+
+        $riskLevel = collect($signals)->pluck('severity')->contains('HIGH') ? 'HIGH'
+            : (empty($signals) ? 'LOW' : 'MEDIUM');
+
+        return json_encode([
+            'risk_level'  => $riskLevel,
+            'confidence'  => empty($signals) ? 0.9 : round(0.5 + min(count($signals), 3) * 0.15, 2),
+            'signals'     => $signals,
+            'latest_value'=> $last,
+            'avg_value'   => round($avg, 2),
+            'recommendation' => empty($signals)
+                ? 'Performance within normal range. Continue monitoring.'
+                : 'Risk signals detected. Investigate root cause and adjust strategy.',
+        ]);
+    }
+
+    // ── simulate_scenario ─────────────────────────────────────────────────────
+    private function simulateScenario(array $baseData, string $scenarioName, array $changes, string $outputMetric): string
+    {
+        if (empty($baseData)) return json_encode(['error' => 'base_data is empty.']);
+        if (empty($outputMetric)) return json_encode(['error' => 'output_metric is required.']);
+
+        $baseTotal = array_sum(array_map(fn($r) => (float)($r[$outputMetric] ?? 0), $baseData));
+
+        $simData = $baseData;
+        foreach ($changes as $change) {
+            $col        = $change['column'] ?? '';
+            $changeType = $change['change_type'] ?? 'pct';
+            $changeVal  = (float)($change['value'] ?? 0);
+            if (empty($col)) continue;
+
+            foreach ($simData as &$row) {
+                if (!isset($row[$col])) continue;
+                $origVal = (float)$row[$col];
+                $row[$col] = $changeType === 'pct'
+                    ? $origVal * (1 + $changeVal / 100)
+                    : $origVal + $changeVal;
+            }
+            unset($row);
+        }
+
+        $simTotal = array_sum(array_map(fn($r) => (float)($r[$outputMetric] ?? 0), $simData));
+        $delta    = $simTotal - $baseTotal;
+        $deltaPct = $baseTotal != 0 ? ($delta / abs($baseTotal)) * 100 : 0;
+
+        return json_encode([
+            'scenario_name'   => $scenarioName,
+            'output_metric'   => $outputMetric,
+            'baseline_total'  => round($baseTotal, 2),
+            'simulated_total' => round($simTotal, 2),
+            'delta_absolute'  => round($delta, 2),
+            'delta_pct'       => round($deltaPct, 2),
+            'direction'       => $delta >= 0 ? 'INCREASE' : 'DECREASE',
+            'changes_applied' => $changes,
+        ]);
+    }
+
+    // ── segment_entities ──────────────────────────────────────────────────────
+    private function segmentEntities(array $data, string $entityCol, array $featureCols, int $nSegments): string
+    {
+        if (empty($data) || empty($featureCols)) return json_encode(['error' => 'Data or feature_columns is empty.']);
+        $nSegments = max(2, min($nSegments, 5));
+
+        // Normalize features
+        $mins = []; $maxs = [];
+        foreach ($featureCols as $fc) {
+            $vals   = array_map(fn($r) => (float)($r[$fc] ?? 0), $data);
+            $mins[$fc] = min($vals);
+            $maxs[$fc] = max($vals);
+        }
+
+        $normalize = function(array $row) use ($featureCols, $mins, $maxs) {
+            $vec = [];
+            foreach ($featureCols as $fc) {
+                $range = ($maxs[$fc] - $mins[$fc]);
+                $vec[$fc] = $range != 0 ? ((float)($row[$fc] ?? 0) - $mins[$fc]) / $range : 0;
+            }
+            return $vec;
+        };
+
+        // Initialize centroids (evenly spaced on first feature)
+        $centroids = [];
+        for ($k = 0; $k < $nSegments; $k++) {
+            $centroid = [];
+            foreach ($featureCols as $fc) {
+                $centroid[$fc] = $k / max(1, $nSegments - 1);
+            }
+            $centroids[$k] = $centroid;
+        }
+
+        $assignments = array_fill(0, count($data), 0);
+        for ($iter = 0; $iter < 10; $iter++) {
+            // Assign
+            foreach ($data as $i => $row) {
+                $vec  = $normalize($row);
+                $best = 0; $bestDist = PHP_FLOAT_MAX;
+                for ($k = 0; $k < $nSegments; $k++) {
+                    $dist = 0;
+                    foreach ($featureCols as $fc) {
+                        $dist += pow(($vec[$fc] ?? 0) - ($centroids[$k][$fc] ?? 0), 2);
+                    }
+                    if ($dist < $bestDist) { $bestDist = $dist; $best = $k; }
+                }
+                $assignments[$i] = $best;
+            }
+            // Update centroids
+            for ($k = 0; $k < $nSegments; $k++) {
+                $members = array_keys(array_filter($assignments, fn($a) => $a === $k));
+                if (empty($members)) continue;
+                foreach ($featureCols as $fc) {
+                    $centroids[$k][$fc] = array_sum(array_map(fn($i) => $normalize($data[$i])[$fc], $members)) / count($members);
+                }
+            }
+        }
+
+        // Build segment output
+        $segments = [];
+        for ($k = 0; $k < $nSegments; $k++) {
+            $members = array_keys(array_filter($assignments, fn($a) => $a === $k));
+            $avgFeats = [];
+            foreach ($featureCols as $fc) {
+                $vals = array_map(fn($i) => (float)($data[$i][$fc] ?? 0), $members);
+                $avgFeats[$fc] = count($vals) ? round(array_sum($vals) / count($vals), 2) : 0;
+            }
+            $firstFeat = reset($avgFeats);
+            $label = $firstFeat > (array_sum(array_column($data, $featureCols[0])) / count($data))
+                ? 'High Performer' : 'Low Performer';
+            if ($k === 1 && $nSegments > 2) $label = 'Mid Performer';
+
+            $segments[] = [
+                'segment_id'   => $k + 1,
+                'label'        => $label,
+                'entity_count' => count($members),
+                'entities'     => array_map(fn($i) => $data[$i][$entityCol] ?? '', $members),
+                'avg_features' => $avgFeats,
+            ];
+        }
+
+        usort($segments, fn($a, $b) => array_sum($b['avg_features']) <=> array_sum($a['avg_features']));
+        foreach ($segments as &$s) { $s['label'] = match(true) {
+            array_sum($s['avg_features']) === max(array_map(fn($sg) => array_sum($sg['avg_features']), $segments)) => 'High Performer',
+            array_sum($s['avg_features']) === min(array_map(fn($sg) => array_sum($sg['avg_features']), $segments)) => 'Low Performer',
+            default => 'Mid Performer',
+        }; }
+
+        return json_encode(['n_segments' => $nSegments, 'feature_columns' => $featureCols, 'segments' => $segments]);
+    }
+
+    // ── analyze_cohort ────────────────────────────────────────────────────────
+    private function analyzeCohort(array $data, string $entityCol, string $periodCol, string $valueCol, string $cohortDefCol): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $col    = collect($data);
+        $cohorts = $col->groupBy($cohortDefCol);
+
+        $cohortResults = [];
+        foreach ($cohorts as $cohortName => $cohortData) {
+            $byPeriod = $cohortData->groupBy($periodCol)->map(fn($g) => $g->sum(fn($r) => (float)($r[$valueCol] ?? 0)))->sortKeys();
+            $periods  = $byPeriod->count();
+            if ($periods < 1) continue;
+
+            $first = $byPeriod->first();
+            $last  = $byPeriod->last();
+            $retentionPct = $first != 0 ? round(($last / $first) * 100, 1) : 0;
+            $trend = $last > $first ? 'GROWING' : ($last < $first ? 'DECLINING' : 'STABLE');
+
+            $cohortResults[] = [
+                'cohort'         => $cohortName,
+                'entity_count'   => $cohortData->pluck($entityCol)->unique()->count(),
+                'periods_tracked'=> $periods,
+                'first_value'    => round($first, 2),
+                'last_value'     => round($last, 2),
+                'retention_pct'  => $retentionPct,
+                'trend'          => $trend,
+                'period_values'  => $byPeriod->toArray(),
+            ];
+        }
+
+        usort($cohortResults, fn($a, $b) => $b['last_value'] <=> $a['last_value']);
+
+        return json_encode(['cohort_dimension' => $cohortDefCol, 'cohorts' => $cohortResults]);
+    }
+
+    // ── generate_business_insight ─────────────────────────────────────────────
+    private function generateBusinessInsight(string $question, string $dataSummary, ?array $trendResult, ?array $anomalies, ?array $rootCause, ?array $forecast, ?array $risks, string $language = 'id'): string
+    {
+        $isEN = $language === 'en';
+
+        // Executive Summary
+        $summary = $isEN
+            ? "Analysis based on: {$dataSummary}."
+            : "Analisis berdasarkan: {$dataSummary}.";
+
+        if ($trendResult) {
+            $dir = $trendResult['trend'] ?? 'N/A';
+            $pct = $trendResult['total_growth_pct'] ?? 0;
+            $summary .= $isEN
+                ? " Overall trend: {$dir} ({$pct}% total growth)."
+                : " Tren keseluruhan: {$dir} (pertumbuhan total {$pct}%).";
+        }
+
+        // Key Drivers
+        $keyDrivers = [];
+        if (!empty($rootCause['top_drivers'])) {
+            foreach (array_slice($rootCause['top_drivers'], 0, 3) as $d) {
+                $keyDrivers[] = ($isEN ? "**{$d['dimension']}**: " : "**{$d['dimension']}**: ") .
+                    "{$d['direction']} ({$d['contribution_pct']}% contribution, delta {$d['delta']})";
+            }
+        }
+        if (empty($keyDrivers)) {
+            $keyDrivers[] = $isEN
+                ? 'No root cause decomposition available. Use analyze_root_cause for deeper insight.'
+                : 'Dekomposisi penyebab belum tersedia. Gunakan analyze_root_cause untuk insight lebih dalam.';
+        }
+
+        // Risk / Opportunity
+        $riskSection = $isEN ? 'No significant risk signals detected.' : 'Tidak ada sinyal risiko signifikan.';
+        if (!empty($risks)) {
+            $level = $risks['risk_level'] ?? 'LOW';
+            $riskSection = ($isEN ? "Risk level: **{$level}**. " : "Level risiko: **{$level}**. ") .
+                ($risks['recommendation'] ?? '');
+            if (!empty($risks['signals'])) {
+                foreach ($risks['signals'] as $sig) {
+                    $riskSection .= ' ' . ($sig['message'] ?? '');
+                }
+            }
+        }
+        if (!empty($anomalies)) {
+            $cnt = count($anomalies);
+            $riskSection .= $isEN ? " {$cnt} anomaly(ies) detected in data." : " {$cnt} anomali terdeteksi dalam data.";
+        }
+
+        // Forecast
+        $forecastSection = null;
+        if (!empty($forecast['projections'])) {
+            $projs = array_map(fn($p) => "Period #{$p['period_index']}: " . number_format($p['projected_value'], 0, '.', '.'), $forecast['projections']);
+            $forecastSection = ($isEN ? 'Forecast: ' : 'Prakiraan: ') . implode(' | ', $projs);
+            $r2 = $forecast['r_squared'] ?? $forecast['confidence_score'] ?? null;
+            if ($r2 !== null) {
+                $forecastSection .= $isEN ? " (R²={$r2}, strength: {$forecast['prediction_strength']})" : " (R²={$r2}, kekuatan: {$forecast['prediction_strength']})";
+            }
+        }
+
+        // Recommended Action
+        $action = $isEN ? 'Continue monitoring key metrics and validate findings with latest data.'
+            : 'Lanjutkan pemantauan metrik utama dan validasi temuan dengan data terkini.';
+        if (!empty($rootCause['top_drivers'][0]['dimension'])) {
+            $topDim = $rootCause['top_drivers'][0]['dimension'];
+            $action = $isEN
+                ? "Focus immediate attention on **{$topDim}** — the primary driver. Investigate root cause and set corrective action within 30 days."
+                : "Fokuskan perhatian segera pada **{$topDim}** — sebagai driver utama. Investigasi penyebab dan tetapkan tindakan korektif dalam 30 hari.";
+        }
+
+        return json_encode([
+            'executive_summary'    => $summary,
+            'key_drivers'          => $keyDrivers,
+            'risk_or_opportunity'  => $riskSection,
+            'forecast_outlook'     => $forecastSection,
+            'recommended_action'   => $action,
+            'question_answered'    => $question,
+        ]);
     }
 }
