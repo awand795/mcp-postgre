@@ -178,6 +178,59 @@ class ToolCallExecutor
                     'required' => ['data', 'value_column', 'period_column', 'base_period', 'compare_period'],
                 ],
             ],
+            [
+                'type'        => 'function',
+                'name'        => 'predict_future',
+                'description' => 'Predict future values based on a historical dataset using linear regression. Use this when the user asks for "forecast", "projection", or "predictions" for upcoming periods.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'object'],
+                            'description' => 'The historical dataset containing a numeric value column and a period column.',
+                        ],
+                        'value_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name containing the numeric values to project.',
+                        ],
+                        'period_column' => [
+                            'type'        => 'string',
+                            'description' => 'The column name for the time sequence (used for sorting).',
+                        ],
+                        'periods_to_project' => [
+                            'type'        => 'integer',
+                            'description' => 'Number of future units to project (e.g., 3 months). Max recommended: 6.',
+                            'default'     => 3,
+                        ],
+                    ],
+                    'required' => ['data', 'value_column', 'period_column', 'periods_to_project'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'audit_dataset',
+                'description' => 'Perform a comprehensive "Proactive Audit" on a dataset. It automatically detects anomalies, trends, top contributors (Pareto), and volatility. Use this to find "hidden stories" or when a user asks for a general "audit" or "insight" on a list of data.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'data' => [
+                            'type'        => 'array',
+                            'items'       => ['type' => 'object'],
+                            'description' => 'The dataset to audit.',
+                        ],
+                        'value_column' => [
+                            'type'        => 'string',
+                            'description' => 'The main numeric metric to audit (e.g., "total_netto").',
+                        ],
+                        'label_column' => [
+                            'type'        => 'string',
+                            'description' => 'The descriptive column (e.g., "nama_cabang" or "bulan").',
+                        ],
+                    ],
+                    'required' => ['data', 'value_column', 'label_column'],
+                ],
+            ],
         ];
     }
 
@@ -196,6 +249,8 @@ class ToolCallExecutor
                 'analyze_trend'    => $this->analyzeTrend($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? ''),
                 'detect_anomalies' => $this->detectAnomalies($arguments['data'] ?? [], $arguments['value_column'] ?? ''),
                 'compare_periods'  => $this->comparePeriods($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['base_period'] ?? '', $arguments['compare_period'] ?? ''),
+                'predict_future'   => $this->predictFuture($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['period_column'] ?? '', $arguments['periods_to_project'] ?? 3),
+                'audit_dataset'    => $this->auditDataset($arguments['data'] ?? [], $arguments['value_column'] ?? '', $arguments['label_column'] ?? ''),
                 default           => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
         } catch (\Throwable $e) {
@@ -556,6 +611,116 @@ class ToolCallExecutor
             'absolute_difference' => $diff,
             'percentage_difference' => round($diffPct, 2),
             'status' => $diff > 0 ? 'INCREASE' : ($diff < 0 ? 'DECREASE' : 'NO_CHANGE')
+        ]);
+    }
+
+    // ── predict_future ────────────────────────────────────────────────────────
+    private function predictFuture(array $data, string $valueCol, string $periodCol, int $periodsToProject): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+        
+        $series = collect($data)->sortBy($periodCol)->values();
+        $n = $series->count();
+        
+        if ($n < 3) return json_encode(['error' => 'Minimum 3 data points are required for forecasting.']);
+
+        $sumX = 0; $sumY = 0; $sumXY = 0; $sumXX = 0; $sumYY = 0;
+        
+        foreach ($series as $i => $row) {
+            $x = $i;
+            $y = (float)($row[$valueCol] ?? 0);
+            
+            $sumX += $x;
+            $sumY += $y;
+            $sumXY += ($x * $y);
+            $sumXX += ($x * $x);
+            $sumYY += ($y * $y);
+        }
+
+        $denominator = ($n * $sumXX) - ($sumX * $sumX);
+        if ($denominator == 0) return json_encode(['error' => 'Cannot calculate regression (all dates may be identical).']);
+
+        $slope = (($n * $sumXY) - ($sumX * $sumY)) / $denominator;
+        $intercept = ($sumY - ($slope * $sumX)) / $n;
+
+        // Calculate R-Squared (Confidence)
+        $avgY = $sumY / $n;
+        $ssTot = 0; $ssRes = 0;
+        foreach ($series as $i => $row) {
+            $y = (float)($row[$valueCol] ?? 0);
+            $yPred = ($slope * $i) + $intercept;
+            $ssTot += pow($y - $avgY, 2);
+            $ssRes += pow($y - $yPred, 2);
+        }
+        $rSquared = $ssTot != 0 ? 1 - ($ssRes / $ssTot) : 0;
+
+        $projections = [];
+        for ($i = 0; $i < $periodsToProject; $i++) {
+            $futureX = $n + $i;
+            $val = ($slope * $futureX) + $intercept;
+            $projections[] = [
+                'period_index' => $futureX,
+                'projected_value' => round($val, 2)
+            ];
+        }
+
+        return json_encode([
+            'slope' => round($slope, 2),
+            'intercept' => round($intercept, 2),
+            'confidence_score_r2' => round($rSquared, 2), // R^2: 1 = exact fit, 0 = no fit
+            'prediction_strength' => $rSquared > 0.8 ? 'STRONG' : ($rSquared > 0.5 ? 'MODERATE' : 'WEAK'),
+            'projections' => $projections,
+            'message' => 'Proyeksi berdasarkan tren linear historis.'
+        ]);
+    }
+
+    // ── audit_dataset (The "Proactive Insight" Wrapper) ───────────────────────
+    private function auditDataset(array $data, string $valueCol, string $labelCol): string
+    {
+        if (empty($data)) return json_encode(['error' => 'Data is empty.']);
+
+        $collection = collect($data);
+        $total = $collection->sum($valueCol);
+        
+        // 1. Trend Analysis
+        // Try to find a period-like column if no explicit periodCol is provided, or just use indices
+        $trend = json_decode($this->analyzeTrend($data, $valueCol, $labelCol), true);
+        
+        // 2. Anomaly Detection
+        $anomalies = json_decode($this->detectAnomalies($data, $valueCol), true);
+        
+        // 3. Pareto Analysis (Top Contributors)
+        $sorted = $collection->sortByDesc($valueCol)->values();
+        $top3 = $sorted->take(3)->map(function($row) use ($valueCol, $labelCol, $total) {
+            $val = (float)$row[$valueCol];
+            return [
+                'label' => $row[$labelCol] ?? 'Unknown',
+                'value' => $val,
+                'pct' => $total != 0 ? round(($val / $total) * 100, 1) : 0
+            ];
+        });
+
+        $top3Pct = $top3->sum('pct');
+
+        // 4. Volatility (CV)
+        $values = $collection->pluck($valueCol)->map(fn($v) => (float)$v);
+        $mean = $values->avg();
+        $variance = $values->reduce(fn($carry, $val) => $carry + pow($val - $mean, 2), 0) / $values->count();
+        $stdDev = sqrt($variance);
+        $volatility = $mean != 0 ? ($stdDev / abs($mean)) : 0;
+
+        return json_encode([
+            'audit_summary' => [
+                'total_value' => $total,
+                'volatility_score' => round($volatility, 2), // CV
+                'volatility_label' => $volatility > 0.5 ? 'HIGH' : ($volatility > 0.2 ? 'MODERATE' : 'STABLE'),
+                'is_concentrated' => $top3Pct > 70, // 70-80 rule
+                'top_3_drivers_pct' => $top3Pct
+            ],
+            'top_contributors' => $top3,
+            'trend_summary'    => $trend,
+            'anomalies'        => $anomalies['anomalies'] ?? [],
+            'strategic_hint'   => $top3Pct > 70 ? "Peringatan: Bisnis sangat bergantung pada 3 item teratas ($top3Pct% total). Risiko tinggi jika pasar bergeser." : "Distribusi bisnis cukup sehat dan tersebar."
         ]);
     }
 
