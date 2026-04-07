@@ -6,6 +6,8 @@ use App\Models\RolePermission;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * ToolCallExecutor
@@ -374,6 +376,47 @@ class ToolCallExecutor
                     'required' => ['question', 'data_summary'],
                 ],
             ],
+            // ── ERP Guidance Tool ────────────────────────────────────────────
+            [
+                'type'        => 'function',
+                'name'        => 'get_erp_guidance',
+                'description' => 'Cari dan tampilkan panduan operasional ERP (cara menggunakan modul/fitur ERP) berdasarkan kata kunci atau kategori. GUNAKAN tool ini ketika user bertanya tentang cara menggunakan ERP, seperti: cara input Sales Order, bagaimana proses faktur pembelian, cara bayar hutang, cara terima pembayaran piutang, dll. Panduan mencakup: Report Center, Document, Finance, Account Payable, Account Receivable, dan Inventory.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'keyword'  => [
+                            'type'        => 'string',
+                            'description' => 'Kata kunci pencarian panduan ERP, misalnya: "sales order", "nota kredit", "faktur pembelian", "hutang", "piutang", "stok". Gunakan kata kunci yang relevan dengan pertanyaan user.',
+                        ],
+                        'category' => [
+                            'type'        => 'string',
+                            'description' => 'Filter berdasarkan kategori/modul ERP. Pilih salah satu: "Report Center", "Document", "Finance", "Account Payable", "Account Receivable", "Inventory". Kosongkan jika tidak ingin filter kategori.',
+                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', ''],
+                        ],
+                        'list_all' => [
+                            'type'        => 'boolean',
+                            'description' => 'Jika true, tampilkan semua panduan yang tersedia. Gunakan ini jika user meminta daftar semua panduan ERP.',
+                            'default'     => false,
+                        ],
+                    ],
+                    'required' => [],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'fetch_erp_guidance_from_web',
+                'description' => 'Ambil panduan ERP terbaru langsung dari website erp-guidance.online menggunakan URL spesifik. Gunakan ini jika user memberikan URL panduan atau jika informasi di local guidance (get_erp_guidance) dirasa kurang lengkap atau butuh pembaruan. Tool ini akan mengekstrak langkah-langkah, detail form, dan deskripsi gambar.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'url' => [
+                            'type'        => 'string',
+                            'description' => 'URL lengkap halaman panduan, misal: https://erp-guidance.online/account-payable/ni6r9oqxn7/',
+                        ],
+                    ],
+                    'required' => ['url'],
+                ],
+            ],
         ];
     }
 
@@ -404,6 +447,9 @@ class ToolCallExecutor
                 'segment_entities'      => $this->segmentEntities($arguments['data'] ?? [], $arguments['entity_column'] ?? '', $arguments['feature_columns'] ?? [], $arguments['n_segments'] ?? 3),
                 'analyze_cohort'        => $this->analyzeCohort($arguments['data'] ?? [], $arguments['entity_column'] ?? '', $arguments['period_column'] ?? '', $arguments['value_column'] ?? '', $arguments['cohort_definition_column'] ?? ''),
                 'generate_business_insight' => $this->generateBusinessInsight($arguments['question'] ?? '', $arguments['data_summary'] ?? '', $arguments['trend_result'] ?? null, $arguments['anomalies'] ?? null, $arguments['root_cause'] ?? null, $arguments['forecast'] ?? null, $arguments['risks'] ?? null, $arguments['language'] ?? 'id'),
+                'get_erp_guidance'      => $this->getErpGuidance($arguments['keyword'] ?? '', $arguments['category'] ?? '', $arguments['list_all'] ?? false),
+                'fetch_erp_guidance_from_web' => $this->fetchErpGuidanceFromWeb($arguments['url'] ?? ''),
+                'refresh_all_erp_guidance'    => $this->refreshAllErpGuidance($arguments['urls'] ?? []),
                 default                 => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
         } catch (\Throwable $e) {
@@ -1490,6 +1536,429 @@ class ToolCallExecutor
             'forecast_outlook'     => $forecastSection,
             'recommended_action'   => $action,
             'question_answered'    => $question,
+        ]);
+    }
+
+    // ── get_erp_guidance ────────────────────────────────────────────────────────
+    private function getErpGuidance(string $keyword = '', string $category = '', bool $listAll = false): string
+    {
+        $path = config_path('erp_guidance.json');
+        
+        if (!file_exists($path)) {
+            Log::error("[ToolCallExecutor] ERP Guidance file not found at: {$path}");
+            return json_encode([
+                'error' => 'Data panduan ERP belum tersedia atau file konfigurasi tidak ditemukan.'
+            ]);
+        }
+
+        $content = file_get_contents($path);
+        $data = json_decode($content, true);
+
+        if (!$data || !isset($data['guides'])) {
+            return json_encode([
+                'error' => 'Format file panduan ERP tidak valid.'
+            ]);
+        }
+
+        $guides = $data['guides'];
+        $results = [];
+
+        // Jika minta semua, kirimkan daftar judul/akses saja (karena kepanjangan kalau diload utuh)
+        if ($listAll) {
+            $summary = array_map(function($g) {
+                return [
+                    'id' => $g['id'] ?? '',
+                    'title' => $g['title'] ?? '',
+                    'category' => $g['category'] ?? '',
+                    // Cuplikan singkat dari detail
+                    'summary' => substr($g['detail_panduan_lengkap'] ?? '', 0, 100) . '...'
+                ];
+            }, $guides);
+
+            return json_encode([
+                'source' => $data['source'] ?? '',
+                'total_found' => count($summary),
+                'message' => 'Ini adalah daftar kategori dan judul panduan yang tersedia. Jika ingin melihat detail langkah-langkah, lakukan pencarian dengan parameter keyword spesifik sesuai judul ini.',
+                'guides' => $summary
+            ]);
+        }
+
+        // Kalau tidak cari keyword/kategori tapi mau akses list/search
+        if (empty($keyword) && empty($category)) {
+             return json_encode([
+                'message' => 'Harap berikan kata kunci atau kategori untuk mencari panduan.'
+            ]);
+        }
+
+        $keywordLower = strtolower(trim($keyword));
+        $categoryLower = strtolower(trim($category));
+
+        // First pass: searching within the specified category (if provided)
+        foreach ($guides as $guide) {
+            $matchKey = true;
+            $matchCat = true;
+
+            // Cek Kategori
+            if (!empty($categoryLower)) {
+                $gCat = strtolower($guide['category'] ?? '');
+                if (strpos($gCat, $categoryLower) === false) {
+                    $matchCat = false;
+                }
+            }
+
+            // Cek Keyword (di Title, Detail Panduan, atau Keywords)
+            if (!empty($keywordLower)) {
+                $gTitle = strtolower($guide['title'] ?? '');
+                $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
+                
+                $gKeys  = '';
+                if (isset($guide['keywords']) && is_array($guide['keywords'])) {
+                    $gKeys = strtolower(implode(' ', $guide['keywords']));
+                }
+
+                $matchKey = (strpos($gTitle, $keywordLower) !== false) || 
+                            (strpos($gDetail, $keywordLower) !== false) ||
+                            (strpos($gKeys, $keywordLower) !== false);
+            }
+
+            if ($matchCat && $matchKey) {
+                $results[] = $guide;
+            }
+        }
+
+        // Fallback pass: if no results found and a category was specified, try searching all categories
+        if (empty($results) && !empty($categoryLower) && !empty($keywordLower)) {
+            foreach ($guides as $guide) {
+                $gTitle = strtolower($guide['title'] ?? '');
+                $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
+                
+                $gKeys  = '';
+                if (isset($guide['keywords']) && is_array($guide['keywords'])) {
+                    $gKeys = strtolower(implode(' ', $guide['keywords']));
+                }
+
+                if ((strpos($gTitle, $keywordLower) !== false) || 
+                    (strpos($gDetail, $keywordLower) !== false) ||
+                    (strpos($gKeys, $keywordLower) !== false)) {
+                    $results[] = $guide;
+                }
+            }
+        }
+
+        if (empty($results)) {
+             return json_encode([
+                'total_found' => 0,
+                'message' => 'Tidak ditemukan panduan ERP yang cocok dengan kriteria pencarian: ' . ($keyword ?: $category),
+            ]);
+        }
+
+        return json_encode([
+            'total_found' => count($results),
+            'source'      => $data['source'] ?? '',
+            'guides'      => $results
+        ]);
+    }
+
+    /**
+     * ── fetch_erp_guidance_from_web ──────────────────────────────────────────
+     * Mengambil panduan langsung dari web (scraping) dengan login.
+     */
+    private function fetchErpGuidanceFromWeb(string $url): string
+    {
+        if (empty($url)) {
+            return json_encode(['error' => 'URL wajib diisi.']);
+        }
+
+        if (!str_contains($url, 'erp-guidance.online')) {
+            return json_encode(['error' => 'Hanya URL dari erp-guidance.online yang diizinkan.']);
+        }
+
+        try {
+            Log::info("[ToolCallExecutor] Fetching ERP Guidance from web: {$url}");
+
+            $response = $this->requestWithAuth($url);
+
+            if (!$response->successful()) {
+                return json_encode(['error' => "Gagal mengambil halaman. Status: " . $response->status()]);
+            }
+
+            $html = $response->body();
+            $data = $this->parseErpGuidancePage($html, $url);
+
+            if (isset($data['error'])) {
+                return json_encode($data);
+            }
+
+            // Opsi: Simpan ke local JSON jika belum ada atau ingin update
+            $this->updateLocalGuidance($data);
+
+            return json_encode([
+                'message' => 'Panduan berhasil diambil dari web.',
+                'data' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("[ToolCallExecutor] fetchErpGuidanceFromWeb failed: " . $e->getMessage());
+            return json_encode(['error' => 'Terjadi kesalahan saat mengambil data dari web.']);
+        }
+    }
+
+    private function requestWithAuth(string $url)
+    {
+        $email = env('ERP_GUIDANCE_EMAIL');
+        $password = env('ERP_GUIDANCE_PASSWORD');
+
+        if (!$email || !$password) {
+            throw new \Exception("Kredensial ERP Guidance belum dikonfigurasi di .env");
+        }
+
+        $loginUrl = 'https://erp-guidance.online/wp-login.php';
+        $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
+        
+        // Step 1: Login
+        Http::asForm()->withOptions([
+            'cookies' => $cookieJar,
+            'allow_redirects' => true
+        ])->post($loginUrl, [
+            'log' => $email,
+            'pwd' => $password,
+            'wp-submit' => 'Log In',
+            'testcookie' => 1
+        ]);
+
+        // Step 2: Fetch the actual URL with the same cookies
+        return Http::withOptions([
+            'cookies' => $cookieJar,
+            'allow_redirects' => true
+        ])->get($url);
+    }
+
+    private function parseErpGuidancePage(string $html, string $url): array
+    {
+        $crawler = new Crawler($html);
+
+        if ($crawler->filter('form#loginform')->count() > 0) {
+            Log::warning("[ToolCallExecutor] Scraper hit login page at: " . $url);
+            return ['error' => 'Gagal login ke website. Periksa kredensial di .env'];
+        }
+
+        $title = $crawler->filter('h1.entry-title')->count() > 0 
+            ? $crawler->filter('h1.entry-title')->text() 
+            : 'Tanpa Judul';
+
+        $contentNode = $crawler->filter('.entry-content');
+        if ($contentNode->count() === 0) {
+            return ['error' => 'Konten panduan tidak ditemukan di halaman ini.'];
+        }
+
+        // --- SECTION EXTRACTION & PREMIUM FORMATTING ---
+        $sections = [
+            'fungsi' => '',
+            'persyaratan' => '',
+            'petunjuk' => '',
+            'catatan' => '',
+            'video' => ''
+        ];
+
+        $currentSection = '';
+        $formFields = [];
+        $images = [];
+
+        // Parse content elements for sectioning
+        $contentNode->filter('h2, h3, h4, p, li, b, strong')->each(function (Crawler $node) use (&$sections, &$currentSection, &$formFields, &$images) {
+            $text = trim($node->text());
+            if (empty($text)) return;
+
+            $lowerText = strtolower($text);
+            if (str_contains($lowerText, 'fungsi :') || str_contains($lowerText, 'fungsi:')) {
+                $currentSection = 'fungsi';
+                $sections['fungsi'] .= str_replace(['Fungsi :', 'Fungsi:'], '', $text) . " ";
+            } elseif (str_contains($lowerText, 'persyaratan data') || str_contains($lowerText, 'persyaratan:')) {
+                $currentSection = 'persyaratan';
+            } elseif (str_contains($lowerText, 'petunjuk pemakaian')) {
+                $currentSection = 'petunjuk';
+            } elseif (str_contains($lowerText, 'catatan :') || str_contains($lowerText, 'catatan:')) {
+                $currentSection = 'catatan';
+            } elseif (str_contains($lowerText, 'video :') || str_contains($lowerText, 'video:')) {
+                $currentSection = 'video';
+            } else {
+                if ($currentSection && isset($sections[$currentSection])) {
+                    $sections[$currentSection] .= $text . " ";
+                }
+
+                // Detect form fields while parsing text
+                if (preg_match('/^([a-zA-Z0-9\.\s\/]+)\s*[:\-]\s*(.+)$/', $text, $matches)) {
+                    $formFields[] = [
+                        'field' => trim($matches[1]),
+                        'description' => trim($matches[2])
+                    ];
+                }
+            }
+        });
+
+        // Extract Images & Descriptions
+        $contentNode->filter('img')->each(function (Crawler $node) use (&$images) {
+            $src = $node->attr('src');
+            $alt = $node->attr('alt');
+            $caption = "";
+            $parent = $node->closest('.wp-caption, figure');
+            if ($parent && $parent->filter('.wp-caption-text, figcaption')->count() > 0) {
+                $caption = $parent->filter('.wp-caption-text, figcaption')->text();
+            }
+            $images[] = ['src' => $src, 'alt' => $alt ?: 'Gambar Panduan', 'caption' => $caption];
+        });
+
+        // --- IMPROVED STEP-BY-STEP LOGIC ---
+        $petunjukText = trim($sections['petunjuk']);
+        $steps = [];
+        
+        // Split by sentences that start with common action verbs OR punctuation followed by space
+        $rawSteps = preg_split('/(?<=[.!?])\s+(?=[A-Z])|(?<=[.!?])\s+(?=Klik)|(?<=[.!?])\s+(?=Pilih)|(?<=[.!?])\s+(?=Buka)|(?<=[.!?])\s+(?=Isi)|(?<=[.!?])\s+(?=Simpan)/', $petunjukText);
+        
+        $stepCounter = 1;
+        foreach ($rawSteps as $rs) {
+            $rs = trim($rs);
+            if (empty($rs)) continue;
+            // Detect step-like headers (e.g., - Input, - Update) and avoid making them steps if they are titles
+            if (preg_match('/^[-–—]\s*(Input|Update)/i', $rs)) {
+                $steps[] = "### " . ltrim($rs, '-–— ');
+                continue;
+            }
+            $steps[] = ($stepCounter++) . ". " . $rs;
+        }
+
+        // --- GENERATE PREMIUM MARKDOWN ---
+        $markdown = "# " . $title . " 🚀\n\n";
+        
+        if (!empty($sections['fungsi'])) {
+            $markdown .= "> **Fungsi:** " . trim($sections['fungsi']) . "\n\n---\n\n";
+        }
+
+        if (!empty($sections['persyaratan'])) {
+            $markdown .= "### 📋 Persyaratan Data\n" . trim($sections['persyaratan']) . "\n\n---\n\n";
+        }
+
+        $markdown .= "### 🛠️ Langkah-Langkah Pemakaian (Step-by-Step)\n" . implode("\n", $steps) . "\n\n";
+
+        if (!empty($formFields)) {
+            $markdown .= "#### 📝 Bidang Isian (Form Fields)\n";
+            $markdown .= "> Berikut adalah rincian data yang harus Anda isi pada formulir ini:\n\n";
+            $markdown .= "| Nama Field | Deskripsi / Petunjuk |\n";
+            $markdown .= "| :--- | :--- |\n";
+            foreach ($formFields as $ff) {
+                $markdown .= "| **" . $ff['field'] . "** | " . $ff['description'] . " |\n";
+            }
+            $markdown .= "\n";
+        }
+
+        if (!empty($images)) {
+            $markdown .= "#### 🖼️ Panduan Visual (Screenshot)\n";
+            foreach ($images as $img) {
+                if (!empty($img['caption'])) {
+                    $markdown .= "- **" . $img['caption'] . "**: Menjelaskan antarmuka bagian ini.\n";
+                }
+            }
+            $markdown .= "\n";
+        }
+
+        if (!empty($sections['catatan'])) {
+            $markdown .= "---\n\n### 💡 Catatan Penting\n" . trim($sections['catatan']) . "\n\n";
+        }
+
+        $videoUrl = ($crawler->filter('video source')->count() > 0) 
+            ? $crawler->filter('video source')->attr('src') 
+            : (str_contains($sections['video'] ?? '', 'http') ? trim($sections['video']) : null);
+
+        return [
+            'id' => md5($url),
+            'title' => $title,
+            'category' => $this->guessCategory($url, $html),
+            'url' => $url,
+            'detail_panduan_lengkap' => $markdown,
+            'form_fields' => $formFields,
+            'images' => $images,
+            'video' => $videoUrl,
+            'last_fetched' => date('Y-m-d H:i:s')
+        ];
+    }
+
+    private function guessCategory(string $url, string $html): string
+    {
+        if (str_contains($url, 'account-payable')) return 'Account Payable';
+        if (str_contains($url, 'account-receivable')) return 'Account Receivable';
+        if (str_contains($url, 'inventory')) return 'Inventory';
+        if (str_contains($url, 'finance')) return 'Finance';
+        if (str_contains($url, 'warehouse')) return 'Warehouse';
+        if (str_contains($url, 'document')) return 'Document';
+        return 'Uncategory';
+    }
+
+    private function updateLocalGuidance(array $newData): void
+    {
+        $path = config_path('erp_guidance.json');
+        if (!file_exists($path)) return;
+
+        $content = file_get_contents($path);
+        $data = json_decode($content, true);
+
+        if (!isset($data['guides'])) return;
+
+        // Cek apakah sudah ada (berdasarkan title atau URL)
+        $found = false;
+        foreach ($data['guides'] as &$guide) {
+            if (($guide['title'] ?? '') === $newData['title']) {
+                $guide = array_merge($guide, $newData);
+                $found = true;
+                break;
+            }
+        }
+
+        if (!$found) {
+            $data['guides'][] = $newData;
+            $data['total_guides'] = count($data['guides']);
+        }
+
+        $data['last_updated'] = date('Y-m-d H:i:s');
+        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    }
+    public function refreshAllErpGuidance(array $urls): string
+    {
+        if (empty($urls)) {
+            return json_encode(['error' => 'Daftar URL kosong.']);
+        }
+
+        $results = [
+            'success_count' => 0,
+            'failed_count' => 0,
+            'errors' => []
+        ];
+
+        foreach ($urls as $url) {
+            try {
+                $response = $this->requestWithAuth($url);
+                if ($response->successful()) {
+                    $parsed = $this->parseErpGuidancePage($response->body(), $url);
+                    if (isset($parsed['error'])) {
+                        $results['failed_count']++;
+                        $results['errors'][] = "[$url] " . $parsed['error'];
+                        continue;
+                    }
+
+                    $this->updateLocalGuidance($parsed);
+                    $results['success_count']++;
+                } else {
+                    $results['failed_count']++;
+                    $results['errors'][] = "[$url] HTTP " . $response->status();
+                }
+            } catch (\Exception $e) {
+                $results['failed_count']++;
+                $results['errors'][] = "[$url] " . $e->getMessage();
+            }
+        }
+
+        return json_encode([
+            'message' => "Proses pembaruan selesai.",
+            'summary' => $results
         ]);
     }
 }
