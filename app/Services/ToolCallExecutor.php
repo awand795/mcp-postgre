@@ -1598,7 +1598,7 @@ class ToolCallExecutor
             $score = 0;
             $gTitle = strtolower($guide['title'] ?? '');
             $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
-            
+
             $gKeys = [];
             if (isset($guide['keywords']) && is_array($guide['keywords'])) {
                 $gKeys = array_map('strtolower', $guide['keywords']);
@@ -1613,19 +1613,68 @@ class ToolCallExecutor
             }
 
             if (!empty($keywordLower)) {
+                // Normalize search keyword: collapse multiple spaces, dashes, underscores
+                $normalizedKeyword = preg_replace('/[\s\-_]+/', ' ', trim($keywordLower));
+                $keywordTokens = explode(' ', $normalizedKeyword);
+                $keywordTokens = array_filter($keywordTokens, fn($t) => strlen($t) > 0);
+
                 // Tier 1: Title match (Strongest signal)
-                if (strpos($gTitle, $keywordLower) !== false) {
+                $normalizedGTitle = preg_replace('/[\s\-_]+/', ' ', $gTitle);
+                if (strpos($normalizedGTitle, $normalizedKeyword) !== false) {
                     $score += 500; // Contains
-                    if (strpos($gTitle, $keywordLower) === 0) $score += 300; // Starts with
-                    if ($gTitle === $keywordLower) $score += 1000; // Exact match
+                    if (strpos($normalizedGTitle, $normalizedKeyword) === 0) $score += 300; // Starts with
+                    if ($normalizedGTitle === $normalizedKeyword) $score += 1000; // Exact match
+                } else {
+                    // Partial title match: check if most keyword tokens appear in title
+                    $matchedTokens = 0;
+                    foreach ($keywordTokens as $token) {
+                        if (strpos($normalizedGTitle, $token) !== false) {
+                            $matchedTokens++;
+                        }
+                    }
+                    if ($matchedTokens > 0 && $matchedTokens <= count($keywordTokens)) {
+                        $matchRatio = $matchedTokens / count($keywordTokens);
+                        if ($matchRatio >= 0.5) {
+                            $score += 300 * $matchRatio; // Partial match bonus
+                        }
+                    }
                 }
 
-                // Tier 2: Keyword match
+                // Tier 2: Keyword match (bidirectional matching)
                 foreach ($gKeys as $key) {
-                    if (strpos($key, $keywordLower) !== false) {
+                    $normalizedKey = preg_replace('/[\s\-_]+/', ' ', $key);
+                    
+                    // Check if search keyword is in stored keyword
+                    if (strpos($normalizedKey, $normalizedKeyword) !== false) {
                         $score += 100;
-                        if ($key === $keywordLower) $score += 300;
+                        if ($normalizedKey === $normalizedKeyword) $score += 300;
                         break;
+                    }
+                    
+                    // Check if stored keyword is in search keyword (reverse match)
+                    if (strpos($normalizedKeyword, $normalizedKey) !== false) {
+                        $score += 80;
+                        break;
+                    }
+                    
+                    // Token-based matching: check if most tokens match
+                    $keyTokens = explode(' ', $normalizedKey);
+                    $keyTokens = array_filter($keyTokens, fn($t) => strlen($t) > 0);
+                    $matchedTokens = 0;
+                    foreach ($keywordTokens as $token) {
+                        foreach ($keyTokens as $keyToken) {
+                            if (strpos($keyToken, $token) !== false || strpos($token, $keyToken) !== false) {
+                                $matchedTokens++;
+                                break;
+                            }
+                        }
+                    }
+                    if ($matchedTokens > 0 && count($keyTokens) > 0) {
+                        $matchRatio = $matchedTokens / max(count($keywordTokens), count($keyTokens));
+                        if ($matchRatio >= 0.6) {
+                            $score += 60 * $matchRatio;
+                            break;
+                        }
                     }
                 }
 
@@ -1641,7 +1690,7 @@ class ToolCallExecutor
                 // Prepend category to title for better AI disambiguation
                 $catPrefix = "[" . ($guide['category'] ?? 'General') . "] ";
                 $guide['title'] = $catPrefix . ($guide['title'] ?? 'Untitled');
-                
+
                 $guide['_relevance_score'] = $score;
                 $results[] = $guide;
             }
