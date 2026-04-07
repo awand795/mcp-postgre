@@ -1593,56 +1593,80 @@ class ToolCallExecutor
         $keywordLower = strtolower(trim($keyword));
         $categoryLower = strtolower(trim($category));
 
-        // First pass: searching within the specified category (if provided)
+        // First pass: searching and scoring
         foreach ($guides as $guide) {
-            $matchKey = true;
-            $matchCat = true;
+            $score = 0;
+            $gTitle = strtolower($guide['title'] ?? '');
+            $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
+            
+            $gKeys = [];
+            if (isset($guide['keywords']) && is_array($guide['keywords'])) {
+                $gKeys = array_map('strtolower', $guide['keywords']);
+            }
 
-            // Cek Kategori
+            // Category Bonus (Replaced hard filter with priority boost)
             if (!empty($categoryLower)) {
                 $gCat = strtolower($guide['category'] ?? '');
-                if (strpos($gCat, $categoryLower) === false) {
-                    $matchCat = false;
+                if (strpos($gCat, $categoryLower) !== false) {
+                    $score += 200; // Priority boost for target category
                 }
             }
 
-            // Cek Keyword (di Title, Detail Panduan, atau Keywords)
             if (!empty($keywordLower)) {
-                $gTitle = strtolower($guide['title'] ?? '');
-                $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
-                
-                $gKeys  = '';
-                if (isset($guide['keywords']) && is_array($guide['keywords'])) {
-                    $gKeys = strtolower(implode(' ', $guide['keywords']));
+                // Tier 1: Title match (Strongest signal)
+                if (strpos($gTitle, $keywordLower) !== false) {
+                    $score += 500; // Contains
+                    if (strpos($gTitle, $keywordLower) === 0) $score += 300; // Starts with
+                    if ($gTitle === $keywordLower) $score += 1000; // Exact match
                 }
 
-                $matchKey = (strpos($gTitle, $keywordLower) !== false) || 
-                            (strpos($gDetail, $keywordLower) !== false) ||
-                            (strpos($gKeys, $keywordLower) !== false);
+                // Tier 2: Keyword match
+                foreach ($gKeys as $key) {
+                    if (strpos($key, $keywordLower) !== false) {
+                        $score += 100;
+                        if ($key === $keywordLower) $score += 300;
+                        break;
+                    }
+                }
+
+                // Tier 3: Detail match (Low priority fallback)
+                if (strpos($gDetail, $keywordLower) !== false) {
+                    $score += 1;
+                }
+            } else {
+                $score = 1;
             }
 
-            if ($matchCat && $matchKey) {
+            if ($score > 0) {
+                // Prepend category to title for better AI disambiguation
+                $catPrefix = "[" . ($guide['category'] ?? 'General') . "] ";
+                $guide['title'] = $catPrefix . ($guide['title'] ?? 'Untitled');
+                
+                $guide['_relevance_score'] = $score;
                 $results[] = $guide;
             }
         }
 
-        // Fallback pass: if no results found and a category was specified, try searching all categories
-        if (empty($results) && !empty($categoryLower) && !empty($keywordLower)) {
-            foreach ($guides as $guide) {
-                $gTitle = strtolower($guide['title'] ?? '');
-                $gDetail = strtolower($guide['detail_panduan_lengkap'] ?? '');
-                
-                $gKeys  = '';
-                if (isset($guide['keywords']) && is_array($guide['keywords'])) {
-                    $gKeys = strtolower(implode(' ', $guide['keywords']));
-                }
+        // Sort results by relevance score descending
+        usort($results, function($a, $b) {
+            return ($b['_relevance_score'] ?? 0) <=> ($a['_relevance_score'] ?? 0);
+        });
 
-                if ((strpos($gTitle, $keywordLower) !== false) || 
-                    (strpos($gDetail, $keywordLower) !== false) ||
-                    (strpos($gKeys, $keywordLower) !== false)) {
-                    $results[] = $guide;
-                }
-            }
+        // Noise Suppression: If we have a very strong Title-Match result (> 500), 
+        // filter out all low-confidence matches (< 10) to avoid AI confusion.
+        if (!empty($results) && ($results[0]['_relevance_score'] ?? 0) >= 500) {
+            $results = array_filter($results, function($r) {
+                return ($r['_relevance_score'] ?? 0) >= 10;
+            });
+            $results = array_values($results); // Re-index
+        }
+
+        // Limit results to top 5 to prevent context overflow and AI selection fatigue
+        $results = array_slice($results, 0, 5);
+
+        // Clean up internal score before returning
+        foreach ($results as &$r) {
+            unset($r['_relevance_score']);
         }
 
         if (empty($results)) {
