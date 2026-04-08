@@ -577,6 +577,7 @@ class SmartAnalysisService extends BaseService
                         $whereClauses[] = "{$col} = '{$val}'";
                     }
                     $where = implode(' AND ', $whereClauses);
+                    $limit = $filters['top_n'] ?? 10;
                     return "SELECT
                                 nama_cabang,
                                 nama_regional,
@@ -588,7 +589,7 @@ class SmartAnalysisService extends BaseService
                             WHERE {$where}
                             GROUP BY nama_cabang, nama_regional
                             ORDER BY total_penjualan DESC
-                            LIMIT 50";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'trend', 'value_column' => 'total_penjualan', 'period_column' => 'nama_cabang'],
@@ -601,6 +602,7 @@ class SmartAnalysisService extends BaseService
                 'label' => 'Inventory Health Analysis',
                 'description' => 'Stock levels, turnover, and potential dead stock identification.',
                 'build_query' => function(string $period, array $filters) {
+                    $limit = $filters['top_n'] ?? 20;
                     return "SELECT
                                 nama_barang,
                                 nama_kategori_barang,
@@ -609,7 +611,7 @@ class SmartAnalysisService extends BaseService
                             FROM sch_mbi.data_stok_mbi
                             GROUP BY nama_barang, nama_kategori_barang
                             ORDER BY current_stock DESC
-                            LIMIT 100";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'anomaly', 'value_column' => 'current_stock'],
@@ -622,6 +624,7 @@ class SmartAnalysisService extends BaseService
                 'description' => 'Customer purchasing patterns, top customers, and behavior trends.',
                 'build_query' => function(string $period, array $filters) {
                     $dateFilter = $this->parsePeriodToSql($period);
+                    $limit = $filters['top_n'] ?? 10;
                     return "SELECT
                                 nama_pelanggan,
                                 SUM(total_netto) as total_pembelian,
@@ -631,7 +634,7 @@ class SmartAnalysisService extends BaseService
                             WHERE {$dateFilter}
                             GROUP BY nama_pelanggan
                             ORDER BY total_pembelian DESC
-                            LIMIT 50";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'trend', 'value_column' => 'total_pembelian', 'period_column' => 'nama_pelanggan'],
@@ -645,6 +648,7 @@ class SmartAnalysisService extends BaseService
                 'description' => 'GPN analysis, margin trends, and profit drivers.',
                 'build_query' => function(string $period, array $filters) {
                     $dateFilter = $this->parsePeriodToSql($period);
+                    $limit = $filters['top_n'] ?? 10;
                     return "SELECT
                                 nama_cabang,
                                 SUM(total_netto) as total_penjualan,
@@ -657,7 +661,7 @@ class SmartAnalysisService extends BaseService
                             WHERE {$dateFilter}
                             GROUP BY nama_cabang
                             ORDER BY total_gpn DESC
-                            LIMIT 50";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'trend', 'value_column' => 'total_gpn', 'period_column' => 'nama_cabang'],
@@ -712,6 +716,7 @@ class SmartAnalysisService extends BaseService
                 'description' => 'Identify best-selling products and categories.',
                 'build_query' => function(string $period, array $filters) {
                     $dateFilter = $this->parsePeriodToSql($period);
+                    $limit = $filters['top_n'] ?? 10;
                     return "SELECT
                                 nama_barang,
                                 nama_kategori_barang,
@@ -722,19 +727,20 @@ class SmartAnalysisService extends BaseService
                             WHERE {$dateFilter}
                             GROUP BY nama_barang, nama_kategori_barang
                             ORDER BY total_penjualan DESC
-                            LIMIT 100";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'anomaly', 'value_column' => 'total_penjualan'],
                     ['type' => 'ranking', 'value_column' => 'total_penjualan', 'label_column' => 'nama_barang'],
                 ],
-                'top_n' => 20,
+                'top_n' => 10,
             ],
             'sales_efficiency' => [
                 'label' => 'Sales Efficiency Analysis',
                 'description' => 'Analyze salesperson performance and efficiency metrics.',
                 'build_query' => function(string $period, array $filters) {
                     $dateFilter = $this->parsePeriodToSql($period);
+                    $limit = $filters['top_n'] ?? 10;
                     return "SELECT
                                 nama_salesman,
                                 nama_cabang,
@@ -745,7 +751,7 @@ class SmartAnalysisService extends BaseService
                             WHERE {$dateFilter}
                             GROUP BY nama_salesman, nama_cabang
                             ORDER BY total_penjualan DESC
-                            LIMIT 50";
+                            LIMIT {$limit}";
                 },
                 'analyses' => [
                     ['type' => 'anomaly', 'value_column' => 'total_penjualan'],
