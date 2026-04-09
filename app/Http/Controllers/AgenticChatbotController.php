@@ -1193,4 +1193,71 @@ PROMPT;
             ], 500);
         }
     }
+
+    // ── Export Table/Chart to PDF ────────────────────────────────────────────
+    public function exportPdf(Request $request)
+    {
+        $request->validate([
+            'headers' => 'required|array',
+            'rows' => 'required|array',
+            'filename' => 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
+            'chartImage' => 'nullable|string', // base64 chart image
+        ]);
+
+        $headers = $request->input('headers');
+        $rows = $request->input('rows');
+        $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.pdf');
+        $title = $request->input('title', 'Data Export');
+        $chartImage = $request->input('chartImage');
+
+        // Increase time limit for large exports
+        set_time_limit(600);
+
+        try {
+            // Format headers (same as Excel export)
+            $formattedHeaders = array_map(function($header) {
+                $formatted = str_replace(['_', '-'], ' ', $header);
+                return mb_convert_case($formatted, MB_CASE_TITLE, 'UTF-8');
+            }, $headers);
+
+            // Detect column types for alignment
+            $columnTypes = [];
+            foreach ($headers as $i => $header) {
+                $headerName = strtolower($header);
+                if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
+                    $columnTypes[$i] = 'text';
+                } elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian)/i', $headerName)) {
+                    $columnTypes[$i] = 'currency';
+                } else {
+                    $columnTypes[$i] = 'number';
+                }
+            }
+
+            $pdf = \PDF::loadView('exports.pdf-table', [
+                'title' => strtoupper($title),
+                'generatedAt' => date('d M Y H:i'),
+                'headers' => $formattedHeaders,
+                'rows' => $rows,
+                'columnTypes' => $columnTypes,
+                'chartImage' => $chartImage,
+            ]);
+
+            $pdf->setPaper('a4', 'landscape');
+
+            return $pdf->download($filename);
+        } catch (\Exception $e) {
+            \Log::error('PDF export failed: ' . $e->getMessage(), [
+                'rows_count' => count($rows),
+                'headers_count' => count($headers),
+                'filename' => $filename,
+                'exception' => get_class($e),
+            ]);
+
+            return response()->json([
+                'error' => 'Export gagal: ' . $e->getMessage(),
+                'message' => 'Data terlalu besar atau terjadi kesalahan saat memproses export.',
+            ], 500);
+        }
+    }
 }

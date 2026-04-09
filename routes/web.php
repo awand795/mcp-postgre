@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
     Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
     Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
+    Route::post('/chatbot/export/pdf', [AgenticChatbotController::class, 'exportPdf'])->name('chatbot.export.pdf');
 
     // Alias agentic (backward compat — mengarah ke controller yang sama)
     Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
