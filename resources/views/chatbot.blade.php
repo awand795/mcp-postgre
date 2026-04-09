@@ -1530,8 +1530,10 @@
                 });
 
                 // Generate filename with timestamp
+                const tableLabel = smartTables[tableId]?.label || tableId.replace(/_/g, ' ');
+                const safeLabel = tableLabel.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                const filename = `table-export-${timestamp}.xlsx`;
+                const filename = `${safeLabel || 'table-export'}-${timestamp}.xlsx`;
 
                 // Send ALL data to backend for Excel generation
                 const response = await fetch('{{ route("chatbot.export.excel") }}', {
@@ -1815,8 +1817,10 @@
                     })
                 );
 
+                const tableLabel = smartTables[tableId]?.label || tableId.replace(/_/g, ' ');
+                const safeLabel = tableLabel.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                const filename = `table-export-${timestamp}.pdf`;
+                const filename = `${safeLabel || 'table-export'}-${timestamp}.pdf`;
 
                 const response = await fetch('{{ route("chatbot.export.pdf") }}', {
                     method: 'POST',
@@ -1828,7 +1832,7 @@
                         headers: cleanHeaders,
                         rows: cleanRows,
                         filename: filename,
-                        title: tableId.replace(/_/g, ' ')
+                        title: tableLabel
                     }),
                 });
 
@@ -2317,6 +2321,7 @@
 
                         const tableData = toolRes.data || toolRes;
                         currencyColumns = tableData.currency_columns || [];
+                        const tableLabel = toolRes.label || tableData.label || null;
 
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
@@ -2342,7 +2347,8 @@
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: '',
-                        currencyColumns: currencyColumns || []
+                        currencyColumns: currencyColumns || [],
+                        label: tableLabel || null
                     };
 
                     wrap.setAttribute('data-initialized', 'true');
