@@ -1076,6 +1076,175 @@
             }
         }
 
+        // Variable to track pagination state
+        let sessionPagination = {
+            hasMore: false,
+            oldestCursor: null,
+            isLoadingMore: false
+        };
+
+        // Helper function to render a single message
+        function renderMessage(msg, prepend = false) {
+            const wrap = document.createElement('div');
+            wrap.className = ['flex flex-col gap-1.5',
+                msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
+            ].join(' ');
+
+            const bubble = document.createElement('div');
+            bubble.className = [
+                msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
+                'p-4 rounded-2xl text-sm shadow-sm markdown-body'
+            ].join(' ');
+
+            if (msg.role === 'ai' || msg.role === 'assistant') {
+                // Parse tool_results if it's a string (for backward compatibility)
+                let toolResultsForMsg = msg.tool_results || [];
+                if (typeof toolResultsForMsg === 'string') {
+                    try {
+                        toolResultsForMsg = JSON.parse(toolResultsForMsg);
+                    } catch (e) {
+                        console.error('[RenderMessage] Failed to parse tool_results:', e);
+                        toolResultsForMsg = [];
+                    }
+                }
+
+                // CRITICAL: Pre-populate currentToolResults BEFORE rendering
+                const originalGlobal = currentToolResults;
+                currentToolResults = [];
+
+                // First pass: Add all tool results from DB to currentToolResults
+                toolResultsForMsg.forEach((tr, idx) => {
+                    currentToolResults[idx] = tr;
+                });
+
+                bubble.innerHTML = renderMarkdown(msg.content);
+                bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
+
+                const toolResultsForInit = [...currentToolResults];
+                currentToolResults = originalGlobal;
+
+                // Defer init to next tick so DOM elements (canvas) are ready
+                setTimeout(() => {
+                    initChartsInBubble(bubble, toolResultsForInit);
+                    initDashboardsInBubble(bubble);
+                    initSmartTablesInBubble(bubble, toolResultsForInit);
+                }, 50);
+            } else {
+                bubble.textContent = msg.content;
+            }
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
+            timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+            wrap.appendChild(bubble);
+            wrap.appendChild(timeEl);
+
+            if (prepend) {
+                // Insert before the first child (or after "Load More" button)
+                const firstChild = chatMessages.firstChild;
+                if (firstChild) {
+                    chatMessages.insertBefore(wrap, firstChild);
+                } else {
+                    chatMessages.appendChild(wrap);
+                }
+            } else {
+                chatMessages.appendChild(wrap);
+            }
+
+            return wrap;
+        }
+
+        // Helper function to show "Load Earlier Messages" button
+        function showLoadEarlierButton() {
+            // Remove existing button if any
+            const existingBtn = chatMessages.querySelector('.load-earlier-btn');
+            if (existingBtn) existingBtn.remove();
+
+            const btnWrap = document.createElement('div');
+            btnWrap.className = 'load-earlier-btn flex justify-center py-3 my-2';
+            
+            const btn = document.createElement('button');
+            btn.className = 'px-4 py-2 text-xs font-medium text-[#A1A09A] bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all hover:text-white';
+            btn.innerHTML = `
+                <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 5v14M5 12l7-7 7 7"/>
+                </svg>
+                Muat Pesan Lebih Awal
+            `;
+            
+            btn.addEventListener('click', async function() {
+                if (sessionPagination.isLoadingMore) return;
+                
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="animate-spin h-4 w-4 inline mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memuat...';
+                
+                await loadEarlierMessages();
+                
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 5v14M5 12l7-7 7 7"/>
+                    </svg>
+                    Muat Pesan Lebih Awal
+                `;
+            });
+            
+            btnWrap.appendChild(btn);
+            
+            // Insert at the top of chatMessages
+            if (chatMessages.firstChild) {
+                chatMessages.insertBefore(btnWrap, chatMessages.firstChild);
+            } else {
+                chatMessages.appendChild(btnWrap);
+            }
+        }
+
+        async function loadEarlierMessages() {
+            if (sessionPagination.isLoadingMore || !sessionPagination.hasMore || !sessionPagination.oldestCursor) {
+                return;
+            }
+
+            sessionPagination.isLoadingMore = true;
+
+            try {
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${currentSessionId}?before=${encodeURIComponent(sessionPagination.oldestCursor)}&limit=50`);
+
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                const data = await res.json();
+
+                // Update pagination state
+                sessionPagination.hasMore = data.pagination.has_more;
+                sessionPagination.oldestCursor = data.pagination.oldest_cursor;
+
+                // Render older messages (prepend to top)
+                const scrollHeightBefore = chatMessages.scrollHeight;
+                
+                data.history.forEach(msg => {
+                    renderMessage(msg, true);
+                });
+
+                // Maintain scroll position after prepending
+                const scrollHeightAfter = chatMessages.scrollHeight;
+                const heightDiff = scrollHeightAfter - scrollHeightBefore;
+                if (heightDiff > 0) {
+                    chatMessages.scrollTop += heightDiff;
+                }
+
+                // Update or remove "Load Earlier" button
+                if (!sessionPagination.hasMore) {
+                    const existingBtn = chatMessages.querySelector('.load-earlier-btn');
+                    if (existingBtn) existingBtn.remove();
+                }
+
+            } catch (e) {
+                console.error('[LoadEarlierMessages] Error:', e);
+            } finally {
+                sessionPagination.isLoadingMore = false;
+            }
+        }
+
         async function loadSession(id) {
             if (isLoading) {
                 return;
@@ -1099,7 +1268,14 @@
             
             // Reset global tool results for new session
             currentToolResults = [];
-            
+
+            // Reset pagination state for new session
+            sessionPagination = {
+                hasMore: false,
+                oldestCursor: null,
+                isLoadingMore: false
+            };
+
             currentSessionId = id;
             window.history.pushState({}, '', '?chat=' + id);
 
@@ -1125,69 +1301,19 @@
                     return;
                 }
 
+                // Update pagination state
+                sessionPagination.hasMore = data.pagination.has_more;
+                sessionPagination.oldestCursor = data.pagination.oldest_cursor;
+
+                // Render messages using the helper function
                 data.history.forEach((msg, index) => {
-                    const wrap = document.createElement('div');
-                    wrap.className = ['flex flex-col gap-1.5',
-                        msg.role === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
-                    ].join(' ');
-
-                    const bubble = document.createElement('div');
-                    bubble.className = [
-                        msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
-                        'p-4 rounded-2xl text-sm shadow-sm markdown-body'
-                    ].join(' ');
-
-                    if (msg.role === 'ai' || msg.role === 'assistant') {
-                        // Parse tool_results if it's a string (for backward compatibility)
-                        let toolResultsForMsg = msg.tool_results || [];
-                        if (typeof toolResultsForMsg === 'string') {
-                            try {
-                                toolResultsForMsg = JSON.parse(toolResultsForMsg);
-                            } catch (e) {
-                                console.error('[LoadSession] Failed to parse tool_results:', e);
-                                toolResultsForMsg = [];
-                            }
-                        }
-
-                        // CRITICAL: Pre-populate currentToolResults BEFORE rendering
-                        // This ensures chart/smart_table indices match when markdown is parsed
-                        const originalGlobal = currentToolResults;
-                        currentToolResults = [];
-
-                        // First pass: Add all tool results from DB to currentToolResults
-                        // This preserves the original indices
-                        toolResultsForMsg.forEach((tr, idx) => {
-                            currentToolResults[idx] = tr;
-                        });
-
-                        bubble.innerHTML = renderMarkdown(msg.content);
-                        bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
-
-                        // CRITICAL: Capture currentToolResults (which now includes charts added during render)
-                        // and use it in setTimeout callback
-                        const toolResultsForInit = [...currentToolResults];
-
-                        // Restore global immediately
-                        currentToolResults = originalGlobal;
-
-                        // Defer init to next tick so DOM elements (canvas) are ready
-                        setTimeout(() => {
-                            initChartsInBubble(bubble, toolResultsForInit);
-                            initDashboardsInBubble(bubble);
-                            initSmartTablesInBubble(bubble, toolResultsForInit);
-                        }, 50);
-                    } else {
-                        bubble.textContent = msg.content;
-                    }
-
-                    const timeEl = document.createElement('span');
-                    timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
-                    timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                    wrap.appendChild(bubble);
-                    wrap.appendChild(timeEl);
-                    chatMessages.appendChild(wrap);
+                    renderMessage(msg, false);
                 });
+
+                // Show "Load Earlier" button if there are more messages
+                if (sessionPagination.hasMore) {
+                    showLoadEarlierButton();
+                }
 
                 await loadSessions();
 

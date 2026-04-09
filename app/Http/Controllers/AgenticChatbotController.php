@@ -56,16 +56,35 @@ class AgenticChatbotController extends Controller
         return response()->json($sessions);
     }
 
-    public function getSession($id)
+    public function getSession($id, Request $request)
     {
         try {
             // Increase memory limit for large history
             ini_set('memory_limit', '1024M');
-            
-            $session = ChatSession::with('messages')->where('user_id', Auth::id())->findOrFail($id);
+
+            $session = ChatSession::where('user_id', Auth::id())->findOrFail($id);
+
+            // Pagination parameters
+            $limit = $request->query('limit', 50); // Default: load last 50 messages
+            $limit = min($limit, 200); // Cap at 200 messages per request
+            $before = $request->query('before'); // Cursor: created_at timestamp
+
+            // Build query with pagination
+            $messagesQuery = ChatMessage::where('chat_session_id', $session->id)
+                ->orderBy('created_at', 'desc'); // Start from newest
+
+            // If cursor provided, get messages before it
+            if ($before) {
+                $messagesQuery->where('created_at', '<', $before);
+            }
+
+            $messages = $messagesQuery->limit($limit)->get();
+
+            // Reverse to get chronological order (oldest first)
+            $messages = $messages->reverse()->values();
 
             $history = [];
-            foreach ($session->messages as $msg) {
+            foreach ($messages as $msg) {
                 // tool_results sudah di-cast ke array oleh model - SEMUA DATA DIKEMBALIKAN
                 if ($msg->role === 'assistant') {
                     $history[] = [
@@ -81,17 +100,36 @@ class AgenticChatbotController extends Controller
                 }
             }
 
+            // Check if there are more messages to load
+            $hasMore = false;
+            if ($messages->isNotEmpty()) {
+                $oldestMessage = $messages->first();
+                $olderMessagesCount = ChatMessage::where('chat_session_id', $session->id)
+                    ->where('created_at', '<', $oldestMessage->created_at)
+                    ->count();
+                $hasMore = $olderMessagesCount > 0;
+            }
+
+            // Get total message count
+            $totalMessages = ChatMessage::where('chat_session_id', $session->id)->count();
+
             return response()->json([
                 'session' => ['id' => $session->id, 'title' => $session->title],
-                'history' => $history
+                'history' => $history,
+                'pagination' => [
+                    'has_more' => $hasMore,
+                    'loaded' => count($history),
+                    'total' => $totalMessages,
+                    'oldest_cursor' => $messages->isNotEmpty() ? $messages->first()->created_at : null
+                ]
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Failed to load chat session: ' . $e->getMessage(), [
                 'session_id' => $id,
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'error' => 'Gagal memuat riwayat chat',
                 'message' => $e->getMessage(),

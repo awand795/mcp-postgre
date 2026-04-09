@@ -5,6 +5,7 @@ namespace App\Services\Core;
 use App\Models\RolePermission;
 use App\Services\BaseService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -20,6 +21,12 @@ class QueryService extends BaseService
      * Cached allowed tables for RBAC.
      */
     private ?array $cachedAllowedTables = null;
+
+    /**
+     * Query result cache TTL in seconds.
+     * Short TTL to avoid stale data but reduce duplicate queries.
+     */
+    private int $queryCacheTtl = 60;
 
     /**
      * Set cached allowed tables (used before session_write_close).
@@ -118,6 +125,17 @@ class QueryService extends BaseService
         $cleanSql = $trimmedSql;
         Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
 
+        // ── QUERY RESULT CACHING ──────────────────────────────────────────────
+        // Generate cache key from SQL hash to avoid duplicate queries
+        $cacheKey = 'query_result_' . md5($cleanSql . '_' . Auth::id());
+        
+        // Check if query result is cached
+        $cachedResult = Cache::get($cacheKey);
+        if ($cachedResult !== null) {
+            Log::info("[ToolCallExecutor] Using cached query result (saved DB call)");
+            return $cachedResult;
+        }
+
         try {
             // ANTI-LIMIT: No statement timeout for SQL execution
             DB::connection('pgsql_mbi')->statement('SET statement_timeout = 0');
@@ -189,7 +207,12 @@ class QueryService extends BaseService
         }
 
         // ANTI-LIMIT: Note removed for cleaner large data output
-        return $this->safeJsonEncode($result);
+        $resultJson = $this->safeJsonEncode($result);
+        
+        // Cache the result for future identical queries
+        Cache::put($cacheKey, $resultJson, $this->queryCacheTtl);
+        
+        return $resultJson;
     }
 
     /**
