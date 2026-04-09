@@ -215,6 +215,18 @@
             background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
         }
         .chart-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .chart-export-pdf-btn {
+            background: rgba(239,68,68,0.15); color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 11px; cursor: pointer;
+            transition: all 0.2s; font-family: 'Outfit', sans-serif;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .chart-export-pdf-btn:hover:not(:disabled) {
+            background: rgba(239,68,68,0.25); color: #f87171; border-color: rgba(239,68,68,0.5);
+        }
+        .chart-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         /* ── Dashboard ── */
         .dashboard-grid {
@@ -303,6 +315,18 @@
             background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
         }
         .smart-table-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .smart-table-export-pdf-btn {
+            background: rgba(239,68,68,0.15); color: #ef4444;
+            border: 1px solid rgba(239,68,68,0.3);
+            padding: 4px 10px; border-radius: 6px;
+            font-size: 11px; cursor: pointer;
+            transition: all 0.2s; font-family: 'Outfit', sans-serif;
+            display: inline-flex; align-items: center; gap: 4px;
+        }
+        .smart-table-export-pdf-btn:hover:not(:disabled) {
+            background: rgba(239,68,68,0.25); color: #f87171; border-color: rgba(239,68,68,0.5);
+        }
+        .smart-table-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
         .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
         .smart-table-scroll { overflow-x: auto; }
