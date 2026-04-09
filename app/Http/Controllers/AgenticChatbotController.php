@@ -1234,7 +1234,7 @@ PROMPT;
                 }
             }
 
-            $pdf = \PDF::loadView('exports.pdf-table', [
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
                 'title' => strtoupper($title),
                 'generatedAt' => date('d M Y H:i'),
                 'headers' => $formattedHeaders,
