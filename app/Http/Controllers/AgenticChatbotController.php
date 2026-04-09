@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 
@@ -1150,12 +1151,14 @@ PROMPT;
             'headers' => 'required|array',
             'rows' => 'required|array',
             'filename' => 'nullable|string|max:255',
+            'title' => 'nullable|string|max:255',
             'chartInfo' => 'nullable|array',
         ]);
 
         $headers = $request->input('headers');
         $rows = $request->input('rows');
         $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.xlsx');
+        $title = $request->input('title', 'Data Export');
         $chartInfo = $request->input('chartInfo');
 
         // Increase time and memory limits for large exports
@@ -1172,7 +1175,7 @@ PROMPT;
             $export = new ChatTableExport(
                 $headers,
                 $rows,
-                $chartInfo ? 'Chart Data' : 'Data Export',
+                strtoupper($title),
                 $chartInfo
             );
 
@@ -1234,7 +1237,7 @@ PROMPT;
                 }
             }
 
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
+            $pdf = Pdf::loadView('exports.pdf-table', [
                 'title' => strtoupper($title),
                 'generatedAt' => date('d M Y H:i'),
                 'headers' => $formattedHeaders,

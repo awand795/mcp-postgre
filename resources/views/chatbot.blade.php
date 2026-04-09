@@ -1545,7 +1545,8 @@
                     body: JSON.stringify({
                         headers: cleanHeaders,
                         rows: cleanRows,
-                        filename: filename
+                        filename: filename,
+                        title: tableLabel
                     }),
                 });
 
@@ -1643,7 +1644,12 @@
                 const labels = chartConfig.data?.labels || [];
                 const datasets = chartConfig.data?.datasets || [];
                 const chartType = chartConfig.type || 'bar';
-                const chartTitle = chartConfig.options?.plugins?.title?.text || 'Chart Data';
+                const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
+                const chartTitle = chartContainer?.getAttribute('data-title')
+                    || chartConfig.data?.datasets?.[0]?.label
+                    || chartConfig.options?.plugins?.title?.text
+                    || chartConfig.title
+                    || 'Grafik Data';
                 
                 // Prepare data for Excel - EXACT data from chart
                 const rows = [];
@@ -1725,6 +1731,7 @@
                         headers: headers,
                         rows: rows,
                         filename: filename,
+                        title: chartTitle,
                         chartInfo: {
                             type: chartType,
                             title: chartTitle,
@@ -1885,7 +1892,12 @@
             }
 
             try {
-                const chartTitle = chartConfig.options?.plugins?.title?.text || chartId.replace(/_/g, ' ');
+                const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
+                const chartTitle = chartContainer?.getAttribute('data-title')
+                    || chartConfig.data?.datasets?.[0]?.label
+                    || chartConfig.options?.plugins?.title?.text
+                    || chartConfig.title
+                    || 'Grafik Data';
                 const labels = chartConfig.data?.labels || [];
                 const datasets = chartConfig.data?.datasets || [];
                 const chartType = chartConfig.type || 'bar';
@@ -1905,10 +1917,15 @@
                 }
 
                 // Convert chart to image for PDF
-                const canvas = document.querySelector(`#${chartId}`);
+                const canvas = document.querySelector(`#${chartId}-canvas`) || document.querySelector(`#${chartId} canvas`);
                 let chartImage = null;
-                if (canvas && canvas.toDataURL) {
-                    chartImage = canvas.toDataURL('image/png', 1.0);
+                if (canvas) {
+                    try {
+                        chartImage = canvas.toDataURL('image/png', 0.7);
+                    } catch (e) {
+                        console.warn('[PDF Chart] Canvas tainted or error, skipping image');
+                        chartImage = null;
+                    }
                 }
 
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
@@ -1931,8 +1948,8 @@
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || errorData.error || 'Export failed');
+                    const errorData = await response.json().catch(() => null);
+                    throw new Error(errorData?.message || errorData?.error || `Server error (${response.status})`);
                 }
 
                 const blob = await response.blob();
@@ -2266,6 +2283,7 @@
                 let headers = [];
                 let allRows = [];
                 let toolRes = null;
+                let tableLabel = null;
 
                 try {
                     const hb64 = wrap.getAttribute('data-headers-b64');
@@ -2274,6 +2292,7 @@
                     if (hb64 && rb64) {
                         headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
                         allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
+                        tableLabel = wrap.getAttribute('data-title') || tableId.replace(/_/g, ' ');
                     }
                     else if (!isNaN(toolIdx)) {
                         toolRes = toolResults[toolIdx];
@@ -2321,7 +2340,7 @@
 
                         const tableData = toolRes.data || toolRes;
                         currencyColumns = tableData.currency_columns || [];
-                        const tableLabel = toolRes.label || tableData.label || null;
+                        tableLabel = toolRes.label || tableData.label || null;
 
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
@@ -2407,14 +2426,25 @@
                         try {
                             const chartData = JSON.parse(code.trim());
                             let chartIdx = -1;
+                            let chartLabel = null;
 
                             if (chartData.tool_index !== undefined) {
                                 chartIdx = parseInt(chartData.tool_index);
+                                // Try to get label from the tool result
+                                if (chartIdx >= 0 && currentToolResults[chartIdx]) {
+                                    const tr = currentToolResults[chartIdx];
+                                    chartLabel = tr.label || tr.data?.label || null;
+                                }
                             } else if (chartData.type) {
                                 chartIdx = currentToolResults.length;
+                                // Get title from: explicit title > label > first dataset label
+                                chartLabel = chartData.title || chartData.label
+                                    || chartData.data?.datasets?.[0]?.label
+                                    || null;
                                 currentToolResults.push({
                                     tool_name: 'chart',
-                                    data: { chart_config: chartData }
+                                    data: { chart_config: chartData },
+                                    label: chartLabel
                                 });
                             }
 
@@ -2423,7 +2453,8 @@
                             }
 
                             const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
-                            return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}">
+                            const titleAttr = chartLabel ? ` data-title="${chartLabel}"` : '';
+                            return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}"${titleAttr}>
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
                         } catch(e) {
@@ -2765,6 +2796,9 @@
                 }
 
                 const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
+                // Store label on container for export
+                const chartLabel = toolRes.label || toolRes.data?.label || null;
+                if (chartLabel) container.setAttribute('data-title', chartLabel);
                 initChartWithConfig(canvas, config, container, chartId, currencyColumns);
             });
 
