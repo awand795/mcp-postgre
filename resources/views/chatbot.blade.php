@@ -1992,7 +1992,6 @@
             const h = header.toLowerCase();
             
             // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
-            // This now contains both AI-selected and Backend auto-detected columns
             if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
                 const aiCols = smartTables[tableId].currencyColumns.map(c => c.toLowerCase());
                 if (aiCols.includes(h)) {
@@ -2000,16 +1999,20 @@
                 }
             }
 
-            // 1. Minimal Fallback logic (Only for very common unambiguous terms)
-            // We use this only if the column wasn't explicitly tagged by AI/Backend
-            const moneyMarkers = ['netto', 'dpp', 'harga', 'price', 'laba', 'profit', 'nominal', 'biaya', 'fee', 'ongkir'];
+            // 1. Comprehensive list of money markers in both Indonesian and English
+            const moneyMarkers = [
+                'netto', 'dpp', 'harga', 'price', 'laba', 'profit', 'nominal', 'biaya', 'fee', 'ongkir',
+                'amount', 'sales', 'payment', 'revenue', 'cogs', 'hpp', 'tax', 'diskon', 'discount',
+                'budget', 'total_netto', 'total_dpp', 'gpn'
+            ];
+            
             const isMoney = moneyMarkers.some(p => h.includes(p));
             
             if (isMoney) {
                 // Exclusion check for quantities/counts even with money markers
                 const excludes = ['qty', 'jumlah', 'count', 'unit', 'terjual', 'stok', 'stock', 'persen', 'percent'];
                 if (excludes.some(e => h.includes(e))) {
-                    // Exception: "total_netto" is still money
+                    // Exception: specific money totals
                     if (h === 'total_netto' || h === 'total_dpp') return true;
                     return false;
                 }
@@ -2065,6 +2068,8 @@
             
             const isMoney = header && isCurrencyColumn(header, tableId);
             const strVal = String(val);
+            const h = header ? header.toLowerCase() : '';
+            
             // Clean number for parsing
             const num = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
             
@@ -2072,14 +2077,18 @@
                 return currencyFormatter.format(num);
             }
             
+            // Patterns that should NOT get thousands separators (IDs, Codes, Years, Refs, etc.)
+            // Synchronized with backend PDF export regex
+            const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
+
             // Format as standard number with thousands separator if it's numeric
-            // but avoid formatting small numbers or things that look like IDs
             if (typeof val === 'number') {
+                if (isNonNumericStyled) return String(val);
                 return val.toLocaleString('id-ID');
             }
             
-            // If string looks like a pure number and is long, format it
-            if (!isNaN(num) && /^-?\d+$/.test(strVal) && strVal.length > 3 && (!header || (!header.toLowerCase().includes('id') && !header.toLowerCase().includes('kode')))) {
+            // If string looks like a pure number and is long, format it ONLY if not an ID/Code/Ref
+            if (!isNaN(num) && /^-?\d+$/.test(strVal) && strVal.length > 3 && !isNonNumericStyled) {
                 return num.toLocaleString('id-ID');
             }
             

@@ -1162,9 +1162,9 @@ PROMPT;
             $columnTypes = [];
             foreach ($headers as $i => $header) {
                 $headerName = strtolower($header);
-                if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
+                if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i', $headerName)) {
                     $columnTypes[$i] = 'text';
-                } elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian)/i', $headerName)) {
+                } elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|revenue|payment|tax|discount|budget)/i', $headerName)) {
                     $columnTypes[$i] = 'currency';
                 } else {
                     $columnTypes[$i] = 'number';
