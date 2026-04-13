@@ -190,10 +190,22 @@ class AdminController extends Controller
                     'table_name' => $parts[2],
                 ]);
             } else {
-                // Legacy format - use defaults
-                $defaultDbCode = config('database.default', 'pgsql_mbi');
-                $defaultSchema = config("database.connections.{$defaultDbCode}.search_path.0", 'public');
-                
+                // Legacy format - use defaults from first active database
+                $defaultDb = DatabaseConnection::active()->first();
+                if ($defaultDb) {
+                    $defaultDbCode = $defaultDb->code;
+                    $defaultSchema = $defaultDb->schema ?? match ($defaultDb->driver) {
+                        'pgsql' => 'public',
+                        'sqlsrv' => 'dbo',
+                        'mysql', 'mariadb' => $defaultDb->database,
+                        'sqlite' => 'main',
+                        default => 'public',
+                    };
+                } else {
+                    $defaultDbCode = config('database.default', 'pgsql');
+                    $defaultSchema = 'public';
+                }
+
                 RolePermission::create([
                     'role_id' => $role->id,
                     'database_code' => $defaultDbCode,
@@ -204,10 +216,11 @@ class AdminController extends Controller
         }
 
         // Clear SEMUA cache keys terkait role ini (harus konsisten dengan ToolCallExecutor)
-        cache()->forget("agentic_allowed_tables_role_{$role->id}");  // key yg dipakai ToolCallExecutor
+        cache()->forget("agentic_allowed_dbs_role_{$role->id}");      // key yg dipakai QueryService
+        cache()->forget("agentic_allowed_tables_role_{$role->id}");   // key lama (backward compat)
         cache()->forget("allowed_tables_role_{$role->id}");           // key lama (backward compat)
         // Clear cache admin juga agar sinkron
-        cache()->forget('agentic_all_tables_admin');
+        cache()->forget('agentic_all_dbs_admin');
         cache()->forget('all_db_tables_admin');
 
         return response()->json(['success' => true]);
@@ -226,17 +239,36 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|unique:database_connections',
             'code' => 'required|unique:database_connections|alpha_dash',
-            'host' => 'required',
+            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
             'port' => 'required|integer',
             'database' => 'required',
-            'username' => 'required',
-            'password' => 'required',
-            'schema' => 'required',
+            'username' => 'nullable',
+            'password' => 'required_unless:driver,sqlite',
+            'schema' => 'nullable',
+            'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
+            'connection_timeout' => 'nullable|integer|min:5|max:300',
             'description' => 'nullable',
         ]);
 
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
+
+        // Set defaults based on driver
+        $driver = $validated['driver'];
+        if (empty($validated['schema'])) {
+            $validated['schema'] = match ($driver) {
+                'pgsql' => 'public',
+                'sqlsrv' => 'dbo',
+                'mysql', 'mariadb' => $validated['database'], // MySQL uses DB name as schema
+                'sqlite' => 'main',
+                default => 'public',
+            };
+        }
+
+        if (empty($validated['connection_timeout'])) {
+            $validated['connection_timeout'] = 30;
+        }
 
         // If setting as default, unset others
         if ($validated['is_default']) {
@@ -251,9 +283,9 @@ class AdminController extends Controller
         // Clear table cache so new database tables appear in role management
         $this->clearTableCache();
 
-        return back()->with($testResult['success'] ? 'success' : 'warning', 
-            $testResult['success'] 
-                ? 'Database berhasil ditambahkan dan terhubung.' 
+        return back()->with($testResult['success'] ? 'success' : 'warning',
+            $testResult['success']
+                ? 'Database berhasil ditambahkan dan terhubung.'
                 : 'Database berhasil ditambahkan, tetapi koneksi gagal: ' . ($testResult['error'] ?? 'Unknown error')
         );
     }
@@ -262,17 +294,32 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|unique:database_connections,name,' . $database->id,
-            'host' => 'required',
+            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
             'port' => 'required|integer',
             'database' => 'required',
-            'username' => 'required',
+            'username' => 'nullable',
             'password' => 'nullable',
-            'schema' => 'required',
+            'schema' => 'nullable',
+            'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
+            'connection_timeout' => 'nullable|integer|min:5|max:300',
             'description' => 'nullable',
         ]);
 
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
+
+        // Set defaults based on driver if schema is empty
+        if (empty($validated['schema'])) {
+            $driver = $validated['driver'] ?? $database->driver;
+            $validated['schema'] = match ($driver) {
+                'pgsql' => 'public',
+                'sqlsrv' => 'dbo',
+                'mysql', 'mariadb' => $validated['database'] ?? $database->database,
+                'sqlite' => 'main',
+                default => 'public',
+            };
+        }
 
         // If setting as default, unset others
         if ($validated['is_default']) {
@@ -314,6 +361,43 @@ class AdminController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Test all database connections and return health status
+     */
+    public function testAllConnections()
+    {
+        $databases = DatabaseConnection::all();
+        $results = [];
+
+        foreach ($databases as $db) {
+            $startTime = microtime(true);
+            $testResult = $db->testConnection();
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            $results[] = [
+                'id' => $db->id,
+                'name' => $db->name,
+                'code' => $db->code,
+                'driver' => $db->driver,
+                'host' => $db->host,
+                'database' => $db->database,
+                'success' => $testResult['success'],
+                'version' => $testResult['version'] ?? null,
+                'error' => $testResult['error'] ?? null,
+                'response_time_ms' => $responseTime,
+                'last_tested_at' => $db->last_tested_at?->toISOString(),
+                'test_status' => $db->test_status,
+            ];
+        }
+
+        return response()->json([
+            'total' => count($results),
+            'healthy' => count(array_filter($results, fn($r) => $r['success'])),
+            'unhealthy' => count(array_filter($results, fn($r) => !$r['success'])),
+            'databases' => $results,
+        ]);
+    }
+
     public function databaseSchemas(DatabaseConnection $database)
     {
         $schemas = $database->getSchemas();
@@ -326,20 +410,24 @@ class AdminController extends Controller
     public function loadSchemasFromParams(Request $request)
     {
         $validated = $request->validate([
-            'host' => 'required',
+            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
             'port' => 'required|integer',
             'database' => 'required',
-            'username' => 'required',
-            'password' => 'required',
+            'username' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+            'password' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+            'schema' => 'nullable',
         ]);
 
         // Create temporary model instance
         $tempDb = new DatabaseConnection([
+            'driver' => $validated['driver'],
             'host' => $validated['host'],
             'port' => $validated['port'],
             'database' => $validated['database'],
             'username' => $validated['username'],
             'password' => $validated['password'],
+            'schema' => $validated['schema'] ?? 'public',
         ]);
 
         $schemas = $tempDb->getSchemas();
@@ -405,11 +493,13 @@ class AdminController extends Controller
      */
     private function clearTableCache(): void
     {
-        cache()->forget('agentic_all_tables_admin');
+        // FIX: Use correct cache keys that match QueryService
+        cache()->forget('agentic_all_dbs_admin');
         cache()->forget('all_db_tables_admin');
 
         // Clear role-specific caches
         Role::all()->each(function($role) {
+            cache()->forget("agentic_allowed_dbs_role_{$role->id}");
             cache()->forget("agentic_allowed_tables_role_{$role->id}");
             cache()->forget("allowed_tables_role_{$role->id}");
         });

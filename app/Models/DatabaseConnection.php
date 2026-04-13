@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Services\Database\DriverFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseConnection extends Model
 {
@@ -21,6 +23,9 @@ class DatabaseConnection extends Model
         'username',
         'password',
         'schema',
+        'ssl_mode',
+        'connection_timeout',
+        'options',
         'description',
         'is_active',
         'is_default',
@@ -32,13 +37,23 @@ class DatabaseConnection extends Model
         'is_active' => 'boolean',
         'is_default' => 'boolean',
         'port' => 'integer',
+        'connection_timeout' => 'integer',
         'last_tested_at' => 'datetime',
+        'options' => 'array',
         // password encryption handled manually in mutator/accessor
     ];
 
     protected $hidden = [
         'password',
     ];
+
+    /**
+     * Get the driver adapter for this connection
+     */
+    public function getAdapter(): \App\Services\Database\DriverAdapter
+    {
+        return DriverFactory::make($this->driver);
+    }
 
     /**
      * Mutator: Encrypt password before saving
@@ -90,19 +105,26 @@ class DatabaseConnection extends Model
      */
     public function getConnectionConfig(): array
     {
-        return [
+        $adapter = $this->getAdapter();
+
+        $config = [
             'driver' => $this->driver,
             'host' => $this->host,
             'port' => $this->port,
             'database' => $this->database,
             'username' => $this->username,
             'password' => $this->getDecryptedPasswordAttribute(),
-            'schema' => $this->schema,
-            'search_path' => [$this->schema, 'public'],
-            'charset' => 'utf8',
+            'charset' => $this->driver === 'mysql' || $this->driver === 'mariadb' ? 'utf8mb4' : 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
+            'schema' => $this->schema,
+            'ssl_mode' => $this->ssl_mode,
+            'connection_timeout' => $this->connection_timeout,
+            'options' => is_string($this->options) ? json_decode($this->options, true) : ($this->options ?? []),
         ];
+
+        // Let the adapter add driver-specific options
+        return $adapter->getConnectionOptions($config);
     }
 
     /**
@@ -112,17 +134,18 @@ class DatabaseConnection extends Model
     {
         try {
             $config = $this->getConnectionConfig();
-            
+            $adapter = $this->getAdapter();
+
             // Create temporary connection
-            \Illuminate\Support\Facades\DB::purge('test_connection');
+            DB::purge('test_connection');
             config(["database.connections.test_connection" => $config]);
-            
-            $pdo = \Illuminate\Support\Facades\DB::connection('test_connection')->getPdo();
-            $result = \Illuminate\Support\Facades\DB::connection('test_connection')
-                ->select("SELECT version()");
-            
-            \Illuminate\Support\Facades\DB::purge('test_connection');
-            
+
+            $pdo = DB::connection('test_connection')->getPdo();
+            $versionQuery = DriverFactory::getVersionQuery($this->driver);
+            $result = DB::connection('test_connection')->select($versionQuery);
+
+            DB::purge('test_connection');
+
             $this->update([
                 'test_status' => 'success',
                 'last_tested_at' => now(),
@@ -130,11 +153,11 @@ class DatabaseConnection extends Model
 
             return [
                 'success' => true,
-                'version' => $result[0]->version ?? 'Unknown',
+                'version' => $adapter->formatVersion($result),
             ];
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::purge('test_connection');
-            
+            DB::purge('test_connection');
+
             $this->update([
                 'test_status' => 'failed',
                 'last_tested_at' => now(),
@@ -152,40 +175,35 @@ class DatabaseConnection extends Model
      */
     public function getTables(): array
     {
+        $tempConn = 'temp_conn_' . $this->code;
+
         try {
             $config = $this->getConnectionConfig();
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
-            config(["database.connections.temp_conn_" . $this->code => $config]);
+            $adapter = $this->getAdapter();
 
-            // Query ALL tables AND views from all schemas
-            $tables = \Illuminate\Support\Facades\DB::connection('temp_conn_' . $this->code)
-                ->select("
-                    SELECT
-                        t.table_name,
-                        t.table_schema,
-                        COALESCE(
-                            (SELECT description FROM pg_description
-                             WHERE objoid = (t.table_schema || '.' || t.table_name)::regclass),
-                            ''
-                        ) as description,
-                        t.table_type
-                    FROM information_schema.tables t
-                    WHERE t.table_schema NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
-                    AND t.table_type IN ('BASE TABLE', 'VIEW')
-                    ORDER BY t.table_type DESC, t.table_schema, t.table_name
-                ");
+            DB::purge($tempConn);
+            config(["database.connections.{$tempConn}" => $config]);
 
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
+            $query = $adapter->listTablesQuery();
+
+            // SQLite uses PRAGMA which can't be parameterized
+            if ($this->driver === 'sqlite') {
+                $tables = DB::connection($tempConn)->select($query);
+            } else {
+                $tables = DB::connection($tempConn)->select($query);
+            }
+
+            DB::purge($tempConn);
 
             if (empty($tables)) {
                 \Log::warning("No tables or views found in database: {$this->name}");
             }
 
             return array_map(function($table) {
-                $isView = $table->table_type === 'VIEW';
+                $isView = isset($table->table_type) && stripos($table->table_type, 'view') !== false;
                 return [
                     'table_name' => $table->table_name,
-                    'schema_name' => $table->table_schema,
+                    'schema_name' => $table->table_schema ?? $this->schema ?? '',
                     'description' => $table->description ?? '',
                     'table_type' => $isView ? 'view' : 'table',
                 ];
@@ -195,7 +213,7 @@ class DatabaseConnection extends Model
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
+            DB::purge($tempConn);
             return [];
         }
     }
@@ -205,24 +223,28 @@ class DatabaseConnection extends Model
      */
     public function getSchemas(): array
     {
+        $tempConn = 'temp_conn_' . $this->code;
+
         try {
             $config = $this->getConnectionConfig();
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
-            config(["database.connections.temp_conn_" . $this->code => $config]);
-            
-            $schemas = \Illuminate\Support\Facades\DB::connection('temp_conn_' . $this->code)
-                ->select("
-                    SELECT schema_name 
-                    FROM information_schema.schemata 
-                    WHERE schema_name NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
-                    ORDER BY schema_name
-                ");
-            
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
-            
+            $adapter = $this->getAdapter();
+
+            // If driver doesn't use schema concept, return empty or database name
+            if (!$adapter->usesSchema()) {
+                return [$this->database];
+            }
+
+            DB::purge($tempConn);
+            config(["database.connections.{$tempConn}" => $config]);
+
+            $query = $adapter->listSchemasQuery();
+            $schemas = DB::connection($tempConn)->select($query);
+
+            DB::purge($tempConn);
+
             return array_column($schemas, 'schema_name');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::purge('temp_conn_' . $this->code);
+            DB::purge($tempConn);
             return [];
         }
     }

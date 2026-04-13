@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Services\BaseService;
+use App\Services\Database\DriverFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -49,29 +50,45 @@ class SchemaService extends BaseService
                  return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }
 
+            $adapter = $dbModel->getAdapter();
+
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            $columns = DB::connection($connName)->select("
-                SELECT column_name, data_type, is_nullable
-                FROM information_schema.columns
-                WHERE table_name = ? AND table_schema = ?
-                ORDER BY ordinal_position
-            ", [$tableName, $schemaName]);
-            
-            DB::purge($connName);
+            // SQLite uses PRAGMA table_info which can't be parameterized
+            if ($dbModel->driver === 'sqlite') {
+                $columns = DB::connection($connName)->select("PRAGMA table_info({$tableName})");
 
-            if (empty($columns)) {
-                return $this->errorResponse("Table '{$schemaName}.{$tableName}' not found or has no columns in database '{$databaseCode}'.");
+                // Transform PRAGMA result to standard format
+                $result = [];
+                foreach ($columns as $col) {
+                    $result[] = [
+                        'column'   => $col->name,
+                        'type'     => $col->type,
+                        'nullable' => $col->notnull ? 'NO' : 'YES',
+                    ];
+                }
+            } else {
+                // For MySQL, use database name as schema if driver doesn't use schema concept
+                $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
+
+                $query = $adapter->describeTableQuery();
+                $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
+
+                $result = [];
+                foreach ($columns as $col) {
+                    $result[] = [
+                        'column'   => $col->column_name,
+                        'type'     => $col->data_type,
+                        'nullable' => $col->is_nullable,
+                    ];
+                }
             }
 
-            $result = [];
-            foreach ($columns as $col) {
-                $result[] = [
-                    'column'   => $col->column_name,
-                    'type'     => $col->data_type,
-                    'nullable' => $col->is_nullable,
-                ];
+            DB::purge($connName);
+
+            if (empty($result)) {
+                return $this->errorResponse("Table '{$schemaName}.{$tableName}' not found or has no columns in database '{$databaseCode}'.");
             }
 
             return $this->safeJsonEncode([

@@ -402,7 +402,7 @@
                 } else {
                     // New format: { database_code, database_name, schema_name, table_name, description, table_type }
                     dbCode = tableData.database_code || 'unknown';
-                    dbName = tableData.database_name || dbCode;
+                    let dbName = tableData.database_name || dbCode;
                     schemaName = tableData.schema_name || 'public';
                     tableName = tableData.table_name;
                     description = tableData.description || '';

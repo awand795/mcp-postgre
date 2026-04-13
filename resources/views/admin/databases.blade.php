@@ -3,7 +3,14 @@
 @section('content')
     <div class="header">
         <h1>Management Database</h1>
-        <button class="btn btn-primary" onclick="showDatabaseModal('create')"><i class="fas fa-plus"></i> <span>Tambah Database</span></button>
+        <div style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary" onclick="testAllConnections()" id="testAllBtn">
+                <i class="fas fa-heartbeat"></i> <span>Test All Connections</span>
+            </button>
+            <button class="btn btn-primary" onclick="showDatabaseModal('create')">
+                <i class="fas fa-plus"></i> <span>Tambah Database</span>
+            </button>
+        </div>
     </div>
 
     @if(session('success'))
@@ -28,11 +35,12 @@
         @foreach($databases as $db)
             <div class="glass-card database-card {{ !$db->is_active ? 'inactive' : '' }}">
                 <div class="db-header">
-                    <div class="db-icon">
-                        <i class="fas fa-database"></i>
+                    <div class="db-icon driver-icon-{{ $db->driver }}">
+                        <i class="fas {{ $db->driver === 'mysql' || $db->driver === 'mariadb' ? 'fa-database' : ($db->driver === 'sqlsrv' ? 'fa-server' : ($db->driver === 'sqlite' ? 'fa-file-code' : 'fa-database')) }}"></i>
                     </div>
                     <div class="db-info">
                         <h3>{{ $db->name }}
+                            <span class="badge badge-driver">{{ strtoupper($db->driver) }}</span>
                             @if($db->is_default)
                                 <span class="badge badge-default">Default</span>
                             @endif
@@ -129,12 +137,26 @@
                     </div>
                 </div>
 
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Driver Database <span style="color: #ef4444;">*</span></label>
+                    <select name="driver" id="dbDriverSelect"
+                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
+                        required onchange="onDriverChange()">
+                        <option value="pgsql">PostgreSQL</option>
+                        <option value="mysql">MySQL</option>
+                        <option value="mariadb">MariaDB</option>
+                        <option value="sqlsrv">Microsoft SQL Server</option>
+                        <option value="sqlite">SQLite</option>
+                    </select>
+                    <small style="color: #64748b; font-size: 0.75rem;">Pilih jenis database yang ingin dihubungkan</small>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Host <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="hostLabel">Host <span style="color: #ef4444;">*</span></label>
                         <input type="text" name="host" id="dbHostInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
-                            placeholder="db.example.com" required>
+                            placeholder="db.example.com">
                     </div>
                     <div style="margin-bottom: 1rem;">
                         <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Port <span style="color: #ef4444;">*</span></label>
@@ -145,20 +167,19 @@
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Database (PostgreSQL) <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="databaseLabel">Nama Database <span style="color: #ef4444;">*</span></label>
                     <input type="text" name="database" id="dbDatabaseInput"
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                         placeholder="my_database" required>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Username <span style="color: #ef4444;">*</span></label>
+                    <div style="margin-bottom: 1rem;" id="usernameGroup">
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Username <span style="color: #ef4444;" id="usernameRequiredMark">*</span></label>
                         <input type="text" name="username" id="dbUsernameInput"
-                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
-                            required>
+                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
                     </div>
-                    <div style="margin-bottom: 1rem;">
+                    <div style="margin-bottom: 1rem;" id="passwordGroup">
                         <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Password <span style="color: #ef4444;" id="passwordRequiredMark">*</span></label>
                         <input type="password" name="password" id="dbPasswordInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
@@ -166,20 +187,46 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Schema <span style="color: #ef4444;">*</span></label>
+                <div style="margin-bottom: 1rem;" id="schemaGroup">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="schemaLabel">Schema <span style="color: #ef4444;">*</span></label>
                     <div style="display: flex; gap: 0.5rem;">
                         <input type="text" name="schema" id="dbSchemaInput"
                             style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
-                            placeholder="sch_mbi" required>
+                            placeholder="sch_mbi">
                         <button type="button" class="btn" onclick="loadSchemas()" id="loadSchemasBtn" style="white-space: nowrap;">
                             <i class="fas fa-sync-alt"></i> Load Schemas
                         </button>
                     </div>
-                    <select id="dbSchemaSelect" 
+                    <select id="dbSchemaSelect"
                         style="display: none; width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; margin-top: 0.5rem;">
                     </select>
+                    <small style="color: #64748b; font-size: 0.75rem;" id="schemaHint">PostgreSQL: sch_nama, SQL Server: dbo, MySQL/MariaDB: otomatis</small>
                 </div>
+
+                <!-- Advanced Options -->
+                <details style="margin-bottom: 1rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px;">
+                    <summary style="color: #94a3b8; cursor: pointer; font-weight: 600; margin-bottom: 1rem;">
+                        <i class="fas fa-cog"></i> Advanced Options
+                    </summary>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">SSL Mode</label>
+                            <select name="ssl_mode" id="dbSslModeInput"
+                                style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
+                                <option value="">None</option>
+                                <option value="prefer">Prefer</option>
+                                <option value="require">Require</option>
+                                <option value="verify-ca">Verify CA</option>
+                                <option value="verify-full">Verify Full</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Connection Timeout (seconds)</label>
+                            <input type="number" name="connection_timeout" id="dbTimeoutInput" value="30" min="5" max="300"
+                                style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
+                        </div>
+                    </div>
+                </details>
 
                 <div style="margin-bottom: 1rem;">
                     <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Deskripsi</label>
@@ -367,6 +414,27 @@
             color: white;
         }
 
+        .badge-driver {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .driver-icon-pgsql {
+            background: linear-gradient(135deg, #336791, #4a8bc7);
+        }
+
+        .driver-icon-mysql, .driver-icon-mariadb {
+            background: linear-gradient(135deg, #00758f, #f29111);
+        }
+
+        .driver-icon-sqlsrv {
+            background: linear-gradient(135deg, #e04e3d, #f47b2b);
+        }
+
+        .driver-icon-sqlite {
+            background: linear-gradient(135deg, #003b57, #44a0d3);
+        }
+
         .empty-state {
             grid-column: 1 / -1;
             text-align: center;
@@ -415,6 +483,26 @@
             color: #ef4444;
         }
 
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: #94a3b8;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
         @media (max-width: 768px) {
             .database-grid {
                 grid-template-columns: 1fr;
@@ -431,6 +519,68 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         let editingDatabaseId = null;
+
+        /**
+         * Driver configuration map
+         */
+        const driverConfig = {
+            pgsql:   { port: 5432, usesSchema: true, defaultSchema: 'public',   hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
+            mysql:   { port: 3306, usesSchema: false, defaultSchema: '',         hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
+            mariadb: { port: 3306, usesSchema: false, defaultSchema: '',         hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
+            sqlsrv:  { port: 1433, usesSchema: true, defaultSchema: 'dbo',      hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
+            sqlite:  { port: 0,   usesSchema: false, defaultSchema: '',          hostPlaceholder: '(tidak diperlukan)', dbLabel: 'Path File SQLite' },
+        };
+
+        /**
+         * Handle driver selection change
+         */
+        window.onDriverChange = function() {
+            const driver = document.getElementById('dbDriverSelect').value;
+            const config = driverConfig[driver] || driverConfig.pgsql;
+
+            // Update port
+            document.getElementById('dbPortInput').value = config.port;
+
+            // Update labels and placeholders
+            document.getElementById('hostLabel').innerHTML = (driver === 'sqlite')
+                ? 'Path File <span style="color: #ef4444;">*</span>'
+                : 'Host <span style="color: #ef4444;">*</span>';
+            document.getElementById('dbHostInput').placeholder = config.hostPlaceholder;
+            document.getElementById('databaseLabel').innerHTML = config.dbLabel + ' <span style="color: #ef4444;">*</span>';
+
+            // Handle schema field visibility
+            const schemaGroup = document.getElementById('schemaGroup');
+            if (config.usesSchema) {
+                schemaGroup.style.display = 'block';
+                document.getElementById('dbSchemaInput').value = config.defaultSchema;
+                document.getElementById('schemaHint').textContent = driver === 'sqlsrv'
+                    ? 'SQL Server: dbo, sch_nama'
+                    : 'PostgreSQL: sch_nama, public';
+            } else {
+                if (driver === 'mysql' || driver === 'mariadb') {
+                    schemaGroup.style.display = 'block';
+                    document.getElementById('dbSchemaInput').value = '';
+                    document.getElementById('dbSchemaInput').placeholder = '(otomatis dari nama database)';
+                    document.getElementById('schemaHint').textContent = 'MySQL/MariaDB: schema = database name, kosongkan untuk otomatis';
+                } else {
+                    schemaGroup.style.display = 'none';
+                }
+            }
+
+            // Handle SQLite - hide username/password
+            if (driver === 'sqlite') {
+                document.getElementById('usernameGroup').style.display = 'none';
+                document.getElementById('passwordGroup').style.display = 'none';
+                document.getElementById('dbUsernameInput').required = false;
+                document.getElementById('dbPasswordInput').required = false;
+                document.getElementById('dbHostInput').required = false;
+                document.getElementById('loadSchemasBtn').style.display = 'none';
+            } else {
+                document.getElementById('usernameGroup').style.display = 'block';
+                document.getElementById('passwordGroup').style.display = 'block';
+                document.getElementById('loadSchemasBtn').style.display = 'inline-block';
+            }
+        };
 
         window.showDatabaseModal = function(type, db = null) {
             const modal = document.getElementById('databaseModal');
@@ -451,6 +601,11 @@
                 form.action = "{{ route('admin.databases.store') }}";
                 method.value = 'POST';
                 editingDatabaseId = null;
+
+                // Set default driver to PostgreSQL
+                document.getElementById('dbDriverSelect').value = 'pgsql';
+                onDriverChange();
+
                 passwordInput.required = true;
                 passwordHint.style.display = 'none';
                 passwordRequiredMark.style.display = 'inline';
@@ -459,6 +614,9 @@
                 form.action = `/admin/databases/${db.id}`;
                 method.value = 'PUT';
                 editingDatabaseId = db.id;
+
+                document.getElementById('dbDriverSelect').value = db.driver || 'pgsql';
+                onDriverChange();
 
                 document.getElementById('dbNameInput').value = db.name;
                 document.getElementById('dbCodeInput').value = db.code;
@@ -471,6 +629,10 @@
                 document.getElementById('dbIsActiveInput').checked = db.is_active;
                 document.getElementById('dbIsDefaultInput').checked = db.is_default;
 
+                // Set advanced options if available
+                if (db.ssl_mode) document.getElementById('dbSslModeInput').value = db.ssl_mode;
+                if (db.connection_timeout) document.getElementById('dbTimeoutInput').value = db.connection_timeout;
+
                 passwordInput.required = false;
                 passwordHint.style.display = 'block';
                 passwordRequiredMark.style.display = 'none';
@@ -480,6 +642,7 @@
         };
 
         window.loadSchemas = async function() {
+            const driver = document.getElementById('dbDriverSelect').value;
             const dbHost = document.getElementById('dbHostInput').value;
             const dbPort = document.getElementById('dbPortInput').value;
             const dbName = document.getElementById('dbDatabaseInput').value;
@@ -505,7 +668,7 @@
                     // Edit mode - use database ID
                     const response = await fetch(`/admin/databases/${editingDatabaseId}/schemas`);
                     const data = await response.json();
-                    
+
                     if (data.schemas && data.schemas.length > 0) {
                         showSchemaSelect(data.schemas);
                     } else {
@@ -520,6 +683,7 @@
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         },
                         body: JSON.stringify({
+                            driver: driver,
                             host: dbHost,
                             port: parseInt(dbPort),
                             database: dbName,
@@ -529,7 +693,7 @@
                     });
 
                     const data = await response.json();
-                    
+
                     if (data.schemas && data.schemas.length > 0) {
                         showSchemaSelect(data.schemas);
                     } else {
@@ -650,5 +814,83 @@
                 this.style.display = 'none';
             }
         });
+
+        /**
+         * Test all database connections and show health report
+         */
+        window.testAllConnections = async function() {
+            const btn = document.getElementById('testAllBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+
+            try {
+                const response = await fetch("{{ route('admin.databases.test-all') }}");
+                const data = await response.json();
+
+                let html = `
+                    <div style="text-align: left; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>Total Databases:</span>
+                            <strong>${data.total}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #10b981;">
+                            <span><i class="fas fa-check-circle"></i> Healthy:</span>
+                            <strong>${data.healthy}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; color: #ef4444;">
+                            <span><i class="fas fa-times-circle"></i> Unhealthy:</span>
+                            <strong>${data.unhealthy}</strong>
+                        </div>
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem;">
+                `;
+
+                data.databases.forEach(db => {
+                    const statusIcon = db.success
+                        ? '<i class="fas fa-check-circle" style="color: #10b981;"></i>'
+                        : '<i class="fas fa-times-circle" style="color: #ef4444;"></i>';
+
+                    const statusText = db.success
+                        ? `${db.version || 'Connected'} (${db.response_time_ms}ms)`
+                        : `Error: ${db.error || 'Unknown'}`;
+
+                    html += `
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            ${statusIcon}
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600;">${db.name} <span style="color: #8b5cf6; font-size: 0.75rem;">[${db.driver.toUpperCase()}]</span></div>
+                                <div style="color: #64748b; font-size: 0.8rem;">${db.host}:${db.port}/${db.database}</div>
+                                <div style="color: #94a3b8; font-size: 0.8rem;">${statusText}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+
+                Swal.fire({
+                    title: 'Database Health Report',
+                    html: html,
+                    icon: data.unhealthy === 0 ? 'success' : 'warning',
+                    width: '600px',
+                    confirmButtonText: 'Tutup'
+                });
+
+                // Reload page to update status badges
+                if (data.unhealthy > 0 || data.healthy > 0) {
+                    setTimeout(() => window.location.reload(), 3000);
+                }
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to test connections: ' + error.message
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        };
     </script>
 @endsection

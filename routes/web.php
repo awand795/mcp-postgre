@@ -80,6 +80,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/databases/{database}/test', [AdminController::class, 'databaseTest'])->name('databases.test');
         Route::get('/databases/{database}/schemas', [AdminController::class, 'databaseSchemas'])->name('databases.schemas');
         Route::post('/databases/load-schemas', [AdminController::class, 'loadSchemasFromParams'])->name('databases.load-schemas');
+        Route::get('/databases/test-all', [AdminController::class, 'testAllConnections'])->name('databases.test-all');
         Route::post('/cache/clear', [AdminController::class, 'clearCache'])->name('cache.clear');
     });
 });

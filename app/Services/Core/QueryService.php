@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use App\Models\RolePermission;
 use App\Services\BaseService;
+use App\Services\Database\DriverFactory;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -100,14 +101,29 @@ class QueryService extends BaseService
             return $this->errorResponse('Hanya query SELECT yang diizinkan.');
         }
 
-        // ── LAYER 3: Blokir kata kunci berbahaya ─────────────────────────────
+        // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ─────────────────────────────
+        // Get driver type for driver-specific forbidden keywords
+        $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+        $driver = $dbModel ? $dbModel->driver : 'pgsql';
+
         $forbidden = [
             'insert', 'update', 'delete', 'merge', 'upsert',
             'drop', 'truncate', 'alter', 'create', 'rename',
             'grant', 'revoke', 'execute', 'exec', 'call', 'do',
-            'copy', 'vacuum', 'pg_read_file', 'pg_write_file',
+            'vacuum', 'pg_read_file', 'pg_write_file',
             'lo_import', 'lo_export', 'dblink', 'dblink_exec',
         ];
+
+        // Add driver-specific forbidden keywords
+        if ($driver === 'pgsql') {
+            $forbidden[] = 'copy'; // PostgreSQL COPY command
+        } elseif ($driver === 'sqlsrv') {
+            $forbidden[] = 'bulk'; // SQL Server BULK operations
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            $forbidden[] = 'load'; // MySQL LOAD DATA
+            $forbidden[] = 'into'; // SELECT ... INTO
+        }
+
         $lowerSql = strtolower($sqlStripped);
         foreach ($forbidden as $kw) {
             if (preg_match('/\b' . preg_quote($kw, '/') . '\b/', $lowerSql)) {
@@ -177,7 +193,9 @@ class QueryService extends BaseService
         // Siapkan koneksi dinamis
         $connName = "temp_conn_{$databaseCode}";
         try {
-            $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+            if (!$dbModel) {
+                $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+            }
             if (!$dbModel) {
                  return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }
@@ -185,8 +203,15 @@ class QueryService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // ANTI-LIMIT: No statement timeout for SQL execution
-            DB::connection($connName)->statement('SET statement_timeout = 0');
+            // Set driver-specific timeout and limits
+            if ($driver === 'pgsql') {
+                DB::connection($connName)->statement('SET statement_timeout = 0');
+            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
+            } elseif ($driver === 'sqlsrv') {
+                // SQL Server timeout is handled in connection config
+            }
+
             $rows = DB::connection($connName)->select($cleanSql);
         } catch (\Exception $e) {
             DB::purge($connName);
@@ -194,9 +219,8 @@ class QueryService extends BaseService
 
             $dbError = $e->getMessage();
 
-            $msg = str_contains($dbError, 'statement timeout')
-                ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah (misal: WHERE periode_tahun = EXTRACT(YEAR FROM NOW())).'
-                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_database_schema_info' atau 'describe_table' (dengan parameter database_code dan schema_name) untuk memverifikasi struktur tabel yang benar sebelum mencoba query lagi. Jangan menebak nama kolom atau schema.";
+            // Driver-specific error messages
+            $msg = $this->formatDatabaseError($dbError, $driver, $cleanSql);
 
             return $this->safeJsonEncode(['error' => $msg]);
         }
@@ -336,5 +360,36 @@ class QueryService extends BaseService
         }
 
         return array_unique($cols);
+    }
+
+    /**
+     * Format database error message based on driver type
+     */
+    private function formatDatabaseError(string $dbError, string $driver, string $sql): string
+    {
+        // Timeout detection per driver
+        $timeoutPatterns = [
+            'pgsql' => ['statement timeout', 'canceling statement due to statement timeout'],
+            'mysql' => ['Statement timeout', 'max_execution_time'],
+            'mariadb' => ['Statement timeout', 'max_execution_time'],
+            'sqlsrv' => ['Timeout expired', 'execution timeout'],
+            'sqlite' => ['database is locked'],
+        ];
+
+        $isTimeout = false;
+        if (isset($timeoutPatterns[$driver])) {
+            foreach ($timeoutPatterns[$driver] as $pattern) {
+                if (stripos($dbError, $pattern) !== false) {
+                    $isTimeout = true;
+                    break;
+                }
+            }
+        }
+
+        if ($isTimeout) {
+            return 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah (misal: WHERE periode_tahun = EXTRACT(YEAR FROM NOW())).';
+        }
+
+        return "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_database_schema_info' atau 'describe_table' (dengan parameter database_code dan schema_name) untuk memverifikasi struktur tabel yang benar sebelum mencoba query lagi. Jangan menebak nama kolom atau schema.";
     }
 }

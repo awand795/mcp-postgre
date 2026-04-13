@@ -9,13 +9,30 @@ use PhpMcp\Server\Attributes\McpTool;
 class ListTables
 {
     /**
-     * List tables in sch_mbi schema that are accessible by the current user's role.
+     * List tables accessible by the current user's role across all databases.
+     * Returns tables grouped by database_code and schema_name.
      */
     #[McpTool(name: 'list_tables')]
     public function handle(): array
     {
-        // Kembalikan hanya tabel yang diizinkan berdasarkan role user
         $executor = new ToolCallExecutor();
-        return $executor->getAllowedTables();
+        $allowed = $executor->getAllowedTables();
+
+        // Transform to user-friendly format
+        $result = [];
+        foreach ($allowed as $dbCode => $schemas) {
+            foreach ($schemas as $schema => $tables) {
+                foreach ($tables as $table) {
+                    $result[] = [
+                        'database_code' => $dbCode,
+                        'schema_name' => $schema,
+                        'table_name' => $table,
+                        'full_reference' => "{$dbCode}.{$schema}.{$table}",
+                    ];
+                }
+            }
+        }
+
+        return $result;
     }
 }
