@@ -36,7 +36,8 @@
             <div class="glass-card database-card {{ !$db->is_active ? 'inactive' : '' }}">
                 <div class="db-header">
                     <div class="db-icon driver-icon-{{ $db->driver }}">
-                        <i class="fas {{ $db->driver === 'mysql' || $db->driver === 'mariadb' ? 'fa-database' : ($db->driver === 'sqlsrv' ? 'fa-server' : ($db->driver === 'sqlite' ? 'fa-file-code' : 'fa-database')) }}"></i>
+                        <i
+                            class="fas {{ $db->driver === 'mysql' || $db->driver === 'mariadb' ? 'fa-database' : ($db->driver === 'sqlsrv' ? 'fa-server' : ($db->driver === 'sqlite' ? 'fa-file-code' : 'fa-database')) }}"></i>
                     </div>
                     <div class="db-info">
                         <h3>{{ $db->name }}
@@ -58,7 +59,8 @@
                             <i class="fas fa-edit"></i>
                         </button>
                         @if(!$db->is_default)
-                            <button class="btn-icon btn-danger" onclick="deleteDatabase({{ $db->id }}, '{{ $db->name }}')" title="Delete">
+                            <button class="btn-icon btn-danger" onclick="deleteDatabase({{ $db->id }}, '{{ $db->name }}')"
+                                title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         @endif
@@ -123,13 +125,15 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Database <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Database <span
+                                style="color: #ef4444;">*</span></label>
                         <input type="text" name="name" id="dbNameInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                             placeholder="MBI Production" required>
                     </div>
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Kode <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Kode <span
+                                style="color: #ef4444;">*</span></label>
                         <input type="text" name="code" id="dbCodeInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                             placeholder="mbi_prod" required>
@@ -138,7 +142,8 @@
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Driver Database <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Driver Database <span
+                            style="color: #ef4444;">*</span></label>
                     <select name="driver" id="dbDriverSelect"
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                         required onchange="onDriverChange()">
@@ -153,13 +158,15 @@
 
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="hostLabel">Host <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="hostLabel">Host <span
+                                style="color: #ef4444;">*</span></label>
                         <input type="text" name="host" id="dbHostInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                             placeholder="db.example.com">
                     </div>
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Port <span style="color: #ef4444;">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Port <span
+                                style="color: #ef4444;">*</span></label>
                         <input type="number" name="port" id="dbPortInput" value="5432"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                             required>
@@ -167,7 +174,9 @@
                 </div>
 
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="databaseLabel">Nama Database <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="databaseLabel">Nama Database
+                        (PostgreSQL/MySQL/etc)
+                        <span style="color: #ef4444;">*</span></label>
                     <input type="text" name="database" id="dbDatabaseInput"
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                         placeholder="my_database" required>
@@ -175,32 +184,38 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div style="margin-bottom: 1rem;" id="usernameGroup">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Username <span style="color: #ef4444;" id="usernameRequiredMark">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Username <span
+                                style="color: #ef4444;" id="usernameRequiredMark">*</span></label>
                         <input type="text" name="username" id="dbUsernameInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
                     </div>
                     <div style="margin-bottom: 1rem;" id="passwordGroup">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Password <span style="color: #ef4444;" id="passwordRequiredMark">*</span></label>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Password <span
+                                style="color: #ef4444;" id="passwordRequiredMark">*</span></label>
                         <input type="password" name="password" id="dbPasswordInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
-                        <small style="color: #64748b; font-size: 0.75rem;" id="passwordHint">Kosongkan jika tidak ingin mengubah</small>
+                        <small style="color: #64748b; font-size: 0.75rem;" id="passwordHint">Kosongkan jika tidak ingin
+                            mengubah</small>
                     </div>
                 </div>
 
                 <div style="margin-bottom: 1rem;" id="schemaGroup">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="schemaLabel">Schema <span style="color: #ef4444;">*</span></label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="schemaLabel">Schema <span
+                            style="color: #ef4444;">*</span></label>
                     <div style="display: flex; gap: 0.5rem;">
                         <input type="text" name="schema" id="dbSchemaInput"
                             style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                             placeholder="sch_mbi">
-                        <button type="button" class="btn" onclick="loadSchemas()" id="loadSchemasBtn" style="white-space: nowrap;">
+                        <button type="button" class="btn" onclick="loadSchemas()" id="loadSchemasBtn"
+                            style="white-space: nowrap;">
                             <i class="fas fa-sync-alt"></i> Load Schemas
                         </button>
                     </div>
                     <select id="dbSchemaSelect"
                         style="display: none; width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; margin-top: 0.5rem;">
                     </select>
-                    <small style="color: #64748b; font-size: 0.75rem;" id="schemaHint">PostgreSQL: sch_nama, SQL Server: dbo, MySQL/MariaDB: otomatis</small>
+                    <small style="color: #64748b; font-size: 0.75rem;" id="schemaHint">PostgreSQL: sch_nama, SQL Server:
+                        dbo, MySQL/MariaDB: otomatis</small>
                 </div>
 
                 <!-- Advanced Options -->
@@ -221,7 +236,8 @@
                             </select>
                         </div>
                         <div style="margin-bottom: 1rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Connection Timeout (seconds)</label>
+                            <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Connection Timeout
+                                (seconds)</label>
                             <input type="number" name="connection_timeout" id="dbTimeoutInput" value="30" min="5" max="300"
                                 style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;">
                         </div>
@@ -423,7 +439,8 @@
             background: linear-gradient(135deg, #336791, #4a8bc7);
         }
 
-        .driver-icon-mysql, .driver-icon-mariadb {
+        .driver-icon-mysql,
+        .driver-icon-mariadb {
             background: linear-gradient(135deg, #00758f, #f29111);
         }
 
@@ -507,7 +524,7 @@
             .database-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .db-header {
                 flex-wrap: wrap;
             }
@@ -524,17 +541,17 @@
          * Driver configuration map
          */
         const driverConfig = {
-            pgsql:   { port: 5432, usesSchema: true, defaultSchema: 'public',   hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
-            mysql:   { port: 3306, usesSchema: false, defaultSchema: '',         hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
-            mariadb: { port: 3306, usesSchema: false, defaultSchema: '',         hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
-            sqlsrv:  { port: 1433, usesSchema: true, defaultSchema: 'dbo',      hostPlaceholder: 'db.example.com',    dbLabel: 'Nama Database' },
-            sqlite:  { port: 0,   usesSchema: false, defaultSchema: '',          hostPlaceholder: '(tidak diperlukan)', dbLabel: 'Path File SQLite' },
+            pgsql: { port: 5432, usesSchema: true, defaultSchema: 'public', hostPlaceholder: 'db.example.com', dbLabel: 'Nama Database' },
+            mysql: { port: 3306, usesSchema: false, defaultSchema: '', hostPlaceholder: 'db.example.com', dbLabel: 'Nama Database' },
+            mariadb: { port: 3306, usesSchema: false, defaultSchema: '', hostPlaceholder: 'db.example.com', dbLabel: 'Nama Database' },
+            sqlsrv: { port: 1433, usesSchema: true, defaultSchema: 'dbo', hostPlaceholder: 'db.example.com', dbLabel: 'Nama Database' },
+            sqlite: { port: 0, usesSchema: false, defaultSchema: '', hostPlaceholder: '(tidak diperlukan)', dbLabel: 'Path File SQLite' },
         };
 
         /**
          * Handle driver selection change
          */
-        window.onDriverChange = function() {
+        window.onDriverChange = function () {
             const driver = document.getElementById('dbDriverSelect').value;
             const config = driverConfig[driver] || driverConfig.pgsql;
 
@@ -582,7 +599,7 @@
             }
         };
 
-        window.showDatabaseModal = function(type, db = null) {
+        window.showDatabaseModal = function (type, db = null) {
             const modal = document.getElementById('databaseModal');
             const form = document.getElementById('databaseForm');
             const method = document.getElementById('databaseFormMethod');
@@ -641,7 +658,7 @@
             modal.style.display = 'flex';
         };
 
-        window.loadSchemas = async function() {
+        window.loadSchemas = async function () {
             const driver = document.getElementById('dbDriverSelect').value;
             const dbHost = document.getElementById('dbHostInput').value;
             const dbPort = document.getElementById('dbPortInput').value;
@@ -725,12 +742,12 @@
             input.style.display = 'none';
             select.style.display = 'block';
             select.value = currentValue || '';
-            select.onchange = function() {
+            select.onchange = function () {
                 input.value = this.value;
             };
         }
 
-        window.testConnection = async function(dbId) {
+        window.testConnection = async function (dbId) {
             const result = await Swal.fire({
                 title: 'Testing Connection...',
                 text: 'Sedang menguji koneksi database',
@@ -773,7 +790,7 @@
             });
         };
 
-        window.deleteDatabase = function(dbId, dbName) {
+        window.deleteDatabase = function (dbId, dbName) {
             Swal.fire({
                 title: 'Hapus Database?',
                 html: `Database <strong>${dbName}</strong> akan dihapus.<br>Tidak ada data tabel yang akan terpengaruh.`,
@@ -809,7 +826,7 @@
         };
 
         // Close modal on backdrop click
-        document.getElementById('databaseModal').addEventListener('click', function(e) {
+        document.getElementById('databaseModal').addEventListener('click', function (e) {
             if (e.target === this) {
                 this.style.display = 'none';
             }
@@ -818,7 +835,7 @@
         /**
          * Test all database connections and show health report
          */
-        window.testAllConnections = async function() {
+        window.testAllConnections = async function () {
             const btn = document.getElementById('testAllBtn');
             const originalHtml = btn.innerHTML;
             btn.disabled = true;
@@ -829,22 +846,22 @@
                 const data = await response.json();
 
                 let html = `
-                    <div style="text-align: left; margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span>Total Databases:</span>
-                            <strong>${data.total}</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #10b981;">
-                            <span><i class="fas fa-check-circle"></i> Healthy:</span>
-                            <strong>${data.healthy}</strong>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; color: #ef4444;">
-                            <span><i class="fas fa-times-circle"></i> Unhealthy:</span>
-                            <strong>${data.unhealthy}</strong>
-                        </div>
-                    </div>
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem;">
-                `;
+                            <div style="text-align: left; margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>Total Databases:</span>
+                                    <strong>${data.total}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #10b981;">
+                                    <span><i class="fas fa-check-circle"></i> Healthy:</span>
+                                    <strong>${data.healthy}</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; color: #ef4444;">
+                                    <span><i class="fas fa-times-circle"></i> Unhealthy:</span>
+                                    <strong>${data.unhealthy}</strong>
+                                </div>
+                            </div>
+                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem;">
+                        `;
 
                 data.databases.forEach(db => {
                     const statusIcon = db.success
@@ -856,15 +873,15 @@
                         : `Error: ${db.error || 'Unknown'}`;
 
                     html += `
-                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                            ${statusIcon}
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600;">${db.name} <span style="color: #8b5cf6; font-size: 0.75rem;">[${db.driver.toUpperCase()}]</span></div>
-                                <div style="color: #64748b; font-size: 0.8rem;">${db.host}:${db.port}/${db.database}</div>
-                                <div style="color: #94a3b8; font-size: 0.8rem;">${statusText}</div>
-                            </div>
-                        </div>
-                    `;
+                                <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                    ${statusIcon}
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600;">${db.name} <span style="color: #8b5cf6; font-size: 0.75rem;">[${db.driver.toUpperCase()}]</span></div>
+                                        <div style="color: #64748b; font-size: 0.8rem;">${db.host}:${db.port}/${db.database}</div>
+                                        <div style="color: #94a3b8; font-size: 0.8rem;">${statusText}</div>
+                                    </div>
+                                </div>
+                            `;
                 });
 
                 html += '</div>';
