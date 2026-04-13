@@ -218,6 +218,11 @@
             margin-top: 1.5rem;
         }
 
+        select option {
+            background-color: #1e293b;
+            color: white;
+        }
+
         .database-card {
             padding: 1.5rem;
             transition: transform 0.2s, box-shadow 0.2s;

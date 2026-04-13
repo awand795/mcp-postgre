@@ -2253,8 +2253,12 @@
 
             let filtered = allRows;
             if (query) {
-                const q = query.toLowerCase();
-                filtered = allRows.filter(row => row.some(c => String(c).toLowerCase().includes(q)));
+                const terms = query.toLowerCase().trim().split(/\s+/);
+                filtered = allRows.filter(row => {
+                    return terms.every(term => 
+                        row.some(c => String(c ?? '').toLowerCase().includes(term))
+                    );
+                });
             }
             if (sortCol >= 0) {
                 filtered = [...filtered].sort((a, b) => {

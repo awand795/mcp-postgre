@@ -198,6 +198,11 @@
             color: rgba(148, 163, 184, 0.6);
         }
 
+        select option {
+            background-color: #1e293b;
+            color: white;
+        }
+
         .role-item.active {
             background: var(--primary) !important;
             color: white !important;
@@ -439,15 +444,16 @@
                 const container = document.getElementById(containerId);
                 if (!container) return;
 
-                const term = searchTerm.toLowerCase().trim();
+                const terms = searchTerm.toLowerCase().trim().split(/\s+/);
                 const tags = container.querySelectorAll('.table-tag');
 
                 tags.forEach(tag => {
-                    const tableName = tag.getAttribute('data-search') || '';
-                    if (term === '' || tableName.includes(term)) {
+                    const searchStr = tag.getAttribute('data-search') || '';
+                    if (searchTerm.trim() === '') {
                         tag.style.display = '';
                     } else {
-                        tag.style.display = 'none';
+                        const match = terms.every(term => searchStr.includes(term));
+                        tag.style.display = match ? '' : 'none';
                     }
                 });
             };
