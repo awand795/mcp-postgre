@@ -175,6 +175,7 @@
 
                 <div style="margin-bottom: 1rem;">
                     <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="databaseLabel">Nama Database
+                        (PostgreSQL/MySQL/etc)
                         <span style="color: #ef4444;">*</span></label>
                     <input type="text" name="database" id="dbDatabaseInput"
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
@@ -845,22 +846,22 @@
                 const data = await response.json();
 
                 let html = `
-                                <div style="text-align: left; margin-bottom: 1rem;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                        <span>Total Databases:</span>
-                                        <strong>${data.total}</strong>
+                                    <div style="text-align: left; margin-bottom: 1rem;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                            <span>Total Databases:</span>
+                                            <strong>${data.total}</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #10b981;">
+                                            <span><i class="fas fa-check-circle"></i> Healthy:</span>
+                                            <strong>${data.healthy}</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; color: #ef4444;">
+                                            <span><i class="fas fa-times-circle"></i> Unhealthy:</span>
+                                            <strong>${data.unhealthy}</strong>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: #10b981;">
-                                        <span><i class="fas fa-check-circle"></i> Healthy:</span>
-                                        <strong>${data.healthy}</strong>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; color: #ef4444;">
-                                        <span><i class="fas fa-times-circle"></i> Unhealthy:</span>
-                                        <strong>${data.unhealthy}</strong>
-                                    </div>
-                                </div>
-                                <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem;">
-                            `;
+                                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem;">
+                                `;
 
                 data.databases.forEach(db => {
                     const statusIcon = db.success
@@ -872,15 +873,15 @@
                         : `Error: ${db.error || 'Unknown'}`;
 
                     html += `
-                                    <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                        ${statusIcon}
-                                        <div style="flex: 1;">
-                                            <div style="font-weight: 600;">${db.name} <span style="color: #8b5cf6; font-size: 0.75rem;">[${db.driver.toUpperCase()}]</span></div>
-                                            <div style="color: #64748b; font-size: 0.8rem;">${db.host}:${db.port}/${db.database}</div>
-                                            <div style="color: #94a3b8; font-size: 0.8rem;">${statusText}</div>
+                                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                            ${statusIcon}
+                                            <div style="flex: 1;">
+                                                <div style="font-weight: 600;">${db.name} <span style="color: #8b5cf6; font-size: 0.75rem;">[${db.driver.toUpperCase()}]</span></div>
+                                                <div style="color: #64748b; font-size: 0.8rem;">${db.host}:${db.port}/${db.database}</div>
+                                                <div style="color: #94a3b8; font-size: 0.8rem;">${statusText}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                `;
+                                    `;
                 });
 
                 html += '</div>';
