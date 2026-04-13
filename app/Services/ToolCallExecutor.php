@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Services\Analysis\SmartAnalysisService;
-use App\Services\Analysis\StatisticalAnalysisService;
 use App\Services\Core\QueryService;
 use App\Services\Core\SchemaService;
 use App\Services\ERP\ERPService;
@@ -27,8 +25,6 @@ class ToolCallExecutor
 {
     private QueryService $queryService;
     private SchemaService $schemaService;
-    private StatisticalAnalysisService $statisticalService;
-    private SmartAnalysisService $smartService;
     private ERPService $erpService;
 
     public function __construct()
@@ -36,12 +32,6 @@ class ToolCallExecutor
         // Initialize services with dependencies
         $this->queryService = new QueryService();
         $this->schemaService = new SchemaService($this->queryService);
-        $this->statisticalService = new StatisticalAnalysisService();
-        $this->smartService = new SmartAnalysisService(
-            $this->queryService,
-            $this->schemaService,
-            $this->statisticalService
-        );
         $this->erpService = new ERPService();
     }
 
