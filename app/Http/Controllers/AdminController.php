@@ -148,6 +148,14 @@ class AdminController extends Controller
         $roles = Role::with('permissions')->get();
         $allTables = $this->getAllTables();
         $databases = DatabaseConnection::active()->get();
+
+        // Temporary debug
+        \Log::info('Role Management Debug', [
+            'allTables_count' => count($allTables),
+            'allTables_sample' => array_slice($allTables, 0, 3),
+            'databases_count' => $databases->count(),
+        ]);
+
         return view('admin.roles', compact('roles', 'allTables', 'databases'));
     }
 
@@ -457,6 +465,7 @@ class AdminController extends Controller
                             'schema_name' => $table['schema_name'],
                             'table_name' => $table['table_name'],
                             'description' => $table['description'] ?? '',
+                            'table_type' => $table['table_type'] ?? 'table',
                         ];
                     }
                 } catch (\Exception $e) {

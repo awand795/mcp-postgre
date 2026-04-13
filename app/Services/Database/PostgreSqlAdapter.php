@@ -25,6 +25,14 @@ class PostgreSqlAdapter extends DriverAdapter
             FROM information_schema.tables
             WHERE table_schema NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
             AND table_type IN ('BASE TABLE', 'VIEW')
+            UNION ALL
+            SELECT
+                matviewname as table_name,
+                schemaname as table_schema,
+                '' as description,
+                'VIEW' as table_type
+            FROM pg_matviews
+            WHERE schemaname NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
             ORDER BY table_type DESC, table_schema, table_name
         ";
     }
