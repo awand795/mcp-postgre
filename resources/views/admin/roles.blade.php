@@ -50,21 +50,51 @@
                 </div>
             </div>
 
+            <!-- Database Filter -->
+            <div class="db-filter-bar" style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <label style="color: #94a3b8; font-size: 0.85rem;"><i class="fas fa-filter"></i> Filter Database:</label>
+                <select id="db-filter" onchange="filterByDatabase(this.value)"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;">
+                    <option value="">Semua Database</option>
+                    @foreach($databases as $db)
+                        <option value="{{ $db->code }}">{{ $db->name }} ({{ $db->code }})</option>
+                    @endforeach
+                </select>
+                <select id="schema-filter" onchange="filterBySchema(this.value)"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem; display: none;">
+                    <option value="">Semua Schema</option>
+                </select>
+            </div>
+
             <div class="tables-grid">
                 <!-- Available Tables -->
-                <div>
+                <div class="table-column">
                     <h4 style="margin-bottom: 1rem; color: #94a3b8;"><i class="fas fa-table"></i> Tabel Tersedia</h4>
+                    <div class="search-wrapper" style="margin-bottom: 0.75rem;">
+                        <input type="text" id="available-tables-search" placeholder="🔍 Cari tabel..."
+                            class="table-search-input"
+                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.6rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;"
+                            oninput="filterTables('available-tables', this.value)">
+                    </div>
                     <div id="available-tables"
-                        style="min-height: 300px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 2px dashed var(--glass-border);">
+                        class="drop-zone"
+                        style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 2px dashed var(--glass-border);">
                     </div>
                 </div>
 
                 <!-- Allowed Tables -->
-                <div>
+                <div class="table-column">
                     <h4 style="margin-bottom: 1rem; color: #10b981;"><i class="fas fa-check-circle"></i> Tabel Diizinkan
                     </h4>
+                    <div class="search-wrapper" style="margin-bottom: 0.75rem;">
+                        <input type="text" id="allowed-tables-search" placeholder="🔍 Cari tabel..."
+                            class="table-search-input"
+                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.6rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;"
+                            oninput="filterTables('allowed-tables', this.value)">
+                    </div>
                     <div id="allowed-tables"
-                        style="min-height: 300px; background: rgba(16, 185, 129, 0.05); border-radius: 12px; padding: 1rem; border: 2px solid rgba(16, 185, 129, 0.2);">
+                        class="drop-zone"
+                        style="background: rgba(16, 185, 129, 0.05); border-radius: 12px; padding: 1rem; border: 2px solid rgba(16, 185, 129, 0.2);">
                     </div>
                 </div>
             </div>
@@ -75,6 +105,7 @@
     <script>
         window.allTables = @json($allTables);
         window.allRoles = @json($roles->load('permissions')->toArray());
+        window.allDatabases = @json($databases);
     </script>
 
     <!-- Role Modal -->
@@ -144,6 +175,27 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
+            align-items: stretch;
+        }
+
+        .table-column {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .drop-zone {
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .table-search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .table-search-input::placeholder {
+            color: rgba(148, 163, 184, 0.6);
         }
 
         .role-item.active {
@@ -158,11 +210,79 @@
 
         .table-tag {
             transition: transform 0.2s, background 0.2s;
+            background: rgba(255,255,255,0.05);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: move;
+            border: 1px solid var(--glass-border);
+        }
+
+        .table-tag-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .table-identifier {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            word-break: break-all;
+        }
+
+        .db-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-right: 6px;
+            font-weight: 600;
+        }
+
+        .view-badge {
+            display: inline-block;
+            background: rgba(168, 85, 247, 0.2);
+            color: #a855f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            margin-right: 6px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .table-desc {
+            margin: 0 0 4px 0;
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .table-type-label {
+            margin: 0 0 4px 0;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .drag-handle {
+            color: #64748b;
+            cursor: grab;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .table-tag:hover .drag-handle {
+            opacity: 1;
         }
 
         .table-tag:hover {
             background: rgba(255, 255, 255, 0.1);
-            transform: scale(1.02);
+            transform: scale(1.01);
         }
 
         .sortable-ghost {
@@ -257,15 +377,80 @@
             const allowedList = document.getElementById('allowed-tables');
             const unsavedIndicator = document.getElementById('unsaved-indicator');
 
-            // Create table tag element
-            function createTableTag(tableName) {
+            // Create table tag element with multi-database format
+            function createTableTag(tableData) {
                 const div = document.createElement('div');
                 div.className = 'table-tag';
-                div.setAttribute('data-id', tableName);
-                div.style.cssText = 'background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 10px; margin-bottom: 8px; cursor: move; border: 1px solid var(--glass-border);';
-                div.innerHTML = '<i class="fas fa-table" style="margin-right: 8px; color: #94a3b8;"></i> ' + tableName;
+
+                // tableData can be string (legacy) or object (new format)
+                let dbCode, schemaName, tableName, description, fullIdentifier, searchStr, isView;
+
+                if (typeof tableData === 'string') {
+                    // Legacy format - just table name
+                    tableName = tableData;
+                    dbCode = 'default';
+                    schemaName = 'public';
+                    description = '';
+                    fullIdentifier = tableName;
+                    searchStr = tableName.toLowerCase();
+                    isView = false;
+                } else {
+                    // New format: { database_code, database_name, schema_name, table_name, description, table_type }
+                    dbCode = tableData.database_code || 'unknown';
+                    dbName = tableData.database_name || dbCode;
+                    schemaName = tableData.schema_name || 'public';
+                    tableName = tableData.table_name;
+                    description = tableData.description || '';
+                    isView = tableData.table_type === 'view';
+                    fullIdentifier = `${dbCode}|${schemaName}|${tableName}`;
+                    searchStr = dbName.toLowerCase() + ' ' + schemaName.toLowerCase() + ' ' + tableName.toLowerCase() + ' ' + description.toLowerCase();
+                }
+
+                div.setAttribute('data-id', fullIdentifier);
+                div.setAttribute('data-db', dbCode);
+                div.setAttribute('data-schema', schemaName);
+                div.setAttribute('data-table', tableName);
+                div.setAttribute('data-search', searchStr);
+                div.setAttribute('data-type', isView ? 'view' : 'table');
+
+                const dbBadge = `<span class="db-badge">${dbName}</span>`;
+                const typeLabel = isView ? 'View' : 'Table';
+                const descHtml = description ? `<p class="table-desc">${truncate(description, 150)}</p>` : '';
+
+                div.innerHTML = `
+                    <div class="table-tag-header">
+                        <span class="table-identifier">${dbBadge} ${schemaName}.${tableName}</span>
+                        <i class="fas fa-grip-vertical drag-handle"></i>
+                    </div>
+                    <p class="table-type-label">${typeLabel}</p>
+                    ${descHtml}
+                `;
+
                 return div;
             }
+
+            function truncate(str, len) {
+                if (str.length <= len) return str;
+                return str.substring(0, len) + '...';
+            }
+
+            // Filter tables based on search input
+            window.filterTables = function(containerId, searchTerm) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                const term = searchTerm.toLowerCase().trim();
+                const tags = container.querySelectorAll('.table-tag');
+
+                tags.forEach(tag => {
+                    const tableName = tag.getAttribute('data-search') || '';
+                    if (term === '' || tableName.includes(term)) {
+                        tag.style.display = '';
+                    } else {
+                        tag.style.display = 'none';
+                    }
+                });
+            };
 
             // Show/hide unsaved indicator
             function setHasChanges(value) {
@@ -291,16 +476,35 @@
                     return;
                 }
 
-                const allowedTables = (role.permissions || []).map(p => p.table_name);
+                // Build allowed set from permissions (new format: db.schema.table)
+                const allowedSet = new Set();
+                (role.permissions || []).forEach(p => {
+                    if (p.database_code && p.schema_name) {
+                        // New format
+                        allowedSet.add(`${p.database_code}|${p.schema_name}|${p.table_name}`);
+                    } else {
+                        // Legacy format
+                        allowedSet.add(p.table_name);
+                    }
+                });
 
                 // Clear both lists
                 availableList.innerHTML = '';
                 allowedList.innerHTML = '';
 
-                // Populate based on allowed tables
+                // Populate tables
                 allTables.forEach(table => {
                     const tag = createTableTag(table);
-                    if (allowedTables.includes(table)) {
+                    
+                    // Check if this table is allowed for this role
+                    let tableKey;
+                    if (typeof table === 'string') {
+                        tableKey = table;
+                    } else {
+                        tableKey = `${table.database_code}|${table.schema_name}|${table.table_name}`;
+                    }
+                    
+                    if (allowedSet.has(tableKey)) {
                         allowedList.appendChild(tag);
                     } else {
                         availableList.appendChild(tag);
@@ -394,20 +598,94 @@
                 setHasChanges(true);
             };
 
+            // Filter by database
+            let currentDbFilter = '';
+            let currentSchemaFilter = '';
+
+            window.filterByDatabase = function(dbCode) {
+                currentDbFilter = dbCode;
+                currentSchemaFilter = '';
+                document.getElementById('schema-filter').value = '';
+                
+                // Show/hide schema filter based on db selection
+                const schemaSelect = document.getElementById('schema-filter');
+                if (dbCode) {
+                    schemaSelect.style.display = 'inline-block';
+                    // Load schemas for this database
+                    loadSchemasForFilter(dbCode);
+                } else {
+                    schemaSelect.style.display = 'none';
+                    schemaSelect.innerHTML = '<option value="">Semua Schema</option>';
+                }
+                
+                applyFilters();
+            };
+
+            window.filterBySchema = function(schemaName) {
+                currentSchemaFilter = schemaName;
+                applyFilters();
+            };
+
+            async function loadSchemasForFilter(dbCode) {
+                try {
+                    const db = window.allDatabases?.find(d => d.code === dbCode);
+                    if (!db) return;
+
+                    const response = await fetch(`/admin/databases/${db.id}/schemas`);
+                    const data = await response.json();
+                    
+                    const select = document.getElementById('schema-filter');
+                    select.innerHTML = '<option value="">Semua Schema</option>';
+                    data.schemas.forEach(schema => {
+                        const option = document.createElement('option');
+                        option.value = schema;
+                        option.textContent = schema;
+                        select.appendChild(option);
+                    });
+                } catch (e) {
+                    console.error('Failed to load schemas:', e);
+                }
+            }
+
+            function applyFilters() {
+                const tags = document.querySelectorAll('.table-tag');
+                tags.forEach(tag => {
+                    const db = tag.getAttribute('data-db') || '';
+                    const schema = tag.getAttribute('data-schema') || '';
+                    
+                    let show = true;
+                    if (currentDbFilter && db !== currentDbFilter) show = false;
+                    if (currentSchemaFilter && schema !== currentSchemaFilter) show = false;
+                    
+                    tag.style.display = show ? '' : 'none';
+                });
+            }
+
             // Expose functions globally
             window.selectRole = selectRole;
             window.savePermissions = function () {
                 if (!currentRoleId) return;
 
-                const tables = Array.from(allowedList.children).map(item => item.dataset.id);
+                // Get the full identifiers including database and schema
+                const tables = Array.from(allowedList.children).map(item => {
+                    const db = item.dataset.db || 'default';
+                    const schema = item.dataset.schema || 'public';
+                    const table = item.dataset.table || item.dataset.id;
+                    return `${db}|${schema}|${table}`;
+                });
 
                 // Get current role data to compare
                 const currentRole = allRoles.find(r => r.id == currentRoleId);
-                const oldTables = (currentRole.permissions || []).map(p => p.table_name);
+                const oldPermissions = (currentRole.permissions || []).map(p => {
+                    if (p.database_code && p.schema_name) {
+                        return `${p.database_code}|${p.schema_name}|${p.table_name}`;
+                    }
+                    return p.table_name; // Legacy
+                });
 
                 // Find added and removed tables
-                const added = tables.filter(t => !oldTables.includes(t));
-                const removed = oldTables.filter(t => !tables.includes(t));
+                const added = tables.filter(t => !oldPermissions.includes(t));
+                const removed = oldPermissions.filter(t => !tables.includes(t));
 
                 // Show confirmation with preview
                 let html = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
@@ -456,10 +734,20 @@
                         }).then(res => res.json())
                             .then(data => {
                                 if (data.success) {
-                                    // Update role data in allRoles array
+                                    // Update role data in allRoles array with new format
                                     const roleIndex = allRoles.findIndex(r => r.id == currentRoleId);
                                     if (roleIndex !== -1) {
-                                        allRoles[roleIndex].permissions = tables.map(t => ({ table_name: t }));
+                                        allRoles[roleIndex].permissions = tables.map(t => {
+                                            const parts = t.split('|');
+                                            if (parts.length === 3) {
+                                                return {
+                                                    database_code: parts[0],
+                                                    schema_name: parts[1],
+                                                    table_name: parts[2]
+                                                };
+                                            }
+                                            return { table_name: t }; // Legacy
+                                        });
                                     }
                                     setHasChanges(false);
                                     Swal.fire({

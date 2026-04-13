@@ -71,6 +71,16 @@ Route::middleware('auth')->group(function () {
         Route::put('/roles/{role}', [AdminController::class, 'roleUpdate'])->name('roles.update');
         Route::delete('/roles/{role}', [AdminController::class, 'roleDelete'])->name('roles.delete');
         Route::post('/roles/{role}/permissions', [AdminController::class, 'updatePermissions'])->name('roles.permissions');
+
+        // Database Management
+        Route::get('/databases', [AdminController::class, 'databases'])->name('databases');
+        Route::post('/databases', [AdminController::class, 'databaseStore'])->name('databases.store');
+        Route::put('/databases/{database}', [AdminController::class, 'databaseUpdate'])->name('databases.update');
+        Route::delete('/databases/{database}', [AdminController::class, 'databaseDelete'])->name('databases.delete');
+        Route::post('/databases/{database}/test', [AdminController::class, 'databaseTest'])->name('databases.test');
+        Route::get('/databases/{database}/schemas', [AdminController::class, 'databaseSchemas'])->name('databases.schemas');
+        Route::post('/databases/load-schemas', [AdminController::class, 'loadSchemasFromParams'])->name('databases.load-schemas');
+        Route::post('/cache/clear', [AdminController::class, 'clearCache'])->name('cache.clear');
     });
 });
 

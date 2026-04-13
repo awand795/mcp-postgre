@@ -17,7 +17,12 @@
         <h2 style="font-size: 2.5rem;">{{ $stats['roles_count'] }}</h2>
     </div>
     <div class="glass-card stat-card">
-        <i class="fas fa-database" style="font-size: 2rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+        <i class="fas fa-database" style="font-size: 2rem; color: #8b5cf6; margin-bottom: 1rem;"></i>
+        <span style="color: #94a3b8; margin-bottom: 0.5rem;">Total Databases</span>
+        <h2 style="font-size: 2.5rem;">{{ $stats['databases_count'] }}</h2>
+    </div>
+    <div class="glass-card stat-card">
+        <i class="fas fa-table" style="font-size: 2rem; color: #f59e0b; margin-bottom: 1rem;"></i>
         <span style="color: #94a3b8; margin-bottom: 0.5rem;">Total Tables</span>
         <h2 style="font-size: 2.5rem;">{{ $stats['tables_count'] }}</h2>
     </div>

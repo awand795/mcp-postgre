@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\RolePermission;
+use App\Models\DatabaseConnection;
 use App\Imports\UserImport;
 use App\Exports\UsersExport;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class AdminController extends Controller
         $stats = [
             'users_count' => User::count(),
             'roles_count' => Role::count(),
+            'databases_count' => DatabaseConnection::active()->count(),
             'tables_count' => count($this->getAllTables()),
         ];
         return view('admin.dashboard', compact('stats'));
@@ -145,7 +147,8 @@ class AdminController extends Controller
     {
         $roles = Role::with('permissions')->get();
         $allTables = $this->getAllTables();
-        return view('admin.roles', compact('roles', 'allTables'));
+        $databases = DatabaseConnection::active()->get();
+        return view('admin.roles', compact('roles', 'allTables', 'databases'));
     }
 
     public function roleStore(Request $request)
@@ -171,14 +174,33 @@ class AdminController extends Controller
     public function updatePermissions(Request $request, Role $role)
     {
         $tables = $request->input('tables', []);
-        
+
+        // New format: each table is "database_code|schema_name|table_name"
         RolePermission::where('role_id', $role->id)->delete();
-        
-        foreach ($tables as $table) {
-            RolePermission::create([
-                'role_id' => $role->id,
-                'table_name' => $table
-            ]);
+
+        foreach ($tables as $tableStr) {
+            $parts = explode('|', $tableStr);
+            
+            if (count($parts) === 3) {
+                // New multi-database format
+                RolePermission::create([
+                    'role_id' => $role->id,
+                    'database_code' => $parts[0],
+                    'schema_name' => $parts[1],
+                    'table_name' => $parts[2],
+                ]);
+            } else {
+                // Legacy format - use defaults
+                $defaultDbCode = config('database.default', 'pgsql_mbi');
+                $defaultSchema = config("database.connections.{$defaultDbCode}.search_path.0", 'public');
+                
+                RolePermission::create([
+                    'role_id' => $role->id,
+                    'database_code' => $defaultDbCode,
+                    'schema_name' => $defaultSchema,
+                    'table_name' => $tableStr,
+                ]);
+            }
         }
 
         // Clear SEMUA cache keys terkait role ini (harus konsisten dengan ToolCallExecutor)
@@ -191,11 +213,205 @@ class AdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    // ── Database Management ──────────────────────────────────────────────────────
+
+    public function databases()
+    {
+        $databases = DatabaseConnection::orderBy('is_default', 'desc')->orderBy('name')->get();
+        return view('admin.databases', compact('databases'));
+    }
+
+    public function databaseStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|unique:database_connections',
+            'code' => 'required|unique:database_connections|alpha_dash',
+            'host' => 'required',
+            'port' => 'required|integer',
+            'database' => 'required',
+            'username' => 'required',
+            'password' => 'required',
+            'schema' => 'required',
+            'description' => 'nullable',
+        ]);
+
+        $validated['is_active'] = $request->has('is_active');
+        $validated['is_default'] = $request->has('is_default');
+
+        // If setting as default, unset others
+        if ($validated['is_default']) {
+            DatabaseConnection::where('is_default', true)->update(['is_default' => false]);
+        }
+
+        $db = DatabaseConnection::create($validated);
+
+        // Auto test connection
+        $testResult = $db->testConnection();
+
+        // Clear table cache so new database tables appear in role management
+        $this->clearTableCache();
+
+        return back()->with($testResult['success'] ? 'success' : 'warning', 
+            $testResult['success'] 
+                ? 'Database berhasil ditambahkan dan terhubung.' 
+                : 'Database berhasil ditambahkan, tetapi koneksi gagal: ' . ($testResult['error'] ?? 'Unknown error')
+        );
+    }
+
+    public function databaseUpdate(Request $request, DatabaseConnection $database)
+    {
+        $validated = $request->validate([
+            'name' => 'required|unique:database_connections,name,' . $database->id,
+            'host' => 'required',
+            'port' => 'required|integer',
+            'database' => 'required',
+            'username' => 'required',
+            'password' => 'nullable',
+            'schema' => 'required',
+            'description' => 'nullable',
+        ]);
+
+        $validated['is_active'] = $request->has('is_active');
+        $validated['is_default'] = $request->has('is_default');
+
+        // If setting as default, unset others
+        if ($validated['is_default']) {
+            DatabaseConnection::where('is_default', true)->update(['is_default' => false]);
+        }
+
+        // Only update password if provided
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        }
+
+        $database->update($validated);
+
+        // Clear table cache in case connection params changed
+        $this->clearTableCache();
+
+        return back()->with('success', 'Database berhasil diperbarui.');
+    }
+
+    public function databaseDelete(DatabaseConnection $database)
+    {
+        // Prevent deleting default database
+        if ($database->is_default) {
+            return back()->withErrors(['error' => 'Tidak bisa menghapus database default.']);
+        }
+
+        $database->delete();
+
+        // Clear table cache
+        $this->clearTableCache();
+
+        return back()->with('success', 'Database berhasil dihapus.');
+    }
+
+    public function databaseTest(DatabaseConnection $database)
+    {
+        $result = $database->testConnection();
+
+        return response()->json($result);
+    }
+
+    public function databaseSchemas(DatabaseConnection $database)
+    {
+        $schemas = $database->getSchemas();
+        return response()->json(['schemas' => $schemas]);
+    }
+
+    /**
+     * Load schemas from connection params (without saving database first)
+     */
+    public function loadSchemasFromParams(Request $request)
+    {
+        $validated = $request->validate([
+            'host' => 'required',
+            'port' => 'required|integer',
+            'database' => 'required',
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+
+        // Create temporary model instance
+        $tempDb = new DatabaseConnection([
+            'host' => $validated['host'],
+            'port' => $validated['port'],
+            'database' => $validated['database'],
+            'username' => $validated['username'],
+            'password' => $validated['password'],
+        ]);
+
+        $schemas = $tempDb->getSchemas();
+        return response()->json(['schemas' => $schemas]);
+    }
+
+    // ── Helper Methods ──────────────────────────────────────────────────────────
+
+    /**
+     * Get all tables from all active database connections
+     * Returns array of: { database_code, schema_name, table_name, description }
+     */
     private function getAllTables()
     {
         return cache()->remember('all_db_tables_admin', 600, function() {
-            $tables = DB::connection('pgsql_mbi')->select("SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi' ORDER BY table_name");
-            return array_column($tables, 'table_name');
+            $activeDatabases = DatabaseConnection::active()->get();
+            $allTables = [];
+
+            foreach ($activeDatabases as $db) {
+                try {
+                    $tables = $db->getTables();
+                    
+                    foreach ($tables as $table) {
+                        $allTables[] = [
+                            'database_code' => $db->code,
+                            'database_name' => $db->database, // Actual PostgreSQL DB name, not display name
+                            'schema_name' => $table['schema_name'],
+                            'table_name' => $table['table_name'],
+                            'description' => $table['description'] ?? '',
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    \Log::warning("Failed to get tables from database: {$db->name}", [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Sort by database_name, schema_name, table_name
+            usort($allTables, function($a, $b) {
+                $cmp = strcmp($a['database_name'], $b['database_name']);
+                if ($cmp !== 0) return $cmp;
+                $cmp = strcmp($a['schema_name'], $b['schema_name']);
+                if ($cmp !== 0) return $cmp;
+                return strcmp($a['table_name'], $b['table_name']);
+            });
+
+            return $allTables;
+        });
+    }
+
+    /**
+     * Clear all database related caches
+     */
+    public function clearCache()
+    {
+        $this->clearTableCache();
+        return back()->with('success', 'Cache berhasil dibersihkan.');
+    }
+
+    /**
+     * Clear table cache (called internally)
+     */
+    private function clearTableCache(): void
+    {
+        cache()->forget('agentic_all_tables_admin');
+        cache()->forget('all_db_tables_admin');
+
+        // Clear role-specific caches
+        Role::all()->each(function($role) {
+            cache()->forget("agentic_allowed_tables_role_{$role->id}");
+            cache()->forget("allowed_tables_role_{$role->id}");
         });
     }
 }

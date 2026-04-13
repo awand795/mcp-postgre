@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin Dashboard - Darko AI</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -296,6 +297,8 @@
                         class="fas fa-users"></i> <span>Management User</span></a></li>
             <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}"><i
                         class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
+            <li><a href="{{ route('admin.databases') }}" class="{{ request()->routeIs('admin.databases') ? 'active' : '' }}"><i
+                        class="fas fa-database"></i> <span>Management Database</span></a></li>
             <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a>
             </li>
         </ul>
