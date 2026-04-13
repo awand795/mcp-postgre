@@ -73,20 +73,8 @@ class PostgreSqlAdapter extends DriverAdapter
             $connection['sslmode'] = $connection['ssl_mode'];
         }
 
-        // Build PostgreSQL options string for Laravel
-        $optionsParts = [];
-
-        if (!empty($connection['connection_timeout'])) {
-            $timeoutMs = (int) $connection['connection_timeout'] * 1000;
-            $optionsParts[] = "-c statement_timeout={$timeoutMs}";
-        }
-
-        if (!empty($optionsParts)) {
-            $connection['options'] = implode(' ', $optionsParts);
-        } else {
-            // Remove options key if empty to avoid Laravel config confusion
-            unset($connection['options']);
-        }
+        // Timeout is handled via SET statement_timeout in QueryService, not here
+        // (Laravel 'options' key maps to PDO options array, not pg options string)
 
         // Clean up keys not used by Laravel
         unset($connection['search_path'], $connection['ssl_mode'], $connection['connection_timeout']);
