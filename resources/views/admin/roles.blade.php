@@ -57,7 +57,7 @@
                     style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;">
                     <option value="">Semua Database</option>
                     @foreach($databases as $db)
-                        <option value="{{ $db->code }}">{{ $db->name }} ({{ $db->code }})</option>
+                        <option value="{{ $db->database }}">{{ $db->name }} ({{ $db->database }})</option>
                     @endforeach
                 </select>
                 <select id="schema-filter" onchange="filterBySchema(this.value)"
@@ -388,7 +388,7 @@
                 div.className = 'table-tag';
 
                 // tableData can be string (legacy) or object (new format)
-                let dbCode, schemaName, tableName, description, fullIdentifier, searchStr, isView;
+                let dbCode, dbName, schemaName, tableName, description, fullIdentifier, searchStr, isView;
 
                 if (typeof tableData === 'string') {
                     // Legacy format - just table name
@@ -402,7 +402,7 @@
                 } else {
                     // New format: { database_code, database_name, schema_name, table_name, description, table_type }
                     dbCode = tableData.database_code || 'unknown';
-                    let dbName = tableData.database_name || dbCode;
+                    dbName = tableData.database_name || dbCode;
                     schemaName = tableData.schema_name || 'public';
                     tableName = tableData.table_name;
                     description = tableData.description || '';
@@ -540,7 +540,7 @@
                 }
             });
 
-            function selectRole(roleId, el) {
+            window.selectRole = function(roleId, el) {
                 const role = allRoles.find(r => r.id == roleId);
                 if (!role) return;
 

@@ -59,11 +59,11 @@ class QueryService extends BaseService
                 $result = [];
                 foreach ($connections as $conn) {
                     $tables = $conn->getTables();
-                    $dbCode = $conn->code;
+                    $dbIdentifier = $conn->database;
                     foreach ($tables as $t) {
                         $sch = $t['schema_name'];
                         $tbl = $table_name = $t['table_name'];
-                        $result[$dbCode][$sch][] = $tbl;
+                        $result[$dbIdentifier][$sch][] = $tbl;
                     }
                 }
                 return $result;
@@ -103,7 +103,7 @@ class QueryService extends BaseService
 
         // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ─────────────────────────────
         // Get driver type for driver-specific forbidden keywords
-        $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+        $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
         $driver = $dbModel ? $dbModel->driver : 'pgsql';
 
         $forbidden = [
@@ -194,7 +194,7 @@ class QueryService extends BaseService
         $connName = "temp_conn_{$databaseCode}";
         try {
             if (!$dbModel) {
-                $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+                $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             }
             if (!$dbModel) {
                  return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");

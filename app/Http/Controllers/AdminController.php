@@ -153,8 +153,8 @@ class AdminController extends Controller
         // Detailed debug logging
         $dbCounts = [];
         foreach ($databases as $db) {
-            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->code);
-            $dbCounts[$db->code] = count($dbTables);
+            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->database);
+            $dbCounts[$db->database] = count($dbTables);
         }
 
         \Log::info('Role Management Debug', [
@@ -468,8 +468,8 @@ class AdminController extends Controller
                     
                     foreach ($tables as $table) {
                         $allTables[] = [
-                            'database_code' => $db->code,
-                            'database_name' => $db->database, // Actual PostgreSQL DB name, not display name
+                            'database_code' => $db->database,
+                            'database_name' => $db->name,
                             'schema_name' => $table['schema_name'],
                             'table_name' => $table['table_name'],
                             'description' => $table['description'] ?? '',
