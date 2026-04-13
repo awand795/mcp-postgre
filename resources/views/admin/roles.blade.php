@@ -57,7 +57,7 @@
                     style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;">
                     <option value="">Semua Database</option>
                     @foreach($databases as $db)
-                        <option value="{{ $db->database }}">{{ $db->name }} ({{ $db->database }})</option>
+                        <option value="{{ $db->database }}">{{ $db->database }}</option>
                     @endforeach
                 </select>
                 <select id="schema-filter" onchange="filterBySchema(this.value)"

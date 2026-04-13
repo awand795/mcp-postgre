@@ -469,7 +469,7 @@ class AdminController extends Controller
                     foreach ($tables as $table) {
                         $allTables[] = [
                             'database_code' => $db->database,
-                            'database_name' => $db->name,
+                            'database_name' => $db->database,
                             'schema_name' => $table['schema_name'],
                             'table_name' => $table['table_name'],
                             'description' => $table['description'] ?? '',
