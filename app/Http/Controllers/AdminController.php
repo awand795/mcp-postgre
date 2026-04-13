@@ -150,9 +150,17 @@ class AdminController extends Controller
         $databases = DatabaseConnection::active()->get();
 
         // Temporary debug
+        // Detailed debug logging
+        $dbCounts = [];
+        foreach ($activeDatabases as $db) {
+            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->code);
+            $dbCounts[$db->code] = count($dbTables);
+        }
+
         \Log::info('Role Management Debug', [
-            'allTables_count' => count($allTables),
-            'allTables_sample' => array_slice($allTables, 0, 3),
+            'total_tables_count' => count($allTables),
+            'counts_by_db' => $dbCounts,
+            'sample_tables' => array_slice($allTables, 0, 5),
             'databases_count' => $databases->count(),
         ]);
 
