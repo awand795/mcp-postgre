@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Log;
 class QueryService extends BaseService
 {
     /**
-     * Cached allowed tables for RBAC.
+     * Cached allowed databases for RBAC.
      */
-    private ?array $cachedAllowedTables = null;
+    private ?array $cachedAllowedDatabases = null;
 
     /**
      * Query result cache TTL in seconds.
@@ -29,20 +29,20 @@ class QueryService extends BaseService
     private int $queryCacheTtl = 60;
 
     /**
-     * Set cached allowed tables (used before session_write_close).
+     * Set cached allowed databases (used before session_write_close).
      */
-    public function setAllowedTables(array $tables): void
+    public function setAllowedTables(array $databases): void
     {
-        $this->cachedAllowedTables = $tables;
+        $this->cachedAllowedDatabases = $databases;
     }
 
     /**
-     * Get allowed tables for current user (RBAC).
+     * Get allowed databases, schemas, and tables for current user (RBAC).
      */
     public function getAllowedTables(): array
     {
-        if ($this->cachedAllowedTables !== null) {
-            return $this->cachedAllowedTables;
+        if ($this->cachedAllowedDatabases !== null) {
+            return $this->cachedAllowedDatabases;
         }
 
         if (!Auth::check()) {
@@ -51,25 +51,39 @@ class QueryService extends BaseService
 
         $user = Auth::user();
 
+        // Admin sees all active databases
         if ($user->is_admin) {
-            return cache()->remember('agentic_all_tables_admin', 600, function () {
-                $tables = DB::connection('pgsql_mbi')->select(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'sch_mbi' ORDER BY table_name"
-                );
-                return array_column($tables, 'table_name');
+            return cache()->remember('agentic_all_dbs_admin', 600, function () {
+                $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
+                $result = [];
+                foreach ($connections as $conn) {
+                    $tables = $conn->getTables();
+                    $dbCode = $conn->code;
+                    foreach ($tables as $t) {
+                        $sch = $t['schema_name'];
+                        $tbl = $table_name = $t['table_name'];
+                        $result[$dbCode][$sch][] = $tbl;
+                    }
+                }
+                return $result;
             });
         }
 
         $roleId = $user->role;
-        return cache()->remember("agentic_allowed_tables_role_{$roleId}", 600, function () use ($roleId) {
-            return RolePermission::where('role_id', $roleId)->pluck('table_name')->toArray();
+        return cache()->remember("agentic_allowed_dbs_role_{$roleId}", 600, function () use ($roleId) {
+            $permissions = RolePermission::where('role_id', $roleId)->get();
+            $result = [];
+            foreach ($permissions as $p) {
+                $result[$p->database_code][$p->schema_name][] = $p->table_name;
+            }
+            return $result;
         });
     }
 
     /**
      * Execute SQL SELECT query with 6-layer security validation.
      */
-    public function executeQuery(string $sql, string $label, array $currencyColumns = []): string
+    public function executeQuery(string $databaseCode, string $sql, string $label, array $currencyColumns = []): string
     {
         if (empty($sql)) {
             return $this->errorResponse('sql is required');
@@ -109,45 +123,80 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 5: Validasi akses tabel ─────────────────────────────────────
-        $allowed = $this->getAllowedTables();
-        if (preg_match_all('/(?:from|join)\s+(?:sch_mbi\.)?([a-zA-Z0-9_]+)/i', $trimmedSql, $matches)) {
-            foreach ($matches[1] as $tbl) {
-                $tbl = strtolower(trim($tbl));
-                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as', 'lateral'])) continue;
-                if (!in_array($tbl, $allowed)) {
-                    Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}'");
-                    return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan.");
+        $allowedDbs = $this->getAllowedTables();
+        
+        if (!isset($allowedDbs[$databaseCode])) {
+            return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
+        }
+
+        // Kumpulkan semua tabel yang diizinkan untuk database ini dari semua schema
+        $allowedTablesForDb = [];
+        $allowedSchemasForDb = [];
+        foreach ($allowedDbs[$databaseCode] as $sch => $tbls) {
+            $allowedSchemasForDb[] = $sch;
+            foreach ($tbls as $tbl) {
+                $allowedTablesForDb[] = $tbl;
+            }
+        }
+        $allowedTablesForDb = array_unique($allowedTablesForDb);
+
+        // Ekstrak nama schema (opsional) dan tabel dari query
+        // Format umum: from schema.table atau join schema.table
+        if (preg_match_all('/(?:from|join)\s+(?:([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)/i', $trimmedSql, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $schemaUsed = !empty($match[1]) ? strtolower(trim($match[1])) : null;
+                $tbl = strtolower(trim($match[2]));
+                
+                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as', 'lateral', 'join', 'inner', 'left', 'right', 'outer'])) continue;
+                
+                if (!in_array($tbl, $allowedTablesForDb)) {
+                    Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
+                    return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan atau tidak ditemukan.");
+                }
+
+                if ($schemaUsed && !in_array($schemaUsed, $allowedSchemasForDb)) {
+                     Log::warning("[ToolCallExecutor] Access denied to schema '{$schemaUsed}' in DB '{$databaseCode}'");
+                     return $this->errorResponse("Akses ditolak: schema '{$schemaUsed}' tidak diizinkan.");
                 }
             }
         }
 
         // ── LAYER 6: Execute Query ─────────────────────────────────────────────
         $cleanSql = $trimmedSql;
-        Log::info("[ToolCallExecutor] Executing SQL: " . substr($cleanSql, 0, 300));
+        Log::info("[ToolCallExecutor] Executing SQL on DB {$databaseCode}: " . substr($cleanSql, 0, 300));
 
         // ── QUERY RESULT CACHING ──────────────────────────────────────────────
-        // Generate cache key from SQL hash to avoid duplicate queries
-        $cacheKey = 'query_result_' . md5($cleanSql . '_' . Auth::id());
+        $cacheKey = 'query_result_' . md5($cleanSql . '_' . $databaseCode . '_' . Auth::id());
         
-        // Check if query result is cached
         $cachedResult = Cache::get($cacheKey);
         if ($cachedResult !== null) {
             Log::info("[ToolCallExecutor] Using cached query result (saved DB call)");
             return $cachedResult;
         }
 
+        // Siapkan koneksi dinamis
+        $connName = "temp_conn_{$databaseCode}";
         try {
+            $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+            if (!$dbModel) {
+                 return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
+            }
+
+            DB::purge($connName);
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
             // ANTI-LIMIT: No statement timeout for SQL execution
-            DB::connection('pgsql_mbi')->statement('SET statement_timeout = 0');
-            $rows = DB::connection('pgsql_mbi')->select($cleanSql);
+            DB::connection($connName)->statement('SET statement_timeout = 0');
+            $rows = DB::connection($connName)->select($cleanSql);
         } catch (\Exception $e) {
-            Log::error("[ToolCallExecutor] Query failed: " . $e->getMessage() . " | SQL: " . $cleanSql);
+            DB::purge($connName);
+            Log::error("[ToolCallExecutor] Query failed on {$databaseCode}: " . $e->getMessage() . " | SQL: " . $cleanSql);
 
             $dbError = $e->getMessage();
 
             $msg = str_contains($dbError, 'statement timeout')
                 ? 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah (misal: WHERE periode_tahun = EXTRACT(YEAR FROM NOW())).'
-                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_schema_info' atau 'describe_table' untuk memverifikasi struktur tabel sch_mbi yang benar sebelum mencoba query lagi. Jangan menebak nama kolom.";
+                : "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_database_schema_info' atau 'describe_table' (dengan parameter database_code dan schema_name) untuk memverifikasi struktur tabel yang benar sebelum mencoba query lagi. Jangan menebak nama kolom atau schema.";
 
             return $this->safeJsonEncode(['error' => $msg]);
         }

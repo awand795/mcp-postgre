@@ -2635,7 +2635,7 @@
                                 </div>`;
                             }
 
-                            if (idx >= 0 && currentToolResults[idx]) {
+                            if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
                                 return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
                                     <div class="smart-table-toolbar">
