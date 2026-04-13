@@ -452,6 +452,25 @@
             transform: scale(1);
             opacity: 1;
         }
+
+        /* ERP Guidance Video Player Styling */
+        .erp-video-container {
+            margin-top: 12px;
+            width: 100%;
+        }
+        .erp-video-container video {
+            max-height: 480px;
+            object-fit: contain;
+            background: #000;
+        }
+        .erp-video-container video::-webkit-media-controls-panel {
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+        }
+        @media (max-width: 768px) {
+            .erp-video-container {
+                max-width: 100% !important;
+            }
+        }
     </style>
 </head>
 
@@ -1154,6 +1173,13 @@
                     initDashboardsInBubble(bubble);
                     initSmartTablesInBubble(bubble, toolResultsForInit);
                 }, 50);
+
+                // Check for ERP guidance video and add video player below
+                const videoUrl = extractErpGuidanceVideo(toolResultsForMsg);
+                if (videoUrl) {
+                    const videoContainer = renderVideoPlayer(videoUrl);
+                    wrap.appendChild(videoContainer);
+                }
             } else {
                 bubble.textContent = msg.content;
             }
@@ -1178,6 +1204,71 @@
             }
 
             return wrap;
+        }
+
+        // Helper: Extract video URL from ERP guidance tool results
+        function extractErpGuidanceVideo(toolResults) {
+            if (!Array.isArray(toolResults)) return null;
+
+            for (const tr of toolResults) {
+                // Check if this is an ERP guidance tool result
+                if (tr.tool_name === 'get_erp_guidance' || tr.tool === 'get_erp_guidance') {
+                    const data = tr.data || tr.result || tr;
+
+                    // Check if data has guides array
+                    if (data.guides && Array.isArray(data.guides)) {
+                        for (const guide of data.guides) {
+                            if (guide.video && typeof guide.video === 'string' && guide.video.length > 0) {
+                                return guide.video;
+                            }
+                        }
+                    }
+
+                    // Check direct video field
+                    if (data.video && typeof data.video === 'string' && data.video.length > 0) {
+                        return data.video;
+                    }
+                }
+
+                // Also check nested result/data
+                if (tr.result && typeof tr.result === 'object') {
+                    const nestedVideo = extractErpGuidanceVideo([{...tr, tool_name: tr.tool_name || 'get_erp_guidance', data: tr.result}]);
+                    if (nestedVideo) return nestedVideo;
+                }
+            }
+
+            return null;
+        }
+
+        // Helper: Render ERP guidance video player
+        function renderVideoPlayer(videoUrl) {
+            const container = document.createElement('div');
+            container.className = 'flex flex-col gap-2 items-start max-w-[95%] erp-video-container';
+
+            const videoLabel = document.createElement('div');
+            videoLabel.className = 'flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-lg';
+            videoLabel.innerHTML = `
+                <svg class="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span class="text-xs font-medium text-orange-400">Video Panduan ERP</span>
+            `;
+
+            const videoWrap = document.createElement('div');
+            videoWrap.className = 'relative w-full max-w-2xl rounded-xl overflow-hidden bg-black shadow-lg border border-white/10';
+
+            const video = document.createElement('video');
+            video.className = 'w-full rounded-xl';
+            video.controls = true;
+            video.preload = 'metadata';
+            video.poster = '';
+            video.innerHTML = `<source src="${videoUrl}" type="video/mp4">Browser Anda tidak mendukung pemutaran video.`;
+
+            videoWrap.appendChild(video);
+            container.appendChild(videoLabel);
+            container.appendChild(videoWrap);
+
+            return container;
         }
 
         // Helper function to show "Load Earlier Messages" button
