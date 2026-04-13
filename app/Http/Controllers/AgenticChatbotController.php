@@ -51,6 +51,11 @@ class AgenticChatbotController extends Controller
     // ── Chat History Endpoints ───────────────────────────────────────────────
     public function getSessions()
     {
+        // CRITICAL: Close session early to avoid blocking other requests from same user
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $sessions = ChatSession::where('user_id', Auth::id())
             ->orderBy('updated_at', 'desc')
             ->get(['id', 'title', 'updated_at']);
@@ -59,6 +64,12 @@ class AgenticChatbotController extends Controller
 
     public function getSession($id, Request $request)
     {
+        // CRITICAL: Close session early to avoid blocking other requests from same user
+        // This allows concurrent requests (e.g., loading sessions while loading messages)
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         try {
             // Increase memory limit for large history
             ini_set('memory_limit', '1024M');
@@ -140,6 +151,11 @@ class AgenticChatbotController extends Controller
 
     public function deleteSession($id)
     {
+        // Close session early to avoid blocking other requests
+        if (session()->isStarted()) {
+            session()->save();
+        }
+
         $session = ChatSession::where('user_id', Auth::id())->findOrFail($id);
         $session->delete();
         return response()->json(['success' => true]);

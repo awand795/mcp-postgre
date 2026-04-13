@@ -673,6 +673,8 @@
             let currentToolResults  = [];
             let isLoading = false;
             let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
+            let loadSessionAbortController = null; // AbortController for cancelling in-flight load requests
+            let loadEarlierAbortController = null; // AbortController for cancelling in-flight load earlier requests
 
             const sidebar = document.getElementById('chat-sidebar');
             const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -1086,11 +1088,10 @@
                         // If delete button was clicked, stopPropagation handles it.
                         // But we check target just in case
                         if (e.target.closest('.delete-session')) return;
-                        
+
                         e.preventDefault();
-                        if (!isLoading) {
-                            loadSession(s.id);
-                        }
+                        // Allow switching chats even if loading (will cancel previous load)
+                        loadSession(s.id);
                     });
 
                     historyList.appendChild(item);
@@ -1229,14 +1230,29 @@
                 return;
             }
 
+            // Abort any in-flight loadEarlierMessages request
+            if (loadEarlierAbortController) {
+                loadEarlierAbortController.abort();
+                loadEarlierAbortController = null;
+            }
+
+            // Create new AbortController for this request
+            loadEarlierAbortController = new AbortController();
+            const signal = loadEarlierAbortController.signal;
+
             sessionPagination.isLoadingMore = true;
 
             try {
-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${currentSessionId}?before=${encodeURIComponent(sessionPagination.oldestCursor)}&limit=50`);
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${currentSessionId}?before=${encodeURIComponent(sessionPagination.oldestCursor)}&limit=50`, { signal });
 
                 if (!res.ok) throw new Error('HTTP ' + res.status);
 
                 const data = await res.json();
+
+                // Check if request was aborted during fetch
+                if (signal.aborted) {
+                    return; // Don't process aborted request results
+                }
 
                 // Update pagination state
                 sessionPagination.hasMore = data.pagination.has_more;
@@ -1244,7 +1260,7 @@
 
                 // Render older messages (prepend to top)
                 const scrollHeightBefore = chatMessages.scrollHeight;
-                
+
                 data.history.forEach(msg => {
                     renderMessage(msg, true);
                 });
@@ -1263,6 +1279,11 @@
                 }
 
             } catch (e) {
+                // Ignore abort errors - they're expected when switching chats
+                if (e.name === 'AbortError') {
+                    console.log('[LoadEarlierMessages] Request aborted');
+                    return;
+                }
                 console.error('[LoadEarlierMessages] Error:', e);
             } finally {
                 sessionPagination.isLoadingMore = false;
@@ -1270,16 +1291,22 @@
         }
 
         async function loadSession(id) {
-            if (isLoading) {
-                return;
+            // Abort any in-flight loadSession request
+            if (loadSessionAbortController) {
+                loadSessionAbortController.abort();
+                loadSessionAbortController = null;
             }
-            
+
+            // Create new AbortController for this request
+            loadSessionAbortController = new AbortController();
+            const signal = loadSessionAbortController.signal;
+
             // Set loading flag to prevent concurrent operations
             isLoading = true;
-            
+
             // Skip MutationObserver during history load
             skipObserver = true;
-            
+
             // Update history list visual state - show loading
             const historyItems = historyList.querySelectorAll('.group');
             historyItems.forEach(item => {
@@ -1289,7 +1316,7 @@
                     clickArea.style.opacity = '0.5';
                 }
             });
-            
+
             // Reset global tool results for new session
             currentToolResults = [];
 
@@ -1310,7 +1337,7 @@
             chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
 
             try {
-                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`);
+                const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, { signal });
 
                 if (!res.ok) throw new Error('HTTP ' + res.status);
 
@@ -1341,8 +1368,10 @@
 
                 await loadSessions();
 
-                // CRITICAL: Wait for smart tables to initialize before releasing lock
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // Check if aborted before finalizing UI
+                if (signal.aborted) {
+                    return; // Don't finalize UI for aborted request
+                }
 
                 // Re-enable MutationObserver after history load is complete
                 skipObserver = false;
@@ -1350,26 +1379,30 @@
                 chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'instant' });
 
             } catch (e) {
-                console.error('[LoadSession] Error:', e);
-                chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan: ' + e.message + '</div>';
+                // Ignore abort errors - they're expected when switching chats
+                if (e.name === 'AbortError') {
+                    console.log('[LoadSession] Request aborted (user switched chats)');
+                } else {
+                    console.error('[LoadSession] Error:', e);
+                    chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan: ' + e.message + '</div>';
+                }
             } finally {
-                // CRITICAL: Always release loading flag, even on error
-                setTimeout(() => {
-                    isLoading = false;
-                    // Ensure history list is clickable and restore visual state
-                    if (historyList) {
-                        historyList.style.pointerEvents = 'auto';
-                        historyList.style.opacity = '1';
-                        const historyItems = historyList.querySelectorAll('.group');
-                        historyItems.forEach(item => {
-                            const clickArea = item.querySelector('div[class*="flex items-center gap-2"]');
-                            if (clickArea) {
-                                clickArea.style.cursor = 'pointer';
-                                clickArea.style.opacity = '1';
-                            }
-                        });
-                    }
-                }, 100);
+                // CRITICAL: Always release loading flag, even on error or abort
+                isLoading = false;
+
+                // Ensure history list is clickable and restore visual state
+                if (historyList) {
+                    historyList.style.pointerEvents = 'auto';
+                    historyList.style.opacity = '1';
+                    const historyItems = historyList.querySelectorAll('.group');
+                    historyItems.forEach(item => {
+                        const clickArea = item.querySelector('div[class*="flex items-center gap-2"]');
+                        if (clickArea) {
+                            clickArea.style.cursor = 'pointer';
+                            clickArea.style.opacity = '1';
+                        }
+                    });
+                }
             }
         }
 
