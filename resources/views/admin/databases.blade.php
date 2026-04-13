@@ -125,7 +125,7 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div style="margin-bottom: 1rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Database <span
+                        <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Koneksi / Alias <span
                                 style="color: #ef4444;">*</span></label>
                         <input type="text" name="name" id="dbNameInput"
                             style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
@@ -175,11 +175,11 @@
 
                 <div style="margin-bottom: 1rem;">
                     <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;" id="databaseLabel">Nama Database
-                        (PostgreSQL/MySQL/etc)
                         <span style="color: #ef4444;">*</span></label>
                     <input type="text" name="database" id="dbDatabaseInput"
                         style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
                         placeholder="my_database" required>
+                    <small style="color: #64748b; font-size: 0.75rem;" id="databaseHint">Nama database sebenarnya pada server (seperti postgres, mysql, sqlsrv, etc)</small>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -564,6 +564,9 @@
                 : 'Host <span style="color: #ef4444;">*</span>';
             document.getElementById('dbHostInput').placeholder = config.hostPlaceholder;
             document.getElementById('databaseLabel').innerHTML = config.dbLabel + ' <span style="color: #ef4444;">*</span>';
+            document.getElementById('databaseHint').textContent = (driver === 'sqlite')
+                ? 'Path lengkap ke file database .sqlite atau .db'
+                : 'Nama database sebenarnya pada server (seperti postgres, mysql, sqlsrv, etc)';
 
             // Handle schema field visibility
             const schemaGroup = document.getElementById('schemaGroup');
