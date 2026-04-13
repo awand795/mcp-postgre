@@ -929,7 +929,7 @@
                                             // Gunakan label bisnis jika ada, jika tidak, biarkan kosong (jangan tampilkan SQL)
                                             detail = ` · ${tc.arguments.label}`;
                                         }
-                                        
+
                                         // Hilangkan detail nama tabel teknis untuk tool schema
                                         if (['describe_table', 'list_tables', 'get_schema_info'].includes(tc.name)) {
                                             detail = '';
@@ -953,6 +953,12 @@
                                             if (dotEl) dotEl.textContent = '✓';
                                         }
                                         typingText.textContent = 'Menyusun laporan...';
+                                    }
+
+                                    // CRITICAL: Store tool result data for later use (e.g., ERP guidance video)
+                                    if (tc.result) {
+                                        currentToolResults.push(tc.result);
+                                        console.log('[Tool Result Stored]', tc.result.tool_name || tc.result.name, currentToolResults.length);
                                     }
                                 }
 
@@ -981,6 +987,24 @@
 
                     if (toolArea.children.length === 0) {
                         toolArea.style.display = 'none';
+                    }
+
+                    // Check for ERP guidance video and add video player after streaming completes
+                    console.log('[Video Check] currentToolResults:', currentToolResults.length, currentToolResults);
+                    const videoUrl = extractErpGuidanceVideo(currentToolResults);
+                    console.log('[Video Check] videoUrl:', videoUrl);
+                    if (videoUrl) {
+                        const videoContainer = renderVideoPlayer(videoUrl);
+                        // Insert video after the bubble wrapper
+                        const wrapper = bubble.closest('.flex.flex-col.gap-1\\.5');
+                        if (wrapper) {
+                            const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
+                            if (timeEl) {
+                                wrapper.insertBefore(videoContainer, timeEl);
+                            } else {
+                                wrapper.appendChild(videoContainer);
+                            }
+                        }
                     }
 
                 } catch(err) {
@@ -1208,17 +1232,27 @@
 
         // Helper: Extract video URL from ERP guidance tool results
         function extractErpGuidanceVideo(toolResults) {
+            console.log('[ExtractVideo] Checking toolResults:', toolResults.length, 'items');
+
             if (!Array.isArray(toolResults)) return null;
 
-            for (const tr of toolResults) {
+            for (let i = 0; i < toolResults.length; i++) {
+                const tr = toolResults[i];
+                console.log(`[ExtractVideo] Item ${i}:`, tr.tool_name || tr.tool || 'unknown', tr);
+
                 // Check if this is an ERP guidance tool result
                 if (tr.tool_name === 'get_erp_guidance' || tr.tool === 'get_erp_guidance') {
                     const data = tr.data || tr.result || tr;
+                    console.log('[ExtractVideo] ERP guidance data:', data);
 
                     // Check if data has guides array
                     if (data.guides && Array.isArray(data.guides)) {
-                        for (const guide of data.guides) {
+                        console.log('[ExtractVideo] Found guides array, count:', data.guides.length);
+                        for (let j = 0; j < data.guides.length; j++) {
+                            const guide = data.guides[j];
+                            console.log(`[ExtractVideo] Guide ${j} video:`, guide.video);
                             if (guide.video && typeof guide.video === 'string' && guide.video.length > 0) {
+                                console.log('[ExtractVideo] Found video URL:', guide.video);
                                 return guide.video;
                             }
                         }
@@ -1226,6 +1260,7 @@
 
                     // Check direct video field
                     if (data.video && typeof data.video === 'string' && data.video.length > 0) {
+                        console.log('[ExtractVideo] Found direct video URL:', data.video);
                         return data.video;
                     }
                 }
@@ -1237,6 +1272,7 @@
                 }
             }
 
+            console.log('[ExtractVideo] No video found');
             return null;
         }
 
@@ -2844,6 +2880,20 @@
                 }
 
                 if (toolArea.children.length === 0) toolArea.style.display = 'none';
+
+                // Check for ERP guidance video and add video player after streaming completes
+                console.log('[Video Check] currentToolResults:', currentToolResults.length, currentToolResults);
+                const videoUrl = extractErpGuidanceVideo(currentToolResults);
+                console.log('[Video Check] videoUrl:', videoUrl);
+                if (videoUrl) {
+                    const videoContainer = renderVideoPlayer(videoUrl);
+                    const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
+                    if (timeEl) {
+                        wrapper.insertBefore(videoContainer, timeEl);
+                    } else {
+                        wrapper.appendChild(videoContainer);
+                    }
+                }
 
             } catch (err) {
                 console.error('[Agentic] Error:', err);
