@@ -152,7 +152,7 @@ class AdminController extends Controller
         // Temporary debug
         // Detailed debug logging
         $dbCounts = [];
-        foreach ($activeDatabases as $db) {
+        foreach ($databases as $db) {
             $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->code);
             $dbCounts[$db->code] = count($dbTables);
         }
