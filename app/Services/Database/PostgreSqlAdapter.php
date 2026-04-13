@@ -17,18 +17,15 @@ class PostgreSqlAdapter extends DriverAdapter
     public function listTablesQuery(): string
     {
         return "
-            SELECT DISTINCT
-                t.table_name,
-                t.table_schema,
-                COALESCE(d.description, '') as description,
-                t.table_type
-            FROM information_schema.tables t
-            LEFT JOIN pg_namespace n ON n.nspname = t.table_schema
-            LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid
-            LEFT JOIN pg_description d ON d.objoid = c.oid AND d.objsubid = 0
-            WHERE t.table_schema NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
-            AND t.table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY t.table_type DESC, t.table_schema, t.table_name
+            SELECT
+                table_name,
+                table_schema,
+                '' as description,
+                table_type
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
+            AND table_type IN ('BASE TABLE', 'VIEW')
+            ORDER BY table_type DESC, table_schema, table_name
         ";
     }
 
