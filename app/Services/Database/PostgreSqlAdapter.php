@@ -17,16 +17,15 @@ class PostgreSqlAdapter extends DriverAdapter
     public function listTablesQuery(): string
     {
         return "
-            SELECT
+            SELECT DISTINCT
                 t.table_name,
                 t.table_schema,
-                COALESCE(
-                    (SELECT description FROM pg_description
-                     WHERE objoid = (t.table_schema || '.' || t.table_name)::regclass::oid),
-                    ''
-                ) as description,
+                COALESCE(d.description, '') as description,
                 t.table_type
             FROM information_schema.tables t
+            LEFT JOIN pg_namespace n ON n.nspname = t.table_schema
+            LEFT JOIN pg_class c ON c.relname = t.table_name AND c.relnamespace = n.oid
+            LEFT JOIN pg_description d ON d.objoid = c.oid AND d.objsubid = 0
             WHERE t.table_schema NOT IN ('pg_catalog', 'pg_toast', 'information_schema')
             AND t.table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY t.table_type DESC, t.table_schema, t.table_name
@@ -65,22 +64,32 @@ class PostgreSqlAdapter extends DriverAdapter
 
     public function getConnectionOptions(array $connection): array
     {
-        $connection['search_path'] = [$connection['schema'] ?? 'public', 'public'];
+        // Laravel PostgreSQL driver reads 'schema' to set search_path
+        $schema = $connection['schema'] ?? 'public';
+        $connection['schema'] = $schema;
 
         // Add SSL mode if specified
         if (!empty($connection['ssl_mode'])) {
             $connection['sslmode'] = $connection['ssl_mode'];
         }
 
-        // Add connection timeout
+        // Build PostgreSQL options string for Laravel
+        $optionsParts = [];
+
         if (!empty($connection['connection_timeout'])) {
-            $connection['options'] = array_merge(
-                $connection['options'] ?? [],
-                ['options' => "-c statement_timeout={$connection['connection_timeout']}000"]
-            );
+            $timeoutMs = (int) $connection['connection_timeout'] * 1000;
+            $optionsParts[] = "-c statement_timeout={$timeoutMs}";
         }
 
-        unset($connection['ssl_mode'], $connection['connection_timeout']);
+        if (!empty($optionsParts)) {
+            $connection['options'] = implode(' ', $optionsParts);
+        } else {
+            // Remove options key if empty to avoid Laravel config confusion
+            unset($connection['options']);
+        }
+
+        // Clean up keys not used by Laravel
+        unset($connection['search_path'], $connection['ssl_mode'], $connection['connection_timeout']);
 
         return $connection;
     }
