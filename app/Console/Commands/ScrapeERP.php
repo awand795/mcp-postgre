@@ -216,6 +216,7 @@ class ScrapeERP extends Command
         $images = [];
         $videos = [];
         $formFields = [];
+        $fieldQueue = []; // Queue to store fields detected between images
         $mdContent = "# {$title} 🚀\n\n";
 
         // Enrichment Lookup Table
@@ -252,23 +253,13 @@ class ScrapeERP extends Command
         // Process children of entry-content recursively for 1:1 layout match
         $rootNode = $contentNode->getNode(0);
         if ($rootNode) {
-            $this->processNodesRecursively($rootNode, $mdContent, $images, $videos, $formFields, $title, $enrichmentLookup);
+            $this->processNodesRecursively($rootNode, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup);
         }
 
-        // Final Field Enrichment Section (Mandatory as per user request)
-        if (!empty($formFields)) {
-            // Unique fields only
-            $uniqueFields = [];
-            foreach ($formFields as $f) {
-                if (!isset($uniqueFields[$f['field']])) {
-                    $uniqueFields[$f['field']] = $f;
-                }
-            }
-
-            $mdContent .= "\n---\n\n### 📋 Penjelasan Field Formulir\n\n";
-            $mdContent .= "Berikut adalah penjelasan detail mengenai field yang perlu diisi pada gambar di atas:\n\n";
-            
-            foreach ($uniqueFields as $field) {
+        // Flush any remaining fields in the queue at the end
+        if (!empty($fieldQueue)) {
+            $mdContent .= "\n### 📋 Penjelasan Field Tambahan\n\n";
+            foreach ($fieldQueue as $field) {
                 $desc = !empty($field['explanation']) ? $field['explanation'] : $field['description'];
                 $mdContent .= "- **{$field['field']}**: {$desc}\n";
             }
@@ -283,6 +274,16 @@ class ScrapeERP extends Command
             }
         }
 
+        // Final Collection for JSON field
+        $finalFields = [];
+        $uniqueKeys = [];
+        foreach (array_merge($formFields, $fieldQueue) as $f) {
+            if (!isset($uniqueKeys[$f['field']])) {
+                $finalFields[] = $f;
+                $uniqueKeys[$f['field']] = true;
+            }
+        }
+
         return [
             'id' => md5($url),
             'title' => $title,
@@ -290,20 +291,20 @@ class ScrapeERP extends Command
             'keywords' => $this->generateKeywords($title, $category),
             'detail_panduan_lengkap' => trim($mdContent),
             'url' => $url,
-            'form_fields' => array_values(array_slice($uniqueFields ?? [], 0, 20)),
+            'form_fields' => array_values(array_slice($finalFields, 0, 25)),
             'images' => $images,
             'video' => $videos[0] ?? null,
             'last_fetched' => now()->format('Y-m-d H:i:s')
         ];
     }
 
-    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, $title, $enrichmentLookup, $level = 0)
+    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, &$fieldQueue, $title, $enrichmentLookup, $level = 0)
     {
         foreach ($node->childNodes as $child) {
             if ($child->nodeType === XML_TEXT_NODE) {
                 $text = trim($child->textContent);
                 if ($text && strlen($text) > 3) {
-                    $this->handleTextNode($text, $mdContent, $formFields, $title, $enrichmentLookup);
+                    $this->handleTextNode($text, $mdContent, $fieldQueue, $formFields, $title, $enrichmentLookup);
                 }
                 continue;
             }
@@ -322,7 +323,7 @@ class ScrapeERP extends Command
                     
                     if ($alertType) {
                         $mdContent .= "\n> [!{$alertType}]\n";
-                        $mdContent .= "> **{$text}** " . $this->getHeaderEmoji($text) . "\n\n";
+                        $mdContent .= "> **{$text}** " . $this->getHeaderEmoji($text) . "\n>\n";
                     } else {
                         $mdContent .= "{$prefix} {$text} " . $this->getHeaderEmoji($text) . "\n\n";
                     }
@@ -335,12 +336,24 @@ class ScrapeERP extends Command
                 $src = $img->getAttribute('src');
                 $alt = $img->getAttribute('alt') ?: 'Gambar Panduan';
                 
-                // Final Clean: Ignore text residues that match the img alt or common placeholders
                 if (in_array(strtolower(trim($alt)), ['gambar', 'gambar panduan'])) $alt = 'Langkah Panduan';
 
                 if ($src && str_contains($src, 'http')) {
                     $mdContent .= "![{$alt}]({$src})\n\n";
                     $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
+                    
+                    // Flush fieldQueue immediately under the image
+                    if (!empty($fieldQueue)) {
+                        $mdContent .= "  > [!NOTE]\n";
+                        $mdContent .= "  > **📋 Penjelasan Field pada gambar:**\n";
+                        foreach ($fieldQueue as $field) {
+                            $desc = !empty($field['explanation']) ? $field['explanation'] : $field['description'];
+                            $mdContent .= "  > - **{$field['field']}**: {$desc}\n";
+                            $formFields[] = $field;
+                        }
+                        $mdContent .= "\n";
+                        $fieldQueue = []; // Clear queue after flushing
+                    }
                 }
             }
 
@@ -348,7 +361,7 @@ class ScrapeERP extends Command
             elseif (in_array($tagName, ['p', 'ul', 'ol', 'li', 'div', 'article', 'section'])) {
                 // Check if paragraph starts with a strong label (Pseudo-Header)
                 $firstStrong = $child->getElementsByTagName('strong')->item(0);
-                if ($tagName === 'p' && $firstStrong && $child->firstChild === $firstStrong) {
+                if ($tagName === 'p' && $firstStrong && ($child->firstChild === $firstStrong || ($child->firstChild->nodeType === XML_TEXT_NODE && trim($child->firstChild->textContent) === ''))) {
                     $headerText = trim($firstStrong->textContent);
                     $alertType = $this->getAlertType($headerText);
                     if ($alertType) {
@@ -357,21 +370,20 @@ class ScrapeERP extends Command
                         
                         // Process the rest of the paragraph but prefix with >
                         $tempContent = "";
-                        $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $title, $enrichmentLookup, $level + 1);
+                        $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
                         
                         // Remove the header text from temp content to avoid duplication
                         $cleanContent = str_replace($headerText, '', $tempContent);
-                        $mdContent .= "> " . trim($cleanContent) . "\n\n";
-                        continue; // Skip normal processing for this P
+                        if (trim($cleanContent)) {
+                            $mdContent .= "> " . trim($cleanContent) . "\n\n";
+                        }
+                        continue;
                     }
                 }
 
-                // If it's a list item, add the bullet
-                if ($tagName === 'li') {
-                    $mdContent .= "- ";
-                }
+                if ($tagName === 'li') $mdContent .= "- ";
 
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
                 
                 if (in_array($tagName, ['p', 'ul', 'ol', 'div'])) {
                     $mdContent .= "\n\n";
@@ -390,7 +402,6 @@ class ScrapeERP extends Command
 
                 if ($src && str_contains($src, 'http')) {
                     $videos[] = $src;
-                    // Also put in content if it's the right position
                     $mdContent .= "### 🎥 Video Panduan\n[Klik di sini untuk menonton video]({$src})\n\n";
                 }
             }
@@ -401,14 +412,14 @@ class ScrapeERP extends Command
         }
     }
 
-    private function handleTextNode(string $text, &$mdContent, &$formFields, $title, $enrichmentLookup)
+    private function handleTextNode(string $text, &$mdContent, &$fieldQueue, &$formFields, $title, $enrichmentLookup)
     {
         // Ignore residual placeholder text
         $lower = strtolower($text);
         if ($lower === 'gambar' || $lower === 'gambar panduan' || $lower === 'video :' || $lower === 'video:') return;
 
         $mdContent .= "{$text} ";
-        $this->detectFields($text, $formFields, $title, $enrichmentLookup);
+        $this->detectFields($text, $fieldQueue, $title, $enrichmentLookup);
     }
 
     private function getAlertType(string $text): ?string
