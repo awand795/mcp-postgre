@@ -653,7 +653,7 @@ class AgenticChatbotController extends Controller
             $schemaList = implode(', ', array_keys($schemas));
             $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
         }
-        $dbSummaryText = implode("\\n", $dbSummaries);
+        $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
         if ($lang === 'en') {
             return <<<PROMPT
