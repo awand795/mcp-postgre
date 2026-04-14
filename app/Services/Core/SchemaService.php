@@ -45,7 +45,7 @@ class SchemaService extends BaseService
 
         $connName = "temp_conn_{$databaseCode}";
         try {
-            $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             if (!$dbModel) {
                  return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }

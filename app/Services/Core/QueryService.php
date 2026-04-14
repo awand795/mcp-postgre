@@ -59,10 +59,8 @@ class QueryService extends BaseService
                 $result = [];
                 foreach ($connections as $conn) {
                     $tables = $conn->getTables();
-                    // KEY FIX: Use $conn->code as the database identifier (not $conn->database)
-                    // $conn->code is what the AI uses as database_code in tool calls
-                    // $conn->database is the actual DB name on the server (e.g. 'erp_mbi')
-                    $dbIdentifier = $conn->code;
+                    // Use actual database name as the identifier (consistent with role_permissions.database_code)
+                    $dbIdentifier = $conn->database;
                     foreach ($tables as $t) {
                         $sch = $t['schema_name'];
                         $tbl = $t['table_name'];
@@ -105,9 +103,8 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ─────────────────────────────
-        // Get driver type for driver-specific forbidden keywords
-        // KEY FIX: Look up by 'code' field (the database_code the AI uses), not 'database' (the DB server name)
-        $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+        // Lookup by 'database' field (actual DB name used as identifier throughout the system)
+        $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
         $driver = $dbModel ? $dbModel->driver : 'pgsql';
 
         $forbidden = [
@@ -198,12 +195,12 @@ class QueryService extends BaseService
         $connName = "temp_conn_{$databaseCode}";
         try {
             if (!$dbModel) {
-                // KEY FIX: Look up by 'code' field (the database_code the AI uses), not 'database' (the DB server name)
-                $dbModel = \App\Models\DatabaseConnection::where('code', $databaseCode)->active()->first();
+                // Lookup by 'database' field (actual DB name used as identifier throughout the system)
+                $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             }
             if (!$dbModel) {
-                 Log::error("[QueryService] Database config not found for code='{$databaseCode}'. Check that database_connections.code matches what AI uses.");
-                 return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
+                Log::error("[QueryService] Database config not found for database='{$databaseCode}'.");
+                return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }
 
             DB::purge($connName);

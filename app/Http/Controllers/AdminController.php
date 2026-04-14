@@ -153,9 +153,8 @@ class AdminController extends Controller
         // Detailed debug logging
         $dbCounts = [];
         foreach ($databases as $db) {
-            // KEY FIX: filter by $db->code (the identifier), not $db->database (the actual DB server name)
-            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->code);
-            $dbCounts[$db->code] = count($dbTables);
+            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->database);
+            $dbCounts[$db->database] = count($dbTables);
         }
 
         \Log::info('Role Management Debug', [
@@ -469,9 +468,9 @@ class AdminController extends Controller
                     
                     foreach ($tables as $table) {
                         $allTables[] = [
-                            // KEY FIX: Use $db->code as database_code (the AI identifier), not $db->database (the server name)
-                            'database_code' => $db->code,
-                            'database_name' => $db->name,  // Human-readable display name
+                            // Use actual database name as identifier (consistent with role_permissions.database_code)
+                            'database_code' => $db->database,
+                            'database_name' => $db->database,
                             'schema_name'   => $table['schema_name'],
                             'table_name'    => $table['table_name'],
                             'description'   => $table['description'] ?? '',
