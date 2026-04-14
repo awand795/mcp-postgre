@@ -758,7 +758,8 @@ Your response must ALWAYS follow this structure:
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - **DATA FORMATTING & ALIASING (MANDATORY)**:
   - Always provide **elegant & readable column aliases** using Title Case. Do NOT use raw underscore names like `total_qty`. Use `AS "Total Qty Sold"`, `AS "Net Sales"`, etc.
-  - For results of **items/quantities** that return messy decimals (e.g., `.00000`), **MANDATORY to round/convert to integers** using `CAST(SUM(column) AS INTEGER)` or `ROUND()`.
+  - For results of **items/quantities** that return messy decimals (e.g., `.00000`), **MANDATORY to round/convert to integers** using `CAST(SUM(column) AS BIGINT)` or `ROUND(SUM(column), 0)`.
+  - **AGGREGATE ROUNDING POLICY (MANDATORY)**: Never round values inside aggregate functions. Always perform `SUM()` or `AVG()` on the raw, high-precision numeric column, then apply rounding or casting to the final result ONLY (e.g., `ROUND(SUM(column), 0)` or `CAST(SUM(column) AS BIGINT)`).
 - **SMART LIMIT POLICY**: 
   - **DEFAULT**: Retrieve ALL rows when the user wants to "SEE", "LIST", or "SHOW" data (no LIMIT).
   - **SPECIFIC LIMIT**: ALWAYS use `LIMIT` when the user asks for a specific number (e.g., "top 10", "5 teratas").
@@ -892,7 +893,7 @@ Semua jawaban Anda **WAJIB** mengikuti struktur berikut untuk standar profesiona
 ## ATURAN SQL PENTING
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya, misal: `schema_name.table_name`. Skema harus didapatkan dari info skema atau describe table.
 - **ALIAS**: Selalu gunakan alias untuk hasil `sum` atau agregat lain (misal: `AS total_penjualan`).
-- **PEMBULATAN**: Untuk pecahan qty wajib dibulatkan `CAST(SUM(angka) AS INTEGER)`.
+- **PEMBULATAN AGREGAT (WAJIB)**: Jangan pernah melakukan pembulatan di dalam fungsi agregat. Lakukan `SUM()` atau `AVG()` pada nilai asli yang presisi, lalu terapkan pembulatan hanya pada HASIL AKHIR menggunakan `CAST(SUM(angka) AS BIGINT)` atau `ROUND(SUM(angka), 0)`.
 - **MATA UANG**: Daftarkan semua kolom yang merepresentasikan uang ke dalam param `currency_columns` agar bisa di-format dengan Rp. Jangan pakai Rp untuk kolom kuantitas!
 - **LIMIT**: Jika user minta Top 10, pastikan dikasih LIMIT 10!
 - **KOREKSI**: Jika error, cek tabel via describe_table lalu perbaiki SQL.
