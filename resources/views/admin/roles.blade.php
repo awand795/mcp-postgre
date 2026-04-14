@@ -634,7 +634,7 @@
 
             async function loadSchemasForFilter(dbCode) {
                 try {
-                    const db = window.allDatabases?.find(d => d.code === dbCode);
+                    const db = window.allDatabases?.find(d => d.database === dbCode);
                     if (!db) return;
 
                     const response = await fetch(`/admin/databases/${db.id}/schemas`);
