@@ -755,7 +755,9 @@ Your response must ALWAYS follow this structure:
 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `schema_name.table_name`
+- **COLUMN AMBIGUITY (JOINS)**: When joining multiple tables, ALWAYS use unique Table Aliases (e.g., `FROM schema.table AS t`) and prefix all columns in the `SELECT` and `WHERE` clauses (e.g., `t.netto`) to prevent ambiguous column errors.
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
+- **BUSINESS LOGIC REASONING**: When calculating derived metrics like Profit across different databases, apply universal accounting principles. Profit = Net Revenue - Costs. If a table contains a `netto` (net sales) column, understand that the value has **ALREADY** had discounts subtracted. **NEVER** subtract `discount` from `netto` again (avoid double deduction). Simply calculate Profit by subtracting `hpp/cogs` from `netto`. Always analyze the exact meaning of column names before inventing mathematical formulas.
 - **TEXT SEARCHING (FUZZY MATCH, ALL COLUMNS)**: When filtering by any text data (names, branches, products, descriptions, etc.), NEVER use exact `=` or rigid `%word1 word2%` matching. Real database entries often contain unexpected punctuation or spacing (e.g., "User A" vs "User. A"). Always split keywords and use flexible `ILIKE` conditions with AND logic: `column_name ILIKE '%word1%' AND column_name ILIKE '%word2%'` or simply search for the single most unique word. This applies to all databases and all string columns universally.
 - **DATA FORMATTING & ALIASING (MANDATORY)**:
   - Always provide **elegant & readable column aliases** using Title Case. Do NOT use raw underscore names like `total_qty`. Use `AS "Total Qty Sold"`, `AS "Net Sales"`, etc.
@@ -893,6 +895,8 @@ Semua jawaban Anda **WAJIB** mengikuti struktur berikut untuk standar profesiona
 
 ## ATURAN SQL PENTING
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya, misal: `schema_name.table_name`. Skema harus didapatkan dari info skema atau describe table.
+- **AMBIGUITAS KOLOM (JOIN)**: Saat menggabungkan beberapa tabel (JOIN), SELALU gunakan Alias Tabel yang unik (misal: `FROM schema.table AS t`) dan beri awalan pada semua kolom (misal: `t.netto`) untuk mencegah error 'ambiguous column'.
+- **PENALARAN RUMUS BISNIS (FLEKSIBEL)**: Saat menghitung metrik turunan (contoh: Profit/Laba) di database apa pun, terapkan standar akuntansi universal. Laba = Pendapatan Bersih - Harga Pokok. Jika tabel memiliki kolom `netto` (atau `net_sales`), pahami bahwa nilai tersebut **SUDAH BERSIH** dari diskon. **JANGAN PERNAH** mengurangi kolom `netto` dengan `discount` lagi (double deduction). Cukup hitung Laba dari selisih `netto` dan `hpp/cogs`. Teliti nama kolom yang ada sebelum membuat rumus matematika.
 - **PENCARIAN TEKS (FUZZY MATCH, BERLAKU SEMUA KOLOM)**: Saat memfilter data berdasarkan teks apa pun (nama orang, cabang, produk, deskripsi, dsb), JANGAN gunakan pencarian `= 'X'` atau `ILIKE '%Kata1 Kata2%'` yang kaku. Data asli di database sering mengandung tanda baca atau spasi yang tidak terduga (contoh: "User A" vs "User. A"). Selalu pecah setiap kata kunci dan gunakan pencarian fleksibel dengan logika AND: `nama_kolom ILIKE '%kata1%' AND nama_kolom ILIKE '%kata2%'` atau cukup gunakan satu kata yang paling unik. Ini berlaku untuk seluruh database dan kolom string.
 - **ALIAS**: Selalu gunakan alias untuk hasil `sum` atau agregat lain (misal: `AS total_penjualan`).
 - **PEMBULATAN AGREGAT (WAJIB)**: Jangan pernah melakukan pembulatan di dalam fungsi agregat. Lakukan `SUM()` atau `AVG()` pada nilai asli yang presisi, lalu terapkan pembulatan hanya pada HASIL AKHIR menggunakan `CAST(SUM(angka) AS BIGINT)` atau `ROUND(SUM(angka), 0)`.
