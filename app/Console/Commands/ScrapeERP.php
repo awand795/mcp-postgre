@@ -205,130 +205,136 @@ class ScrapeERP extends Command
         $contentNode = $crawler->filter('.entry-content');
         if ($contentNode->count() === 0) return null;
 
-        // Extract Category
+        // Extract Category from URL Path or Breadcrumbs
         $category = 'Uncategory';
-        $crawler->filter('.cat-links a')->each(function (Crawler $node) use (&$category) {
-            $category = trim($node->text());
-        });
-
-        // Initialize Sections
-        $sections = [
-            'fungsi' => '',
-            'persyaratan' => '',
-            'petunjuk' => '',
-            'catatan' => '',
-            'steps' => []
-        ];
+        $path = parse_url($url, PHP_URL_PATH);
+        $segments = explode('/', trim($path, '/'));
+        if (count($segments) >= 1) {
+            $category = ucwords(str_replace('-', ' ', $segments[0]));
+        }
 
         $images = [];
         $videos = [];
         $formFields = [];
-        $currentSection = '';
+        $mdContent = "# {$title} 🚀\n\n";
 
-        // Parsing content for Markdown construction and image extraction
-        $contentNode->filter('h2, h3, h4, p, li, strong, b, img, iframe, video, source, .wp-video video')->each(function (Crawler $node) use (&$sections, &$currentSection, &$images, &$videos, &$formFields) {
+        // Enrichment Lookup Table (Integrated from legacy commands)
+        $enrichmentLookup = [
+            'Order Pembelian' => [
+                'No. Transaksi' => 'Otomatis dihasilkan sistem.',
+                'Tgl. Transaksi' => 'Tanggal pencatatan transaksi.',
+                'Tgl. PO' => 'Tanggal Order Pembelian.',
+                'T.O.P Hari' => 'Jangka waktu pembayaran.',
+                'Cabang' => 'Cabang pembuat pesanan.',
+                'Gudang Tujuan' => 'Gudang penerima barang.',
+                'Supplier' => 'Nama pemasok barang.',
+                'Kode Barang' => 'ID unik produk (pilih dari daftar).',
+                'Qty Order' => 'Jumlah barang yang dipesan.',
+                'Harga' => 'Harga satuan barang.',
+                'Disc Item %' => 'Diskon per item dalam persentase.',
+                'Netto Rp' => 'Harga bersih setelah diskon dan pajak.'
+            ],
+            'Klaim Barang' => [
+                'No. Transaksi' => 'Otomatis dihasilkan sistem ERP.',
+                'Jenis Klaim' => 'Pilihan alasan klaim (Barang Rusak/Kurang).',
+                'No. Transaksi TTB' => 'Referensi TTB asal barang.',
+                'Qty. Klaim' => 'Jumlah barang yang diklaim.',
+                'Qty. Kirim' => 'Jumlah fisik barang yang dikirim balik.'
+            ],
+            'Penyelesaian PDC' => [
+                'Kliring' => 'Proses penyetoran PDC/giro ke bank.',
+                'Batal Cair' => 'Membatalkan pencairan yang sudah diproses.',
+                'Tanggal Setor' => 'Tanggal penyerahan fisik ke bank.',
+                'Rekening Tujuan' => 'Akun bank penerima dana.'
+            ]
+        ];
+
+        // Linear DOM Traversal to preserve 100% web layout
+        $contentNode->filter('h1, h2, h3, h4, h5, h6, p, ul, ol, hr, figure, img, .wp-video video')->each(function (Crawler $node) use (&$mdContent, &$images, &$videos, &$formFields, $title, $enrichmentLookup) {
             $nodeName = $node->nodeName();
-            $text = trim($node->text());
-
-            if ($nodeName === 'img') {
-                $src = $node->attr('src');
-                if ($src) {
-                    $images[] = [
-                        'src' => $src,
-                        'alt' => $node->attr('alt') ?: 'Gambar Panduan',
-                        'caption' => ''
-                    ];
+            
+            // Handle Headers
+            if (in_array($nodeName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) {
+                $level = substr($nodeName, 1);
+                $text = trim($node->text());
+                if ($text) {
+                    $prefix = str_repeat('#', $level + 1);
+                    $emoji = $this->getHeaderEmoji($text);
+                    $mdContent .= "{$prefix} {$text} {$emoji}\n\n";
                 }
-                return;
             }
-
-            if ($nodeName === 'video' || $nodeName === 'iframe' || $nodeName === 'source') {
-                $src = $node->attr('src') ?: $node->attr('data-src');
-                if ($src && !in_array($src, $videos)) {
-                    $videos[] = $src;
+            
+            // Handle Paragraphs
+            elseif ($nodeName === 'p') {
+                // Check for embedded images in p
+                $imgNode = $node->filter('img');
+                if ($imgNode->count()) {
+                    $src = $imgNode->attr('src');
+                    $alt = $imgNode->attr('alt') ?: 'Gambar';
+                    $mdContent .= "![{$alt}]({$src})\n\n";
+                    $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
                 }
-                return;
+                
+                $text = trim($node->text());
+                if ($text) {
+                    $mdContent .= "{$text}\n\n";
+                    $this->detectFields($text, $formFields, $title, $enrichmentLookup);
+                }
             }
-
-            if (empty($text)) return;
-
-            $lowerText = strtolower($text);
-
-            // Detect Sections
-            if (str_contains($lowerText, 'fungsi :') || str_contains($lowerText, 'fungsi:')) {
-                $currentSection = 'fungsi';
-                $sections['fungsi'] .= str_replace(['Fungsi :', 'Fungsi:'], '', $text) . ' ';
-            } elseif (str_contains($lowerText, 'persyaratan data') || str_contains($lowerText, 'persyaratan:')) {
-                $currentSection = 'persyaratan';
-            } elseif (str_contains($lowerText, 'petunjuk pemakaian') || str_contains($lowerText, 'langkah-langkah')) {
-                $currentSection = 'petunjuk';
-            } elseif (str_contains($lowerText, 'catatan :') || str_contains($lowerText, 'catatan:')) {
-                $currentSection = 'catatan';
-            } else {
-                if ($currentSection && isset($sections[$currentSection])) {
-                    if (is_array($sections[$currentSection])) {
-                        $sections[$currentSection][] = $text;
-                    } else {
-                        $sections[$currentSection] .= $text . ' ';
+            
+            // Handle Lists
+            elseif ($nodeName === 'ul' || $nodeName === 'ol') {
+                $node->filter('li')->each(function (Crawler $li) use (&$mdContent, &$formFields, $title, $enrichmentLookup) {
+                    $text = trim($li->text());
+                    if ($text) {
+                        $mdContent .= "- {$text}\n";
+                        $this->detectFields($text, $formFields, $title, $enrichmentLookup);
+                        
+                        // Check for images inside li
+                        if ($li->filter('img')->count()) {
+                            $src = $li->filter('img')->attr('src');
+                            $mdContent .= "  ![Gambar]({$src})\n";
+                        }
                     }
+                });
+                $mdContent .= "\n";
+            }
+            
+            // Handle Standalone Images / Figures
+            elseif ($nodeName === 'img' || $nodeName === 'figure') {
+                $img = $nodeName === 'img' ? $node : $node->filter('img');
+                if ($img->count()) {
+                    $src = $img->attr('src');
+                    $alt = $img->attr('alt') ?: 'Gambar Panduan';
+                    $mdContent .= "![{$alt}]({$src})\n\n";
+                    $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
                 }
-
-                // Detect form fields: "Field Name : Description"
-                if (preg_match('/^([a-zA-Z0-9\.\s\/]+)\s*[:\-]\s*(.+)$/', $text, $matches)) {
-                    $formFields[] = [
-                        'field' => trim($matches[1]),
-                        'description' => trim($matches[2])
-                    ];
-                }
+            }
+            
+            // Handle Horizontal Rule
+            elseif ($nodeName === 'hr') {
+                $mdContent .= "---\n\n";
             }
         });
 
-        // Construct Premium Markdown
-        $md = "# {$title} 🚀\n\n";
-        
-        if (!empty($sections['fungsi'])) {
-            $md .= "> **Fungsi:** " . trim($sections['fungsi']) . "\n\n";
-        }
+        // Final Field Enrichment Section
+        if (!empty($formFields)) {
+            $mdContent .= "### 📋 Penjelasan Field Formulir\n\n";
+            $mdContent .= "Berikut adalah penjelasan detail mengenai field yang perlu diisi pada gambar di atas:\n\n";
+            
+            // Unique fields only
+            $uniqueFields = [];
+            foreach ($formFields as $f) {
+                if (!isset($uniqueFields[$f['field']])) {
+                    $uniqueFields[$f['field']] = $f;
+                }
+            }
 
-        if (!empty($sections['persyaratan'])) {
-            $md .= "### 📋 Persyaratan Data\n\n" . trim($sections['persyaratan']) . "\n\n";
-        }
-
-        // Re-construct the full content but pretty for AI
-        // We'll use a more heuristic approach to preserve images in steps
-        $fullContentText = "";
-        $contentNode->filter('h2, h3, h4, p, li, img, .wp-video video, .wp-block-image')->each(function (Crawler $node) use (&$fullContentText) {
-             if ($node->nodeName() === 'h2' || $node->nodeName() === 'h3') {
-                 $fullContentText .= "### " . $node->text() . "\n\n";
-             } elseif ($node->nodeName() === 'p' || $node->nodeName() === 'li') {
-                 $text = trim($node->text());
-                 if (!empty($text)) {
-                    if ($node->nodeName() === 'li') {
-                        $fullContentText .= "- " . $text . "\n";
-                    } else {
-                        $fullContentText .= $text . "\n\n";
-                    }
-                 }
-             } elseif ($node->nodeName() === 'img') {
-                 $src = $node->attr('src');
-                 if ($src) {
-                    $fullContentText .= "![Gambar Panduan]({$src})\n\n";
-                 }
-             } elseif ($node->filter('img')->count()) {
-                 $src = $node->filter('img')->attr('src');
-                 if ($src) {
-                    $fullContentText .= "![Gambar Panduan]({$src})\n\n";
-                 }
-             }
-        });
-
-        if (!empty($fullContentText)) {
-            // Remove redundant titles or duplicated sections if any
-            $md .= $fullContentText;
-        }
-
-        if (!empty($sections['catatan'])) {
-            $md .= "### 💡 Catatan Penting\n" . trim($sections['catatan']) . "\n";
+            foreach ($uniqueFields as $field) {
+                $desc = !empty($field['explanation']) ? $field['explanation'] : $field['description'];
+                $mdContent .= "- **{$field['field']}**: {$desc}\n";
+            }
+            $mdContent .= "\n";
         }
 
         // Final Object
@@ -337,13 +343,54 @@ class ScrapeERP extends Command
             'title' => $title,
             'category' => $category,
             'keywords' => $this->generateKeywords($title, $category),
-            'detail_panduan_lengkap' => trim($md),
+            'detail_panduan_lengkap' => trim($mdContent),
             'url' => $url,
-            'form_fields' => array_slice($formFields, 0, 15), // Limit to relevant fields
+            'form_fields' => array_values(array_slice($uniqueFields, 0, 20)),
             'images' => $images,
             'video' => $videos[0] ?? null,
             'last_fetched' => now()->format('Y-m-d H:i:s')
         ];
+    }
+
+    private function getHeaderEmoji(string $text): string
+    {
+        $text = strtolower($text);
+        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah')) return '🛠️';
+        if (str_contains($text, 'syarat')) return '📋';
+        if (str_contains($text, 'catatan')) return '💡';
+        if (str_contains($text, 'fungsi')) return '📋';
+        return '';
+    }
+
+    private function detectFields(string $text, &$formFields, $title, $enrichmentLookup)
+    {
+        // Improved Regex for fields: "Field :" or "**Field** :"
+        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\.\s\/]{2,30})(?:\*\*)?\s*[:\-]\s*(.{5,200})/', $text, $matches)) {
+            $field = trim($matches[1]);
+            $description = trim($matches[2]);
+            
+            // Ignore common non-field text
+            if (in_array(strtolower($field), ['http', 'https', 'catatan', 'fungsi', 'petunjuk'])) return;
+
+            $explanation = '';
+            // Check enrichment lookup
+            foreach ($enrichmentLookup as $key => $fields) {
+                if (str_contains(strtolower($title), strtolower($key))) {
+                    foreach ($fields as $fieldName => $exp) {
+                        if (str_contains(strtolower($field), strtolower($fieldName))) {
+                            $explanation = $exp;
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            $formFields[] = [
+                'field' => $field,
+                'description' => $description,
+                'explanation' => $explanation
+            ];
+        }
     }
 
     private function generateKeywords(string $title, string $category): array
@@ -376,7 +423,14 @@ class ScrapeERP extends Command
             'guides' => $guides
         ];
 
-        file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        
+        if ($json === false) {
+            $this->error('❌ Failed to encode JSON: ' . json_last_error_msg());
+            return;
+        }
+
+        file_put_contents($path, $json);
         $this->info("💾 JSON updated at: {$path}");
     }
 }
