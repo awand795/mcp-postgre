@@ -219,34 +219,44 @@ class ScrapeERP extends Command
         $fieldQueue = []; // Queue to store fields detected between images
         $mdContent = "# {$title} 🚀\n\n";
 
-        // Enrichment Lookup Table
+        // Enrichment Lookup Table - Expanded with manual visual extraction
         $enrichmentLookup = [
+            'Common' => [
+                'No. Transaksi' => 'Nomor unik transaksi yang dihasilkan otomatis oleh sistem.',
+                'Tgl. Transaksi' => 'Tanggal dilakukannya transaksi.',
+                'Cabang' => 'Kantor cabang yang bertanggung jawab atas transaksi ini.',
+                'Departemen' => 'Departemen internal yang terlibat dalam transaksi.',
+                'Gudang' => 'Lokasi penyimpanan barang (Stock).',
+                'Keterangan' => 'Catatan atau memo tambahan terkait transaksi.',
+                'Supplier' => 'Pihak pemasok atau vendor barang/jasa.',
+                'Customer' => 'Pihak pembeli atau pelanggan.',
+                'Langganan' => 'Nama pelanggan atau member yang terdaftar.',
+                'Kode Barang' => 'ID unik untuk identitas barang di sistem.',
+                'Qty' => 'Jumlah atau kuantitas barang.',
+                'Harga' => 'Nilai satuan harga barang.',
+                'Total' => 'Nilai total transaksi (Qty x Harga).'
+            ],
+            'Serah Dokumen' => [
+                'Dari Cabang' => 'Cabang asal pengirim dokumen.',
+                'Dari Departemen' => 'Departemen asal pengirim dokumen.',
+                'Ditujukan Kepada' => 'Nama staff/personel penerima dokumen.',
+                'Ditujukan Cabang' => 'Cabang tujuan pengiriman dokumen.',
+                'Ditujukan Departemen' => 'Departemen tujuan pengiriman dokumen.',
+                'No. Dokumen' => 'Nomor dokumen fisik yang diserahkan.',
+                'No. Referensi' => 'Nomor referensi transaksi asal (misal No. Faktur).'
+            ],
             'Order Pembelian' => [
-                'No. Transaksi' => 'Otomatis dihasilkan sistem.',
-                'Tgl. Transaksi' => 'Tanggal pencatatan transaksi.',
-                'Tgl. PO' => 'Tanggal Order Pembelian.',
-                'T.O.P Hari' => 'Jangka waktu pembayaran.',
-                'Cabang' => 'Cabang pembuat pesanan.',
-                'Gudang Tujuan' => 'Gudang penerima barang.',
-                'Supplier' => 'Nama pemasok barang.',
-                'Kode Barang' => 'ID unik produk (pilih dari daftar).',
-                'Qty Order' => 'Jumlah barang yang dipesan.',
-                'Harga' => 'Harga satuan barang.',
-                'Disc Item %' => 'Diskon per item dalam persentase.',
-                'Netto Rp' => 'Harga bersih setelah diskon dan pajak.'
+                'Tgl. PO' => 'Tanggal resmi Order Pembelian diterbitkan.',
+                'T.O.P Hari' => 'Term of Payment (jangka waktu jatuh tempo pembayaran).',
+                'Gudang Tujuan' => 'Gudang yang akan menerima kiriman barang dari supplier.',
+                'Disc Item %' => 'Persentase diskon yang diberikan untuk setiap item.',
+                'Netto Rp' => 'Nilai bersih setelah dipotong diskon dan pajak.'
             ],
             'Klaim Barang' => [
-                'No. Transaksi' => 'Otomatis dihasilkan sistem ERP.',
-                'Jenis Klaim' => 'Pilihan alasan klaim (Barang Rusak/Kurang).',
-                'No. Transaksi TTB' => 'Referensi TTB asal barang.',
-                'Qty. Klaim' => 'Jumlah barang yang diklaim.',
-                'Qty. Kirim' => 'Jumlah fisik barang yang dikirim balik.'
-            ],
-            'Penyelesaian PDC' => [
-                'Kliring' => 'Proses penyetoran PDC/giro ke bank.',
-                'Batal Cair' => 'Membatalkan pencairan yang sudah diproses.',
-                'Tanggal Setor' => 'Tanggal penyerahan fisik ke bank.',
-                'Rekening Tujuan' => 'Akun bank penerima dana.'
+                'Jenis Klaim' => 'Kategori alasan klaim (misal: Barang Cacat atau Qty Kurang).',
+                'No. Transaksi TTB' => 'Nomor TTB (Tanda Terima Barang) yang menjadi acuan klaim.',
+                'Qty. Klaim' => 'Jumlah unit barang yang diajukan untuk diklaim.',
+                'Qty. Kirim' => 'Jumlah unit barang yang dikirimkan kembali ke supplier.'
             ]
         ];
 
@@ -322,8 +332,7 @@ class ScrapeERP extends Command
                     $alertType = $this->getAlertType($text);
                     
                     if ($alertType) {
-                        $mdContent .= "\n> [!{$alertType}]\n";
-                        $mdContent .= "> **{$text}** " . $this->getHeaderEmoji($text) . "\n>\n";
+                        $mdContent .= "\n> ### " . $this->getHeaderEmoji($text) . " " . rtrim($text, ' :-') . "\n>\n";
                     } else {
                         $mdContent .= "{$prefix} {$text} " . $this->getHeaderEmoji($text) . "\n\n";
                     }
@@ -342,13 +351,30 @@ class ScrapeERP extends Command
                     $mdContent .= "![{$alt}]({$src})\n\n";
                     $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
                     
+                    // Visual Enrichment Logic: Manual OCR Mapping for specific images
+                    $visualFieldMap = [
+                        '2-68_PRad5nErYPe8hMenpAYI.png' => ['No. Transaksi', 'Dari Cabang', 'Dari Departemen', 'Ditujukan Kepada', 'Ditujukan Cabang', 'Ditujukan Departemen', 'Keterangan'],
+                        '3-56_mtClmXotyFToLoxzzCpT.png' => ['No. Dokumen', 'Tgl. Dokumen', 'No. Referensi', 'Tgl. Referensi', 'Kode Langganan', 'Nama Langganan']
+                    ];
+
+                    $filename = basename($src);
+                    if (isset($visualFieldMap[$filename])) {
+                        // Add visual fields to the queue if not already there
+                        foreach ($visualFieldMap[$filename] as $vField) {
+                            $fieldQueue[] = [
+                                'field' => $vField,
+                                'description' => 'Terdeteksi pada formulir di gambar.',
+                                'explanation' => $enrichmentLookup['Serah Dokumen'][$vField] ?? ($enrichmentLookup['Common'][$vField] ?? '')
+                            ];
+                        }
+                    }
+
                     // Flush fieldQueue immediately under the image
                     if (!empty($fieldQueue)) {
-                        $mdContent .= "  > [!NOTE]\n";
-                        $mdContent .= "  > **📋 Penjelasan Field pada gambar:**\n";
+                        $mdContent .= "> **📋 Penjelasan Field pada gambar:**\n";
                         foreach ($fieldQueue as $field) {
                             $desc = !empty($field['explanation']) ? $field['explanation'] : $field['description'];
-                            $mdContent .= "  > - **{$field['field']}**: {$desc}\n";
+                            $mdContent .= "> - **{$field['field']}**: {$desc}\n";
                             $formFields[] = $field;
                         }
                         $mdContent .= "\n";
@@ -365,8 +391,7 @@ class ScrapeERP extends Command
                     $headerText = trim($firstStrong->textContent);
                     $alertType = $this->getAlertType($headerText);
                     if ($alertType) {
-                        $mdContent .= "\n> [!{$alertType}]\n";
-                        $mdContent .= "> **" . rtrim($headerText, ' :-') . "** " . $this->getHeaderEmoji($headerText) . "\n>\n";
+                        $mdContent .= "\n> ### " . $this->getHeaderEmoji($headerText) . " " . rtrim($headerText, ' :-') . "\n>\n";
                         
                         // Process the rest of the paragraph but prefix with >
                         $tempContent = "";
@@ -443,23 +468,23 @@ class ScrapeERP extends Command
         return '';
     }
 
-    private function detectFields(string $text, &$formFields, $title, $enrichmentLookup)
+    private function detectFields(string $text, &$fieldQueue, $title, $enrichmentLookup)
     {
         // Improved Regex for fields: "Field :" or "**Field** :"
-        // Restricted field name length to 3-25 chars and NO periods to avoid capturing full sentences
-        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/]{3,25})(?:\*\*)?\s*[:\-]\s*(.{5,150})/', $text, $matches)) {
+        // Restricted field name length to 3-30 chars and NO periods to avoid capturing full sentences
+        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/]{3,30})(?:\*\*)?\s*[:\-]\s*(.{5,180})/', $text, $matches)) {
             $field = trim($matches[1]);
             $description = trim($matches[2]);
             
             // Ignore common non-field headers and short fragments
             $lowerField = strtolower($field);
             if (in_array($lowerField, ['http', 'https', 'catatan', 'fungsi', 'petunjuk', 'persyaratan', 'syarat', 'input', 'update'])) return;
-            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 4) return;
+            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 5) return;
 
             $explanation = '';
-            // Check enrichment lookup
-            foreach ($enrichmentLookup as $key => $fields) {
-                if (str_contains(strtolower($title), strtolower($key))) {
+            // Check enrichment lookup (Per Category and Common)
+            foreach ($enrichmentLookup as $category => $fields) {
+                if ($category === 'Common' || str_contains(strtolower($title), strtolower($category))) {
                     foreach ($fields as $fieldName => $exp) {
                         if (str_contains(strtolower($field), strtolower($fieldName))) {
                             $explanation = $exp;
@@ -469,7 +494,7 @@ class ScrapeERP extends Command
                 }
             }
 
-            $formFields[] = [
+            $fieldQueue[] = [
                 'field' => $field,
                 'description' => $description,
                 'explanation' => $explanation
