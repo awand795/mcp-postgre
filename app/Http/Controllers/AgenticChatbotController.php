@@ -1053,16 +1053,30 @@ PROMPT;
                 }
             }
 
+            // ── Dynamic Width Layout based on column count ────────────────────
+            $colCount = count($headers);
+            
+            // Set a base width per column (in points). 1 pt = 1/72 inch.
+            // A4 landscape width is ~842 points.
+            // We want each column to have decent space (~150pt) if it's a wide table.
+            $pointsPerColumn = 150;
+            $height = 595; // A4 height (standard)
+            $width = max(842, $colCount * $pointsPerColumn);
+            $fontSize = 9;
+
             $pdf = Pdf::loadView('exports.pdf-table', [
-                'title' => strtoupper($title),
+                'title'       => strtoupper($title),
                 'generatedAt' => date('d M Y H:i'),
-                'headers' => $formattedHeaders,
-                'rows' => $rows,
+                'headers'     => $formattedHeaders,
+                'rows'        => $rows,
                 'columnTypes' => $columnTypes,
-                'chartImage' => $chartImage,
+                'chartImage'  => $chartImage,
+                'colCount'    => $colCount,
+                'fontSize'    => $fontSize,
             ]);
 
-            $pdf->setPaper('a4', 'landscape');
+            // Set custom paper size: [x, y, width, height]
+            $pdf->setPaper([0, 0, $width, $height]);
 
             return $pdf->download($filename);
         } catch (\Exception $e) {
