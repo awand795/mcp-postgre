@@ -93,8 +93,8 @@ class AdminController extends Controller
 
         // Jika role user berubah, clear cache allowed tables user lama & baru
         if ($user->role != $request->role) {
-            cache()->forget("agentic_allowed_tables_role_{$user->role}");
-            cache()->forget("agentic_allowed_tables_role_{$request->role}");
+            cache()->forget("agentic_allowed_dbs_role_{$user->role}");    // correct key
+            cache()->forget("agentic_allowed_dbs_role_{$request->role}"); // correct key
         }
 
         $user->update($data);
@@ -153,8 +153,9 @@ class AdminController extends Controller
         // Detailed debug logging
         $dbCounts = [];
         foreach ($databases as $db) {
-            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->database);
-            $dbCounts[$db->database] = count($dbTables);
+            // KEY FIX: filter by $db->code (the identifier), not $db->database (the actual DB server name)
+            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->code);
+            $dbCounts[$db->code] = count($dbTables);
         }
 
         \Log::info('Role Management Debug', [
@@ -468,12 +469,13 @@ class AdminController extends Controller
                     
                     foreach ($tables as $table) {
                         $allTables[] = [
-                            'database_code' => $db->database,
-                            'database_name' => $db->database,
-                            'schema_name' => $table['schema_name'],
-                            'table_name' => $table['table_name'],
-                            'description' => $table['description'] ?? '',
-                            'table_type' => $table['table_type'] ?? 'table',
+                            // KEY FIX: Use $db->code as database_code (the AI identifier), not $db->database (the server name)
+                            'database_code' => $db->code,
+                            'database_name' => $db->name,  // Human-readable display name
+                            'schema_name'   => $table['schema_name'],
+                            'table_name'    => $table['table_name'],
+                            'description'   => $table['description'] ?? '',
+                            'table_type'    => $table['table_type'] ?? 'table',
                         ];
                     }
                 } catch (\Exception $e) {
@@ -485,7 +487,7 @@ class AdminController extends Controller
 
             // Sort by database_name, schema_name, table_name
             usort($allTables, function($a, $b) {
-                $cmp = strcmp($a['database_name'], $b['database_name']);
+                $cmp = strcmp($a['database_code'], $b['database_code']);
                 if ($cmp !== 0) return $cmp;
                 $cmp = strcmp($a['schema_name'], $b['schema_name']);
                 if ($cmp !== 0) return $cmp;
