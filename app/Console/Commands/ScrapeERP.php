@@ -205,7 +205,7 @@ class ScrapeERP extends Command
         $contentNode = $crawler->filter('.entry-content');
         if ($contentNode->count() === 0) return null;
 
-        // Extract Category from URL Path or Breadcrumbs
+        // Extract Category from URL Path
         $category = 'Uncategory';
         $path = parse_url($url, PHP_URL_PATH);
         $segments = explode('/', trim($path, '/'));
@@ -218,7 +218,7 @@ class ScrapeERP extends Command
         $formFields = [];
         $mdContent = "# {$title} 🚀\n\n";
 
-        // Enrichment Lookup Table (Integrated from legacy commands)
+        // Enrichment Lookup Table
         $enrichmentLookup = [
             'Order Pembelian' => [
                 'No. Transaksi' => 'Otomatis dihasilkan sistem.',
@@ -249,79 +249,14 @@ class ScrapeERP extends Command
             ]
         ];
 
-        // Linear DOM Traversal to preserve 100% web layout
-        $contentNode->filter('h1, h2, h3, h4, h5, h6, p, ul, ol, hr, figure, img, .wp-video video')->each(function (Crawler $node) use (&$mdContent, &$images, &$videos, &$formFields, $title, $enrichmentLookup) {
-            $nodeName = $node->nodeName();
-            
-            // Handle Headers
-            if (in_array($nodeName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) {
-                $level = substr($nodeName, 1);
-                $text = trim($node->text());
-                if ($text) {
-                    $prefix = str_repeat('#', $level + 1);
-                    $emoji = $this->getHeaderEmoji($text);
-                    $mdContent .= "{$prefix} {$text} {$emoji}\n\n";
-                }
-            }
-            
-            // Handle Paragraphs
-            elseif ($nodeName === 'p') {
-                // Check for embedded images in p
-                $imgNode = $node->filter('img');
-                if ($imgNode->count()) {
-                    $src = $imgNode->attr('src');
-                    $alt = $imgNode->attr('alt') ?: 'Gambar';
-                    $mdContent .= "![{$alt}]({$src})\n\n";
-                    $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
-                }
-                
-                $text = trim($node->text());
-                if ($text) {
-                    $mdContent .= "{$text}\n\n";
-                    $this->detectFields($text, $formFields, $title, $enrichmentLookup);
-                }
-            }
-            
-            // Handle Lists
-            elseif ($nodeName === 'ul' || $nodeName === 'ol') {
-                $node->filter('li')->each(function (Crawler $li) use (&$mdContent, &$formFields, $title, $enrichmentLookup) {
-                    $text = trim($li->text());
-                    if ($text) {
-                        $mdContent .= "- {$text}\n";
-                        $this->detectFields($text, $formFields, $title, $enrichmentLookup);
-                        
-                        // Check for images inside li
-                        if ($li->filter('img')->count()) {
-                            $src = $li->filter('img')->attr('src');
-                            $mdContent .= "  ![Gambar]({$src})\n";
-                        }
-                    }
-                });
-                $mdContent .= "\n";
-            }
-            
-            // Handle Standalone Images / Figures
-            elseif ($nodeName === 'img' || $nodeName === 'figure') {
-                $img = $nodeName === 'img' ? $node : $node->filter('img');
-                if ($img->count()) {
-                    $src = $img->attr('src');
-                    $alt = $img->attr('alt') ?: 'Gambar Panduan';
-                    $mdContent .= "![{$alt}]({$src})\n\n";
-                    $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
-                }
-            }
-            
-            // Handle Horizontal Rule
-            elseif ($nodeName === 'hr') {
-                $mdContent .= "---\n\n";
-            }
-        });
+        // Process children of entry-content recursively for 1:1 layout match
+        $rootNode = $contentNode->getNode(0);
+        if ($rootNode) {
+            $this->processNodesRecursively($rootNode, $mdContent, $images, $videos, $formFields, $title, $enrichmentLookup);
+        }
 
-        // Final Field Enrichment Section
+        // Final Field Enrichment Section (Mandatory as per user request)
         if (!empty($formFields)) {
-            $mdContent .= "### 📋 Penjelasan Field Formulir\n\n";
-            $mdContent .= "Berikut adalah penjelasan detail mengenai field yang perlu diisi pada gambar di atas:\n\n";
-            
             // Unique fields only
             $uniqueFields = [];
             foreach ($formFields as $f) {
@@ -330,6 +265,9 @@ class ScrapeERP extends Command
                 }
             }
 
+            $mdContent .= "\n---\n\n### 📋 Penjelasan Field Formulir\n\n";
+            $mdContent .= "Berikut adalah penjelasan detail mengenai field yang perlu diisi pada gambar di atas:\n\n";
+            
             foreach ($uniqueFields as $field) {
                 $desc = !empty($field['explanation']) ? $field['explanation'] : $field['description'];
                 $mdContent .= "- **{$field['field']}**: {$desc}\n";
@@ -337,7 +275,14 @@ class ScrapeERP extends Command
             $mdContent .= "\n";
         }
 
-        // Final Object
+        // Add Video Section at the end if found
+        if (!empty($videos)) {
+            $mdContent .= "\n---\n\n### 🎥 Video Panduan\n\n";
+            foreach ($videos as $v) {
+                $mdContent .= "[Klik di sini untuk menonton video]({$v})\n\n";
+            }
+        }
+
         return [
             'id' => md5($url),
             'title' => $title,
@@ -345,11 +290,135 @@ class ScrapeERP extends Command
             'keywords' => $this->generateKeywords($title, $category),
             'detail_panduan_lengkap' => trim($mdContent),
             'url' => $url,
-            'form_fields' => array_values(array_slice($uniqueFields, 0, 20)),
+            'form_fields' => array_values(array_slice($uniqueFields ?? [], 0, 20)),
             'images' => $images,
             'video' => $videos[0] ?? null,
             'last_fetched' => now()->format('Y-m-d H:i:s')
         ];
+    }
+
+    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, $title, $enrichmentLookup, $level = 0)
+    {
+        foreach ($node->childNodes as $child) {
+            if ($child->nodeType === XML_TEXT_NODE) {
+                $text = trim($child->textContent);
+                if ($text && strlen($text) > 3) {
+                    $this->handleTextNode($text, $mdContent, $formFields, $title, $enrichmentLookup);
+                }
+                continue;
+            }
+
+            if ($child->nodeType !== XML_ELEMENT_NODE) continue;
+
+            $tagName = strtolower($child->nodeName);
+
+            // Handle Headers
+            if (in_array($tagName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) {
+                $text = trim($child->textContent);
+                if ($text) {
+                    $hLevel = (int)substr($tagName, 1) + 1;
+                    $prefix = str_repeat('#', $hLevel);
+                    $alertType = $this->getAlertType($text);
+                    
+                    if ($alertType) {
+                        $mdContent .= "\n> [!{$alertType}]\n";
+                        $mdContent .= "> **{$text}** " . $this->getHeaderEmoji($text) . "\n\n";
+                    } else {
+                        $mdContent .= "{$prefix} {$text} " . $this->getHeaderEmoji($text) . "\n\n";
+                    }
+                }
+            }
+
+            // Handle Images
+            elseif ($tagName === 'img' || ($tagName === 'a' && $child->getElementsByTagName('img')->length > 0)) {
+                $img = $tagName === 'img' ? $child : $child->getElementsByTagName('img')->item(0);
+                $src = $img->getAttribute('src');
+                $alt = $img->getAttribute('alt') ?: 'Gambar Panduan';
+                
+                // Final Clean: Ignore text residues that match the img alt or common placeholders
+                if (in_array(strtolower(trim($alt)), ['gambar', 'gambar panduan'])) $alt = 'Langkah Panduan';
+
+                if ($src && str_contains($src, 'http')) {
+                    $mdContent .= "![{$alt}]({$src})\n\n";
+                    $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
+                }
+            }
+
+            // Handle Paragraphs and Lists (Recurse into them to preserve order)
+            elseif (in_array($tagName, ['p', 'ul', 'ol', 'li', 'div', 'article', 'section'])) {
+                // Check if paragraph starts with a strong label (Pseudo-Header)
+                $firstStrong = $child->getElementsByTagName('strong')->item(0);
+                if ($tagName === 'p' && $firstStrong && $child->firstChild === $firstStrong) {
+                    $headerText = trim($firstStrong->textContent);
+                    $alertType = $this->getAlertType($headerText);
+                    if ($alertType) {
+                        $mdContent .= "\n> [!{$alertType}]\n";
+                        $mdContent .= "> **" . rtrim($headerText, ' :-') . "** " . $this->getHeaderEmoji($headerText) . "\n>\n";
+                        
+                        // Process the rest of the paragraph but prefix with >
+                        $tempContent = "";
+                        $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $title, $enrichmentLookup, $level + 1);
+                        
+                        // Remove the header text from temp content to avoid duplication
+                        $cleanContent = str_replace($headerText, '', $tempContent);
+                        $mdContent .= "> " . trim($cleanContent) . "\n\n";
+                        continue; // Skip normal processing for this P
+                    }
+                }
+
+                // If it's a list item, add the bullet
+                if ($tagName === 'li') {
+                    $mdContent .= "- ";
+                }
+
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $title, $enrichmentLookup, $level + 1);
+                
+                if (in_array($tagName, ['p', 'ul', 'ol', 'div'])) {
+                    $mdContent .= "\n\n";
+                } elseif ($tagName === 'li') {
+                    $mdContent .= "\n";
+                }
+            }
+
+            // Handle Video
+            elseif ($tagName === 'video' || str_contains($child->getAttribute('class'), 'wp-video')) {
+                $source = $child->getElementsByTagName('source')->item(0);
+                $src = $source ? $source->getAttribute('src') : $child->getAttribute('src');
+                if (!$src && $child->getElementsByTagName('a')->length > 0) {
+                    $src = $child->getElementsByTagName('a')->item(0)->getAttribute('href');
+                }
+
+                if ($src && str_contains($src, 'http')) {
+                    $videos[] = $src;
+                    // Also put in content if it's the right position
+                    $mdContent .= "### 🎥 Video Panduan\n[Klik di sini untuk menonton video]({$src})\n\n";
+                }
+            }
+
+            elseif ($tagName === 'hr') {
+                $mdContent .= "---\n\n";
+            }
+        }
+    }
+
+    private function handleTextNode(string $text, &$mdContent, &$formFields, $title, $enrichmentLookup)
+    {
+        // Ignore residual placeholder text
+        $lower = strtolower($text);
+        if ($lower === 'gambar' || $lower === 'gambar panduan' || $lower === 'video :' || $lower === 'video:') return;
+
+        $mdContent .= "{$text} ";
+        $this->detectFields($text, $formFields, $title, $enrichmentLookup);
+    }
+
+    private function getAlertType(string $text): ?string
+    {
+        $text = strtolower($text);
+        if (str_contains($text, 'fungsi')) return 'INFO';
+        if (str_contains($text, 'persyaratan') || str_contains($text, 'syarat')) return 'IMPORTANT';
+        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah')) return 'TIP';
+        if (str_contains($text, 'catatan')) return 'NOTE';
+        return null;
     }
 
     private function getHeaderEmoji(string $text): string
@@ -359,18 +428,22 @@ class ScrapeERP extends Command
         if (str_contains($text, 'syarat')) return '📋';
         if (str_contains($text, 'catatan')) return '💡';
         if (str_contains($text, 'fungsi')) return '📋';
+        if (str_contains($text, 'video')) return '🎥';
         return '';
     }
 
     private function detectFields(string $text, &$formFields, $title, $enrichmentLookup)
     {
         // Improved Regex for fields: "Field :" or "**Field** :"
-        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\.\s\/]{2,30})(?:\*\*)?\s*[:\-]\s*(.{5,200})/', $text, $matches)) {
+        // Restricted field name length to 3-25 chars and NO periods to avoid capturing full sentences
+        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/]{3,25})(?:\*\*)?\s*[:\-]\s*(.{5,150})/', $text, $matches)) {
             $field = trim($matches[1]);
             $description = trim($matches[2]);
             
-            // Ignore common non-field text
-            if (in_array(strtolower($field), ['http', 'https', 'catatan', 'fungsi', 'petunjuk'])) return;
+            // Ignore common non-field headers and short fragments
+            $lowerField = strtolower($field);
+            if (in_array($lowerField, ['http', 'https', 'catatan', 'fungsi', 'petunjuk', 'persyaratan', 'syarat', 'input', 'update'])) return;
+            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 4) return;
 
             $explanation = '';
             // Check enrichment lookup
