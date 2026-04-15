@@ -891,7 +891,7 @@ Semua jawaban Anda **WAJIB** mengikuti struktur berikut untuk standar profesiona
 ```smart_table
 {}
 ```
-- **TEKS (Angka Tunggal/Total)**: Jika hasil query HANYA berupa satu angka total agregat tanpa GROUP BY (contoh: hasil `COUNT(*)` atau `SUM()`), Anda **DILARANG** menggunakan Smart Table. Jawablah dengan kalimat narasi ringkas.
+- **TEKS (Angka Tunggal/Total)**: Jika hasil query HANYA berupa SATU KOLOM angka tunggal (misal hanya `COUNT(*)` atau satu buah `SUM()`), Anda **DILARANG** menggunakan Smart Table, jawablah dengan teks narasi biasa. NAMUN, jika Anda mengambil ringkasan yang terdiri dari **lebih dari satu kolom/metrik** (misal Total Netto, HPP, Discount, dsb sekalipun hanya satu baris rekapitulasi), Anda **WAJIB** menyajikannya di dalam blok `smart_table` agar tampilan tabel bisa diekspor.
 
 ## ATURAN SQL PENTING
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya, misal: `schema_name.table_name`. Skema harus didapatkan dari info skema atau describe table.
