@@ -1804,12 +1804,14 @@
                 let currencyColumns = [];
                 try {
                     const storedCols = chartContainer?.getAttribute('data-currency-columns');
+                    console.log('[Chart Excel Export] Stored currency cols attribute:', storedCols);
                     if (storedCols) {
                         currencyColumns = JSON.parse(storedCols);
                     }
                 } catch (e) {
                     console.warn('[Chart Export] Failed to parse currencyColumns:', e);
                 }
+                console.log('[Chart Excel Export] Final currencyColumns:', currencyColumns);
 
                 // Prepare data for Excel - EXACT data from chart
                 const rows = [];
@@ -2065,12 +2067,14 @@
                 let currencyColumns = [];
                 try {
                     const storedCols = chartContainer?.getAttribute('data-currency-columns');
+                    console.log('[Chart PDF Export] Stored currency cols attribute:', storedCols);
                     if (storedCols) {
                         currencyColumns = JSON.parse(storedCols);
                     }
                 } catch (e) {
                     console.warn('[Chart PDF Export] Failed to parse currencyColumns:', e);
                 }
+                console.log('[Chart PDF Export] Final currencyColumns:', currencyColumns);
 
                 const labels = chartConfig.data?.labels || [];
                 const datasets = chartConfig.data?.datasets || [];
@@ -2972,6 +2976,10 @@
                 }
 
                 const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
+                
+                // Debug: Log currency columns for chart
+                console.log('[Chart Init] currencyColumns:', currencyColumns, 'for chart:', chartId);
+                
                 // Store label on container for export
                 const chartLabel = toolRes.label || toolRes.data?.label || null;
                 if (chartLabel) container.setAttribute('data-title', chartLabel);
