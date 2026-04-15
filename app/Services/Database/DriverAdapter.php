@@ -41,6 +41,29 @@ abstract class DriverAdapter
     abstract public function describeTableQuery(): string;
 
     /**
+     * SQL query to describe columns of a specific table INCLUDING foreign keys
+     * 
+     * Returns columns: column_name, data_type, is_nullable, column_default, foreign_key_table, foreign_key_column
+     */
+    abstract public function describeTableWithKeysQuery(): string;
+
+    /**
+     * SQL query to search for tables or columns by keyword
+     * 
+     * Returns columns: table_schema, table_name, column_name, description
+     */
+    abstract public function searchSchemaQuery(): string;
+
+    /**
+     * SQL query to get a small preview of data from a table
+     */
+    public function getTablePreviewQuery(string $schemaName, string $tableName, int $limit = 5): string
+    {
+        $fullTableName = $this->usesSchema() ? "{$schemaName}.{$tableName}" : $tableName;
+        return "SELECT * FROM {$fullTableName} LIMIT {$limit}";
+    }
+
+    /**
      * Check if this driver uses the schema concept (vs database-as-schema)
      */
     public function usesSchema(): bool

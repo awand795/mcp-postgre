@@ -72,16 +72,20 @@ class SchemaService extends BaseService
                 // For MySQL, use database name as schema if driver doesn't use schema concept
                 $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
 
-                $query = $adapter->describeTableQuery();
+                $query = $adapter->describeTableWithKeysQuery();
                 $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
 
                 $result = [];
                 foreach ($columns as $col) {
-                    $result[] = [
+                    $item = [
                         'column'   => $col->column_name,
                         'type'     => $col->data_type,
                         'nullable' => $col->is_nullable,
                     ];
+                    if (!empty($col->foreign_key_table)) {
+                        $item['references'] = "{$col->foreign_key_table}.{$col->foreign_key_column}";
+                    }
+                    $result[] = $item;
                 }
             }
 
@@ -101,6 +105,92 @@ class SchemaService extends BaseService
         } catch (\Exception $e) {
             DB::purge($connName);
             return $this->errorResponse('Failed to describe table: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Search for tables or columns by keyword across all accessible databases.
+     */
+    public function searchSchema(string $keyword): string
+    {
+        if (empty($keyword)) {
+            return $this->errorResponse('keyword is required');
+        }
+
+        $allowedDbs = $this->queryService->getAllowedTables();
+        $results = [];
+
+        foreach ($allowedDbs as $dbCode => $schemas) {
+            $connName = "temp_conn_{$dbCode}";
+            try {
+                $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
+                if (!$dbModel) continue;
+
+                $adapter = $dbModel->getAdapter();
+                DB::purge($connName);
+                config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+                $query = $adapter->searchSchemaQuery();
+                $searchTerm = "%{$keyword}%";
+                $matches = DB::connection($connName)->select($query, [$searchTerm, $searchTerm]);
+
+                foreach ($matches as $match) {
+                    // Filter matches by user's RBAC
+                    if (isset($schemas[$match->table_schema]) && in_array($match->table_name, $schemas[$match->table_schema])) {
+                        $results[] = [
+                            'database' => $dbCode,
+                            'schema'   => $match->table_schema,
+                            'table'    => $match->table_name,
+                            'column'   => $match->column_name,
+                            'notes'    => $match->description ?? ''
+                        ];
+                    }
+                }
+                DB::purge($connName);
+            } catch (\Exception $e) {
+                Log::warning("Failed to search schema in {$dbCode}: " . $e->getMessage());
+            }
+        }
+
+        return $this->safeJsonEncode([
+            'keyword' => $keyword,
+            'matches' => $results,
+            'count'   => count($results)
+        ]);
+    }
+
+    /**
+     * Get a small preview of data from a table.
+     */
+    public function getTablePreview(string $databaseCode, string $schemaName, string $tableName): string
+    {
+        $allowedDbs = $this->queryService->getAllowedTables();
+        
+        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($tableName, $allowedDbs[$databaseCode][$schemaName])) {
+             return $this->errorResponse("Access denied or table not found.");
+        }
+
+        $connName = "temp_conn_{$databaseCode}";
+        try {
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            $adapter = $dbModel->getAdapter();
+
+            DB::purge($connName);
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+            $query = $adapter->getTablePreviewQuery($schemaName, $tableName, 5);
+            $rows = DB::connection($connName)->select($query);
+
+            DB::purge($connName);
+
+            return $this->safeJsonEncode([
+                'database' => $databaseCode,
+                'table'    => "{$schemaName}.{$tableName}",
+                'sample_rows' => $rows
+            ]);
+        } catch (\Exception $e) {
+            DB::purge($connName);
+            return $this->errorResponse('Failed to get preview: ' . $e->getMessage());
         }
     }
 

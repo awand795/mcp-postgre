@@ -56,6 +56,47 @@ class PostgreSqlAdapter extends DriverAdapter
         ";
     }
 
+    public function describeTableWithKeysQuery(): string
+    {
+        return "
+            SELECT 
+                c.column_name, 
+                c.data_type, 
+                c.is_nullable, 
+                c.column_default,
+                ccu.table_name AS foreign_key_table,
+                ccu.column_name AS foreign_key_column
+            FROM information_schema.columns c
+            LEFT JOIN information_schema.key_column_usage kcu 
+                ON c.table_name = kcu.table_name 
+                AND c.table_schema = kcu.table_schema 
+                AND c.column_name = kcu.column_name
+            LEFT JOIN information_schema.constraint_column_usage ccu
+                ON kcu.constraint_name = ccu.constraint_name
+                AND kcu.table_schema = ccu.table_schema
+            WHERE c.table_name = ? AND c.table_schema = ?
+            ORDER BY c.ordinal_position
+        ";
+    }
+
+    public function searchSchemaQuery(): string
+    {
+        return "
+            SELECT 
+                c.table_schema, 
+                c.table_name, 
+                c.column_name, 
+                obj_description(t.oid) AS description
+            FROM information_schema.columns c
+            JOIN pg_class t ON t.relname = c.table_name
+            JOIN pg_namespace n ON n.oid = t.relnamespace AND n.nspname = c.table_schema
+            WHERE (c.table_name ILIKE ? OR c.column_name ILIKE ?)
+            AND c.table_schema NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY c.table_schema, c.table_name
+            LIMIT 100
+        ";
+    }
+
     public function usesSchema(): bool
     {
         return true;

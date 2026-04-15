@@ -35,7 +35,7 @@ class SqlServerAdapter extends DriverAdapter
                 CAST(ep.value AS NVARCHAR(MAX)) as description,
                 'VIEW' as table_type
             FROM sys.views v
-            INNER JOIN sys.schemas s ON v.schema_id = s.schema_id
+            INNER JOIN sys.schemas s v.schema_id = s.schema_id
             LEFT JOIN sys.extended_properties ep ON ep.major_id = v.object_id
                 AND ep.minor_id = 0
                 AND ep.name = 'MS_Description'
@@ -66,6 +66,53 @@ class SqlServerAdapter extends DriverAdapter
             INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
             WHERE t.name = ? AND s.name = ?
             ORDER BY c.column_id
+        ";
+    }
+
+    public function describeTableWithKeysQuery(): string
+    {
+        return "
+            SELECT 
+                c.name as column_name,
+                TYPE_NAME(c.user_type_id) as data_type,
+                CASE c.is_nullable WHEN 1 THEN 'YES' ELSE 'NO' END as is_nullable,
+                OBJECT_DEFINITION(c.default_object_id) as column_default,
+                fk.referenced_table_name AS foreign_key_table,
+                fk.referenced_column_name AS foreign_key_column
+            FROM sys.columns c
+            INNER JOIN sys.tables t ON c.object_id = t.object_id
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            LEFT JOIN (
+                SELECT 
+                    parent_table.name AS table_name,
+                    parent_column.name AS column_name,
+                    referenced_table.name AS referenced_table_name,
+                    referenced_column.name AS referenced_column_name
+                FROM sys.foreign_key_columns fkc
+                INNER JOIN sys.tables parent_table ON fkc.parent_object_id = parent_table.object_id
+                INNER JOIN sys.columns parent_column ON fkc.parent_object_id = parent_column.object_id AND fkc.parent_column_id = parent_column.column_id
+                INNER JOIN sys.tables referenced_table ON fkc.referenced_object_id = referenced_table.object_id
+                INNER JOIN sys.columns referenced_column ON fkc.referenced_object_id = referenced_column.object_id AND fkc.referenced_column_id = referenced_column.column_id
+            ) fk ON t.name = fk.table_name AND c.name = fk.column_name
+            WHERE t.name = ? AND s.name = ?
+            ORDER BY c.column_id
+        ";
+    }
+
+    public function searchSchemaQuery(): string
+    {
+        return "
+            SELECT TOP 100
+                s.name as table_schema, 
+                t.name as table_name, 
+                c.name as column_name, 
+                '' AS description
+            FROM sys.columns c
+            INNER JOIN sys.tables t ON c.object_id = t.object_id
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE (t.name LIKE ? OR c.name LIKE ?)
+            AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
+            ORDER BY s.name, t.name
         ";
     }
 

@@ -43,6 +43,22 @@ class SqliteAdapter extends DriverAdapter
         return 'PRAGMA table_info(?)';
     }
 
+    public function describeTableWithKeysQuery(): string
+    {
+        // SQLite uses PRAGMA foreign_key_list(?) - handled in service
+        return 'PRAGMA table_info(?)';
+    }
+
+    public function searchSchemaQuery(): string
+    {
+        return "
+            SELECT 'main' as table_schema, name as table_name, '' as column_name, '' as description
+            FROM sqlite_master
+            WHERE type = 'table' AND name LIKE ?
+            LIMIT 100
+        ";
+    }
+
     public function usesSchema(): bool
     {
         return false;

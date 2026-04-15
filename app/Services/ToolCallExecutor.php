@@ -91,6 +91,44 @@ class ToolCallExecutor
             ],
             [
                 'type'        => 'function',
+                'name'        => 'search_schema',
+                'description' => 'Mencari tabel atau kolom yang relevan berdasarkan kata kunci di seluruh database yang tersedia. Gunakan ini jika Anda bingung mencari letak data tertentu (misal: mencari di mana data "diskon" disimpan).',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'keyword' => [
+                            'type'        => 'string',
+                            'description' => 'Kata kunci pencarian (misal: "sales", "customer", "price").',
+                        ],
+                    ],
+                    'required' => ['keyword'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'get_table_preview',
+                'description' => 'Mengambil 5 baris contoh data dari tabel tertentu. SANGAT DISARANKAN dilakukan setelah describe_table agar Anda memahami format konten data sebenarnya sebelum menulis query filter yang kompleks.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'database_code' => [
+                            'type'        => 'string',
+                            'description' => 'Kode database.',
+                        ],
+                        'schema_name' => [
+                            'type'        => 'string',
+                            'description' => 'Nama schema.',
+                        ],
+                        'table_name' => [
+                            'type'        => 'string',
+                            'description' => 'Nama tabel.',
+                        ],
+                    ],
+                    'required' => ['database_code', 'schema_name', 'table_name'],
+                ],
+            ],
+            [
+                'type'        => 'function',
                 'name'        => 'execute_query',
                 'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu.',
                 'parameters'  => [
@@ -190,6 +228,8 @@ class ToolCallExecutor
                 // Core Tools
                 'get_database_schema_info' => $this->schemaService->getSchemaInfo(),
                 'describe_table'        => $this->schemaService->describeTable($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
+                'search_schema'         => $this->schemaService->searchSchema($arguments['keyword'] ?? ''),
+                'get_table_preview'     => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
                 'execute_query'         => $this->queryService->executeQuery($arguments['database_code'] ?? '', $arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
 
                 // ERP Tools

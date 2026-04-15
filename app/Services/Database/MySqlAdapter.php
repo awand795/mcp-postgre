@@ -52,6 +52,43 @@ class MySqlAdapter extends DriverAdapter
         ";
     }
 
+    public function describeTableWithKeysQuery(): string
+    {
+        return "
+            SELECT 
+                c.column_name, 
+                c.data_type, 
+                c.is_nullable, 
+                c.column_default,
+                kcu.referenced_table_name AS foreign_key_table,
+                kcu.referenced_column_name AS foreign_key_column
+            FROM information_schema.columns c
+            LEFT JOIN information_schema.key_column_usage kcu 
+                ON c.table_name = kcu.table_name 
+                AND c.table_schema = kcu.table_schema 
+                AND c.column_name = kcu.column_name
+                AND kcu.referenced_table_name IS NOT NULL
+            WHERE c.table_name = ? AND c.table_schema = ?
+            ORDER BY c.ordinal_position
+        ";
+    }
+
+    public function searchSchemaQuery(): string
+    {
+        return "
+            SELECT 
+                table_schema, 
+                table_name, 
+                column_name, 
+                column_comment AS description
+            FROM information_schema.columns
+            WHERE (table_name LIKE ? OR column_name LIKE ?)
+            AND table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+            ORDER BY table_schema, table_name
+            LIMIT 100
+        ";
+    }
+
     public function usesSchema(): bool
     {
         return false; // MySQL uses database-as-schema concept
