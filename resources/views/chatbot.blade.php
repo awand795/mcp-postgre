@@ -2603,13 +2603,16 @@
                             const chartData = JSON.parse(code.trim());
                             let chartIdx = -1;
                             let chartLabel = null;
+                            let currencyColumns = [];
 
                             if (chartData.tool_index !== undefined) {
                                 chartIdx = parseInt(chartData.tool_index);
-                                // Try to get label from the tool result
+                                // Try to get label and currency_columns from the tool result
                                 if (chartIdx >= 0 && currentToolResults[chartIdx]) {
                                     const tr = currentToolResults[chartIdx];
                                     chartLabel = tr.label || tr.data?.label || null;
+                                    // Get currency_columns from execute_query result
+                                    currencyColumns = tr.currency_columns || tr.data?.currency_columns || [];
                                 }
                             } else if (chartData.type) {
                                 chartIdx = currentToolResults.length;
@@ -2617,10 +2620,26 @@
                                 chartLabel = chartData.title || chartData.label
                                     || chartData.data?.datasets?.[0]?.label
                                     || null;
+                                
+                                // Try to get currency_columns from related smart_table if exists
+                                // Look for smart_table with same tool_index in recent tool results
+                                for (let i = currentToolResults.length - 1; i >= 0; i--) {
+                                    const tr = currentToolResults[i];
+                                    if (tr && tr.currency_columns && tr.currency_columns.length > 0) {
+                                        currencyColumns = tr.currency_columns;
+                                        break;
+                                    }
+                                    if (tr && tr.data && tr.data.currency_columns) {
+                                        currencyColumns = tr.data.currency_columns;
+                                        break;
+                                    }
+                                }
+                                
                                 currentToolResults.push({
                                     tool_name: 'chart',
                                     data: { chart_config: chartData },
-                                    label: chartLabel
+                                    label: chartLabel,
+                                    currency_columns: currencyColumns
                                 });
                             }
 
@@ -2630,7 +2649,8 @@
 
                             const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
                             const titleAttr = chartLabel ? ` data-title="${chartLabel}"` : '';
-                            return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}"${titleAttr}>
+                            const currencyAttr = currencyColumns.length > 0 ? ` data-currency-columns='${JSON.stringify(currencyColumns)}'` : '';
+                            return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}"${titleAttr}${currencyAttr}>
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
                         } catch(e) {
@@ -2985,21 +3005,26 @@
 
                 const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
                 
-                // Debug: Log FULL toolRes structure to find where currency_columns actually is
-                console.log('[Chart Init] toolRes structure:', {
-                    has_currency_columns_direct: 'currency_columns' in toolRes,
-                    has_data: !!toolRes.data,
-                    has_data_currency: toolRes.data ? 'currency_columns' in toolRes.data : false,
-                    toolRes_keys: Object.keys(toolRes),
-                    data_keys: toolRes.data ? Object.keys(toolRes.data) : [],
-                    currencyColumns: currencyColumns,
-                    chartId: chartId
-                });
+                // Also check HTML attribute as fallback
+                let containerCurrencyCols = [];
+                try {
+                    const storedCols = container?.getAttribute('data-currency-columns');
+                    if (storedCols) {
+                        containerCurrencyCols = JSON.parse(storedCols);
+                    }
+                } catch (e) {}
+                
+                // Use container attribute if toolRes doesn't have currencyColumns
+                const finalCurrencyCols = currencyColumns.length > 0 ? currencyColumns : containerCurrencyCols;
+                console.log('[Chart Init] currencyColumns:', finalCurrencyCols, 'chartId:', chartId);
                 
                 // Store label on container for export
                 const chartLabel = toolRes.label || toolRes.data?.label || null;
                 if (chartLabel) container.setAttribute('data-title', chartLabel);
-                initChartWithConfig(canvas, config, container, chartId, currencyColumns);
+                if (finalCurrencyCols.length > 0) {
+                    container.setAttribute('data-currency-columns', JSON.stringify(finalCurrencyCols));
+                }
+                initChartWithConfig(canvas, config, container, chartId, finalCurrencyCols);
             });
 
             // LEGACY: Handle old chart format with base64 data (for backward compatibility)
