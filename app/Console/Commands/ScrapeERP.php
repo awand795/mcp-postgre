@@ -236,6 +236,18 @@ class ScrapeERP extends Command
                 'Harga' => 'Nilai satuan harga barang.',
                 'Total' => 'Nilai total transaksi (Qty x Harga).'
             ],
+            'Tanda Terima Barang' => [
+                'No. TTB' => 'Nomor urut transaksi Tanda Terima Barang.',
+                'No. Referensi' => 'Nomor referensi dari dokumen pengirim (Faktur/Surat Jalan).',
+                'Tgl. TTB' => 'Tanggal diterimanya barang.',
+                'Supplier' => 'Nama pemasok barang.',
+                'Langganan' => 'Nama pelanggan (jika retur jual).',
+                'Kode Barang' => 'Kode identitas barang yang diterima.',
+                'Qty. TTB' => 'Jumlah barang yang diterima sesuai fisik.',
+                'Satuan' => 'Satuan unit barang (Pcs, Box, dll).',
+                'Gudang' => 'Gudang penyimpanan barang yang diterima.',
+                'Keterangan' => 'Catatan tambahan mengenai kondisi barang saat diterima.'
+            ],
             'Serah Dokumen' => [
                 'Dari Cabang' => 'Cabang asal pengirim dokumen.',
                 'Dari Departemen' => 'Departemen asal pengirim dokumen.',
@@ -313,7 +325,7 @@ class ScrapeERP extends Command
         foreach ($node->childNodes as $child) {
             if ($child->nodeType === XML_TEXT_NODE) {
                 $text = trim($child->textContent);
-                if ($text && strlen($text) > 3) {
+                if ($text && strlen($text) >= 2) {
                     $this->handleTextNode($text, $mdContent, $fieldQueue, $formFields, $title, $enrichmentLookup);
                 }
                 continue;
@@ -417,6 +429,22 @@ class ScrapeERP extends Command
                 }
             }
 
+            // Handle Tables
+            elseif ($tagName === 'table') {
+                $mdContent .= "\n";
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $mdContent .= "\n";
+            }
+            elseif ($tagName === 'tr') {
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $mdContent .= "\n";
+            }
+            elseif (in_array($tagName, ['td', 'th'])) {
+                $mdContent .= "| ";
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $mdContent .= " ";
+            }
+
             // Handle Video
             elseif ($tagName === 'video' || str_contains($child->getAttribute('class'), 'wp-video')) {
                 $source = $child->getElementsByTagName('source')->item(0);
@@ -433,6 +461,11 @@ class ScrapeERP extends Command
 
             elseif ($tagName === 'hr') {
                 $mdContent .= "---\n\n";
+            }
+
+            else {
+                // Default recursion for other elements (span, strong, b, etc.) to ensure text is captured
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
             }
         }
     }
@@ -471,15 +504,15 @@ class ScrapeERP extends Command
     private function detectFields(string $text, &$fieldQueue, $title, $enrichmentLookup)
     {
         // Improved Regex for fields: "Field :" or "**Field** :"
-        // Restricted field name length to 3-30 chars and NO periods to avoid capturing full sentences
-        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/]{3,30})(?:\*\*)?\s*[:\-]\s*(.{5,180})/', $text, $matches)) {
+        // Restricted field name length to 2-50 chars and allowed more characters to capture ERP fields correctly
+        if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/\(\)\.]{2,50})(?:\*\*)?\s*[:\-]\s*(.{2,500})/', $text, $matches)) {
             $field = trim($matches[1]);
             $description = trim($matches[2]);
             
             // Ignore common non-field headers and short fragments
             $lowerField = strtolower($field);
             if (in_array($lowerField, ['http', 'https', 'catatan', 'fungsi', 'petunjuk', 'persyaratan', 'syarat', 'input', 'update'])) return;
-            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 5) return;
+            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 7) return;
 
             $explanation = '';
             // Check enrichment lookup (Per Category and Common)
@@ -514,6 +547,7 @@ class ScrapeERP extends Command
         if (str_contains(strtolower($title), 'pembayaran')) $keys[] = 'kasir';
         if (str_contains(strtolower($title), 'piutang')) $keys[] = 'ar';
         if (str_contains(strtolower($title), 'hutang')) $keys[] = 'ap';
+        if (str_contains(strtolower($title), 'tanda terima barang')) $keys[] = 'ttb';
         
         return array_unique($keys);
     }
