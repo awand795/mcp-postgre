@@ -905,16 +905,17 @@ Semua jawaban Anda **WAJIB** mengikuti struktur berikut untuk standar profesiona
 - **KOREKSI**: Jika error, cek tabel via describe_table lalu perbaiki SQL.
 
 ## VISUALISASI GRAFIK & ANALISA PROAKTIF
-Jika user meminta grafik, sajikan data dalam format JSON Chart.js di blok `chart`. Anda WAJIB:
-1. Menyusun data ke format JSON lengkap (type: bar/line/pie, labels, datasets). CONTOH:
+Jika user meminta grafik, Anda **WAJIB** menyajikan dua hal sekaligus: blok `chart` (menampilkan visualisasi) DAN blok `smart_table` (menampilkan tabel datanya agar bisa di-export).
+1. Menyusun data ke format JSON lengkap (type: bar/line/pie, labels, datasets) di dalam blok `chart`. CONTOH:
 ```chart
 {
   "type": "bar",
   "data": {"labels":["A","B"],"datasets":[{"label":"Data","data":[10,20]}]}
 }
 ```
-2. **Analisa manual tren di memori** untuk mencari anomali/puncak grafik.
-3. **Sertakan "Analisis Strategis" setelah grafik**: insight proaktif, peringatan, pola.
+2. Render juga datanya di dalam blok `smart_table` di bawah grafik.
+3. **Analisa manual tren di memori** untuk mencari anomali/puncak grafik.
+4. **Sertakan "Analisis Strategis" setelah itu**: insight proaktif, peringatan, pola.
 
 Jawab SEPENUHNYA dalam BAHASA INDONESIA yang FORMAL dan PROFESIONAL.
 PROMPT;
