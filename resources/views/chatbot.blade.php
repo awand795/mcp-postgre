@@ -1799,7 +1799,18 @@
                     || chartConfig.options?.plugins?.title?.text
                     || chartConfig.title
                     || 'Grafik Data';
-                
+
+                // Get currencyColumns from container (stored during chart init)
+                let currencyColumns = [];
+                try {
+                    const storedCols = chartContainer?.getAttribute('data-currency-columns');
+                    if (storedCols) {
+                        currencyColumns = JSON.parse(storedCols);
+                    }
+                } catch (e) {
+                    console.warn('[Chart Export] Failed to parse currencyColumns:', e);
+                }
+
                 // Prepare data for Excel - EXACT data from chart
                 const rows = [];
                 const headers = ['No', 'Label', ...datasets.map((d, i) => {
@@ -1881,6 +1892,7 @@
                         rows: rows,
                         filename: filename,
                         title: chartTitle,
+                        currencyColumns: currencyColumns,
                         chartInfo: {
                             type: chartType,
                             title: chartTitle,
@@ -2048,6 +2060,18 @@
                     || chartConfig.options?.plugins?.title?.text
                     || chartConfig.title
                     || 'Grafik Data';
+
+                // Get currencyColumns from container (stored during chart init)
+                let currencyColumns = [];
+                try {
+                    const storedCols = chartContainer?.getAttribute('data-currency-columns');
+                    if (storedCols) {
+                        currencyColumns = JSON.parse(storedCols);
+                    }
+                } catch (e) {
+                    console.warn('[Chart PDF Export] Failed to parse currencyColumns:', e);
+                }
+
                 const labels = chartConfig.data?.labels || [];
                 const datasets = chartConfig.data?.datasets || [];
                 const chartType = chartConfig.type || 'bar';
@@ -2093,6 +2117,7 @@
                         rows: rows,
                         filename: filename,
                         title: chartTitle,
+                        currencyColumns: currencyColumns,
                         chartImage: chartImage
                     }),
                 });
@@ -3075,6 +3100,11 @@
             try {
                 new Chart(canvas, config);
                 canvas.setAttribute('data-chart-initialized', 'true');
+
+                // Store currencyColumns in container for export functions
+                if (container && currencyColumns && currencyColumns.length > 0) {
+                    container.setAttribute('data-currency-columns', JSON.stringify(currencyColumns));
+                }
 
                 // Add export toolbar
                 if (container && !container.querySelector('.chart-toolbar')) {

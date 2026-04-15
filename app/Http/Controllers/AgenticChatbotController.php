@@ -1039,7 +1039,7 @@ PROMPT;
         $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.pdf');
         $title = $request->input('title', 'Data Export');
         $chartImage = $request->input('chartImage');
-        $currencyColumns = array_map('strtolower', $request->input('currencyColumns', []));
+        $currencyColumns = $request->input('currencyColumns', []);
 
         // Increase time limit for large exports
         set_time_limit(600);
@@ -1051,19 +1051,31 @@ PROMPT;
                 return mb_convert_case($formatted, MB_CASE_TITLE, 'UTF-8');
             }, $headers);
 
+            // Normalize currencyColumns for comparison (handle "Total Netto" vs "total_netto")
+            $normalizedCurrencyCols = array_map(function($col) {
+                $normalized = strtolower($col);
+                $normalized = preg_replace('/\s+/', '_', $normalized);
+                $normalized = preg_replace('/_+/', '_', $normalized);
+                return trim($normalized, '_');
+            }, $currencyColumns);
+
             // Detect column types for alignment
             $columnTypes = [];
             foreach ($headers as $i => $header) {
                 $headerName = strtolower($header);
-                
-                // 1. AI Decision Priority
-                if (in_array($headerName, $currencyColumns)) {
+                // Normalize header for comparison
+                $normalizedHeader = preg_replace('/\s+/', '_', $headerName);
+                $normalizedHeader = preg_replace('/_+/', '_', $normalizedHeader);
+                $normalizedHeader = trim($normalizedHeader, '_');
+
+                // 1. AI Decision Priority (using normalized comparison)
+                if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
                     $columnTypes[$i] = 'currency';
                 }
                 // 2. ID/Fixed string detection
                 elseif (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i', $headerName)) {
                     $columnTypes[$i] = 'text';
-                } 
+                }
                 // 3. Fallback currency detection
                 elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|revenue|payment|tax|discount|budget)/i', $headerName)) {
                     $columnTypes[$i] = 'currency';
