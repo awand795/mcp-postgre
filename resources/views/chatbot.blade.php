@@ -2142,36 +2142,12 @@
             const h = header.toLowerCase();
             
             // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
+            // HANYA bergantung pada metadata AI
             if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
                 const aiCols = smartTables[tableId].currencyColumns.map(c => c.toLowerCase());
                 if (aiCols.includes(h)) {
                     return true;
                 }
-            }
-
-            // 1. Comprehensive list of money markers in both Indonesian and English
-            const moneyMarkers = [
-                'netto', 'dpp', 'harga', 'price', 'laba', 'profit', 'nominal', 'biaya', 'fee', 'ongkir',
-                'amount', 'sales', 'payment', 'revenue', 'cogs', 'hpp', 'tax', 'diskon', 'discount',
-                'budget', 'total_netto', 'total_dpp', 'gpn'
-            ];
-            
-            const isMoney = moneyMarkers.some(p => h.includes(p));
-            
-            if (isMoney) {
-                // Exclusion check for quantities/counts even with money markers
-                const excludes = ['qty', 'jumlah', 'count', 'unit', 'terjual', 'stok', 'stock', 'persen', 'percent'];
-                if (excludes.some(e => h.includes(e))) {
-                    // Exception: specific money totals
-                    if (h === 'total_netto' || h === 'total_dpp') return true;
-                    return false;
-                }
-                return true;
-            }
-
-            // If it's a "total" column and not a count, it's likely money in this business context
-            if (h.includes('total') && !h.includes('qty') && !h.includes('terjual') && !h.includes('jumlah') && !h.includes('count') && !h.includes('unit')) {
-                return true;
             }
 
             return false;
@@ -2224,9 +2200,7 @@
             const num = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
             
             if (isMoney && !isNaN(num)) {
-                // Return as number with thousands separator, but WITHOUT "Rp" prefix
-                // The AI will provide the "Rp" context in its narrative text.
-                return num.toLocaleString('id-ID');
+                return currencyFormatter.format(num);
             }
             
             // Patterns that should NOT get thousands separators (IDs, Codes, Years, Refs, etc.)
