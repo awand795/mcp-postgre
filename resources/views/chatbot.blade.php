@@ -2510,6 +2510,14 @@
                         currencyColumns = tableData.currency_columns || [];
                         tableLabel = toolRes.label || tableData.label || null;
 
+                        // Debug: Log smart table currency columns
+                        console.log('[SmartTable Init] currencyColumns:', currencyColumns, 'from toolRes:', {
+                            has_currency_columns_direct: 'currency_columns' in toolRes,
+                            has_data: !!toolRes.data,
+                            has_data_currency: toolRes.data ? 'currency_columns' in toolRes.data : false,
+                            tableData_keys: Object.keys(tableData)
+                        });
+
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
                             allRows = tableData.rows.map(r => Array.isArray(r) ? r : headers.map(h => r[h]));
@@ -2977,8 +2985,16 @@
 
                 const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
                 
-                // Debug: Log currency columns for chart
-                console.log('[Chart Init] currencyColumns:', currencyColumns, 'for chart:', chartId);
+                // Debug: Log FULL toolRes structure to find where currency_columns actually is
+                console.log('[Chart Init] toolRes structure:', {
+                    has_currency_columns_direct: 'currency_columns' in toolRes,
+                    has_data: !!toolRes.data,
+                    has_data_currency: toolRes.data ? 'currency_columns' in toolRes.data : false,
+                    toolRes_keys: Object.keys(toolRes),
+                    data_keys: toolRes.data ? Object.keys(toolRes.data) : [],
+                    currencyColumns: currencyColumns,
+                    chartId: chartId
+                });
                 
                 // Store label on container for export
                 const chartLabel = toolRes.label || toolRes.data?.label || null;
