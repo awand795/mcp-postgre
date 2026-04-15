@@ -35,7 +35,7 @@ class SqlServerAdapter extends DriverAdapter
                 CAST(ep.value AS NVARCHAR(MAX)) as description,
                 'VIEW' as table_type
             FROM sys.views v
-            INNER JOIN sys.schemas s v.schema_id = s.schema_id
+            INNER JOIN sys.schemas s ON v.schema_id = s.schema_id
             LEFT JOIN sys.extended_properties ep ON ep.major_id = v.object_id
                 AND ep.minor_id = 0
                 AND ep.name = 'MS_Description'
@@ -78,10 +78,14 @@ class SqlServerAdapter extends DriverAdapter
                 CASE c.is_nullable WHEN 1 THEN 'YES' ELSE 'NO' END as is_nullable,
                 OBJECT_DEFINITION(c.default_object_id) as column_default,
                 fk.referenced_table_name AS foreign_key_table,
-                fk.referenced_column_name AS foreign_key_column
+                fk.referenced_column_name AS foreign_key_column,
+                CAST(ep.value AS NVARCHAR(MAX)) as description
             FROM sys.columns c
             INNER JOIN sys.tables t ON c.object_id = t.object_id
             INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id 
+                AND ep.minor_id = c.column_id
+                AND ep.name = 'MS_Description'
             LEFT JOIN (
                 SELECT 
                     parent_table.name AS table_name,
@@ -99,6 +103,33 @@ class SqlServerAdapter extends DriverAdapter
         ";
     }
 
+    public function getViewDefinitionQuery(): string
+    {
+        return "
+            SELECT definition
+            FROM sys.sql_modules
+            WHERE object_id = OBJECT_ID(?)
+        ";
+    }
+
+    public function getTableIndexesQuery(): string
+    {
+        return "
+            SELECT 
+                i.name AS index_name,
+                c.name AS column_name,
+                i.is_primary_key AS is_primary,
+                i.is_unique AS is_unique
+            FROM sys.indexes i
+            INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+            INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+            INNER JOIN sys.tables t ON i.object_id = t.object_id
+            INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            WHERE t.name = ? AND s.name = ?
+            ORDER BY i.name, ic.key_ordinal
+        ";
+    }
+
     public function searchSchemaQuery(): string
     {
         return "
@@ -106,10 +137,13 @@ class SqlServerAdapter extends DriverAdapter
                 s.name as table_schema, 
                 t.name as table_name, 
                 c.name as column_name, 
-                '' AS description
+                CAST(ep.value AS NVARCHAR(MAX)) AS description
             FROM sys.columns c
             INNER JOIN sys.tables t ON c.object_id = t.object_id
             INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+            LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id 
+                AND ep.minor_id = c.column_id
+                AND ep.name = 'MS_Description'
             WHERE (t.name LIKE ? OR c.name LIKE ?)
             AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
             ORDER BY s.name, t.name
@@ -146,7 +180,7 @@ class SqlServerAdapter extends DriverAdapter
 
     public function formatVersion(mixed $result): string
     {
-        $version = $result[0]->version ?? $result[0]->{'(No column name)'} ?? 'Unknown';
+        $version = $result[0]->version ?? $result[0]->{'(No column name)'} ?? $result[0]->{'@@version'} ?? 'Unknown';
         if (preg_match('/Microsoft SQL Server\s+(.*)/', $version, $matches)) {
             return 'SQL Server ' . trim($matches[1]);
         }

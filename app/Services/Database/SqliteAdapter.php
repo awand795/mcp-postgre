@@ -49,6 +49,16 @@ class SqliteAdapter extends DriverAdapter
         return 'PRAGMA table_info(?)';
     }
 
+    public function getViewDefinitionQuery(): string
+    {
+        return "SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?";
+    }
+
+    public function getTableIndexesQuery(): string
+    {
+        return "PRAGMA index_list(?)";
+    }
+
     public function searchSchemaQuery(): string
     {
         return "

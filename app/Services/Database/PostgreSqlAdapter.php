@@ -65,8 +65,11 @@ class PostgreSqlAdapter extends DriverAdapter
                 c.is_nullable, 
                 c.column_default,
                 ccu.table_name AS foreign_key_table,
-                ccu.column_name AS foreign_key_column
+                ccu.column_name AS foreign_key_column,
+                col_description(pg_class.oid, c.ordinal_position) AS description
             FROM information_schema.columns c
+            JOIN pg_class ON pg_class.relname = c.table_name
+            JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace AND pg_namespace.nspname = c.table_schema
             LEFT JOIN information_schema.key_column_usage kcu 
                 ON c.table_name = kcu.table_name 
                 AND c.table_schema = kcu.table_schema 
@@ -76,6 +79,33 @@ class PostgreSqlAdapter extends DriverAdapter
                 AND kcu.table_schema = ccu.table_schema
             WHERE c.table_name = ? AND c.table_schema = ?
             ORDER BY c.ordinal_position
+        ";
+    }
+
+    public function getViewDefinitionQuery(): string
+    {
+        return "
+            SELECT view_definition
+            FROM information_schema.views
+            WHERE table_name = ? AND table_schema = ?
+        ";
+    }
+
+    public function getTableIndexesQuery(): string
+    {
+        return "
+            SELECT
+                i.relname as index_name,
+                a.attname as column_name,
+                ix.indisprimary as is_primary,
+                ix.indisunique as is_unique
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            WHERE t.relname = ? AND n.nspname = ?
+            ORDER BY i.relname
         ";
     }
 

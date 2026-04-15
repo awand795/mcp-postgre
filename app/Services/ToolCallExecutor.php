@@ -69,7 +69,7 @@ class ToolCallExecutor
             [
                 'type'        => 'function',
                 'name'        => 'describe_table',
-                'description' => 'Mendapatkan informasi semua kolom dan tipe datanya untuk tabel tertentu di database dan schema yang spesifik. Gunakan ini saat Anda butuh informasi struktur presisi dari suatu tabel.',
+                'description' => 'Mendapatkan informasi semua kolom, tipe data, INDEX, dan relasi FOREIGN KEY untuk tabel tertentu. Gunakan ini untuk memahami struktur tabel dan kolom mana yang bisa di-JOIN atau difilter secara cepat.',
                 'parameters'  => [
                     'type'       => 'object',
                     'properties' => [
@@ -87,6 +87,35 @@ class ToolCallExecutor
                         ],
                     ],
                     'required' => ['database_code', 'schema_name', 'table_name'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'get_column_values',
+                'description' => 'Mengambil variasi nilai unik (DISTINCT) dari sebuah kolom (maks 20 nilai). Gunakan ini jika Anda ingin tahu isi data pada kolom status, kategori, atau tipe sebelum menulis query filter WHERE agar tidak salah tebak.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'database_code' => [ 'type' => 'string' ],
+                        'schema_name' => [ 'type' => 'string' ],
+                        'table_name' => [ 'type' => 'string' ],
+                        'column_name' => [ 'type' => 'string' ],
+                    ],
+                    'required' => ['database_code', 'schema_name', 'table_name', 'column_name'],
+                ],
+            ],
+            [
+                'type'        => 'function',
+                'name'        => 'get_view_definition',
+                'description' => 'Mendapatkan DDL/logika query di balik sebuah View. Gunakan jika tabel yang Anda hadapi adalah VIEW dan Anda perlu tahu dari tabel mana saja kolom-kolomnya berasal.',
+                'parameters'  => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'database_code' => [ 'type' => 'string' ],
+                        'schema_name' => [ 'type' => 'string' ],
+                        'view_name' => [ 'type' => 'string' ],
+                    ],
+                    'required' => ['database_code', 'schema_name', 'view_name'],
                 ],
             ],
             [
@@ -230,6 +259,8 @@ class ToolCallExecutor
                 'describe_table'        => $this->schemaService->describeTable($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
                 'search_schema'         => $this->schemaService->searchSchema($arguments['keyword'] ?? ''),
                 'get_table_preview'     => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
+                'get_column_values'     => $this->schemaService->getColumnValues($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? '', $arguments['column_name'] ?? ''),
+                'get_view_definition'   => $this->schemaService->getViewDefinition($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['view_name'] ?? ''),
                 'execute_query'         => $this->queryService->executeQuery($arguments['database_code'] ?? '', $arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
 
                 // ERP Tools

@@ -55,12 +55,13 @@ class SchemaService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
+            // Get columns and FKs
+            $result = [];
+            $indexes = [];
+
             // SQLite uses PRAGMA table_info which can't be parameterized
             if ($dbModel->driver === 'sqlite') {
                 $columns = DB::connection($connName)->select("PRAGMA table_info({$tableName})");
-
-                // Transform PRAGMA result to standard format
-                $result = [];
                 foreach ($columns as $col) {
                     $result[] = [
                         'column'   => $col->name,
@@ -69,42 +70,121 @@ class SchemaService extends BaseService
                     ];
                 }
             } else {
-                // For MySQL, use database name as schema if driver doesn't use schema concept
                 $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
-
                 $query = $adapter->describeTableWithKeysQuery();
                 $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
 
-                $result = [];
                 foreach ($columns as $col) {
                     $item = [
                         'column'   => $col->column_name,
                         'type'     => $col->data_type,
                         'nullable' => $col->is_nullable,
+                        'notes'    => $col->description ?? ''
                     ];
                     if (!empty($col->foreign_key_table)) {
                         $item['references'] = "{$col->foreign_key_table}.{$col->foreign_key_column}";
                     }
                     $result[] = $item;
                 }
+
+                // Get Index Info
+                $idxQuery = $adapter->getTableIndexesQuery();
+                $idxData = DB::connection($connName)->select($idxQuery, [$tableName, $schemaParam]);
+                foreach ($idxData as $idx) {
+                    $indexes[] = [
+                        'name'   => $idx->index_name,
+                        'column' => $idx->column_name,
+                        'type'   => $idx->is_primary ? 'PRIMARY KEY' : ($idx->is_unique ? 'UNIQUE INDEX' : 'INDEX')
+                    ];
+                }
             }
 
             DB::purge($connName);
 
             if (empty($result)) {
-                return $this->errorResponse("Table '{$schemaName}.{$tableName}' not found or has no columns in database '{$databaseCode}'.");
+                return $this->errorResponse("Table '{$schemaName}.{$tableName}' not found or has no columns.");
             }
 
             return $this->safeJsonEncode([
                 'database' => $databaseCode,
-                'schema'   => $schemaName,
-                'table'    => $tableName,
-                'sql_ref'  => "{$schemaName}.{$tableName}",
+                'table'    => "{$schemaName}.{$tableName}",
                 'columns'  => $result,
+                'indexes'  => $indexes,
+                'usage_tip' => 'Gunakan get_column_values untuk melihat variasi isi data pada kolom kategori/status.'
             ]);
         } catch (\Exception $e) {
             DB::purge($connName);
             return $this->errorResponse('Failed to describe table: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get distinct values for a specific column.
+     */
+    public function getColumnValues(string $databaseCode, string $schemaName, string $tableName, string $columnName): string
+    {
+        $allowedDbs = $this->queryService->getAllowedTables();
+        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($tableName, $allowedDbs[$databaseCode][$schemaName])) {
+             return $this->errorResponse("Access denied.");
+        }
+
+        $connName = "temp_conn_{$databaseCode}";
+        try {
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            $adapter = $dbModel->getAdapter();
+
+            DB::purge($connName);
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+            $query = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
+            $values = DB::connection($connName)->select($query);
+            
+            $flatValues = array_map(fn($v) => current((array)$v), $values);
+
+            DB::purge($connName);
+            return $this->safeJsonEncode([
+                'database' => $databaseCode,
+                'column'   => "{$schemaName}.{$tableName}.{$columnName}",
+                'distinct_values' => $flatValues
+            ]);
+        } catch (\Exception $e) {
+            DB::purge($connName);
+            return $this->errorResponse('Failed to get values: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get View DDL definition.
+     */
+    public function getViewDefinition(string $databaseCode, string $schemaName, string $viewName): string
+    {
+        $allowedDbs = $this->queryService->getAllowedTables();
+        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($viewName, $allowedDbs[$databaseCode][$schemaName])) {
+             return $this->errorResponse("Access denied.");
+        }
+
+        $connName = "temp_conn_{$databaseCode}";
+        try {
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            $adapter = $dbModel->getAdapter();
+
+            DB::purge($connName);
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+            $query = $adapter->getViewDefinitionQuery();
+            // SQLite adapter needs different handling usually, but we'll follow general pattern
+            $params = ($dbModel->driver === 'sqlite') ? [$viewName] : [$viewName, $schemaName];
+            $definition = DB::connection($connName)->select($query, $params);
+
+            DB::purge($connName);
+            return $this->safeJsonEncode([
+                'database'   => $databaseCode,
+                'view'       => "{$schemaName}.{$viewName}",
+                'definition' => $definition[0]->view_definition ?? $definition[0]->definition ?? $definition[0]->sql ?? 'Not found'
+            ]);
+        } catch (\Exception $e) {
+            DB::purge($connName);
+            return $this->errorResponse('Failed to get view definition: ' . $e->getMessage());
         }
     }
 

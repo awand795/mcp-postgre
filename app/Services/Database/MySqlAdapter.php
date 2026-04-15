@@ -22,7 +22,7 @@ class MySqlAdapter extends DriverAdapter
             SELECT
                 t.table_name,
                 t.table_schema,
-                '' as description,
+                t.table_comment as description,
                 t.table_type
             FROM information_schema.tables t
             WHERE t.table_schema = DATABASE()
@@ -61,7 +61,8 @@ class MySqlAdapter extends DriverAdapter
                 c.is_nullable, 
                 c.column_default,
                 kcu.referenced_table_name AS foreign_key_table,
-                kcu.referenced_column_name AS foreign_key_column
+                kcu.referenced_column_name AS foreign_key_column,
+                c.column_comment AS description
             FROM information_schema.columns c
             LEFT JOIN information_schema.key_column_usage kcu 
                 ON c.table_name = kcu.table_name 
@@ -70,6 +71,29 @@ class MySqlAdapter extends DriverAdapter
                 AND kcu.referenced_table_name IS NOT NULL
             WHERE c.table_name = ? AND c.table_schema = ?
             ORDER BY c.ordinal_position
+        ";
+    }
+
+    public function getViewDefinitionQuery(): string
+    {
+        return "
+            SELECT view_definition
+            FROM information_schema.views
+            WHERE table_name = ? AND table_schema = ?
+        ";
+    }
+
+    public function getTableIndexesQuery(): string
+    {
+        return "
+            SELECT 
+                index_name,
+                column_name,
+                IF(index_name = 'PRIMARY', 1, 0) as is_primary,
+                IF(non_unique = 0, 1, 0) as is_unique
+            FROM information_schema.statistics
+            WHERE table_name = ? AND table_schema = ?
+            ORDER BY index_name, seq_in_index
         ";
     }
 
@@ -130,7 +154,7 @@ class MySqlAdapter extends DriverAdapter
 
     public function formatVersion(mixed $result): string
     {
-        $version = $result[0]->version ?? 'Unknown';
+        $version = $result[0]->version ?? $result[0]->{'@@version'} ?? 'Unknown';
         if (stripos($version, 'mariadb') !== false) {
             return $version;
         }

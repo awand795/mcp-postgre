@@ -55,6 +55,25 @@ abstract class DriverAdapter
     abstract public function searchSchemaQuery(): string;
 
     /**
+     * SQL query to get distinct values for a column
+     */
+    public function getDistinctValuesQuery(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
+    {
+        $fullTableName = $this->usesSchema() ? "{$schemaName}.{$tableName}" : $tableName;
+        return "SELECT DISTINCT \"{$columnName}\" FROM {$fullTableName} WHERE \"{$columnName}\" IS NOT NULL LIMIT {$limit}";
+    }
+
+    /**
+     * SQL query to get view definition/DDL
+     */
+    abstract public function getViewDefinitionQuery(): string;
+
+    /**
+     * SQL query to get index information for a table
+     */
+    abstract public function getTableIndexesQuery(): string;
+
+    /**
      * SQL query to get a small preview of data from a table
      */
     public function getTablePreviewQuery(string $schemaName, string $tableName, int $limit = 5): string
