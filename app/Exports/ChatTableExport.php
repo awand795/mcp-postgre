@@ -94,29 +94,19 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         $formats = [];
         $lastColIndex = count($this->headers);
 
-        // Debug logging
-        \Log::info('[ChatTableExport] columnFormats called');
-        \Log::info('[ChatTableExport] currencyColumns:', $this->currencyColumns);
-        \Log::info('[ChatTableExport] headers:', $this->headers);
-
         // Normalize currencyColumns once for comparison
         $normalizedCurrencyCols = array_map(function($col) {
             return $this->normalizeLabel($col);
         }, $this->currencyColumns);
-
-        \Log::info('[ChatTableExport] normalizedCurrencyCols:', $normalizedCurrencyCols);
 
         for ($i = 1; $i <= $lastColIndex; $i++) {
             $colLetter = Coordinate::stringFromColumnIndex($i);
             $headerName = $this->headers[$i - 1] ?? '';
             $normalizedHeader = $this->normalizeLabel($headerName);
 
-            \Log::info('[ChatTableExport] Checking column ' . $i . ' header="' . $headerName . '" normalized="' . $normalizedHeader . '"');
-
             // 1. AI Decision Priority (MANDATORY: Use "Rp" if AI identified this column)
             // Compare normalized versions to handle "Total Netto" vs "total_netto"
             if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
-                \Log::info('[ChatTableExport] MATCH! Applying Rp format to column ' . $colLetter);
                 $formats[$colLetter] = '"Rp" #,##0';
             }
             // 2. Detect ID/Fixed String columns to format as Text instead of Number

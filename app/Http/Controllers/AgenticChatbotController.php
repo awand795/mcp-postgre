@@ -986,10 +986,6 @@ PROMPT;
         $chartInfo = $request->input('chartInfo');
         $currencyColumns = $request->input('currencyColumns', []);
 
-        // Debug logging
-        \Log::info('[Excel Export] Received currencyColumns:', $currencyColumns);
-        \Log::info('[Excel Export] Headers:', $headers);
-
         // Increase time and memory limits for large exports
         set_time_limit(600); // 10 minutes
         ini_set('memory_limit', '1024M'); // Match server's max for large datasets
@@ -1044,10 +1040,6 @@ PROMPT;
         $title = $request->input('title', 'Data Export');
         $chartImage = $request->input('chartImage');
         $currencyColumns = $request->input('currencyColumns', []);
-
-        // Debug logging
-        \Log::info('[PDF Export] Received currencyColumns:', $currencyColumns);
-        \Log::info('[PDF Export] Headers:', $headers);
 
         // Increase time limit for large exports
         set_time_limit(600);

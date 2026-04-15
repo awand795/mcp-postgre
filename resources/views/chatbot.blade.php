@@ -1804,14 +1804,12 @@
                 let currencyColumns = [];
                 try {
                     const storedCols = chartContainer?.getAttribute('data-currency-columns');
-                    console.log('[Chart Excel Export] Stored currency cols attribute:', storedCols);
                     if (storedCols) {
                         currencyColumns = JSON.parse(storedCols);
                     }
                 } catch (e) {
                     console.warn('[Chart Export] Failed to parse currencyColumns:', e);
                 }
-                console.log('[Chart Excel Export] Final currencyColumns:', currencyColumns);
 
                 // Prepare data for Excel - EXACT data from chart
                 const rows = [];
@@ -2067,14 +2065,12 @@
                 let currencyColumns = [];
                 try {
                     const storedCols = chartContainer?.getAttribute('data-currency-columns');
-                    console.log('[Chart PDF Export] Stored currency cols attribute:', storedCols);
                     if (storedCols) {
                         currencyColumns = JSON.parse(storedCols);
                     }
                 } catch (e) {
                     console.warn('[Chart PDF Export] Failed to parse currencyColumns:', e);
                 }
-                console.log('[Chart PDF Export] Final currencyColumns:', currencyColumns);
 
                 const labels = chartConfig.data?.labels || [];
                 const datasets = chartConfig.data?.datasets || [];
@@ -2509,14 +2505,6 @@
                         const tableData = toolRes.data || toolRes;
                         currencyColumns = tableData.currency_columns || [];
                         tableLabel = toolRes.label || tableData.label || null;
-
-                        // Debug: Log smart table currency columns
-                        console.log('[SmartTable Init] currencyColumns:', currencyColumns, 'from toolRes:', {
-                            has_currency_columns_direct: 'currency_columns' in toolRes,
-                            has_data: !!toolRes.data,
-                            has_data_currency: toolRes.data ? 'currency_columns' in toolRes.data : false,
-                            tableData_keys: Object.keys(tableData)
-                        });
 
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
@@ -3016,7 +3004,6 @@
                 
                 // Use container attribute if toolRes doesn't have currencyColumns
                 const finalCurrencyCols = currencyColumns.length > 0 ? currencyColumns : containerCurrencyCols;
-                console.log('[Chart Init] currencyColumns:', finalCurrencyCols, 'chartId:', chartId);
                 
                 // Store label on container for export
                 const chartLabel = toolRes.label || toolRes.data?.label || null;
