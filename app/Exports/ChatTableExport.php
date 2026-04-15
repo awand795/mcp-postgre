@@ -29,20 +29,23 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     protected $title;
     protected $chartInfo;
     protected $isLargeData;
+    protected $currencyColumns;
 
     /**
      * @param array $headers Table headers
      * @param array $rows Table data rows
      * @param string|null $title Sheet title (optional)
      * @param array|null $chartInfo Chart metadata (optional)
+     * @param array $currencyColumns Identified currency columns (optional)
      */
-    public function __construct(array $headers, array $rows, ?string $title = 'Data', ?array $chartInfo = null)
+    public function __construct(array $headers, array $rows, ?string $title = 'Data', ?array $chartInfo = null, array $currencyColumns = [])
     {
         $this->headers = $headers;
         $this->rows = $rows;
         $this->title = substr($title, 0, 31); // Excel sheet title max 31 chars
         $this->chartInfo = $chartInfo;
         $this->isLargeData = count($rows) > 1000;
+        $this->currencyColumns = array_map('strtolower', $currencyColumns);
     }
 
     /**
@@ -95,17 +98,20 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             $colLetter = Coordinate::stringFromColumnIndex($i);
             $headerName = strtolower($this->headers[$i - 1] ?? '');
 
-            // 1. Detect ID/Fixed String columns to format as Text instead of Number
+            // 1. AI Decision Priority (MANDATORY: Use "Rp" if AI identified this column)
+            if (in_array($headerName, $this->currencyColumns)) {
+                $formats[$colLetter] = '"Rp" #,##0';
+            }
+            // 2. Detect ID/Fixed String columns to format as Text instead of Number
             // This prevents scientific notation FOR GOOD for long codes/IDs
-            if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
+            elseif (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
                 $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
             } 
-            // 2. Detect Value/Currency columns (Sales, Amount, Harga, Netto, GPN, COGS)
-            // Use format with thousand separator for better readability in Excel
+            // 3. Fallback Detect Value/Currency columns (Old Regex - kept as safety)
             elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian)/i', $headerName)) {
-                $formats[$colLetter] = '#,##0'; 
+                $formats[$colLetter] = '"Rp" #,##0'; 
             }
-            // 3. For generic numbers (Qty, Points, Index), use plain number WITHOUT scientific notation
+            // 4. For generic numbers (Qty, Points, Index), use plain number WITHOUT scientific notation
             else {
                 $formats[$colLetter] = '#,##0'; // Default to number with separators
             }

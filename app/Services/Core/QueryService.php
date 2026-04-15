@@ -254,8 +254,8 @@ class QueryService extends BaseService
 
         $returned = count($data);
 
-        // --- SMARTER AI: Auto-detect currency columns as a safety net ---
-        $detectedCurrencyCols = $this->autoDetectCurrencyColumns($data[0], $currencyColumns);
+        // AI DECISION: Use only the columns explicitly identified by the AI as currency_columns
+        $detectedCurrencyCols = array_unique($currencyColumns);
 
         $result = [
             'label'            => $label,
@@ -291,79 +291,6 @@ class QueryService extends BaseService
         return $resultJson;
     }
 
-    /**
-     * Auto-detect currency columns based on common business naming patterns.
-     */
-    public function autoDetectCurrencyColumns(array $sampleRow, array $existingCols): array
-    {
-        $cols = [];
-
-        // Base currency patterns (Monetary terms)
-        $moneyPatterns = [
-            'total_netto', 'total_dpp', 'harga', 'price',
-            'nominal', 'nilai', 'amount', 'biaya', 'fee',
-            'ongkir', 'pajak', 'tax', 'diskon', 'discount',
-            'laba', 'profit', 'cogs', 'gpn', 'hpp', 'netto',
-            'dpp', 'saldo', 'revenue', 'omzet', 'income'
-        ];
-
-        // Exclusion patterns (Quantities, IDs, Percents)
-        $excludePatterns = [
-            'qty', 'count', 'jumlah', 'terjual', 'unit',
-            'stok', 'stock', 'persen', 'percent', 'pencapaian',
-            'growth', 'id', 'kode', 'nomor', 'no_', 'bulan', 'tahun',
-            'transaksi', 'faktur', 'nota', 'cabang', 'pelanggan',
-            'barang', 'produk', 'hari', 'baris', 'freq', 'frekuensi'
-        ];
-
-        // 1. FILTER ASURANSI: Kadang AI salah memasukkan kolom non-uang ke currency_columns
-        foreach ($existingCols as $col) {
-            $lowCol = strtolower($col);
-            $shouldExclude = false;
-            foreach ($excludePatterns as $e) {
-                if (str_contains($lowCol, $e)) {
-                    $shouldExclude = true;
-                    break;
-                }
-            }
-            // Khusus: Kalau match exclude tapi namanya memang valid uang
-            if (!$shouldExclude || in_array($lowCol, ['total_netto', 'total_dpp'])) {
-                $cols[] = $col;
-            }
-        }
-
-        // 2. AUTO-DETECT: Tambahkan kolom uji coba jika cocok dengan pattern uang
-        $currentColsLower = array_map('strtolower', $cols);
-        foreach (array_keys($sampleRow) as $col) {
-            $lowCol = strtolower($col);
-
-            if (in_array($lowCol, $currentColsLower)) continue;
-
-            $isMoney = false;
-            foreach ($moneyPatterns as $p) {
-                if (str_contains($lowCol, $p)) {
-                    $isMoney = true;
-                    break;
-                }
-            }
-
-            if ($isMoney) {
-                $shouldExclude = false;
-                foreach ($excludePatterns as $e) {
-                    if (str_contains($lowCol, $e)) {
-                        $shouldExclude = true;
-                        break;
-                    }
-                }
-
-                if (!$shouldExclude || in_array($lowCol, ['total_netto', 'total_dpp'])) {
-                    $cols[] = $col;
-                }
-            }
-        }
-
-        return array_unique($cols);
-    }
 
     /**
      * Format database error message based on driver type

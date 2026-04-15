@@ -784,9 +784,9 @@ When providing a chart, you MUST use the `chart` block with full Chart.js JSON f
    - 💡 **Recommendations**: Specific actions based on the visual pattern.
 
 ## CURRENCY IDENTIFICATION (CRITICAL)
-- **IDENTIFY MONEY COLUMNS**: When calling `execute_query`, you **MUST** identify all monetary columns and include them in the `currency_columns` parameter.
-- **IDR (RUPIAH)**: Use "Rp" prefix in text for money (total, price, profit, etc.). DO NOT use "Rp" for counts (number of branches, number of invoices).
-- **RAW NUMBERS**: In JSON blocks (`chart` or `smart_table`), ALWAYS use raw numbers (e.g. `5000000`). NEVER include "Rp", dots, or commas as thousand separators.
+- **IDENTIFY MONEY COLUMNS**: When calling `execute_query`, you **MUST** identify all monetary columns (e.g. price, netto, total, amount, fee) and include them in the `currency_columns` parameter. This metadata is essential for formal exports (Excel/PDF) to have the correct "Rp" formatting.
+- **NAIRATIVE FORMATTING**: In your natural language response (narrative), use "Rp" prefix for monetary values to assist the user's understanding.
+- **RAW NUMBERS**: In JSON blocks (`chart` or `smart_table`), ALWAYS use raw numeric values. Do not manually add "Rp" in the table/chart data.
 
 Respond ENTIRELY in ENGLISH.
 PROMPT;
@@ -900,7 +900,7 @@ Semua jawaban Anda **WAJIB** mengikuti struktur berikut untuk standar profesiona
 - **PENCARIAN TEKS (FUZZY MATCH, BERLAKU SEMUA KOLOM)**: Saat memfilter data berdasarkan teks apa pun (nama orang, cabang, produk, deskripsi, dsb), JANGAN gunakan pencarian `= 'X'` atau `ILIKE '%Kata1 Kata2%'` yang kaku. Data asli di database sering mengandung tanda baca atau spasi yang tidak terduga (contoh: "User A" vs "User. A"). Selalu pecah setiap kata kunci dan gunakan pencarian fleksibel dengan logika AND: `nama_kolom ILIKE '%kata1%' AND nama_kolom ILIKE '%kata2%'` atau cukup gunakan satu kata yang paling unik. Ini berlaku untuk seluruh database dan kolom string.
 - **ALIAS**: Selalu gunakan alias untuk hasil `sum` atau agregat lain (misal: `AS total_penjualan`).
 - **PEMBULATAN AGREGAT (WAJIB)**: Jangan pernah melakukan pembulatan di dalam fungsi agregat. Lakukan `SUM()` atau `AVG()` pada nilai asli yang presisi, lalu terapkan pembulatan hanya pada HASIL AKHIR menggunakan `CAST(SUM(angka) AS BIGINT)` atau `ROUND(SUM(angka), 0)`.
-- **MATA UANG**: Daftarkan semua kolom yang merepresentasikan uang ke dalam param `currency_columns` agar bisa di-format dengan Rp. Jangan pakai Rp untuk kolom kuantitas!
+- **MATA UANG**: Selalu identifikasi kolom uang ke dalam parameter `currency_columns` agar laporan PDF dan Excel memiliki format Bapak/Ibu (Rp) yang sesuai. Gunakan penanda "Rp" dalam narasi teks Anda untuk kejelasan.
 - **LIMIT**: Jika user minta Top 10, pastikan dikasih LIMIT 10!
 - **KOREKSI**: Jika error, cek tabel via describe_table lalu perbaiki SQL.
 
@@ -983,6 +983,7 @@ PROMPT;
         $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.xlsx');
         $title = $request->input('title', 'Data Export');
         $chartInfo = $request->input('chartInfo');
+        $currencyColumns = $request->input('currencyColumns', []);
 
         // Increase time and memory limits for large exports
         set_time_limit(600); // 10 minutes
@@ -999,7 +1000,8 @@ PROMPT;
                 $headers,
                 $rows,
                 strtoupper($title),
-                $chartInfo
+                $chartInfo,
+                $currencyColumns
             );
 
             return Excel::download($export, $filename);
@@ -1036,6 +1038,7 @@ PROMPT;
         $filename = $request->input('filename', 'export-' . date('Y-m-d_His') . '.pdf');
         $title = $request->input('title', 'Data Export');
         $chartImage = $request->input('chartImage');
+        $currencyColumns = array_map('strtolower', $request->input('currencyColumns', []));
 
         // Increase time limit for large exports
         set_time_limit(600);
@@ -1051,9 +1054,17 @@ PROMPT;
             $columnTypes = [];
             foreach ($headers as $i => $header) {
                 $headerName = strtolower($header);
-                if (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i', $headerName)) {
+                
+                // 1. AI Decision Priority
+                if (in_array($headerName, $currencyColumns)) {
+                    $columnTypes[$i] = 'currency';
+                }
+                // 2. ID/Fixed string detection
+                elseif (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i', $headerName)) {
                     $columnTypes[$i] = 'text';
-                } elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|revenue|payment|tax|discount|budget)/i', $headerName)) {
+                } 
+                // 3. Fallback currency detection
+                elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|revenue|payment|tax|discount|budget)/i', $headerName)) {
                     $columnTypes[$i] = 'currency';
                 } else {
                     $columnTypes[$i] = 'number';

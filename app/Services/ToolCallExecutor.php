@@ -111,7 +111,7 @@ class ToolCallExecutor
                         'currency_columns' => [
                             'type'        => 'array',
                             'items'       => ['type' => 'string'],
-                            'description' => 'Daftar kolom yang mewakili nilai uang/rupiah untuk format laporan.',
+                            'description' => 'MANDATORY: Identify all columns that represent monetary values (e.g. price, netto, total, amount) so they can be properly formatted with "Rp" in reports and exports. If you don\'t identify them, they will be displayed as raw numbers.',
                         ],
                     ],
                     'required' => ['database_code', 'sql', 'label'],

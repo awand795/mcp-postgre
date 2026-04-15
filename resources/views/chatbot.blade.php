@@ -1694,7 +1694,8 @@
                         headers: cleanHeaders,
                         rows: cleanRows,
                         filename: filename,
-                        title: tableLabel
+                        title: tableLabel,
+                        currencyColumns: smartTables[tableId]?.currencyColumns || []
                     }),
                 });
 
@@ -1987,7 +1988,8 @@
                         headers: cleanHeaders,
                         rows: cleanRows,
                         filename: filename,
-                        title: tableLabel
+                        title: tableLabel,
+                        currencyColumns: smartTables[tableId]?.currencyColumns || []
                     }),
                 });
 
@@ -2222,7 +2224,9 @@
             const num = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
             
             if (isMoney && !isNaN(num)) {
-                return currencyFormatter.format(num);
+                // Return as number with thousands separator, but WITHOUT "Rp" prefix
+                // The AI will provide the "Rp" context in its narrative text.
+                return num.toLocaleString('id-ID');
             }
             
             // Patterns that should NOT get thousands separators (IDs, Codes, Years, Refs, etc.)

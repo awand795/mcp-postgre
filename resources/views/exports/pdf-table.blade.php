@@ -154,7 +154,7 @@
                         $class = $colType === 'number' ? 'number-col' : ($colType === 'currency' ? 'currency-col' : 'text-col');
 
                         if ($colType === 'currency' && is_numeric($cell)) {
-                            $cell = number_format($cell, 0, ',', '.');
+                            $cell = 'Rp ' . number_format($cell, 0, ',', '.');
                         }
                     @endphp
                     <td class="{{ $class }}">{{ $cell }}</td>
