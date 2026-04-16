@@ -468,11 +468,11 @@
                             </div>
                         </div>
                         <div class="table-info">
-                            <div class="table-main-info" style="gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="table-main-info" style="gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                                 <span class="badge badge-db">${table.database_name}</span>
                                 <span class="badge badge-schema">${table.schema_name}</span>
-                                <span class="table-name" style="margin-left: -0.25rem;">. ${table.table_name}</span>
-                                <span class="badge badge-type" style="margin-left: auto; ${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : 'background: rgba(148, 163, 184, 0.1); color: #94a3b8;'}">${table.table_type === 'view' ? 'VIEW' : 'TABLE'}</span>
+                                <span class="table-name">${table.table_name}</span>
+                                <span class="badge badge-type" style="${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : 'background: rgba(148, 163, 184, 0.1); color: #94a3b8;'}">${table.table_type === 'view' ? 'VIEW' : 'TABLE'}</span>
                             </div>
                             <div class="table-description" style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${table.description || 'Tidak ada deskripsi'}</div>
                         </div>
