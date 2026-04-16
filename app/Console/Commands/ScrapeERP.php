@@ -31,7 +31,7 @@ class ScrapeERP extends Command
     {
         $this->info('🚀 Starting ERP Documentation Scraper...');
 
-        $baseUrl = 'http://74.48.112.31:6000';
+        $baseUrl = 'http://74.48.112.31:4000';
         $docsUrl = "{$baseUrl}/docs/";
         $loginUrl = "{$baseUrl}/wp-login.php";
 
@@ -54,12 +54,12 @@ class ScrapeERP extends Command
         }
 
         $crawler = new Crawler($res->body());
-        $nonce = $crawler->filter('input[name="erpgl_login_nonce"]')->count() 
-                 ? $crawler->filter('input[name="erpgl_login_nonce"]')->attr('value') 
-                 : null;
-        $referer = $crawler->filter('input[name="_wp_http_referer"]')->count() 
-                   ? $crawler->filter('input[name="_wp_http_referer"]')->attr('value') 
-                   : '/login/';
+        $nonce = $crawler->filter('input[name="erpgl_login_nonce"]')->count()
+            ? $crawler->filter('input[name="erpgl_login_nonce"]')->attr('value')
+            : null;
+        $referer = $crawler->filter('input[name="_wp_http_referer"]')->count()
+            ? $crawler->filter('input[name="_wp_http_referer"]')->attr('value')
+            : '/login/';
 
         if (!$nonce) {
             $this->warn('⚠️ Could not find login nonce. Attempting standard login...');
@@ -74,14 +74,14 @@ class ScrapeERP extends Command
             'allow_redirects' => true,
             'verify' => false
         ])->post($baseUrl . '/login/', [
-            'log' => $email,
-            'pwd' => $password,
-            'wp-submit' => 'Log In',
-            'rememberme' => 'forever',
-            'erpgl_login_nonce' => $nonce,
-            '_wp_http_referer' => $referer,
-            'testcookie' => 1
-        ]);
+                    'log' => $email,
+                    'pwd' => $password,
+                    'wp-submit' => 'Log In',
+                    'rememberme' => 'forever',
+                    'erpgl_login_nonce' => $nonce,
+                    '_wp_http_referer' => $referer,
+                    'testcookie' => 1
+                ]);
 
         if (!$response->successful()) {
             $this->error('❌ Failed to login. Status: ' . $response->status());
@@ -128,22 +128,25 @@ class ScrapeERP extends Command
                         }
                     }
                 });
-                if ($foundOnPage) break;
+                if ($foundOnPage)
+                    break;
             }
 
             if (!$foundOnPage && $page === 1) {
                 $this->error('❌ No links found on the first page. Check selectors.');
                 break;
             }
-            
+
             // Check for next page
-            $hasNext = $crawler->filter('a.next.page-numbers')->count() > 0 || 
-                       $crawler->filter('.next.page-numbers')->count() > 0;
-            
-            if (!$hasNext) break;
+            $hasNext = $crawler->filter('a.next.page-numbers')->count() > 0 ||
+                $crawler->filter('.next.page-numbers')->count() > 0;
+
+            if (!$hasNext)
+                break;
 
             $page++;
-            if ($this->option('limit') && $page > $this->option('limit')) break;
+            if ($this->option('limit') && $page > $this->option('limit'))
+                break;
         }
 
         $links = array_unique($links);
@@ -181,7 +184,8 @@ class ScrapeERP extends Command
             }
 
             // Optional: limit total guides if --limit is used (for quick testing)
-            if ($this->option('limit') && count($guides) >= $this->option('limit')) break;
+            if ($this->option('limit') && count($guides) >= $this->option('limit'))
+                break;
         }
 
         // 4. Update JSON
@@ -198,12 +202,13 @@ class ScrapeERP extends Command
     {
         $crawler = new Crawler($html);
 
-        $title = $crawler->filter('h1.entry-title')->count() 
-            ? trim($crawler->filter('h1.entry-title')->text()) 
+        $title = $crawler->filter('h1.entry-title')->count()
+            ? trim($crawler->filter('h1.entry-title')->text())
             : 'Untitled';
 
         $contentNode = $crawler->filter('.entry-content');
-        if ($contentNode->count() === 0) return null;
+        if ($contentNode->count() === 0)
+            return null;
 
         // Extract Category from URL Path
         $category = 'Uncategory';
@@ -331,7 +336,8 @@ class ScrapeERP extends Command
                 continue;
             }
 
-            if ($child->nodeType !== XML_ELEMENT_NODE) continue;
+            if ($child->nodeType !== XML_ELEMENT_NODE)
+                continue;
 
             $tagName = strtolower($child->nodeName);
 
@@ -339,10 +345,10 @@ class ScrapeERP extends Command
             if (in_array($tagName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) {
                 $text = trim($child->textContent);
                 if ($text) {
-                    $hLevel = (int)substr($tagName, 1) + 1;
+                    $hLevel = (int) substr($tagName, 1) + 1;
                     $prefix = str_repeat('#', $hLevel);
                     $alertType = $this->getAlertType($text);
-                    
+
                     if ($alertType) {
                         $mdContent .= "\n> ### " . $this->getHeaderEmoji($text) . " " . rtrim($text, ' :-') . "\n>\n";
                     } else {
@@ -356,13 +362,14 @@ class ScrapeERP extends Command
                 $img = $tagName === 'img' ? $child : $child->getElementsByTagName('img')->item(0);
                 $src = $img->getAttribute('src');
                 $alt = $img->getAttribute('alt') ?: 'Gambar Panduan';
-                
-                if (in_array(strtolower(trim($alt)), ['gambar', 'gambar panduan'])) $alt = 'Langkah Panduan';
+
+                if (in_array(strtolower(trim($alt)), ['gambar', 'gambar panduan']))
+                    $alt = 'Langkah Panduan';
 
                 if ($src && str_contains($src, 'http')) {
                     $mdContent .= "![{$alt}]({$src})\n\n";
                     $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
-                    
+
                     // Visual Enrichment Logic: Manual OCR Mapping for specific images
                     $visualFieldMap = [
                         '2-68_PRad5nErYPe8hMenpAYI.png' => ['No. Transaksi', 'Dari Cabang', 'Dari Departemen', 'Ditujukan Kepada', 'Ditujukan Cabang', 'Ditujukan Departemen', 'Keterangan'],
@@ -404,11 +411,11 @@ class ScrapeERP extends Command
                     $alertType = $this->getAlertType($headerText);
                     if ($alertType) {
                         $mdContent .= "\n> ### " . $this->getHeaderEmoji($headerText) . " " . rtrim($headerText, ' :-') . "\n>\n";
-                        
+
                         // Process the rest of the paragraph but prefix with >
                         $tempContent = "";
                         $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
-                        
+
                         // Remove the header text from temp content to avoid duplication
                         $cleanContent = str_replace($headerText, '', $tempContent);
                         if (trim($cleanContent)) {
@@ -418,10 +425,11 @@ class ScrapeERP extends Command
                     }
                 }
 
-                if ($tagName === 'li') $mdContent .= "- ";
+                if ($tagName === 'li')
+                    $mdContent .= "- ";
 
                 $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
-                
+
                 if (in_array($tagName, ['p', 'ul', 'ol', 'div'])) {
                     $mdContent .= "\n\n";
                 } elseif ($tagName === 'li') {
@@ -434,12 +442,10 @@ class ScrapeERP extends Command
                 $mdContent .= "\n";
                 $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
                 $mdContent .= "\n";
-            }
-            elseif ($tagName === 'tr') {
+            } elseif ($tagName === 'tr') {
                 $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
                 $mdContent .= "\n";
-            }
-            elseif (in_array($tagName, ['td', 'th'])) {
+            } elseif (in_array($tagName, ['td', 'th'])) {
                 $mdContent .= "| ";
                 $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
                 $mdContent .= " ";
@@ -457,13 +463,9 @@ class ScrapeERP extends Command
                     $videos[] = $src;
                     $mdContent .= "### 🎥 Video Panduan\n[Klik di sini untuk menonton video]({$src})\n\n";
                 }
-            }
-
-            elseif ($tagName === 'hr') {
+            } elseif ($tagName === 'hr') {
                 $mdContent .= "---\n\n";
-            }
-
-            else {
+            } else {
                 // Default recursion for other elements (span, strong, b, etc.) to ensure text is captured
                 $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
             }
@@ -474,7 +476,8 @@ class ScrapeERP extends Command
     {
         // Ignore residual placeholder text
         $lower = strtolower($text);
-        if ($lower === 'gambar' || $lower === 'gambar panduan' || $lower === 'video :' || $lower === 'video:') return;
+        if ($lower === 'gambar' || $lower === 'gambar panduan' || $lower === 'video :' || $lower === 'video:')
+            return;
 
         $mdContent .= "{$text} ";
         $this->detectFields($text, $fieldQueue, $title, $enrichmentLookup);
@@ -483,21 +486,30 @@ class ScrapeERP extends Command
     private function getAlertType(string $text): ?string
     {
         $text = strtolower($text);
-        if (str_contains($text, 'fungsi')) return 'INFO';
-        if (str_contains($text, 'persyaratan') || str_contains($text, 'syarat')) return 'IMPORTANT';
-        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah')) return 'TIP';
-        if (str_contains($text, 'catatan')) return 'NOTE';
+        if (str_contains($text, 'fungsi'))
+            return 'INFO';
+        if (str_contains($text, 'persyaratan') || str_contains($text, 'syarat'))
+            return 'IMPORTANT';
+        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah'))
+            return 'TIP';
+        if (str_contains($text, 'catatan'))
+            return 'NOTE';
         return null;
     }
 
     private function getHeaderEmoji(string $text): string
     {
         $text = strtolower($text);
-        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah')) return '🛠️';
-        if (str_contains($text, 'syarat')) return '📋';
-        if (str_contains($text, 'catatan')) return '💡';
-        if (str_contains($text, 'fungsi')) return '📋';
-        if (str_contains($text, 'video')) return '🎥';
+        if (str_contains($text, 'petunjuk') || str_contains($text, 'langkah'))
+            return '🛠️';
+        if (str_contains($text, 'syarat'))
+            return '📋';
+        if (str_contains($text, 'catatan'))
+            return '💡';
+        if (str_contains($text, 'fungsi'))
+            return '📋';
+        if (str_contains($text, 'video'))
+            return '🎥';
         return '';
     }
 
@@ -508,11 +520,13 @@ class ScrapeERP extends Command
         if (preg_match('/(?:^|\n|\s)(?:\*\*)?([a-zA-Z0-9\s\/\(\)\.]{2,50})(?:\*\*)?\s*[:\-]\s*(.{2,500})/', $text, $matches)) {
             $field = trim($matches[1]);
             $description = trim($matches[2]);
-            
+
             // Ignore common non-field headers and short fragments
             $lowerField = strtolower($field);
-            if (in_array($lowerField, ['http', 'https', 'catatan', 'fungsi', 'petunjuk', 'persyaratan', 'syarat', 'input', 'update'])) return;
-            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 7) return;
+            if (in_array($lowerField, ['http', 'https', 'catatan', 'fungsi', 'petunjuk', 'persyaratan', 'syarat', 'input', 'update']))
+                return;
+            if (str_contains($lowerField, 'gambar') || count(explode(' ', $field)) > 7)
+                return;
 
             $explanation = '';
             // Check enrichment lookup (Per Category and Common)
@@ -542,24 +556,28 @@ class ScrapeERP extends Command
             strtolower($title),
             strtolower($category)
         ];
-        
+
         // Add specific variants
-        if (str_contains(strtolower($title), 'pembayaran')) $keys[] = 'kasir';
-        if (str_contains(strtolower($title), 'piutang')) $keys[] = 'ar';
-        if (str_contains(strtolower($title), 'hutang')) $keys[] = 'ap';
-        if (str_contains(strtolower($title), 'tanda terima barang')) $keys[] = 'ttb';
-        
+        if (str_contains(strtolower($title), 'pembayaran'))
+            $keys[] = 'kasir';
+        if (str_contains(strtolower($title), 'piutang'))
+            $keys[] = 'ar';
+        if (str_contains(strtolower($title), 'hutang'))
+            $keys[] = 'ap';
+        if (str_contains(strtolower($title), 'tanda terima barang'))
+            $keys[] = 'ttb';
+
         return array_unique($keys);
     }
 
     private function updateJson(array $guides, array $categories)
     {
         $path = config_path('erp_guidance.json');
-        
+
         sort($categories);
 
         $data = [
-            'source' => 'http://74.48.112.31:6000/docs/ (Unified Scraper)',
+            'source' => 'http://74.48.112.31:4000/docs/ (Unified Scraper)',
             'last_updated' => now()->format('Y-m-d H:i:s'),
             'total_guides' => count($guides),
             'categories' => $categories,
@@ -567,7 +585,7 @@ class ScrapeERP extends Command
         ];
 
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
-        
+
         if ($json === false) {
             $this->error('❌ Failed to encode JSON: ' . json_last_error_msg());
             return;
