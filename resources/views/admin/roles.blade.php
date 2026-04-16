@@ -31,7 +31,7 @@
             </ul>
         </div>
 
-        <!-- Drag & Drop Permissions -->
+        <!-- Checkbox Permissions -->
         <div class="glass-card permissions-card" id="permissions-area">
             <div class="permissions-header">
                 <div>
@@ -44,58 +44,55 @@
                     </span>
                 </div>
                 <div class="permissions-actions">
-                    <button class="btn" onclick="selectAll()"><i class="fas fa-check-double"></i> <span class="btn-text">Pilih Semua</span></button>
-                    <button class="btn" onclick="clearAll()"><i class="fas fa-times-circle"></i> <span class="btn-text">Hapus Semua</span></button>
                     <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> <span class="btn-text">Simpan Akses</span></button>
                 </div>
             </div>
 
-            <!-- Database Filter -->
-            <div class="db-filter-bar" style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-                <label style="color: #94a3b8; font-size: 0.85rem;"><i class="fas fa-filter"></i> Filter Database:</label>
-                <select id="db-filter" onchange="filterByDatabase(this.value)"
-                    style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;">
-                    <option value="">Semua Database</option>
-                    @foreach($databases as $db)
-                        <option value="{{ $db->database }}">{{ $db->database }}</option>
-                    @endforeach
-                </select>
-                <select id="schema-filter" onchange="filterBySchema(this.value)"
-                    style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.5rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem; display: none;">
-                    <option value="">Semua Schema</option>
-                </select>
+            <!-- Advanced Filter Bar -->
+            <div class="filter-bar">
+                <div class="filter-group search-group">
+                    <label><i class="fas fa-search"></i> Cari</label>
+                    <input type="text" id="table-search" placeholder="Cari nama tabel..." oninput="applyFilters()">
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-database"></i> Database</label>
+                    <select id="db-filter" onchange="handleDbFilterChange(this.value)">
+                        <option value="">Semua Database</option>
+                        @foreach($databases as $db)
+                            <option value="{{ $db->database }}">{{ $db->database }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-layer-group"></i> Schema</label>
+                    <select id="schema-filter" onchange="applyFilters()">
+                        <option value="">Semua Schema</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label><i class="fas fa-filter"></i> Status</label>
+                    <select id="status-filter" onchange="applyFilters()">
+                        <option value="all">Semua</option>
+                        <option value="allowed">Diizinkan</option>
+                        <option value="not_allowed">Belum Diizinkan</option>
+                    </select>
+                </div>
             </div>
 
-            <div class="tables-grid">
-                <!-- Available Tables -->
-                <div class="table-column">
-                    <h4 style="margin-bottom: 1rem; color: #94a3b8;"><i class="fas fa-table"></i> Tabel Tersedia</h4>
-                    <div class="search-wrapper" style="margin-bottom: 0.75rem;">
-                        <input type="text" id="available-tables-search" placeholder="🔍 Cari tabel..."
-                            class="table-search-input"
-                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.6rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;"
-                            oninput="filterTables('available-tables', this.value)">
-                    </div>
-                    <div id="available-tables"
-                        class="drop-zone"
-                        style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 1rem; border: 2px dashed var(--glass-border);">
-                    </div>
+            <div class="selection-controls">
+                <div class="stats-info">
+                    Menampilkan <span id="visible-count">0</span> dari <span id="total-count">0</span> tabel
+                    (<span id="selected-count" style="color: #10b981; font-weight: 600;">0</span> terpilih)
                 </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Yang Terfilter</button>
+                    <button class="btn btn-sm" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Yang Terfilter</button>
+                </div>
+            </div>
 
-                <!-- Allowed Tables -->
-                <div class="table-column">
-                    <h4 style="margin-bottom: 1rem; color: #10b981;"><i class="fas fa-check-circle"></i> Tabel Diizinkan
-                    </h4>
-                    <div class="search-wrapper" style="margin-bottom: 0.75rem;">
-                        <input type="text" id="allowed-tables-search" placeholder="🔍 Cari tabel..."
-                            class="table-search-input"
-                            style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.6rem 0.8rem; border-radius: 8px; color: white; font-size: 0.85rem;"
-                            oninput="filterTables('allowed-tables', this.value)">
-                    </div>
-                    <div id="allowed-tables"
-                        class="drop-zone"
-                        style="background: rgba(16, 185, 129, 0.05); border-radius: 12px; padding: 1rem; border: 2px solid rgba(16, 185, 129, 0.2);">
-                    </div>
+            <div class="tables-container">
+                <div id="tables-list" class="tables-list">
+                    <!-- Tables will be rendered here by JS -->
                 </div>
             </div>
         </div>
@@ -140,67 +137,198 @@
     <style>
         .roles-container {
             display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 2rem;
+            grid-template-columns: 320px 1fr;
+            gap: 1.5rem;
             align-items: start;
         }
 
         .role-list-card {
             padding: 1.5rem;
-            max-height: calc(100vh - 200px);
+            max-height: calc(100vh - 150px);
             overflow-y: auto;
+            position: sticky;
+            top: 20px;
         }
 
         .permissions-card {
             padding: 1.5rem;
+            min-height: calc(100vh - 150px);
+            display: flex;
+            flex-direction: column;
         }
 
         .permissions-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
             gap: 1rem;
-            flex-wrap: wrap;
         }
 
-        .permissions-actions {
+        /* Filter Bar Styles */
+        .filter-bar {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 1rem;
+        }
+
+        .filter-group {
             display: flex;
-            gap: 10px;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .filter-group input, .filter-group select {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .filter-group input:focus, .filter-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .selection-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0 0.5rem;
+        }
+
+        .stats-info {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Tables List Styles */
+        .tables-container {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 600px;
+            padding-right: 5px;
+        }
+
+        .tables-list {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .table-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 1rem;
+            border-radius: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .table-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateX(4px);
+        }
+
+        .table-item.allowed {
+            border-left: 4px solid #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .table-checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #475569;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: transparent;
+        }
+
+        .table-item.allowed .custom-checkbox {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+
+        .table-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .table-main-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .table-name {
+            font-weight: 600;
+            color: #f1f5f9;
+            font-size: 0.95rem;
+        }
+
+        .table-meta {
+            display: flex;
+            gap: 0.5rem;
             align-items: center;
             flex-wrap: wrap;
         }
 
-        .tables-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            align-items: stretch;
+        .badge {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
         }
 
-        .table-column {
-            display: flex;
-            flex-direction: column;
-        }
+        .badge-db { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-schema { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+        .badge-type { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
 
-        .drop-zone {
-            flex: 1;
-            min-height: 400px;
-        }
-
-        .table-search-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .table-search-input::placeholder {
-            color: rgba(148, 163, 184, 0.6);
-        }
-
-        select option {
-            background-color: #1e293b;
-            color: white;
+        .table-description {
+            font-size: 0.8rem;
+            color: #64748b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .role-item.active {
@@ -210,89 +338,6 @@
 
         .role-item.has-changes {
             border: 2px solid #f59e0b !important;
-            border-left: 4px solid #f59e0b !important;
-        }
-
-        .table-tag {
-            transition: transform 0.2s, background 0.2s;
-            background: rgba(255,255,255,0.05);
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin-bottom: 8px;
-            cursor: move;
-            border: 1px solid var(--glass-border);
-        }
-
-        .table-tag-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-
-        .table-identifier {
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: #e2e8f0;
-            word-break: break-all;
-        }
-
-        .db-badge {
-            display: inline-block;
-            background: rgba(59, 130, 246, 0.2);
-            color: #3b82f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            margin-right: 6px;
-            font-weight: 600;
-        }
-
-        .view-badge {
-            display: inline-block;
-            background: rgba(168, 85, 247, 0.2);
-            color: #a855f7;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            margin-right: 6px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        .table-desc {
-            margin: 0 0 4px 0;
-            font-size: 0.75rem;
-            color: #64748b;
-            line-height: 1.4;
-        }
-
-        .table-type-label {
-            margin: 0 0 4px 0;
-            font-size: 0.65rem;
-            color: #94a3b8;
-            font-style: italic;
-        }
-
-        .drag-handle {
-            color: #64748b;
-            cursor: grab;
-            opacity: 0.5;
-            transition: opacity 0.2s;
-        }
-
-        .table-tag:hover .drag-handle {
-            opacity: 1;
-        }
-
-        .table-tag:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: scale(1.01);
-        }
-
-        .sortable-ghost {
-            opacity: 0.4;
-            background: var(--primary);
         }
 
         /* Modal responsive */
@@ -301,435 +346,241 @@
             max-width: 400px;
         }
 
-        /* Responsive Styles */
         @media (max-width: 1024px) {
-            .roles-container {
-                grid-template-columns: 1fr;
-            }
-
-            .role-list-card {
-                max-height: 250px;
-            }
-
-            .tables-grid {
-                grid-template-columns: 1fr;
-            }
+            .roles-container { grid-template-columns: 1fr; }
+            .role-list-card { position: static; max-height: 250px; }
+            .filter-bar { grid-template-columns: 1fr 1fr; }
         }
 
-        @media (max-width: 768px) {
-            .permissions-header {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .permissions-actions {
-                width: 100%;
-                justify-content: stretch;
-            }
-
-            .permissions-actions .btn {
-                flex: 1;
-                justify-content: center;
-                min-width: 120px;
-            }
-
-            .btn-text {
-                display: none;
-            }
-
-            .tables-grid {
-                gap: 1rem;
-            }
-
-            #available-tables,
-            #allowed-tables {
-                min-height: 200px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .glass-card {
-                padding: 1rem !important;
-            }
-
-            .permissions-actions .btn {
-                padding: 0.6rem 0.8rem;
-                font-size: 0.85rem;
-            }
-
-            h2 {
-                font-size: 1.2rem !important;
-            }
-
-            h4 {
-                font-size: 0.95rem !important;
-            }
+        @media (max-width: 640px) {
+            .filter-bar { grid-template-columns: 1fr; }
+            .permissions-header { flex-direction: column; align-items: stretch; }
+            .selection-controls { flex-direction: column; gap: 10px; align-items: flex-start; }
         }
     </style>
 @endsection
 
 @section('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             let currentRoleId = {{ $roles[0]->id ?? 'null' }};
             let allRoles = window.allRoles || [];
             let allTables = window.allTables || [];
+            let selectedTables = new Set();
+            let originalSelectedTables = new Set();
             let hasChanges = false;
 
-            const availableList = document.getElementById('available-tables');
-            const allowedList = document.getElementById('allowed-tables');
+            const tablesList = document.getElementById('tables-list');
             const unsavedIndicator = document.getElementById('unsaved-indicator');
+            const visibleCountEl = document.getElementById('visible-count');
+            const totalCountEl = document.getElementById('total-count');
+            const selectedCountEl = document.getElementById('selected-count');
 
-            // Create table tag element with multi-database format
-            function createTableTag(tableData) {
-                const div = document.createElement('div');
-                div.className = 'table-tag';
-
-                // tableData can be string (legacy) or object (new format)
-                let dbCode, dbName, schemaName, tableName, description, fullIdentifier, searchStr, isView;
-
-                if (typeof tableData === 'string') {
-                    // Legacy format - just table name
-                    tableName = tableData;
-                    dbCode = 'default';
-                    schemaName = 'public';
-                    description = '';
-                    fullIdentifier = tableName;
-                    searchStr = tableName.toLowerCase();
-                    isView = false;
-                } else {
-                    // New format: { database_code, database_name, schema_name, table_name, description, table_type }
-                    dbCode = tableData.database_code || 'unknown';
-                    dbName = tableData.database_name || dbCode;
-                    schemaName = tableData.schema_name || 'public';
-                    tableName = tableData.table_name;
-                    description = tableData.description || '';
-                    isView = tableData.table_type === 'view';
-                    fullIdentifier = `${dbCode}|${schemaName}|${tableName}`;
-                    searchStr = dbName.toLowerCase() + ' ' + schemaName.toLowerCase() + ' ' + tableName.toLowerCase() + ' ' + description.toLowerCase();
+            // Initialize data
+            function init() {
+                if (allRoles.length > 0) {
+                    currentRoleId = allRoles[0].id;
+                    loadRolePermissions(currentRoleId);
                 }
-
-                div.setAttribute('data-id', fullIdentifier);
-                div.setAttribute('data-db', dbCode);
-                div.setAttribute('data-schema', schemaName);
-                div.setAttribute('data-table', tableName);
-                div.setAttribute('data-search', searchStr);
-                div.setAttribute('data-type', isView ? 'view' : 'table');
-
-                const dbBadge = `<span class="db-badge">${dbName}</span>`;
-                const typeLabel = isView ? 'View' : 'Table';
-                const descHtml = description ? `<p class="table-desc">${truncate(description, 150)}</p>` : '';
-
-                div.innerHTML = `
-                    <div class="table-tag-header">
-                        <span class="table-identifier">${dbBadge} ${schemaName}.${tableName}</span>
-                        <i class="fas fa-grip-vertical drag-handle"></i>
-                    </div>
-                    <p class="table-type-label">${typeLabel}</p>
-                    ${descHtml}
-                `;
-
-                return div;
+                totalCountEl.textContent = allTables.length;
             }
 
-            function truncate(str, len) {
-                if (str.length <= len) return str;
-                return str.substring(0, len) + '...';
-            }
-
-            // Filter tables based on search input
-            window.filterTables = function(containerId, searchTerm) {
-                const container = document.getElementById(containerId);
-                if (!container) return;
-
-                const terms = searchTerm.toLowerCase().trim().split(/\s+/);
-                const tags = container.querySelectorAll('.table-tag');
-
-                tags.forEach(tag => {
-                    const searchStr = tag.getAttribute('data-search') || '';
-                    if (searchTerm.trim() === '') {
-                        tag.style.display = '';
-                    } else {
-                        const match = terms.every(term => searchStr.includes(term));
-                        tag.style.display = match ? '' : 'none';
-                    }
-                });
-            };
-
-            // Show/hide unsaved indicator
-            function setHasChanges(value) {
-                hasChanges = value;
-                unsavedIndicator.style.display = value ? 'inline' : 'none';
-
-                // Add highlight to current role in list
-                document.querySelectorAll('.role-item').forEach(btn => {
-                    btn.classList.remove('has-changes');
-                });
-                if (value && currentRoleId) {
-                    const activeBtn = document.querySelector('.role-item.active');
-                    if (activeBtn) {
-                        activeBtn.classList.add('has-changes');
-                    }
-                }
-            }
-
-            // Render tables based on role
-            function renderTablesForRole(roleId) {
-                const role = allRoles.find(r => r.id == roleId);
-                if (!role) {
-                    return;
-                }
-
-                // Build allowed set from permissions (new format: db.schema.table)
-                const allowedSet = new Set();
-                (role.permissions || []).forEach(p => {
-                    if (p.database_code && p.schema_name) {
-                        // New format
-                        allowedSet.add(`${p.database_code}|${p.schema_name}|${p.table_name}`);
-                    } else {
-                        // Legacy format
-                        allowedSet.add(p.table_name);
-                    }
-                });
-
-                // Clear both lists
-                availableList.innerHTML = '';
-                allowedList.innerHTML = '';
-
-                // Populate tables
-                allTables.forEach(table => {
-                    const tag = createTableTag(table);
-                    
-                    // Check if this table is allowed for this role
-                    let tableKey;
-                    if (typeof table === 'string') {
-                        tableKey = table;
-                    } else {
-                        tableKey = `${table.database_code}|${table.schema_name}|${table.table_name}`;
-                    }
-                    
-                    if (allowedSet.has(tableKey)) {
-                        allowedList.appendChild(tag);
-                    } else {
-                        availableList.appendChild(tag);
-                    }
-                });
-
-                // Reset changes indicator
-                setHasChanges(false);
-            }
-
-            // Initialize Sortable with change tracking
-            new Sortable(availableList, {
-                group: 'tables',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onSort: function () {
-                    setHasChanges(true);
-                }
-            });
-
-            new Sortable(allowedList, {
-                group: 'tables',
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                onSort: function () {
-                    setHasChanges(true);
-                }
-            });
-
-            window.selectRole = function(roleId, el) {
+            function loadRolePermissions(roleId) {
                 const role = allRoles.find(r => r.id == roleId);
                 if (!role) return;
 
-                // Check for unsaved changes
+                selectedTables.clear();
+                originalSelectedTables.clear();
+
+                (role.permissions || []).forEach(p => {
+                    const key = p.database_code && p.schema_name 
+                        ? `${p.database_code}|${p.schema_name}|${p.table_name}`
+                        : p.table_name;
+                    selectedTables.add(key);
+                    originalSelectedTables.add(key);
+                });
+
+                document.getElementById('selected-role-name').innerText = role.name;
+                document.getElementById('selected-role-desc').innerText = role.description || '';
+                
+                setHasChanges(false);
+                applyFilters();
+            }
+
+            function setHasChanges(value) {
+                hasChanges = value;
+                unsavedIndicator.style.display = value ? 'inline' : 'none';
+                
+                document.querySelectorAll('.role-item').forEach(btn => btn.classList.remove('has-changes'));
+                if (value) {
+                    const activeBtn = document.querySelector('.role-item.active');
+                    if (activeBtn) activeBtn.classList.add('has-changes');
+                }
+            }
+
+            function checkIfChanged() {
+                if (selectedTables.size !== originalSelectedTables.size) return true;
+                for (let item of selectedTables) {
+                    if (!originalSelectedTables.has(item)) return true;
+                }
+                return false;
+            }
+
+            window.toggleTable = function(key) {
+                if (selectedTables.has(key)) {
+                    selectedTables.delete(key);
+                } else {
+                    selectedTables.add(key);
+                }
+                
+                setHasChanges(checkIfChanged());
+                renderTablesList(); // Update UI
+                updateCounts();
+            };
+
+            function updateCounts() {
+                selectedCountEl.textContent = selectedTables.size;
+            }
+
+            function renderTablesList(filteredTables = null) {
+                const tablesToRender = filteredTables || getFilteredTables();
+                tablesList.innerHTML = '';
+                
+                if (tablesToRender.length === 0) {
+                    tablesList.innerHTML = '<div style="text-align: center; padding: 3rem; color: #64748b;">Tidak ada tabel yang ditemukan.</div>';
+                    visibleCountEl.textContent = 0;
+                    return;
+                }
+
+                tablesToRender.forEach(table => {
+                    const key = `${table.database_code}|${table.schema_name}|${table.table_name}`;
+                    const isAllowed = selectedTables.has(key);
+                    
+                    const item = document.createElement('div');
+                    item.className = `table-item ${isAllowed ? 'allowed' : ''}`;
+                    item.onclick = () => toggleTable(key);
+                    
+                    item.innerHTML = `
+                        <div class="table-checkbox-wrapper">
+                            <div class="custom-checkbox">
+                                <i class="fas fa-check"></i>
+                            </div>
+                        </div>
+                        <div class="table-info">
+                            <div class="table-main-info">
+                                <span class="table-name">${table.table_name}</span>
+                                <div class="table-meta">
+                                    <span class="badge badge-db">${table.database_name}</span>
+                                    <span class="badge badge-schema">${table.schema_name}</span>
+                                    ${table.table_type === 'view' ? '<span class="badge badge-type">View</span>' : ''}
+                                </div>
+                            </div>
+                            <div class="table-description">${table.description || 'Tidak ada deskripsi'}</div>
+                        </div>
+                    `;
+                    tablesList.appendChild(item);
+                });
+
+                visibleCountEl.textContent = tablesToRender.length;
+                updateCounts();
+            }
+
+            function getFilteredTables() {
+                const searchTerm = document.getElementById('table-search').value.toLowerCase();
+                const dbFilter = document.getElementById('db-filter').value;
+                const schemaFilter = document.getElementById('schema-filter').value;
+                const statusFilter = document.getElementById('status-filter').value;
+
+                return allTables.filter(table => {
+                    const key = `${table.database_code}|${table.schema_name}|${table.table_name}`;
+                    const nameMatch = table.table_name.toLowerCase().includes(searchTerm) || 
+                                     (table.description && table.description.toLowerCase().includes(searchTerm));
+                    const dbMatch = !dbFilter || table.database_code === dbFilter;
+                    const schemaMatch = !schemaFilter || table.schema_name === schemaFilter;
+                    
+                    let statusMatch = true;
+                    if (statusFilter === 'allowed') statusMatch = selectedTables.has(key);
+                    else if (statusFilter === 'not_allowed') statusMatch = !selectedTables.has(key);
+
+                    return nameMatch && dbMatch && schemaMatch && statusMatch;
+                });
+            }
+
+            window.applyFilters = function() {
+                renderTablesList();
+            };
+
+            window.handleDbFilterChange = async function(dbCode) {
+                const schemaSelect = document.getElementById('schema-filter');
+                schemaSelect.innerHTML = '<option value="">Semua Schema</option>';
+                
+                if (dbCode) {
+                    try {
+                        const db = window.allDatabases.find(d => d.database === dbCode);
+                        if (db) {
+                            const response = await fetch(`/admin/databases/${db.id}/schemas`);
+                            const data = await response.json();
+                            data.schemas.forEach(s => {
+                                const opt = document.createElement('option');
+                                opt.value = s;
+                                opt.textContent = s;
+                                schemaSelect.appendChild(opt);
+                            });
+                        }
+                    } catch (e) { console.error(e); }
+                }
+                
+                applyFilters();
+            };
+
+            window.bulkAction = function(action) {
+                const filtered = getFilteredTables();
+                filtered.forEach(table => {
+                    const key = `${table.database_code}|${table.schema_name}|${table.table_name}`;
+                    if (action === 'select') selectedTables.add(key);
+                    else selectedTables.delete(key);
+                });
+                
+                setHasChanges(checkIfChanged());
+                renderTablesList();
+            };
+
+            window.selectRole = function(roleId, el) {
                 if (hasChanges) {
                     Swal.fire({
                         title: 'Perubahan Belum Disimpan',
-                        text: 'Anda memiliki perubahan yang belum disimpan. Yakin ingin pindah role?',
+                        text: 'Yakin ingin pindah role?',
                         icon: 'warning',
                         showCancelButton: true,
-                        confirmButtonColor: '#3b82f6',
-                        cancelButtonColor: '#64748b',
                         confirmButtonText: 'Ya, Pindah',
                         cancelButtonText: 'Batal'
                     }).then((result) => {
-                        if (result.isConfirmed) {
-                            doSelectRole(roleId, el);
-                        }
+                        if (result.isConfirmed) doSelectRole(roleId, el);
                     });
                 } else {
                     doSelectRole(roleId, el);
                 }
-            }
+            };
 
             function doSelectRole(roleId, el) {
-                const role = allRoles.find(r => r.id == roleId);
                 currentRoleId = roleId;
-                document.getElementById('selected-role-name').innerText = role.name;
-                document.getElementById('selected-role-desc').innerText = role.description || '';
-
                 document.querySelectorAll('.role-item').forEach(btn => btn.classList.remove('active'));
                 el.classList.add('active');
-
-                // Re-render tables for this role
-                renderTablesForRole(roleId);
+                loadRolePermissions(roleId);
             }
 
-            // Initialize tables for first role on page load
-            if (allRoles.length > 0 && allTables.length > 0) {
-                currentRoleId = allRoles[0].id;
-                renderTablesForRole(currentRoleId);
-            }
-
-            // Select All - move all from available to allowed
-            window.selectAll = function () {
-                if (!currentRoleId) return;
-
-                Array.from(availableList.children).forEach(tag => {
-                    allowedList.appendChild(tag);
-                });
-                setHasChanges(true);
-            };
-
-            // Clear All - move all from allowed to available
-            window.clearAll = function () {
-                if (!currentRoleId) return;
-
-                Array.from(allowedList.children).forEach(tag => {
-                    availableList.appendChild(tag);
-                });
-                setHasChanges(true);
-            };
-
-            // Filter by database
-            let currentDbFilter = '';
-            let currentSchemaFilter = '';
-
-            window.filterByDatabase = function(dbCode) {
-                currentDbFilter = dbCode;
-                currentSchemaFilter = '';
-                document.getElementById('schema-filter').value = '';
+            window.savePermissions = function() {
+                const tables = Array.from(selectedTables);
                 
-                // Show/hide schema filter based on db selection
-                const schemaSelect = document.getElementById('schema-filter');
-                if (dbCode) {
-                    schemaSelect.style.display = 'inline-block';
-                    // Load schemas for this database
-                    loadSchemasForFilter(dbCode);
-                } else {
-                    schemaSelect.style.display = 'none';
-                    schemaSelect.innerHTML = '<option value="">Semua Schema</option>';
-                }
-                
-                applyFilters();
-            };
-
-            window.filterBySchema = function(schemaName) {
-                currentSchemaFilter = schemaName;
-                applyFilters();
-            };
-
-            async function loadSchemasForFilter(dbCode) {
-                try {
-                    const db = window.allDatabases?.find(d => d.database === dbCode);
-                    if (!db) return;
-
-                    const response = await fetch(`/admin/databases/${db.id}/schemas`);
-                    const data = await response.json();
-                    
-                    const select = document.getElementById('schema-filter');
-                    select.innerHTML = '<option value="">Semua Schema</option>';
-                    data.schemas.forEach(schema => {
-                        const option = document.createElement('option');
-                        option.value = schema;
-                        option.textContent = schema;
-                        select.appendChild(option);
-                    });
-                } catch (e) {
-                    console.error('Failed to load schemas:', e);
-                }
-            }
-
-            function applyFilters() {
-                const tags = document.querySelectorAll('.table-tag');
-                tags.forEach(tag => {
-                    const db = tag.getAttribute('data-db') || '';
-                    const schema = tag.getAttribute('data-schema') || '';
-                    
-                    let show = true;
-                    if (currentDbFilter && db !== currentDbFilter) show = false;
-                    if (currentSchemaFilter && schema !== currentSchemaFilter) show = false;
-                    
-                    tag.style.display = show ? '' : 'none';
-                });
-            }
-
-            // Expose functions globally
-            window.selectRole = selectRole;
-            window.savePermissions = function () {
-                if (!currentRoleId) return;
-
-                // Get the full identifiers including database and schema
-                const tables = Array.from(allowedList.children).map(item => {
-                    const db = item.dataset.db || 'default';
-                    const schema = item.dataset.schema || 'public';
-                    const table = item.dataset.table || item.dataset.id;
-                    return `${db}|${schema}|${table}`;
-                });
-
-                // Get current role data to compare
-                const currentRole = allRoles.find(r => r.id == currentRoleId);
-                const oldPermissions = (currentRole.permissions || []).map(p => {
-                    if (p.database_code && p.schema_name) {
-                        return `${p.database_code}|${p.schema_name}|${p.table_name}`;
-                    }
-                    return p.table_name; // Legacy
-                });
-
-                // Find added and removed tables
-                const added = tables.filter(t => !oldPermissions.includes(t));
-                const removed = oldPermissions.filter(t => !tables.includes(t));
-
-                // Show confirmation with preview
-                let html = '<div style="text-align: left; max-height: 300px; overflow-y: auto;">';
-
-                if (added.length > 0) {
-                    html += '<div style="margin-bottom: 15px;">';
-                    html += '<p style="color: #10b981; margin-bottom: 5px;"><i class="fas fa-plus-circle"></i> Tabel yang akan ditambahkan:</p>';
-                    html += '<ul style="margin: 0; padding-left: 20px;">';
-                    added.forEach(t => html += `<li>${t}</li>`);
-                    html += '</ul></div>';
-                }
-
-                if (removed.length > 0) {
-                    html += '<div>';
-                    html += '<p style="color: #ef4444; margin-bottom: 5px;"><i class="fas fa-minus-circle"></i> Tabel yang akan dihapus:</p>';
-                    html += '<ul style="margin: 0; padding-left: 20px;">';
-                    removed.forEach(t => html += `<li>${t}</li>`);
-                    html += '</ul></div>';
-                }
-
-                if (added.length === 0 && removed.length === 0) {
-                    html += '<p style="color: #94a3b8;">Tidak ada perubahan.</p>';
-                }
-
-                html += '</div>';
-
                 Swal.fire({
-                    title: 'Konfirmasi Simpan',
-                    html: html,
+                    title: 'Simpan Perubahan?',
+                    text: `Anda akan menyimpan ${tables.length} tabel untuk role ini.`,
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#3b82f6',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Ya, Simpan',
-                    cancelButtonText: 'Batal'
+                    confirmButtonText: 'Ya, Simpan'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // Proceed with save
                         fetch(`/admin/roles/${currentRoleId}/permissions`, {
                             method: 'POST',
                             headers: {
@@ -738,41 +589,19 @@
                             },
                             body: JSON.stringify({ tables })
                         }).then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    // Update role data in allRoles array with new format
-                                    const roleIndex = allRoles.findIndex(r => r.id == currentRoleId);
-                                    if (roleIndex !== -1) {
-                                        allRoles[roleIndex].permissions = tables.map(t => {
-                                            const parts = t.split('|');
-                                            if (parts.length === 3) {
-                                                return {
-                                                    database_code: parts[0],
-                                                    schema_name: parts[1],
-                                                    table_name: parts[2]
-                                                };
-                                            }
-                                            return { table_name: t }; // Legacy
-                                        });
-                                    }
-                                    setHasChanges(false);
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Berhasil!',
-                                        text: 'Hak akses berhasil disimpan!',
-                                        timer: 2000,
-                                        showConfirmButton: false
-                                    });
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Save error:', err);
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Gagal!',
-                                    text: 'Gagal menyimpan hak akses'
+                        .then(data => {
+                            if (data.success) {
+                                // Update local data
+                                const role = allRoles.find(r => r.id == currentRoleId);
+                                role.permissions = tables.map(t => {
+                                    const parts = t.split('|');
+                                    return { database_code: parts[0], schema_name: parts[1], table_name: parts[2] };
                                 });
-                            });
+                                originalSelectedTables = new Set(selectedTables);
+                                setHasChanges(false);
+                                Swal.fire('Berhasil!', 'Hak akses disimpan.', 'success');
+                            }
+                        });
                     }
                 });
             };
@@ -800,52 +629,24 @@
             window.deleteRole = function (roleId) {
                 Swal.fire({
                     title: 'Hapus Role?',
-                    text: "Role yang dihapus tidak dapat dikembalikan!",
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Ya, Hapus',
-                    cancelButtonText: 'Batal'
+                    confirmButtonText: 'Ya, Hapus'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         fetch(`/admin/roles/${roleId}`, {
                             method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            }
-                        })
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
-                                    Swal.fire({
-                                        icon: 'success',
-                                        title: 'Terhapus!',
-                                        text: 'Role berhasil dihapus',
-                                        timer: 1500,
-                                        showConfirmButton: false
-                                    }).then(() => {
-                                        location.reload();
-                                    });
-                                } else {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Gagal!',
-                                        text: data.message || 'Gagal menghapus role'
-                                    });
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Delete error:', err);
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Gagal!',
-                                    text: 'Terjadi kesalahan saat menghapus role'
-                                });
-                            });
+                            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                        }).then(res => res.json())
+                        .then(data => {
+                            if (data.success) location.reload();
+                        });
                     }
                 });
             };
+
+            init();
         });
     </script>
 @endsection
