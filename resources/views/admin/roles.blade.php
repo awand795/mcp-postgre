@@ -85,8 +85,8 @@
                     (<span id="selected-count" style="color: #10b981; font-weight: 600;">0</span> terpilih)
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-sm" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Yang Terfilter</button>
-                    <button class="btn btn-sm" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Yang Terfilter</button>
+                    <button class="btn btn-sm" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Semua</button>
+                    <button class="btn btn-sm" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Semua</button>
                 </div>
             </div>
 
