@@ -80,7 +80,28 @@ class AgenticChatbotController extends Controller
             return response()->json(['error' => $errorMsg], 403);
         }
 
-        $allowedDatabases = $user->roleModel->getAllowedDatabases();
+        $allowedDatabases = [];
+        if (!$user->is_admin && $user->roleModel) {
+            if (method_exists($user->roleModel, 'getAllowedDatabases')) {
+                $allowedDatabases = $user->roleModel->getAllowedDatabases();
+            } else {
+                foreach ($user->roleModel->permissions ?? [] as $perm) {
+                    $db = $perm->database_code;
+                    $schema = $perm->schema_name;
+                    $tbl = $perm->table_name;
+
+                    if (!$db || $db === '*') continue;
+                    
+                    if (!isset($allowedDatabases[$db])) $allowedDatabases[$db] = [];
+                    if ($schema && $schema !== '*') {
+                        if (!isset($allowedDatabases[$db][$schema])) $allowedDatabases[$db][$schema] = [];
+                        if ($tbl && $tbl !== '*') {
+                            $allowedDatabases[$db][$schema][] = $tbl;
+                        }
+                    }
+                }
+            }
+        }
 
         if ($chatSessionId) {
             $session = ChatSession::where('user_id', $user->id)->findOrFail($chatSessionId);
