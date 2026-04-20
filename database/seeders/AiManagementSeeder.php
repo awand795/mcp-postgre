@@ -55,6 +55,18 @@ class AiManagementSeeder extends Seeder
                     ['model_name' => 'claude-4.6-opus', 'display_name' => 'Claude 4.6 Opus'],
                 ]
             ],
+            [
+                'name' => 'Mistral AI',
+                'code' => 'mistral',
+                'models' => [
+                    ['model_name' => 'mistral-large-latest', 'display_name' => 'Mistral Large'],
+                    ['model_name' => 'mistral-medium-latest', 'display_name' => 'Mistral Medium'],
+                    ['model_name' => 'mistral-small-latest', 'display_name' => 'Mistral Small'],
+                    ['model_name' => 'open-mistral-7b', 'display_name' => 'Mistral Tiny (7B)'],
+                    ['model_name' => 'pixtral-12b-2409', 'display_name' => 'Pixtral'],
+                    ['model_name' => 'codestral-latest', 'display_name' => 'Codestral'],
+                ]
+            ],
         ];
 
         foreach ($providers as $pData) {

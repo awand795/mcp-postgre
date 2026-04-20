@@ -335,6 +335,10 @@ class AgenticChatbotController extends Controller
             return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         }
 
+        if ($providerCode === 'mistral') {
+            return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        }
+
         return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
     }
 
@@ -427,6 +431,24 @@ class AgenticChatbotController extends Controller
         }
 
         return $messages;
+    }
+
+    private function callMistralApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
+    {
+        $payload = [
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int)$maxTokens,
+            'temperature' => 0.7,
+        ];
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+            ->post('https://api.mistral.ai/v1/chat/completions', $payload);
+        
+        return $this->handleProviderResponse($response, 'mistral');
     }
 
     private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
