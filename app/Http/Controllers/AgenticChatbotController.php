@@ -384,11 +384,12 @@ class AgenticChatbotController extends Controller
                 $geminiRole = ($role === 'assistant') ? 'model' : (($role === 'tool' || $role === 'function') ? 'function' : 'user');
                 
                 $parts = [];
-                if ($geminiRole === 'function') {
+                if ($role === 'tool') {
+                    $geminiRole = 'user'; // Gemini REST API uses 'user' for function results
                     $parts[] = [
                         'functionResponse' => [
                             'name' => $m['name'] ?? 'query',
-                            'response' => (object)($m['content'] ?? [])
+                            'response' => (object)['content' => $m['content']]
                         ]
                     ];
                 } else {
