@@ -464,96 +464,97 @@ class QueryService extends BaseService
      */
     private function autoFixPeriodFilter(string $sql, string $databaseCode): string
     {
-        // Cek apakah ada pola periode_bulan + periode_tahun
-        $hasBulan = preg_match('/\bperiode_bulan\s*=\s*[\x27"](\d{1,2})[\x27"]|\bperiode_bulan\s*=\s*(\d{1,2})\b/i', $sql, $mBulan);
-        $hasTahun = preg_match('/\bperiode_tahun\s*=\s*[\x27"](\d{4})[\x27"]|\bperiode_tahun\s*=\s*(\d{4})\b/i', $sql, $mTahun);
+        // Detect alias and values
+        $alias = null;
+        $bulan = 0;
+        $tahun = 0;
 
-        if (!$hasBulan && !$hasTahun) {
-            return $sql; // Tidak ada pola yang perlu difix
+        // Check for periode_bulan and its optional alias
+        if (preg_match('/(?:([\w"\'`]+)\.)?\bperiode_bulan\s*=\s*(?:[\x27"](\d{1,2})[\x27"]|(\d{1,2}))/i', $sql, $mBulan)) {
+            $alias = !empty($mBulan[1]) ? $mBulan[1] : null;
+            $bulan = (int)(!empty($mBulan[2]) ? $mBulan[2] : $mBulan[3]);
         }
 
-        $bulan = !empty($mBulan[1]) ? (int)$mBulan[1] : (int)($mBulan[2] ?? 0);
-        $tahun = !empty($mTahun[1]) ? (int)$mTahun[1] : (int)($mTahun[2] ?? 0);
+        // Check for periode_tahun and its optional alias
+        if (preg_match('/(?:([\w"\'`]+)\.)?\bperiode_tahun\s*=\s*(?:[\x27"](\d{4})[\x27"]|(\d{4}))/i', $sql, $mTahun)) {
+            // Priority for alias remains with whatever is found, usually they should be the same
+            $alias = $alias ?: (!empty($mTahun[1]) ? $mTahun[1] : null);
+            $tahun = (int)(!empty($mTahun[2]) ? $mTahun[2] : $mTahun[3]);
+        }
 
-        // Jika bulan atau tahun tidak valid, jangan ubah query
-        if ($bulan < 1 || $bulan > 12 || $tahun < 2000 || $tahun > 2099) {
-            return $sql;
+        if ($bulan === 0 && $tahun === 0) {
+            return $sql; // Nothing to fix
         }
 
         // Hitung tanggal awal dan akhir bulan
-        $dateStart = sprintf('%04d-%02d-01', $tahun, $bulan);
-        $lastDay   = (int) date('t', mktime(0, 0, 0, $bulan, 1, $tahun));
-        $dateEnd   = sprintf('%04d-%02d-%02d', $tahun, $bulan, $lastDay);
+        // Fallback tahun/bulan jika salah satu tidak ada (tapi biasanya ada berpasangan)
+        $useTahun = ($tahun >= 2000 && $tahun <= 2099) ? $tahun : (int)date('Y');
+        $useBulan = ($bulan >= 1 && $bulan <= 12) ? $bulan : (int)date('m');
+
+        $dateStart = sprintf('%04d-%02d-01', $useTahun, $useBulan);
+        $lastDay   = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahun));
+        $dateEnd   = sprintf('%04d-%02d-%02d', $useTahun, $useBulan, $lastDay);
 
         // Coba temukan nama kolom tanggal aktual dari schema
         $dateColumn = $this->detectDateColumn($databaseCode, $sql);
 
-        Log::info("[QueryService] AutoFix: periode_bulan={$bulan} periode_tahun={$tahun} "
+        Log::info("[QueryService] AutoFix: Bulan={$bulan} Tahun={$tahun} (Alias: " . ($alias ?: 'none') . ") "
             . "-> BETWEEN '{$dateStart}' AND '{$dateEnd}' "
             . "using column: {$dateColumn}");
 
-        // Hapus kondisi periode_bulan dan periode_tahun dari WHERE
-        // Pattern: AND/OR periode_bulan = ... dan AND/OR periode_tahun = ...
+        // Hapus kondisi periode_bulan dan periode_tahun dari SQL secara aman
+        // Pattern mencakup opsional alias dan whitespace di sekelilingnya
         $patterns = [
-            '/\s+AND\s+periode_bulan\s*=\s*[\'"](\d{1,2})[\'"]/i',
-            '/\s+AND\s+periode_bulan\s*=\s*\d{1,2}\b/i',
-            '/\s+OR\s+periode_bulan\s*=\s*[\'"](\d{1,2})[\'"]/i',
-            '/\s+OR\s+periode_bulan\s*=\s*\d{1,2}\b/i',
-            '/\bperiode_bulan\s*=\s*[\'"](\d{1,2})[\'"]/i',
-            '/\bperiode_bulan\s*=\s*\d{1,2}\b/i',
-            '/\s+AND\s+periode_tahun\s*=\s*[\'"](\d{4})[\'"]/i',
-            '/\s+AND\s+periode_tahun\s*=\s*\d{4}\b/i',
-            '/\s+OR\s+periode_tahun\s*=\s*[\'"](\d{4})[\'"]/i',
-            '/\s+OR\s+periode_tahun\s*=\s*\d{4}\b/i',
-            '/\bperiode_tahun\s*=\s*[\'"](\d{4})[\'"]/i',
-            '/\bperiode_tahun\s*=\s*\d{4}\b/i',
+            '/\s+(?:AND|OR)\s+[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?/i',
+            '/\b[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?(\s+(?:AND|OR))?/i',
+            '/\s+(?:AND|OR)\s+[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?/i',
+            '/\b[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?(\s+(?:AND|OR))?/i',
         ];
 
         $cleanSql = $sql;
         foreach ($patterns as $pattern) {
-            $cleanSql = preg_replace($pattern, '', $cleanSql);
+            $cleanSql = preg_replace($pattern, ' ', $cleanSql);
         }
 
-        // Tambahkan filter BETWEEN yang benar
-        $betweenFilter = "{$dateColumn} BETWEEN '{$dateStart}' AND '{$dateEnd}'";
+        // Tambahkan filter BETWEEN yang benar (sertakan alias jika ditemukan)
+        $qualifiedCol  = $alias ? "{$alias}.{$dateColumn}" : $dateColumn;
+        $betweenFilter = "{$qualifiedCol} BETWEEN '{$dateStart}' AND '{$dateEnd}'";
 
         // Cek apakah masih ada WHERE clause
         if (preg_match('/\bWHERE\b/i', $cleanSql)) {
-            // Ada WHERE — sisipkan betweenFilter tepat sebelum GROUP BY/ORDER BY/LIMIT/HAVING
-            // atau di akhir jika tidak ada klausa-klausa tersebut.
-            // JANGAN replace kata WHERE itu sendiri — merusak kondisi yang sudah ada.
             if (preg_match('/\b(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\b/i', $cleanSql, $gm, PREG_OFFSET_CAPTURE)) {
                 $insertPos = $gm[0][1];
-                // Pastikan ada spasi pemisah & gunakan AND
                 $before = rtrim(substr($cleanSql, 0, $insertPos));
                 $after  = ltrim(substr($cleanSql, $insertPos));
+                // Pastikan tidak ada trailing AND/OR di $before
+                $before = preg_replace('/\s+(?:AND|OR)\s*$/i', '', $before);
                 $cleanSql = $before . " AND {$betweenFilter} " . $after;
             } else {
-                $cleanSql = rtrim($cleanSql) . " AND {$betweenFilter}";
+                $before = rtrim($cleanSql);
+                $before = preg_replace('/\s+(?:AND|OR)\s*$/i', '', $before);
+                $cleanSql = $before . " AND {$betweenFilter}";
             }
         } else {
-            // Tidak ada WHERE — tambah sebelum GROUP BY / ORDER BY / LIMIT, atau di akhir
             if (preg_match('/\b(GROUP BY|ORDER BY|LIMIT|HAVING)\b/i', $cleanSql, $m, PREG_OFFSET_CAPTURE)) {
-                $pos     = $m[0][1];
-                $keyword = $m[0][0];
-                $cleanSql = substr($cleanSql, 0, $pos) . "WHERE {$betweenFilter} " . substr($cleanSql, $pos);
+                $pos = $m[0][1];
+                $cleanSql = substr($cleanSql, 0, $pos) . " WHERE {$betweenFilter} " . substr($cleanSql, $pos);
             } else {
-                $cleanSql = $cleanSql . " WHERE {$betweenFilter}";
+                $cleanSql = rtrim($cleanSql) . " WHERE {$betweenFilter}";
             }
         }
 
-        // Bersihkan whitespace berlebih & kondisi WHERE yang rusak
+        // Pembersihan akhir (hapus whitespace ganda, perbaiki WHERE AND)
         $cleanSql = preg_replace('/\s+/', ' ', $cleanSql);
-        $cleanSql = preg_replace('/WHERE\s+AND\s+/i', 'WHERE ', $cleanSql);
-        $cleanSql = preg_replace('/WHERE\s+OR\s+/i', 'WHERE ', $cleanSql);
-        // FIX: hapus trailing AND/OR sebelum GROUP BY / ORDER BY / LIMIT
-        $cleanSql = preg_replace('/\s+(AND|OR)\s+(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)/i', ' $2', $cleanSql);
+        $cleanSql = preg_replace('/WHERE\s+(?:AND|OR)\s+/i', 'WHERE ', $cleanSql);
+        $cleanSql = preg_replace('/\(\s+(?:AND|OR)\s+/i', '(', $cleanSql);
+        $cleanSql = preg_replace('/\s+(?:AND|OR)\s+\)/i', ' )', $cleanSql);
         $cleanSql = trim($cleanSql);
 
         Log::info("[QueryService] AutoFix SQL result: " . substr($cleanSql, 0, 400));
 
         return $cleanSql;
     }
+
 
     /**
      * Deteksi nama kolom tanggal aktual dari SQL dan schema database.

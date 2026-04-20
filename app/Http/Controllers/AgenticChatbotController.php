@@ -637,8 +637,14 @@ class AgenticChatbotController extends Controller
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
+        $currentTime = now()->translatedFormat('l, d F Y H:i');
+
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
+
+## KONTEKS WAKTU (SANGAT PENTING):
+- **Tanggal Sekarang**: {$currentTime}
+- **Penting**: Pastikan Anda menyadari bahwa hari ini adalah tahun 2026. Analisis data tahun 2025 adalah data historis (masa lalu), bukan masa depan.
 
 ## DATABASE TERSEDIA UNTUK ANDA:
 {$dbSummaryText}
@@ -790,8 +796,14 @@ PROMPT;
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
+        $currentTime = now()->format('l, F d, Y H:i');
+
         return <<<PROMPT
 You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to multiple business databases** via tools.
+
+## TIME CONTEXT (CRITICAL):
+- **Current Date**: {$currentTime}
+- **Important**: Be aware that today is in the year 2026. Analyzing data from 2025 is historical data, not future data.
 
 ## AVAILABLE DATABASES FOR THIS USER:
 {$dbSummaryText}
