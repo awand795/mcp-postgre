@@ -109,7 +109,7 @@ class AgenticChatbotController extends Controller
             echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
         }
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
-        ob_flush(); flush();
+        if (ob_get_level() > 0) ob_flush(); flush();
 
         $this->toolExecutor->setAllowedTables($allowedDatabases);
         $tools = ToolCallExecutor::getToolDefinitions();
@@ -135,7 +135,7 @@ class AgenticChatbotController extends Controller
                     : "Infrastruktur analisis sedang mengalami kepadatan tinggi. Harap hubungi Administrator.";
                 $this->streamText($errMsg);
                 echo "data: [DONE]\n\n";
-                ob_flush(); flush();
+                if (ob_get_level() > 0) ob_flush(); flush();
                 return;
             }
 
@@ -165,7 +165,7 @@ class AgenticChatbotController extends Controller
 
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
-                ob_flush(); flush();
+                if (ob_get_level() > 0) ob_flush(); flush();
                 return;
             }
 
@@ -197,7 +197,7 @@ class AgenticChatbotController extends Controller
                         'result'    => ['tool_name' => $toolName, 'data' => $decodedRes ?: $toolResult]
                     ]
                 ]) . "\n\n";
-                ob_flush(); flush();
+                if (ob_get_level() > 0) ob_flush(); flush();
                 
                 $allTurnToolResults[] = ['tool_name' => $toolName, 'data' => $decodedRes ?: $toolResult];
 
@@ -208,7 +208,7 @@ class AgenticChatbotController extends Controller
                     'content' => $aiContent,
                 ];
             }
-            ob_flush(); flush();
+            if (ob_get_level() > 0) ob_flush(); flush();
         }
     }
 
@@ -434,5 +434,5 @@ class AgenticChatbotController extends Controller
     }
 
     private function processContentForCharts(string $content, array $toolResults): string { return $content; }
-    private function streamText(string $text): void { foreach (mb_str_split($text, 30) as $chunk) { echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; ob_flush(); flush(); } }
+    private function streamText(string $text): void { foreach (mb_str_split($text, 30) as $chunk) { echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; if (ob_get_level() > 0) ob_flush(); flush(); } }
 }
