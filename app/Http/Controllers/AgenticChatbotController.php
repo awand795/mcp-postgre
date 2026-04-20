@@ -86,9 +86,13 @@ class AgenticChatbotController extends Controller
 
         $allowedDatabases = [];
         if ($user->is_admin) {
+            // FIX: Gunakan $c->database (nama database asli) sebagai key, bukan $c->code.
+            // Semua service (SchemaService, QueryService) melakukan lookup via:
+            //   DatabaseConnection::where('database', $databaseCode)
+            // Sehingga key di allowedDatabases HARUS sama dengan kolom `database` di tabel.
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
-                $allowedDatabases[$c->code] = ['*' => ['*']];
+                $allowedDatabases[$c->database] = ['*' => ['*']];
             }
         } elseif ($user->roleModel) {
             if (method_exists($user->roleModel, 'getAllowedDatabases')) {
@@ -102,7 +106,8 @@ class AgenticChatbotController extends Controller
                     if ($db === '*') {
                         $conns = \App\Models\DatabaseConnection::active()->get();
                         foreach ($conns as $c) {
-                            $allowedDatabases[$c->code] = ['*' => ['*']];
+                            // FIX: Konsisten gunakan ->database sebagai key untuk role juga
+                            $allowedDatabases[$c->database] = ['*' => ['*']];
                         }
                         continue;
                     }

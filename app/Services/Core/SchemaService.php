@@ -426,6 +426,8 @@ class SchemaService extends BaseService
             if (!$dbModel) return [];
 
             $adapter = $dbModel->getAdapter();
+            // FIX: Purge before re-configuring to avoid stale connection config on multi-DB eager load
+            DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
             $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
