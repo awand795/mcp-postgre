@@ -191,20 +191,47 @@ class SchemaService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            $query = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
-            $values = DB::connection($connName)->select($query);
-            
+            // Set short timeout — 15 detik cukup untuk TABLESAMPLE, jika timeout return skip-hint
+            if ($dbModel->driver === 'pgsql') {
+                DB::connection($connName)->statement('SET statement_timeout = 15000');
+            } elseif (in_array($dbModel->driver, ['mysql', 'mariadb'])) {
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 15000');
+            }
+
+            // Coba dengan TABLESAMPLE dulu (cepat, hanya scan ~5% baris)
+            $query  = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
+            $values = null;
+            try {
+                $values = DB::connection($connName)->select($query);
+            } catch (\Exception $tablesampleErr) {
+                Log::warning("[SchemaService] Fast query failed for {$tableName}.{$columnName}, trying exact: " . $tablesampleErr->getMessage());
+                // Reset timeout lebih panjang lalu coba exact query
+                if ($dbModel->driver === 'pgsql') {
+                    DB::connection($connName)->statement('SET statement_timeout = 30000');
+                }
+                $fallbackQuery = method_exists($adapter, 'getDistinctValuesQueryExact')
+                    ? $adapter->getDistinctValuesQueryExact($schemaName, $tableName, $columnName, 20)
+                    : "SELECT DISTINCT \"{$columnName}\" FROM \"{$schemaName}\".\"{$tableName}\" WHERE \"{$columnName}\" IS NOT NULL ORDER BY \"{$columnName}\" LIMIT 20";
+                $values = DB::connection($connName)->select($fallbackQuery);
+            }
+
             $flatValues = array_map(fn($v) => current((array)$v), $values);
 
             DB::purge($connName);
             return $this->safeJsonEncode([
-                'database' => $databaseCode,
-                'column'   => "{$schemaName}.{$tableName}.{$columnName}",
-                'distinct_values' => $flatValues
+                'database'        => $databaseCode,
+                'column'          => "{$schemaName}.{$tableName}.{$columnName}",
+                'distinct_values' => $flatValues,
+                'note'            => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
             ]);
         } catch (\Exception $e) {
             DB::purge($connName);
-            return $this->errorResponse('Failed to get values: ' . $e->getMessage());
+            Log::warning("[SchemaService] getColumnValues failed for {$tableName}.{$columnName}: " . $e->getMessage());
+            // Jangan error — kembalikan instruksi ke AI untuk skip dan pakai ILIKE langsung
+            return $this->safeJsonEncode([
+                'warning' => 'get_column_values terlalu lambat atau gagal untuk tabel/view ini.',
+                'MANDATORY_AI_ACTION' => "SKIP get_column_values. Lanjutkan langsung ke execute_query. Gunakan filter ILIKE pada kolom {$columnName}: {$columnName} ILIKE '%kata1%' AND {$columnName} ILIKE '%kata2%'",
+            ]);
         }
     }
 

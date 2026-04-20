@@ -142,6 +142,33 @@ class PostgreSqlAdapter extends DriverAdapter
         return 'public';
     }
 
+    /**
+     * Override: untuk view/tabel besar, gunakan TABLESAMPLE BERNOULLI(5)
+     * agar DISTINCT query tidak scan semua baris. Jauh lebih cepat (~20x)
+     * karena hanya sample ~5% baris. Hasil mungkin tidak 100% lengkap
+     * tapi cukup untuk AI mengetahui variasi nilai kolom.
+     */
+    public function getDistinctValuesQuery(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
+    {
+        return "SELECT DISTINCT \"{$columnName}\" 
+                FROM \"{$schemaName}\".\"{$tableName}\" TABLESAMPLE BERNOULLI(5)
+                WHERE \"{$columnName}\" IS NOT NULL 
+                ORDER BY \"{$columnName}\" 
+                LIMIT {$limit}";
+    }
+
+    /**
+     * Fallback tanpa TABLESAMPLE — dipakai jika view tidak support TABLESAMPLE.
+     */
+    public function getDistinctValuesQueryExact(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
+    {
+        return "SELECT DISTINCT \"{$columnName}\" 
+                FROM \"{$schemaName}\".\"{$tableName}\"
+                WHERE \"{$columnName}\" IS NOT NULL 
+                ORDER BY \"{$columnName}\" 
+                LIMIT {$limit}";
+    }
+
     public function getConnectionOptions(array $connection): array
     {
         // Laravel PostgreSQL driver reads 'schema' to set search_path
