@@ -280,7 +280,7 @@ class AdminController extends Controller
                 // Legacy format - use defaults from first active database
                 $defaultDb = DatabaseConnection::active()->first();
                 if ($defaultDb) {
-                    $defaultDbCode = $defaultDb->code;
+                    $defaultDbCode = $defaultDb->database; // use 'database' field, consistent with role_permissions.database_code
                     $defaultSchema = $defaultDb->schema ?? match ($defaultDb->driver) {
                         'pgsql' => 'public',
                         'sqlsrv' => 'dbo',
@@ -582,13 +582,13 @@ class AdminController extends Controller
      */
     private function clearTableCache(): void
     {
-        // FIX: Use correct cache keys that match QueryService
         cache()->forget('agentic_all_dbs_admin');
+        cache()->forget('agentic_all_dbs_admin_v3'); // key dipakai QueryService
         cache()->forget('all_db_tables_admin');
 
-        // Clear role-specific caches
         Role::all()->each(function($role) {
             cache()->forget("agentic_allowed_dbs_role_{$role->id}");
+            cache()->forget("agentic_allowed_dbs_role_v2_{$role->id}");
             cache()->forget("agentic_allowed_tables_role_{$role->id}");
             cache()->forget("allowed_tables_role_{$role->id}");
         });

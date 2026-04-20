@@ -54,20 +54,21 @@ class QueryService extends BaseService
 
         // Admin sees all active databases
         if ($user->is_admin) {
-            return cache()->remember('agentic_all_dbs_admin_v2', 600, function () {
+            return cache()->remember('agentic_all_dbs_admin_v3', 600, function () {
                 $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
                 $result = [];
                 foreach ($connections as $conn) {
                     $tables = $conn->getTables();
+                    // Use $conn->database as the key — this is the identifier passed by AI
+                    // in tool calls (database_code). All service lookups use ->where('database', ...)
                     $dbIdentifier = $conn->database;
                     foreach ($tables as $t) {
-                        $sch = $t['schema_name'];
-                        $tbl = $t['table_name'];
+                        $sch  = $t['schema_name'];
+                        $tbl  = $t['table_name'];
                         $desc = $t['description'] ?? '';
-                        // Store as an object with name and description
                         $result[$dbIdentifier][$sch][] = [
-                            'name' => $tbl,
-                            'description' => $desc
+                            'name'        => $tbl,
+                            'description' => $desc,
                         ];
                     }
                 }
@@ -112,7 +113,6 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ─────────────────────────────
-        // Lookup by 'database' field (actual DB name used as identifier throughout the system)
         $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
         $driver = $dbModel ? $dbModel->driver : 'pgsql';
 
@@ -161,10 +161,11 @@ class QueryService extends BaseService
         foreach ($allowedDbs[$databaseCode] as $sch => $tbls) {
             $allowedSchemasForDb[] = $sch;
             foreach ($tbls as $tbl) {
-                $allowedTablesForDb[] = $tbl;
+                // tbl bisa berupa string atau ['name'=>..., 'description'=>...]
+                $allowedTablesForDb[] = is_array($tbl) ? ($tbl['name'] ?? '') : (string) $tbl;
             }
         }
-        $allowedTablesForDb = array_unique($allowedTablesForDb);
+        $allowedTablesForDb = array_filter(array_unique($allowedTablesForDb));
 
         // Ekstrak nama schema (opsional) dan tabel dari query
         // Format umum: from schema.table atau join schema.table
@@ -204,7 +205,6 @@ class QueryService extends BaseService
         $connName = "temp_conn_{$databaseCode}";
         try {
             if (!$dbModel) {
-                // Lookup by 'database' field (actual DB name used as identifier throughout the system)
                 $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             }
             if (!$dbModel) {

@@ -308,7 +308,8 @@ class SchemaService extends BaseService
         return $this->safeJsonEncode([
             'keyword' => $keyword,
             'matches' => $results,
-            'count'   => count($results)
+            'count'   => count($results),
+            'instruction' => 'IMPORTANT: Use the exact "schema" and "database" values from each match above when calling describe_table or execute_query. Never use "*" as schema_name.',
         ]);
     }
 
@@ -409,8 +410,8 @@ class SchemaService extends BaseService
             'is_eager_loaded' => $isSmallSchema,
             'databases'       => $overview,
             'usage_note'      => $isSmallSchema 
-                ? 'Informasi kolom sudah dimuat secara otomatis (Eager Loaded). Anda bisa langsung menulis query tanpa describe_table.'
-                : 'Gunakan describe_table(database_code, schema_name, table_name) untuk melihat kolom. Pada execute_query, selalu pakai prefix schema.',
+                ? 'Column info is eager loaded. You can write execute_query directly. IMPORTANT: Use the exact schema key (e.g. "sch_mbi", "public") and database key (e.g. "data_mbi") shown in this response. NEVER use "*" as schema_name or database_code.'
+                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the exact schema key and database key shown in this response as the database_code and schema_name parameters. NEVER use "*".',
         ]);
     }
 
