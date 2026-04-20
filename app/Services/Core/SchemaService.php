@@ -196,13 +196,9 @@ class SchemaService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set short timeout — 10 detik cukup untuk TABLESAMPLE pada tabel fisik.
-            // Jika timeout/gagal (misal: target adalah VIEW), langsung return skip-hint ke AI.
-            if ($dbModel->driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 10000');
-            } elseif (in_array($dbModel->driver, ['mysql', 'mariadb'])) {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 10000');
-            }
+            // Timeout dinonaktifkan — biarkan query berjalan sampai selesai.
+            // get_column_values pakai TABLESAMPLE jadi harusnya cepat pada tabel fisik.
+            // Jika target adalah VIEW, akan langsung catch exception dan return skip-hint.
 
             // Coba dengan TABLESAMPLE dulu (cepat, hanya scan ~5% baris)
             // CATATAN: TABLESAMPLE hanya bisa dipakai pada tabel fisik & materialized view,

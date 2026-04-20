@@ -254,11 +254,11 @@ class QueryService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set driver-specific timeout: 300 detik untuk query agregasi pada view besar.
+            // Set driver-specific timeout: unlimited untuk query agregasi pada view besar.
             if ($driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 300000');
+                DB::connection($connName)->statement('SET statement_timeout = 0');
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 300000');
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
             }
 
             $rows = DB::connection($connName)->select($cleanSql);
@@ -460,8 +460,8 @@ class QueryService extends BaseService
     private function autoFixPeriodFilter(string $sql, string $databaseCode): string
     {
         // Cek apakah ada pola periode_bulan + periode_tahun
-        $hasBulan = preg_match('/\bperiode_bulan\s*=\s*['"](\d{1,2})['"]|\bperiode_bulan\s*=\s*(\d{1,2})\b/i', $sql, $mBulan);
-        $hasTahun = preg_match('/\bperiode_tahun\s*=\s*['"](\d{4})['"]|\bperiode_tahun\s*=\s*(\d{4})\b/i', $sql, $mTahun);
+        $hasBulan = preg_match('/\bperiode_bulan\s*=\s*[\x27"](\d{1,2})[\x27"]|\bperiode_bulan\s*=\s*(\d{1,2})\b/i', $sql, $mBulan);
+        $hasTahun = preg_match('/\bperiode_tahun\s*=\s*[\x27"](\d{4})[\x27"]|\bperiode_tahun\s*=\s*(\d{4})\b/i', $sql, $mTahun);
 
         if (!$hasBulan && !$hasTahun) {
             return $sql; // Tidak ada pola yang perlu difix
