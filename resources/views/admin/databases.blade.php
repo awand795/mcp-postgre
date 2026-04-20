@@ -263,7 +263,7 @@
                 </div>
 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                    <button type="button" class="btn"
+                    <button type="button" class="btn btn-cancel"
                         onclick="document.getElementById('databaseModal').style.display='none'">Batal</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> Simpan

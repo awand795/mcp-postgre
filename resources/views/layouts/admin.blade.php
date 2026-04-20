@@ -184,6 +184,18 @@
             transform: translateY(-2px);
         }
 
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: translateY(-2px);
+        }
+
         /* Responsive Styles */
         @media (max-width: 1024px) {
             .sidebar {

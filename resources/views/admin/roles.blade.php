@@ -126,7 +126,7 @@
                         rows="3"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                    <button type="button" class="btn"
+                    <button type="button" class="btn btn-cancel"
                         onclick="document.getElementById('roleModal').style.display='none'">Batal</button>
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>

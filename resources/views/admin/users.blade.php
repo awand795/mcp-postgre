@@ -498,16 +498,6 @@
         flex-wrap: wrap;
     }
 
-    .btn-cancel {
-        background: rgba(255, 255, 255, 0.1);
-        color: #94a3b8;
-    }
-
-    .btn-cancel:hover {
-        background: rgba(255, 255, 255, 0.15);
-        color: white;
-    }
-
     /* Responsive Styles */
     @media (max-width: 768px) {
         .header-actions {
