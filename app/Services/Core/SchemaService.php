@@ -296,11 +296,14 @@ class SchemaService extends BaseService
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];
             foreach ($schemas as $schema => $tables) {
-                // Here we just provide the list of tables we know they have access to.
-                // We do not fetch all columns for all tables in all databases because it would be too large 
-                // and take too long dynamically across remote DBs.
-                // AI can use describe_table to get column details per table.
-                $overview[$dbCode][$schema] = $tables;
+                // Return descriptive list
+                $formattedTables = [];
+                foreach ($tables as $t) {
+                    $name = is_array($t) ? ($t['name'] ?? '') : $t;
+                    $desc = is_array($t) ? ($t['description'] ?? '') : '';
+                    $formattedTables[] = $name . ($desc ? " ({$desc})" : "");
+                }
+                $overview[$dbCode][$schema] = $formattedTables;
                 $totalTables += count($tables);
             }
         }

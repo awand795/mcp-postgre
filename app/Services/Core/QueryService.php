@@ -54,17 +54,21 @@ class QueryService extends BaseService
 
         // Admin sees all active databases
         if ($user->is_admin) {
-            return cache()->remember('agentic_all_dbs_admin', 600, function () {
+            return cache()->remember('agentic_all_dbs_admin_v2', 600, function () {
                 $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
                 $result = [];
                 foreach ($connections as $conn) {
                     $tables = $conn->getTables();
-                    // Use actual database name as the identifier (consistent with role_permissions.database_code)
                     $dbIdentifier = $conn->database;
                     foreach ($tables as $t) {
                         $sch = $t['schema_name'];
                         $tbl = $t['table_name'];
-                        $result[$dbIdentifier][$sch][] = $tbl;
+                        $desc = $t['description'] ?? '';
+                        // Store as an object with name and description
+                        $result[$dbIdentifier][$sch][] = [
+                            'name' => $tbl,
+                            'description' => $desc
+                        ];
                     }
                 }
                 return $result;
@@ -72,11 +76,16 @@ class QueryService extends BaseService
         }
 
         $roleId = $user->role;
-        return cache()->remember("agentic_allowed_dbs_role_{$roleId}", 600, function () use ($roleId) {
+        return cache()->remember("agentic_allowed_dbs_role_v2_{$roleId}", 600, function () use ($roleId, $user) {
             $permissions = RolePermission::where('role_id', $roleId)->get();
             $result = [];
             foreach ($permissions as $p) {
-                $result[$p->database_code][$p->schema_name][] = $p->table_name;
+                // To get description for regular roles, we might need a lookup, 
+                // but for now let's at least structure it consistently.
+                $result[$p->database_code][$p->schema_name][] = [
+                    'name' => $p->table_name,
+                    'description' => '' // Roles usually have predefined tables
+                ];
             }
             return $result;
         });
