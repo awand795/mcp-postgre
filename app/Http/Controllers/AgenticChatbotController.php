@@ -405,20 +405,45 @@ class AgenticChatbotController extends Controller
         foreach ($messages as $msg) {
             if ($msg['role'] === 'system') { $systemInstruction = ['parts' => [['text' => $msg['content']]]]; continue; }
             
-            $geminiRole = ($msg['role'] === 'assistant') ? 'model' : 'user';
+            $role = $msg['role'] ?? 'user';
+            $geminiRole = 'user';
+            if ($role === 'assistant') $geminiRole = 'model';
+            elseif ($role === 'tool' || $role === 'function') $geminiRole = 'function';
+
             $parts = [];
 
-            if ($msg['role'] === 'tool') {
-                $parts[] = ['functionResponse' => ['name' => $msg['name'] ?? '', 'response' => ['content' => $msg['content']]]];
+            if ($role === 'tool' || $role === 'function') {
+                $parts[] = [
+                    'functionResponse' => [
+                        'name' => $msg['name'] ?? 'query',
+                        'response' => [
+                            'content' => $msg['content']
+                        ]
+                    ]
+                ];
             } else {
-                if (isset($msg['content']) && !empty($msg['content'])) $parts[] = ['text' => (string)$msg['content']];
-                if ($msg['role'] === 'assistant' && !empty($msg['tool_calls'])) {
+                if (isset($msg['content']) && !empty($msg['content'])) {
+                    $parts[] = ['text' => (string)$msg['content']];
+                }
+                
+                if ($role === 'assistant' && !empty($msg['tool_calls'])) {
                     foreach ($msg['tool_calls'] as $tc) {
                         $f = $tc['function'] ?? $tc;
-                        $parts[] = ['functionCall' => ['name' => $f['name'] ?? '', 'args' => isset($f['arguments']) ? (is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']) : (object)[]]];
+                        $args = [];
+                        if (isset($f['arguments'])) {
+                            $args = is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments'];
+                        }
+                        
+                        $parts[] = [
+                            'functionCall' => [
+                                'name' => $f['name'] ?? '',
+                                'args' => (object)($args ?? [])
+                            ]
+                        ];
                     }
                 }
             }
+
             if (!empty($parts)) {
                 $lastIdx = count($contents) - 1;
                 if ($lastIdx >= 0 && $contents[$lastIdx]['role'] === $geminiRole) {
