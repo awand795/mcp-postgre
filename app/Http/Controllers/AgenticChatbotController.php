@@ -315,7 +315,7 @@ class AgenticChatbotController extends Controller
             return $this->callClaudeApi($messages, $tools, $apiKey, $model, $maxTokens);
         }
 
-        if ($modelName === 'gpt-5.4' || $providerCode === 'custom') {
+        if ($providerCode === 'custom') {
             return $this->callCustomApi($messages, $tools, $apiKey, $model, $maxTokens);
         }
 
@@ -369,26 +369,23 @@ class AgenticChatbotController extends Controller
 
     private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
     {
-        $cleanMessages = [];
-        foreach ($messages as $msg) {
-            if ($msg['role'] === 'tool') {
-                $cleanMessages[] = ['type' => 'function_call_output', 'call_id' => $msg['tool_call_id'] ?? '', 'output' => (string)$msg['content']];
-                continue;
-            }
-            $contentType = ($msg['role'] === 'assistant') ? 'output_text' : 'input_text';
-            $clean = ['role' => $msg['role'], 'content' => [['type' => $contentType, 'text' => (string)$msg['content']]]];
-            if ($msg['role'] === 'assistant' && !empty($msg['tool_calls'])) {
-                $cleanMessages[] = $clean;
-                foreach ($msg['tool_calls'] as $tc) {
-                    $f = $tc['function'] ?? $tc;
-                    $cleanMessages[] = ['type' => 'function_call', 'call_id' => $tc['id'] ?? '', 'name' => $f['name'] ?? '', 'arguments' => $f['arguments'] ?? '{}'];
-                }
-            } else {
-                $cleanMessages[] = $clean;
-            }
+        // Many custom providers (like Groq, OpenRouter, or internal proxies) 
+        // use the standard OpenAI /chat/completions format.
+        $payload = [
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int)$maxTokens,
+            'temperature' => 0.7,
+        ];
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+            $payload['tool_choice'] = 'auto';
         }
-        $payload = ['model' => $model->model_name, 'input' => $cleanMessages, 'tools' => $tools, 'max_output_tokens' => (int)$maxTokens, 'temperature' => 0.2];
-        $response = Http::withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])->post('https://api.openai.com/v1/responses', $payload);
+        
+        // Use the generic OpenAI-style chat completions endpoint
+        $response = Http::withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+            ->post('https://api.openai.com/v1/chat/completions', $payload);
+            
         return $this->handleGenericResponse($response, $apiKey);
     }
 
@@ -531,7 +528,7 @@ You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with
 
 ## PRIVACY & TECHNICAL POLICY (STRICT)
 - **STRICTLY FORBIDDEN**: Showing SQL queries, internal database connection names, or technical error details (e.g., `DATABASE_ERROR: column 'x' does not exist`) in the final response to the user.
-- **ERROR MASKING**: If technical errors occur repeatedly, reply with polite business language: *"I apologize Mr./Ms., I am currently experiencing a technical adjustment in retrieving that specific data. I am refining the search parameters..."*
+- **ERROR HANDLING**: If you cannot find a specific table or data, do NOT give up. Try searching for related keywords using `search_schema` or list all available tables with `get_database_schema_info` to find the best alternative.
 - Never mention terms like "Database", "Query", "Tool", or "SQL" to the user. Refer to them as "Data System" or "Internal Analysis".
 
 ## TOOLS AVAILABLE
@@ -674,7 +671,7 @@ Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) den
 
 ## KEBIJAKAN PRIVASI & TEKNIS (SANGAT KETAT)
 - **SANGAT DILARANG**: Menampilkan query SQL, nama koneksi database internal, atau detail error teknis (misal, `DATABASE_ERROR: column 'x' does not exist`) di respons akhir kepada pengguna.
-- **PENYEMBUNYIAN ERROR**: Jika terjadi error teknis berulang, balas dengan bahasa bisnis yang sopan: *"Mohon maaf Bapak/Ibu, saat ini saya mendapati sedikit penyesuaian teknis dalam mengambil data spesifik tersebut. Saya sedang memperbaiki parameter pencarian..."*
+- **PENANGANAN ERROR**: Jika Anda tidak menemukan tabel atau data spesifik, JANGAN menyerah. Cobalah mencari kata kunci terkait menggunakan `search_schema` atau lihat daftar semua tabel yang tersedia dengan `get_database_schema_info` untuk menemukan alternatif terbaik.
 - Jangan pernah menyebutkan istilah seperti "Database", "Query", "Tool", atau "SQL" kepada pengguna. Sebutkan sebagai "Sistem Data" atau "Analisis Internal".
 
 ## TOOLS TERSEDIA

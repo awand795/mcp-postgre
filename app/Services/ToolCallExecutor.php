@@ -218,7 +218,7 @@ class ToolCallExecutor
                         'category' => [
                             'type'        => 'string',
                             'description' => 'Filter kategori modul.',
-                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory'],
+                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse'],
                         ],
                         'list_all' => [
                             'type'        => 'boolean',
