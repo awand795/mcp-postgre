@@ -386,7 +386,7 @@ class AgenticChatbotController extends Controller
                     $parts[] = [
                         'functionResponse' => [
                             'name' => $m['name'] ?? 'query',
-                            'response' => ['result' => $m['content']]
+                            'response' => (object)($m['content'] ?? [])
                         ]
                     ];
                 } else {
@@ -396,10 +396,11 @@ class AgenticChatbotController extends Controller
                     if ($role === 'assistant' && !empty($m['tool_calls'])) {
                         foreach ($m['tool_calls'] as $tc) {
                             $f = $tc['function'] ?? $tc;
+                            $args = is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments'];
                             $parts[] = [
                                 'functionCall' => [
                                     'name' => $f['name'],
-                                    'args' => is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']
+                                    'args' => (object)($args ?? [])
                                 ]
                             ];
                         }
