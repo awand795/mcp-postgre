@@ -25,6 +25,32 @@ class SchemaService extends BaseService
     }
 
     /**
+     * Normalize a table entry from allowedDbs (may be string or ['name'=>...,'description'=>...]).
+     */
+    private function normalizeTableName(mixed $entry): string
+    {
+        if (is_array($entry)) {
+            return $entry['name'] ?? '';
+        }
+        return (string) $entry;
+    }
+
+    /**
+     * Check if a given tableName is allowed within a list of table entries.
+     * Supports wildcard '*' and both string and object entry formats.
+     */
+    private function isTableAllowed(string $tableName, array $tableEntries): bool
+    {
+        foreach ($tableEntries as $entry) {
+            $name = $this->normalizeTableName($entry);
+            if ($name === '*' || $name === $tableName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Get columns and data types for a specific table in a specific DB and schema.
      */
     public function describeTable(string $databaseCode, string $schemaName, string $tableName): string
@@ -33,14 +59,36 @@ class SchemaService extends BaseService
             return $this->errorResponse('database_code, schema_name, and table_name are required');
         }
 
+        // Guard: reject wildcard calls — AI must supply exact names
+        if ($schemaName === '*' || $tableName === '*') {
+            return $this->errorResponse(
+                'Please provide an exact schema_name and table_name. ' .
+                'Wildcard "*" is not allowed. Use get_database_schema_info to discover available tables, ' .
+                'then call describe_table with specific names.'
+            );
+        }
+
         $allowedDbs = $this->queryService->getAllowedTables();
         
         if (!isset($allowedDbs[$databaseCode])) {
             return $this->errorResponse("Access denied: You don't have access to database '{$databaseCode}'.");
         }
-        
-        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($tableName, $allowedDbs[$databaseCode][$schemaName])) {
-             return $this->errorResponse("Access denied: You don't have access to table '{$schemaName}.{$tableName}' in database '{$databaseCode}'.");
+
+        // Check schema access: allow if schema key is '*' or matches exactly
+        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName])
+            || isset($allowedDbs[$databaseCode]['*']);
+
+        if (!$schemaAllowed) {
+            return $this->errorResponse("Access denied: You don't have access to schema '{$schemaName}' in database '{$databaseCode}'.");
+        }
+
+        // Resolve which table list to use (exact schema or wildcard)
+        $tableEntries = $allowedDbs[$databaseCode][$schemaName]
+            ?? $allowedDbs[$databaseCode]['*']
+            ?? [];
+
+        if (!$this->isTableAllowed($tableName, $tableEntries)) {
+            return $this->errorResponse("Access denied: You don't have access to table '{$schemaName}.{$tableName}' in database '{$databaseCode}'.");
         }
 
         $connName = "temp_conn_{$databaseCode}";
@@ -123,9 +171,16 @@ class SchemaService extends BaseService
      */
     public function getColumnValues(string $databaseCode, string $schemaName, string $tableName, string $columnName): string
     {
+        if ($schemaName === '*' || $tableName === '*') {
+            return $this->errorResponse('Please provide an exact schema_name and table_name. Wildcard "*" is not allowed.');
+        }
+
         $allowedDbs = $this->queryService->getAllowedTables();
-        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($tableName, $allowedDbs[$databaseCode][$schemaName])) {
-             return $this->errorResponse("Access denied.");
+        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
+        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+
+        if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
+            return $this->errorResponse("Access denied.");
         }
 
         $connName = "temp_conn_{$databaseCode}";
@@ -158,9 +213,16 @@ class SchemaService extends BaseService
      */
     public function getViewDefinition(string $databaseCode, string $schemaName, string $viewName): string
     {
-        $allowedDbs = $this->queryService->getAllowedTables();
-        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($viewName, $allowedDbs[$databaseCode][$schemaName])) {
-             return $this->errorResponse("Access denied.");
+        if ($schemaName === '*' || $viewName === '*') {
+            return $this->errorResponse('Please provide an exact schema_name and view_name. Wildcard "*" is not allowed.');
+        }
+
+        $allowedDbs    = $this->queryService->getAllowedTables();
+        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
+        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+
+        if (!$schemaAllowed || !$this->isTableAllowed($viewName, $tableEntries)) {
+            return $this->errorResponse("Access denied.");
         }
 
         $connName = "temp_conn_{$databaseCode}";
@@ -220,12 +282,18 @@ class SchemaService extends BaseService
                 $matches = DB::connection($connName)->select($query, $params);
 
                 foreach ($matches as $match) {
-                    // Filter matches by user's RBAC
-                    if (isset($schemas[$match->table_schema]) && in_array($match->table_name, $schemas[$match->table_schema])) {
+                    // Filter matches by user's RBAC — support wildcard schema/table and object-format entries
+                    $matchSchema = $match->table_schema;
+                    $matchTable  = $match->table_name;
+
+                    $schemaAllowed = isset($schemas[$matchSchema]) || isset($schemas['*']);
+                    $tableEntries  = $schemas[$matchSchema] ?? $schemas['*'] ?? [];
+
+                    if ($schemaAllowed && $this->isTableAllowed($matchTable, $tableEntries)) {
                         $results[] = [
                             'database' => $dbCode,
-                            'schema'   => $match->table_schema,
-                            'table'    => $match->table_name,
+                            'schema'   => $matchSchema,
+                            'table'    => $matchTable,
                             'column'   => $match->column_name,
                             'notes'    => $match->description ?? ''
                         ];
@@ -249,10 +317,16 @@ class SchemaService extends BaseService
      */
     public function getTablePreview(string $databaseCode, string $schemaName, string $tableName): string
     {
-        $allowedDbs = $this->queryService->getAllowedTables();
-        
-        if (!isset($allowedDbs[$databaseCode][$schemaName]) || !in_array($tableName, $allowedDbs[$databaseCode][$schemaName])) {
-             return $this->errorResponse("Access denied or table not found.");
+        if ($schemaName === '*' || $tableName === '*') {
+            return $this->errorResponse('Please provide an exact schema_name and table_name. Wildcard "*" is not allowed.');
+        }
+
+        $allowedDbs    = $this->queryService->getAllowedTables();
+        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
+        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+
+        if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
+            return $this->errorResponse("Access denied or table not found.");
         }
 
         $connName = "temp_conn_{$databaseCode}";

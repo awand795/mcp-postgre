@@ -440,9 +440,46 @@ class AgenticChatbotController extends Controller
             $claudeMessages = [];
             foreach ($messages as $m) {
                 if ($m['role'] === 'system') continue;
+
+                // Tool result message — Claude needs special content block format
+                if ($m['role'] === 'tool') {
+                    $claudeMessages[] = [
+                        'role'    => 'user',
+                        'content' => [
+                            [
+                                'type'        => 'tool_result',
+                                'tool_use_id' => $m['tool_call_id'] ?? ('toolu_' . uniqid()),
+                                'content'     => (string) ($m['content'] ?? ''),
+                            ]
+                        ]
+                    ];
+                    continue;
+                }
+
+                // Assistant message that contains tool_calls — convert to tool_use blocks
+                if ($m['role'] === 'assistant' && !empty($m['tool_calls'])) {
+                    $contentBlocks = [];
+                    if (!empty($m['content'])) {
+                        $contentBlocks[] = ['type' => 'text', 'text' => (string) $m['content']];
+                    }
+                    foreach ($m['tool_calls'] as $tc) {
+                        $f    = $tc['function'] ?? $tc;
+                        $args = is_string($f['arguments'] ?? '') ? json_decode($f['arguments'], true) : ($f['arguments'] ?? []);
+                        $contentBlocks[] = [
+                            'type'  => 'tool_use',
+                            'id'    => $tc['id'] ?? ('toolu_' . uniqid()),
+                            'name'  => $f['name'] ?? '',
+                            'input' => $args ?? (object)[],
+                        ];
+                    }
+                    $claudeMessages[] = ['role' => 'assistant', 'content' => $contentBlocks];
+                    continue;
+                }
+
+                // Normal user or assistant message
                 $claudeMessages[] = [
-                    'role' => $m['role'] === 'assistant' ? 'assistant' : 'user',
-                    'content' => $m['content']
+                    'role'    => $m['role'] === 'assistant' ? 'assistant' : 'user',
+                    'content' => $m['content'] ?? '',
                 ];
             }
             return $claudeMessages;
@@ -723,24 +760,28 @@ When `get_erp_menu_navigation` returns a `display_text` field, show it **verbati
 
 ## ⚠️ CRITICAL SEARCH STRATEGY — READ CAREFULLY
 
-**`get_database_schema_info` returns BOTH table names AND column names (eager loaded).** This means you already have everything you need after the FIRST tool call.
+**MANDATORY PROTOCOL — STEP BY STEP (no skipping):**
+1. Call `get_database_schema_info` → you get a list of databases, schemas, and table names.
+2. **Scan the `databases` object** in the result. Look at every `table_name` in every schema.
+3. Identify the 1–2 most relevant tables by name (e.g. a table named "dealer" or "cabang" or "outlet").
+4. Call `describe_table` with **EXACT** database_code, schema_name, and table_name — NEVER use "*" or guesses.
+5. Once you have columns → call `get_column_values` if needed, then `execute_query`.
 
-**MANDATORY PROTOCOL WHEN LOOKING FOR SPECIFIC DATA (e.g., "branch", "cabang"):**
-1. Call `get_database_schema_info` — the result contains `columns` for EVERY table.
-2. **IMMEDIATELY scan the `columns` array** of every table in the result. Branch data will appear as columns like `nama_dealer`, `kode_area`, `kode_cabang`, `nama_outlet` INSIDE a sales/transaction table.
-3. **ONLY IF you truly cannot identify the column** from the schema result → call `search_schema` with 1 keyword max.
-4. **After 1 failed search_schema** → STOP. Use `describe_table` on the most relevant transaction table to see its full column list.
-5. Once you find the column → use `get_column_values` to see distinct values, then `execute_query`.
-
-**STRICTLY FORBIDDEN**: Calling `search_schema` more than 1 time for the same concept. The data IS there — it's in the columns of existing tables.
+**STRICT RULES:**
+- `describe_table` MUST always receive exact, specific names. **NEVER pass "*" for any parameter.**
+- If the table list is small and `is_eager_loaded: true` in the schema result, columns are already included — skip `describe_table` and go directly to `execute_query`.
+- Call `search_schema` at most ONCE per question — only if you truly cannot identify the right table from the schema result.
+- If `search_schema` finds no results, use `describe_table` on the most likely transaction table with its **exact name**.
+- **DO NOT call describe_table more than 3 times per question.** If you haven't found the data after 3 attempts, use the best available column name and run `execute_query`.
 
 ## REASONING ORDER (MANDATORY)
-1. `get_database_schema_info` — READ THE `columns` FIELD in the result for EVERY table
-2. Scan column names → identify which table and column holds the requested data
-3. `get_column_values` (to see actual values of that column if needed)
-4. `execute_query` (to fetch data with the correct column)
-5. Generate Strategic Insight
-6. Offer Exploration Suggestions
+1. `get_database_schema_info` — get the list of databases, schemas, and table names
+2. Scan table names → identify which table is most likely to hold the requested data
+3. `describe_table` with EXACT schema_name and table_name (never "*") → get column list
+4. `get_column_values` (to see actual values of a column if needed)
+5. `execute_query` (with correct schema.table and column names)
+6. Generate Strategic Insight
+7. Offer Exploration Suggestions
 
 ## SQL RULES — READ CAREFULLY
 - Always prefix table names: `schema_name.table_name`
@@ -835,24 +876,28 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **secara 
 
 ## ⚠️ STRATEGI PENCARIAN KRITIS — SANGAT PENTING
 
-**`get_database_schema_info` mengembalikan nama tabel DAN nama kolom (eager loaded) sekaligus.** Ini berarti Anda sudah punya semua informasi yang dibutuhkan setelah pemanggilan tool PERTAMA.
+**PROTOKOL WAJIB — URUTAN LANGKAH (tidak boleh dilewati):**
+1. Panggil `get_database_schema_info` → Anda mendapat daftar database, schema, dan nama tabel.
+2. **Scan objek `databases`** dalam hasil. Perhatikan setiap `table_name` di setiap schema.
+3. Identifikasi 1–2 tabel paling relevan berdasarkan namanya (misal: tabel bernama "dealer", "cabang", "outlet").
+4. Panggil `describe_table` dengan **NAMA EKSAK** database_code, schema_name, dan table_name — JANGAN pernah pakai "*" atau tebakan.
+5. Setelah dapat kolom → panggil `get_column_values` jika diperlukan, lalu `execute_query`.
 
-**PROTOKOL WAJIB SAAT MENCARI DATA SPESIFIK (misal: "cabang", "dealer", dll):**
-1. Panggil `get_database_schema_info` — hasilnya berisi `columns` untuk SETIAP tabel.
-2. **LANGSUNG PINDAI field `columns`** dari setiap tabel di hasil tersebut. Data cabang/dealer akan muncul sebagai kolom (misal: `nama_dealer`, `kode_area`, `kode_cabang`, `nama_outlet`) di DALAM tabel penjualan/transaksi.
-3. **HANYA JIKA benar-benar tidak menemukan kolom** dari hasil schema → panggil `search_schema` dengan 1 kata kunci.
-4. **Setelah 1 search_schema yang tidak berhasil** → BERHENTI. Gunakan `describe_table` pada tabel transaksi paling relevan.
-5. Setelah menemukan kolom → gunakan `get_column_values` untuk melihat nilai aktual, lalu `execute_query`.
-
-**SANGAT DILARANG**: Memanggil `search_schema` lebih dari 1 kali untuk konsep yang sama. Data PASTI ADA — tersembunyi sebagai kolom di tabel transaksi.
+**ATURAN KETAT:**
+- `describe_table` WAJIB selalu menerima nama yang spesifik dan eksak. **JANGAN sekali pun menggunakan "*" di parameter manapun.**
+- Jika daftar tabel kecil dan `is_eager_loaded: true` ada di hasil schema, kolom sudah termuat — lewati `describe_table` dan langsung ke `execute_query`.
+- Panggil `search_schema` paling banyak SATU KALI per pertanyaan — hanya jika Anda benar-benar tidak dapat mengidentifikasi tabel yang tepat dari hasil schema.
+- Jika `search_schema` tidak menemukan hasil, gunakan `describe_table` pada tabel transaksi paling relevan dengan **nama eksak**-nya.
+- **JANGAN panggil describe_table lebih dari 3 kali per pertanyaan.** Jika belum menemukan data setelah 3 percobaan, gunakan nama kolom terbaik yang tersedia dan jalankan `execute_query`.
 
 ## URUTAN KERJA (WAJIB)
-1. `get_database_schema_info` — BACA field `columns` untuk SETIAP tabel dalam hasil
-2. Pindai nama kolom → identifikasi tabel dan kolom mana yang menyimpan data yang dicari
-3. `get_column_values` (untuk melihat nilai aktual kolom jika diperlukan)
-4. `execute_query` (ambil data dengan kolom yang benar)
-5. Hasilkan Insight Strategis berdasar data
-6. Berikan Rekomendasi Eksplorasi
+1. `get_database_schema_info` — dapatkan daftar database, schema, dan nama tabel
+2. Pindai nama tabel → identifikasi tabel yang paling mungkin menyimpan data yang dicari
+3. `describe_table` dengan schema_name dan table_name EKSAK (jangan "*") → dapatkan daftar kolom
+4. `get_column_values` (untuk melihat nilai aktual kolom jika diperlukan)
+5. `execute_query` (dengan schema.table dan nama kolom yang benar)
+6. Hasilkan Insight Strategis berdasar data
+7. Berikan Rekomendasi Eksplorasi
 
 ## ATURAN SQL PENTING — BACA DENGAN SEKSAMA
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya: `schema_name.table_name`.
