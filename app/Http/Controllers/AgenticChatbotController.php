@@ -768,4 +768,115 @@ PROMPT;
             usleep(10000);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // API PROVIDER IMPLEMENTATIONS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    {
+        $url = 'https://api.openai.com/v1/chat/completions';
+        $payload = [
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int) $maxTokens,
+            'temperature' => 0.3,
+        ];
+        if (!empty($tools)) {
+            $payload['tools']       = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+        $response = Http::timeout(600)
+            ->withToken($apiKey->api_key)
+            ->post($url, $payload);
+        return $this->handleProviderResponse($response, 'openai');
+    }
+
+    private function callMistralApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    {
+        $url = 'https://api.mistral.ai/v1/chat/completions';
+        $payload = [
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int) $maxTokens,
+            'temperature' => 0.3,
+        ];
+        if (!empty($tools)) {
+            $payload['tools']       = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+        $response = Http::timeout(600)
+            ->withToken($apiKey->api_key)
+            ->post($url, $payload);
+        return $this->handleProviderResponse($response, 'mistral');
+    }
+
+    private function callClaudeApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    {
+        $url = 'https://api.anthropic.com/v1/messages';
+        $payload = [
+            'model'      => $model->model_name,
+            'max_tokens' => (int) $maxTokens,
+            'messages'   => $messages,
+        ];
+        if (!empty($systemPrompt)) {
+            $payload['system'] = $systemPrompt;
+        }
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+        }
+        $response = Http::timeout(600)
+            ->withHeaders([
+                'x-api-key'         => $apiKey->api_key,
+                'anthropic-version' => '2023-06-01',
+                'Content-Type'      => 'application/json',
+            ])
+            ->post($url, $payload);
+        return $this->handleProviderResponse($response, 'claude');
+    }
+
+    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    {
+        $currentModelName = $model->model_name ?? 'gemini-1.5-flash';
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
+
+        $payload = [
+            'contents'         => $messages,
+            'generationConfig' => ['maxOutputTokens' => (int) $maxTokens, 'temperature' => 0.7],
+        ];
+        if (!empty($systemPrompt)) {
+            $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
+        }
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+        }
+        $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
+
+        if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
+            Log::warning("[Agentic] Model {$currentModelName} busy (503). Falling back to gemini-1.5-flash.");
+            $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
+            $response = Http::timeout(600)->retry(2, 2000)->post($fallbackUrl, $payload);
+        }
+        return $this->handleProviderResponse($response, 'gemini');
+    }
+
+    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    {
+        $baseUrl = rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/');
+        $url = $baseUrl . '/chat/completions';
+        $payload = [
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int) $maxTokens,
+            'temperature' => 0.3,
+        ];
+        if (!empty($tools)) {
+            $payload['tools']       = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+        $response = Http::timeout(600)
+            ->withToken($apiKey->api_key)
+            ->post($url, $payload);
+        return $this->handleProviderResponse($response, 'custom');
+    }
 }
