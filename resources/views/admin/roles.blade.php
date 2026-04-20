@@ -85,8 +85,8 @@
                     (<span id="selected-count" style="color: #10b981; font-weight: 600;">0</span> terpilih)
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-sm" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Semua</button>
-                    <button class="btn btn-sm" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Semua</button>
+                    <button class="btn btn-sm btn-bulk-select" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Semua</button>
+                    <button class="btn btn-sm btn-bulk-deselect" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Semua</button>
                 </div>
             </div>
 
@@ -224,6 +224,27 @@
             padding: 0.4rem 0.8rem;
             font-size: 0.75rem;
             background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+
+        .btn-bulk-select {
+            background: #10b981 !important;
+            color: white !important;
+        }
+
+        .btn-bulk-select:hover {
+            background: #059669 !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-bulk-deselect {
+            background: #64748b !important;
+            color: white !important;
+        }
+
+        .btn-bulk-deselect:hover {
+            background: #475569 !important;
+            transform: translateY(-1px);
         }
 
         /* Tables List Styles */
