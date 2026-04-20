@@ -399,19 +399,22 @@ class AgenticChatbotController extends Controller
                 if (!empty($m['content'])) {
                     $parts[] = ['text' => (string)$m['content']];
                 }
-                if ($role === 'assistant' && !empty($m['tool_calls'])) {
+
+                if (!empty($m['tool_calls'])) {
                     foreach ($m['tool_calls'] as $tc) {
-                        $f    = $tc['function'] ?? $tc;
-                        $args = is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments'];
+                        $args = $tc['function']['arguments'] ?? '{}';
                         $parts[] = [
                             'functionCall' => [
-                                'name' => $f['name'],
-                                'args' => (object)($args ?? [])
+                                'name' => $tc['function']['name'],
+                                'args' => is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args
                             ]
                         ];
                     }
                 }
-                $geminiMessages[] = ['role' => ($role === 'assistant') ? 'model' : 'user', 'parts' => $parts];
+
+                if (!empty($parts)) {
+                    $geminiMessages[] = ['role' => ($role === 'assistant') ? 'model' : 'user', 'parts' => $parts];
+                }
             }
             return $geminiMessages;
         }
@@ -426,230 +429,38 @@ class AgenticChatbotController extends Controller
                         'role'    => 'user',
                         'content' => [[
                             'type'        => 'tool_result',
-                            'tool_use_id' => $m['tool_call_id'] ?? ('toolu_' . uniqid()),
-                            'content'     => (string)($m['content'] ?? ''),
+                            'tool_use_id' => $m['tool_call_id'] ?? ('call_' . uniqid()),
+                            'content'     => $m['content'] ?? ''
                         ]]
                     ];
                     continue;
                 }
 
                 if ($m['role'] === 'assistant' && !empty($m['tool_calls'])) {
-                    $contentBlocks = [];
+                    $content = [];
                     if (!empty($m['content'])) {
-                        $contentBlocks[] = ['type' => 'text', 'text' => (string)$m['content']];
+                        $content[] = ['type' => 'text', 'text' => $m['content']];
                     }
                     foreach ($m['tool_calls'] as $tc) {
-                        $f    = $tc['function'] ?? $tc;
-                        $args = is_string($f['arguments'] ?? '') ? json_decode($f['arguments'], true) : ($f['arguments'] ?? []);
-                        $contentBlocks[] = [
+                        $args = $tc['function']['arguments'] ?? '{}';
+                        $content[] = [
                             'type'  => 'tool_use',
-                            'id'    => $tc['id'] ?? ('toolu_' . uniqid()),
-                            'name'  => $f['name'] ?? '',
-                            'input' => $args ?? (object)[],
+                            'id'    => $tc['id'] ?? ('call_' . uniqid()),
+                            'name'  => $tc['function']['name'],
+                            'input' => is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args
                         ];
                     }
-                    $claudeMessages[] = ['role' => 'assistant', 'content' => $contentBlocks];
+                    $claudeMessages[] = ['role' => 'assistant', 'content' => $content];
                     continue;
                 }
 
-                $claudeMessages[] = [
-                    'role'    => $m['role'] === 'assistant' ? 'assistant' : 'user',
-                    'content' => $m['content'] ?? '',
-                ];
+                $claudeMessages[] = ['role' => $m['role'], 'content' => $m['content'] ?? ''];
             }
             return $claudeMessages;
         }
 
-        return $messages;
-    }
-
-    private function callMistralApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
-    {
-        $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int)$maxTokens,
-            'temperature' => 0.7,
-        ];
-        if (!empty($tools)) {
-            $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto';
-        }
-        $response = Http::timeout(600)->retry(3, 2000)
-            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
-            ->post('https://api.mistral.ai/v1/chat/completions', $payload);
-
-        return $this->handleProviderResponse($response, 'mistral');
-    }
-
-    private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
-    {
-        $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int)$maxTokens,
-            'temperature' => 0.7,
-        ];
-        if (!empty($tools)) {
-            $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto';
-        }
-        $response = Http::timeout(600)->retry(3, 2000)
-            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
-            ->post('https://api.openai.com/v1/chat/completions', $payload);
-
-        return $this->handleProviderResponse($response, 'openai');
-    }
-
-    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
-    {
-        $baseUrl = $apiKey->provider->base_url ?: 'https://api.openai.com/v1/chat/completions';
-        $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int)$maxTokens,
-            'temperature' => 0.7,
-        ];
-        if (!empty($tools)) {
-            $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto';
-        }
-        $response = Http::timeout(600)->retry(3, 2000)
-            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
-            ->post($baseUrl, $payload);
-
-        return $this->handleProviderResponse($response, 'custom');
-    }
-
-    private function callClaudeApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
-    {
-        $payload = [
-            'model'      => $model->model_name,
-            'max_tokens' => (int)$maxTokens,
-            'messages'   => $messages,
-            'system'     => $systemPrompt,
-        ];
-        if (!empty($tools)) $payload['tools'] = $tools;
-
-        $response = Http::timeout(600)->retry(3, 2000)->withHeaders([
-            'x-api-key'         => $apiKey->api_key,
-            'anthropic-version' => '2023-06-01',
-            'content-type'      => 'application/json',
-        ])->post('https://api.anthropic.com/v1/messages', $payload);
-
-        return $this->handleProviderResponse($response, 'claude');
-    }
-
-    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
-    {
-        $currentModelName = $model->model_name;
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
-
-        $payload = [
-            'contents'         => $messages,
-            'generationConfig' => ['maxOutputTokens' => (int)$maxTokens, 'temperature' => 0.7],
-        ];
-
-        if (!empty($systemPrompt)) {
-            $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
-        }
-        if (!empty($tools)) {
-            $payload['tools'] = $tools;
-        }
-
-        $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
-
-        // Fallback ke model stabil jika 503
-        if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
-            Log::warning("[Agentic] Model {$currentModelName} busy (503). Falling back to gemini-1.5-flash.");
-            $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
-            $response = Http::timeout(600)->retry(2, 2000)->post($fallbackUrl, $payload);
-        }
-
-        return $this->handleProviderResponse($response, 'gemini');
-    }
-
-    private function handleProviderResponse($response, string $providerCode): ?array
-    {
-        if ($response->status() === 429) {
-            return null;
-        }
-
-        if ($response->failed()) {
-            Log::error("[Agentic] API Error ({$providerCode}): " . $response->body());
-            return null;
-        }
-
-        $data = $response->json();
-
-        if ($providerCode === 'gemini') {
-            $candidate = $data['candidates'][0] ?? null;
-            if (!$candidate) return null;
-
-            $parts = $candidate['content']['parts'] ?? [];
-            $text  = '';
-            $toolCalls = [];
-            foreach ($parts as $p) {
-                if (isset($p['text'])) $text .= $p['text'];
-                if (isset($p['functionCall'])) {
-                    $toolCalls[] = [
-                        'id'   => 'call_' . uniqid(),
-                        'type' => 'function',
-                        'function' => [
-                            'name'      => $p['functionCall']['name'],
-                            'arguments' => json_encode($p['functionCall']['args'] ?? (object)[])
-                        ]
-                    ];
-                }
-            }
-            return [
-                'choices' => [[
-                    'message' => [
-                        'role'       => 'assistant',
-                        'content'    => $text,
-                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
-                    ],
-                    'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
-                ]]
-            ];
-        }
-
-        if ($providerCode === 'claude') {
-            $contentBlocks = $data['content'] ?? [];
-            $stopReason    = $data['stop_reason'] ?? 'end_turn';
-            $text          = '';
-            $toolCalls     = [];
-
-            foreach ($contentBlocks as $block) {
-                $type = $block['type'] ?? '';
-                if ($type === 'text') {
-                    $text .= $block['text'] ?? '';
-                } elseif ($type === 'tool_use') {
-                    $toolCalls[] = [
-                        'id'   => $block['id'] ?? ('call_' . uniqid()),
-                        'type' => 'function',
-                        'function' => [
-                            'name'      => $block['name'],
-                            'arguments' => json_encode($block['input'] ?? (object)[])
-                        ]
-                    ];
-                }
-            }
-
-            return [
-                'choices' => [[
-                    'message' => [
-                        'role'       => 'assistant',
-                        'content'    => $text,
-                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
-                    ],
-                    'finish_reason' => ($stopReason === 'tool_use') ? 'tool_calls' : 'stop'
-                ]]
-            ];
-        }
-
         // Mistral / OpenAI / Custom — sudah dalam format yang benar
-        return $data;
+        return $messages;
     }
 
     private function buildMessages(string $systemPrompt, array $history, string $userMessage, string $lang): array
@@ -685,8 +496,9 @@ class AgenticChatbotController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — BAHASA INDONESIA
-    // FIX: Ditambahkan blok ## 🚨 PROTOKOL TIMEOUT agar AI (Mistral) tidak
-    // langsung menyerah saat query timeout atau get_column_values gagal.
+    // FIX v2: Hapus contoh query dengan nama kolom placeholder (kolom_hpp_aktual, dll)
+    //         yang menyebabkan AI menebak nama kolom alih-alih memanggil describe_table.
+    //         Tambah seksi KAMUS ISTILAH BISNIS → NAMA KOLOM dan CHECKPOINT WAJIB.
     // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPromptId(array $allowedDatabases = []): string
     {
@@ -720,7 +532,7 @@ Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) den
 ## TOOLS TERSEDIA
 1. `get_database_schema_info` — Dapatkan struktur database. GUNAKAN INI PERTAMA.
 2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci di semua database.
-3. `describe_table` — Dapatkan tipe data kolom presisi untuk tabel tertentu.
+3. `describe_table` — Dapatkan tipe data kolom presisi untuk tabel tertentu. WAJIB DIPANGGIL sebelum execute_query.
 4. `get_column_values` — Ambil nilai unik (DISTINCT) dari kolom. Gunakan untuk kolom kategori/status.
 5. `get_view_definition` — Dapatkan DDL/logika di balik sebuah View.
 6. `get_table_preview` — Ambil 5 baris contoh data dari tabel untuk memahami format data.
@@ -737,43 +549,52 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **secara 
 - **JANGAN BERTANYA** kepada Bapak/Ibu. Temukan data secara mandiri.
 - **PRINSIP KECEPATAN**: Setelah `execute_query`, SEGERA sajikan data + insight.
 
-## ⚠️ STRATEGI PENCARIAN KRITIS — SANGAT PENTING
+## 🔴 LARANGAN MUTLAK — TEBAK NAMA KOLOM (PALING KRITIS)
 
-**PROTOKOL WAJIB — URUTAN LANGKAH (tidak boleh dilewati):**
-1. Panggil `get_database_schema_info` → Anda mendapat daftar database, schema, dan nama tabel.
-2. **Scan objek `databases`** dalam hasil. Perhatikan setiap `table_name` di setiap schema.
-3. Identifikasi 1–2 tabel paling relevan berdasarkan namanya (misal: tabel bernama "dealer", "cabang", "outlet").
-4. Panggil `describe_table` dengan **NAMA EKSAK** database_code, schema_name, dan table_name — JANGAN pernah pakai "*" atau tebakan.
-5. Setelah dapat kolom → panggil `get_column_values` jika diperlukan, lalu `execute_query`.
+**INI ADALAH ATURAN TERPENTING. PELANGGARAN = HASIL SALAH.**
 
-**ATURAN KETAT:**
-- `describe_table` WAJIB selalu menerima nama yang spesifik dan eksak. **JANGAN sekali pun menggunakan "*" di parameter manapun.**
-- Jika daftar tabel kecil dan `is_eager_loaded: true` ada di hasil schema, kolom sudah termuat — **KECUALI** jika kolom tampak kosong atau tidak lengkap untuk sebuah VIEW, maka tetap WAJIB panggil `describe_table` sebelum `execute_query`.
-- Panggil `search_schema` paling banyak SATU KALI per pertanyaan — hanya jika Anda benar-benar tidak dapat mengidentifikasi tabel yang tepat dari hasil schema.
-- Jika `search_schema` tidak menemukan hasil, gunakan `describe_table` pada tabel transaksi paling relevan dengan **nama eksak**-nya.
-- **JANGAN panggil describe_table lebih dari 3 kali per pertanyaan.** Jika belum menemukan data setelah 3 percobaan, gunakan nama kolom terbaik yang tersedia dan jalankan `execute_query`.
+Kata-kata bisnis yang diucapkan user (seperti "HPP", "netto", "diskon", "profit", "omzet") adalah **ISTILAH BISNIS**, bukan nama kolom di database.
 
-## URUTAN KERJA (WAJIB)
-1. `get_database_schema_info` — dapatkan daftar database, schema, dan nama tabel
-2. Pindai nama tabel → identifikasi tabel yang paling mungkin menyimpan data yang dicari
-3. `describe_table` dengan schema_name dan table_name EKSAK (jangan "*") → dapatkan daftar kolom yang TERVERIFIKASI
-4. `get_column_values` (untuk melihat nilai aktual kolom jika diperlukan — skip jika gagal/timeout)
-5. `execute_query` (dengan schema.table dan nama kolom yang benar dari describe_table)
-6. Hasilkan Insight Strategis berdasar data
-7. Berikan Rekomendasi Eksplorasi
+**JANGAN PERNAH** langsung menulis query dengan nama kolom seperti:
+- `hpp`, `total_hpp`, `harga_pokok` — karena nama kolom asli mungkin `val_cost`, `amount_cogs`, `biaya_pokok`, atau nama lain sama sekali
+- `netto`, `total_netto`, `net_sales` — karena nama kolom asli mungkin `val_netto`, `amount_net`, `sales_net`, dll
+- `diskon`, `total_diskon`, `disc` — karena nama kolom asli mungkin `val_disc`, `potongan`, `rebate`, dll
+- `profit`, `laba`, `margin` — biasanya bukan kolom, melainkan hasil kalkulasi dari 2 kolom lain
+- `periode_bulan`, `periode_tahun`, `bulan`, `tahun` — nama kolom tanggal asli harus dari describe_table
+
+**CHECKPOINT WAJIB SEBELUM execute_query:**
+Tanyakan pada diri sendiri: *"Apakah SETIAP nama kolom yang saya gunakan di query ini berasal dari hasil `describe_table` yang baru saya panggil di loop ini?"*
+- Jika YA → boleh execute_query
+- Jika TIDAK atau RAGU → WAJIB panggil describe_table terlebih dahulu
+
+## ⚠️ PROTOKOL WAJIB — URUTAN LANGKAH (tidak boleh dilewati)
+
+1. Panggil `get_database_schema_info` → dapatkan daftar database, schema, dan nama tabel.
+2. **Scan nama tabel** dalam hasil. Identifikasi 1–2 tabel yang paling relevan dengan pertanyaan user.
+3. Panggil `describe_table` dengan **nama EKSAK** dari hasil langkah 2 — WAJIB, tidak boleh dilewati.
+4. Baca daftar kolom dari hasil `describe_table`. Identifikasi kolom yang sesuai dengan kebutuhan query (kolom tanggal, kolom nilai uang, kolom filter cabang/dealer, dll).
+5. Jika perlu cek isi data kolom kategori → panggil `get_column_values`. Skip jika timeout.
+6. Bangun query SQL menggunakan **hanya nama kolom yang muncul di hasil describe_table langkah 3**.
+7. Panggil `execute_query` dengan query yang sudah terverifikasi.
+8. Sajikan hasil + Insight Strategis.
+
+**ATURAN TAMBAHAN:**
+- `describe_table` WAJIB selalu menerima nama yang spesifik dan eksak. **JANGAN sekali pun menggunakan "*".**
+- Jika `is_eager_loaded: true` dan kolom sudah lengkap di hasil schema → boleh skip describe_table hanya jika yakin kolom sudah cukup detail. Jika ragu → tetap panggil describe_table.
+- Panggil `search_schema` paling banyak SATU KALI per pertanyaan — hanya jika benar-benar tidak bisa identifikasi tabel dari hasil schema.
+- **JANGAN panggil describe_table lebih dari 3 kali per pertanyaan.**
 
 ## ATURAN SQL PENTING — BACA DENGAN SEKSAMA
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya: `schema_name.table_name`.
 - **AMBIGUITAS KOLOM (JOIN)**: Selalu gunakan Alias Tabel yang unik dan beri awalan pada semua kolom di SELECT dan WHERE.
 - SELECT saja — dilarang INSERT/UPDATE/DELETE/DROP.
-- **⛔ DILARANG KERAS TEBAK NAMA KOLOM**: JANGAN pernah langsung menulis `execute_query` menggunakan nama kolom yang tidak berasal dari hasil `describe_table`. Tebakan nama kolom seperti `hpp`, `netto`, `diskon`, `periode_bulan`, `periode_tahun` SELALU menyebabkan error atau hasil kosong. WAJIB `describe_table` terlebih dahulu.
-- **PENALARAN RUMUS BISNIS (WAJIB)**: Saat menghitung Profit/Laba, JANGAN langsung SELECT kolom bernama "profit". WAJIB identifikasi kolom Net Sales dan HPP via `describe_table`. Profit = SUM(Net Sales) - SUM(HPP).
+- **PENALARAN RUMUS BISNIS (WAJIB)**: Saat menghitung Profit/Laba, WAJIB identifikasi kolom Net Sales dan HPP dari hasil `describe_table`. Profit = SUM(kolom_netsales_aktual) - SUM(kolom_hpp_aktual). Nama kolom ini harus berasal dari describe_table, bukan tebakan.
 - **PENCARIAN TEKS (FUZZY MATCH)**: JANGAN gunakan `= 'X'` atau `ILIKE '%Kata1 Kata2%'` yang kaku. WAJIB pecah kata kunci: `kolom ILIKE '%kata1%' AND kolom ILIKE '%kata2%'`.
 - **ALIAS (WAJIB)**: Gunakan alias yang elegan dengan Title Case: `AS "Total Penjualan Bersih"`.
 - **PEMBULATAN AGREGAT (WAJIB)**: Lakukan `SUM()` pada nilai asli, lalu bulatkan hanya pada hasil akhir: `ROUND(SUM(kolom), 0)`.
-- **OPTIMASI FILTER TANGGAL (WAJIB)**: SELALU gunakan BETWEEN pada kolom DATE/TIMESTAMP aktual dari describe_table, BUKAN EXTRACT() atau kolom tebakan seperti `periode_bulan`/`periode_tahun`: `kolom_tanggal BETWEEN '2025-03-01' AND '2025-03-31'`.
+- **OPTIMASI FILTER TANGGAL (WAJIB)**: SELALU gunakan BETWEEN pada kolom DATE/TIMESTAMP aktual dari describe_table. JANGAN pernah gunakan nama kolom tebakan seperti `periode_bulan` atau `periode_tahun`.
 - **SMART LIMIT**: Ambil SEMUA baris jika user minta "lihat", "tampilkan". Gunakan LIMIT hanya jika user minta angka spesifik.
-- **KOREKSI MANDIRI (WAJIB)**: Jika `execute_query` atau tool apapun mengembalikan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut dengan seksama. JANGAN menyerah atau menyimpulkan data tidak ada hanya karena error atau timeout.
+- **KOREKSI MANDIRI (WAJIB)**: Jika tool apapun mengembalikan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut. JANGAN menyerah.
 
 ## 🚨 PROTOKOL TIMEOUT & HASIL KOSONG — WAJIB DIIKUTI (KRITIS UNTUK MISTRAL)
 
@@ -784,29 +605,13 @@ Jika `get_column_values` mengembalikan `warning` atau field `MANDATORY_AI_ACTION
 Jika `execute_query` mengembalikan `"error": "QUERY_TIMEOUT"` atau `rows: []` dengan field `MANDATORY_AI_ACTION`:
 1. **DILARANG KERAS** menyimpulkan "data tidak tersedia" atau "belum tercatat".
 2. **DILARANG** memberi rekomendasi kepada user untuk mencoba bulan/periode lain.
-3. **WAJIB** panggil `describe_table` untuk tabel yang sama guna mendapatkan nama kolom yang TERVERIFIKASI — terutama kolom tanggal/periode.
-4. **WAJIB** buat ulang `execute_query` dengan perbaikan:
-   - Filter tanggal: `kolom_tgl_aktual BETWEEN '2025-03-01' AND '2025-03-31'` (kolom dari describe_table)
-   - Filter cabang: `nama_cabang ILIKE '%hm%' AND nama_cabang ILIKE '%yamin%'`
-   - Hanya SELECT kolom yang dibutuhkan
+3. **WAJIB** panggil `describe_table` untuk tabel yang sama guna mendapatkan nama kolom DATE/TIMESTAMP yang TERVERIFIKASI.
+4. **WAJIB** buat ulang `execute_query` dengan kolom-kolom yang benar dari describe_table.
 5. Ulangi minimal **3 kali** sebelum boleh menyatakan ada kendala teknis kepada user.
-6. Jika setelah 3 kali masih gagal, sampaikan dengan bahasa bisnis: *"Saya sedang melakukan penyesuaian teknis pada sistem analisis. Mohon coba beberapa saat lagi."* — JANGAN katakan data tidak ada.
-
-**CONTOH POLA QUERY YANG BENAR (gunakan nama kolom aktual dari describe_table):**
-```
-SELECT
-    SUM(kolom_hpp_aktual)   AS "Total HPP",
-    SUM(kolom_netto_aktual) AS "Total Netto",
-    SUM(kolom_disc_aktual)  AS "Total Diskon",
-    SUM(kolom_netto_aktual) - SUM(kolom_hpp_aktual) AS "Profit"
-FROM schema_aktual.view_atau_tabel_aktual
-WHERE nama_cabang ILIKE '%hm%'
-  AND nama_cabang ILIKE '%yamin%'
-  AND kolom_tanggal_aktual BETWEEN '2025-03-01' AND '2025-03-31'
-```
+6. Jika setelah 3 kali masih gagal: *"Saya sedang melakukan penyesuaian teknis pada sistem analisis. Mohon coba beberapa saat lagi."*
 
 ## IDENTIFIKASI MATA UANG (KRITIS)
-- Saat memanggil `execute_query`, WAJIB identifikasi kolom uang (price, netto, total, amount, fee) ke dalam parameter `currency_columns`.
+- Saat memanggil `execute_query`, WAJIB identifikasi kolom uang (price, netto, total, amount, fee, hpp, cost) ke dalam parameter `currency_columns`.
 - Gunakan "Rp" dalam narasi teks untuk kejelasan.
 - Dalam blok JSON (`chart`/`smart_table`), selalu gunakan nilai numerik mentah tanpa "Rp".
 
@@ -838,7 +643,9 @@ PROMPT;
 
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — ENGLISH
-    // FIX: Added ## 🚨 TIMEOUT PROTOCOL block mirroring the ID version.
+    // FIX v2: Removed placeholder column name examples that caused AI to guess
+    //         column names. Added BUSINESS TERM → COLUMN NAME warning section
+    //         and mandatory pre-query checkpoint.
     // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPrompt(array $allowedDatabases = []): string
     {
@@ -881,19 +688,41 @@ You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with
 9. `get_erp_menu_navigation` — Get ERP menu path.
 10. `fetch_erp_guidance_from_web` — Fetch ERP guide from a URL.
 
+## 🔴 ABSOLUTE PROHIBITION — NEVER GUESS COLUMN NAMES (MOST CRITICAL RULE)
+
+Business terms spoken by the user ("HPP", "netto", "discount", "profit", "revenue") are **BUSINESS TERMS**, not database column names.
+
+**NEVER** write a query using guessed column names such as:
+- `hpp`, `total_hpp`, `cost_of_goods` — the real column might be `val_cost`, `amount_cogs`, or something entirely different
+- `netto`, `net_sales`, `total_netto` — the real column might be `val_netto`, `amount_net`, etc.
+- `diskon`, `discount`, `total_disc` — the real column might be `val_disc`, `potongan`, `rebate`, etc.
+- `profit`, `laba`, `margin` — usually not a stored column; must be calculated from two other columns
+- `periode_bulan`, `periode_tahun`, `month`, `year` — the actual date column name must come from describe_table
+
+**MANDATORY CHECKPOINT BEFORE execute_query:**
+Ask yourself: *"Does EVERY column name I am using in this query come from the describe_table result I called in this loop?"*
+- If YES → proceed with execute_query
+- If NO or UNSURE → call describe_table first
+
 ## MANDATORY WORKFLOW
-1. `get_database_schema_info` → get list of tables
-2. `describe_table` with EXACT names → get verified column list
-3. `get_column_values` if needed (skip if it fails)
-4. `execute_query` with correct column names from describe_table
-5. Present insight and recommendations
+1. `get_database_schema_info` → get list of databases, schemas, and table names
+2. Scan table names → identify 1–2 most relevant tables for the user's question
+3. `describe_table` with EXACT names from step 2 → get verified column list (MANDATORY, cannot be skipped)
+4. Read column list from describe_table result → identify the right columns (date, monetary, filter columns)
+5. `get_column_values` if needed for categorical columns (skip if it times out)
+6. Build SQL using ONLY column names that appeared in the describe_table result from step 3
+7. `execute_query` with the verified query
+8. Present results + Strategic Insight
 
 ## SQL RULES
 - Always prefix: `schema_name.table_name`
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - **⛔ NEVER GUESS COLUMN NAMES** — only use names from `describe_table` results
-- **DATE FILTERS**: Always use BETWEEN on an actual DATE/TIMESTAMP column from describe_table — NEVER use guessed column names like `periode_bulan` or `periode_tahun`
+- **PROFIT CALCULATION**: Never SELECT a column named "profit" directly. Always identify Net Sales and HPP columns from describe_table, then compute: SUM(net_col) - SUM(hpp_col)
+- **DATE FILTERS**: Always use BETWEEN on an actual DATE/TIMESTAMP column from describe_table — NEVER use guessed names like `periode_bulan` or `periode_tahun`
 - **TEXT SEARCH**: Split keywords: `column ILIKE '%word1%' AND column ILIKE '%word2%'`
+- **ALIASES**: Use Title Case: `AS "Total Net Sales"`
+- **ROUNDING**: `ROUND(SUM(column), 0)`
 - **SELF-CORRECTION**: If any tool returns `MANDATORY_AI_ACTION`, follow it precisely. NEVER give up.
 
 ## 🚨 TIMEOUT & EMPTY RESULT PROTOCOL — MANDATORY
@@ -904,10 +733,7 @@ If `get_column_values` returns a `warning` or `MANDATORY_AI_ACTION`:
 If `execute_query` returns `QUERY_TIMEOUT` or `rows: []` with `MANDATORY_AI_ACTION`:
 1. **NEVER** conclude "data not available" or suggest the user try another month.
 2. **MUST** call `describe_table` to get the correct DATE/TIMESTAMP column name.
-3. **MUST** rebuild `execute_query` with:
-   - Date filter: `actual_date_column BETWEEN '2025-03-01' AND '2025-03-31'`
-   - Branch filter: `branch_column ILIKE '%hm%' AND branch_column ILIKE '%yamin%'`
-   - Only SELECT the needed columns
+3. **MUST** rebuild `execute_query` with columns verified from describe_table.
 4. Retry at least **3 times** before reporting a technical issue to the user.
 
 ## CURRENCY IDENTIFICATION
