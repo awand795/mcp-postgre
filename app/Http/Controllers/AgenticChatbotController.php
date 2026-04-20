@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Http;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
 
@@ -379,6 +380,44 @@ class AgenticChatbotController extends Controller
         return ChatSession::where('user_id', $request->user()->id)
             ->orderBy('updated_at', 'desc')
             ->get(['id', 'title', 'updated_at']);
+    }
+
+    public function getSession($id)
+    {
+        $user = Auth::user();
+        $session = ChatSession::where('user_id', $user->id)->findOrFail($id);
+        
+        $messages = ChatMessage::where('chat_session_id', $session->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json([
+            'session' => $session,
+            'messages' => $messages
+        ]);
+    }
+
+    public function deleteSession($id)
+    {
+        $user = Auth::user();
+        $session = ChatSession::where('user_id', $user->id)->findOrFail($id);
+        $session->delete();
+
+        return response()->json(['success' => true]);
+    }
+
+    public function updateSessionTitle(Request $request, $id)
+    {
+        $user = Auth::user();
+        $session = ChatSession::where('user_id', $user->id)->findOrFail($id);
+        
+        $request->validate([
+            'title' => 'required|string|max:255'
+        ]);
+
+        $session->update(['title' => $request->title]);
+
+        return response()->json(['success' => true]);
     }
 
     // ── Panggil AI API (Multi-Provider) ──────────────────────────────────────
