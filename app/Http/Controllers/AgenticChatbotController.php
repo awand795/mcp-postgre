@@ -394,9 +394,9 @@ class AgenticChatbotController extends Controller
             foreach ($tools as $t) {
                 $f = isset($t['function']) ? $t['function'] : $t;
                 $claudeTools[] = [
-                    'name' => $f['name'],
-                    'description' => $f['description'],
-                    'input_schema' => $f['parameters']
+                    'name' => $f['name'] ?? '',
+                    'description' => $f['description'] ?? '',
+                    'input_schema' => $f['parameters'] ?? ['type' => 'object', 'properties' => (object)[]]
                 ];
             }
             $payload['tools'] = $claudeTools;
@@ -470,11 +470,12 @@ class AgenticChatbotController extends Controller
                     $cleanMessages[] = $clean;
                 }
                 foreach ($msg['tool_calls'] as $tc) {
+                    $f = $tc['function'] ?? $tc;
                     $cleanMessages[] = [
                         'type' => 'function_call',
                         'call_id' => $tc['id'] ?? '',
-                        'name' => $tc['function']['name'] ?? $tc['name'] ?? '',
-                        'arguments' => $tc['function']['arguments'] ?? $tc['arguments'] ?? '{}'
+                        'name' => $f['name'] ?? '',
+                        'arguments' => $f['arguments'] ?? '{}'
                     ];
                 }
             } else {
@@ -551,8 +552,8 @@ class AgenticChatbotController extends Controller
                     $f = $tc['function'] ?? $tc;
                     $parts[] = [
                         'functionCall' => [
-                            'name' => $f['name'],
-                            'args' => is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']
+                            'name' => $f['name'] ?? '',
+                            'args' => isset($f['arguments']) ? (is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']) : (object)[]
                         ]
                     ];
                 }
@@ -665,8 +666,8 @@ class AgenticChatbotController extends Controller
                     $messages[] = [
                         'role' => 'tool',
                         'tool_call_id' => $fakeToolCalls[$index]['id'],
-                        'name' => $res['tool_name'],
-                        'content' => is_string($res['data']) ? $res['data'] : json_encode($res['data'])
+                        'name' => $res['tool_name'] ?? '',
+                        'content' => is_string($res['data'] ?? '') ? $res['data'] : json_encode($res['data'])
                     ];
                 }
             } else {
