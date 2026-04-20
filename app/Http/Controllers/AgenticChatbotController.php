@@ -136,7 +136,10 @@ class AgenticChatbotController extends Controller
             $history = [];
         }
 
-        $systemPrompt = $this->buildSystemPrompt($detectedLang, $allowedDatabases);
+        $systemPrompt = $detectedLang === 'en' 
+            ? $this->buildSystemPrompt($allowedDatabases)
+            : $this->buildSystemPromptId($allowedDatabases);
+
         $messages = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
         $maxTokens = $user->max_tokens ?? 32768;
 
@@ -165,6 +168,14 @@ class AgenticChatbotController extends Controller
 
     private function runAgenticLoop(array $messages, $apiKey, string $lang, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
     {
+        // Extract system prompt to be passed explicitly to providers
+        $systemPrompt = '';
+        foreach ($messages as $m) {
+            if ($m['role'] === 'system') {
+                $systemPrompt = $m['content'];
+                break;
+            }
+        }
         if ($chatSessionId) {
             echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
         }
@@ -183,7 +194,7 @@ class AgenticChatbotController extends Controller
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
-                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens);
+                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt);
             } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
                 $response = null;
@@ -301,7 +312,7 @@ class AgenticChatbotController extends Controller
         return response()->json(['success' => true]);
     }
 
-    private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768): ?array
+    private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = ''): ?array
     {
         $providerCode = $apiKey->provider->code;
         $maxTokens = $maxTokens ?? 32768;
@@ -311,18 +322,18 @@ class AgenticChatbotController extends Controller
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
         if ($providerCode === 'gemini') {
-            return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens);
+            return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         }
 
         if ($providerCode === 'claude') {
-            return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens);
+            return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         }
 
         if ($providerCode === 'custom') {
-            return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens);
+            return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         }
 
-        return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens);
+        return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
     }
 
     private function formatToolsForProvider(string $providerCode, array $tools): array
@@ -375,7 +386,7 @@ class AgenticChatbotController extends Controller
                     $parts[] = [
                         'functionResponse' => [
                             'name' => $m['name'] ?? 'query',
-                            'response' => ['content' => $m['content']]
+                            'response' => ['result' => $m['content']]
                         ]
                     ];
                 } else {
@@ -414,7 +425,7 @@ class AgenticChatbotController extends Controller
         return $messages;
     }
 
-    private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
         $payload = [
             'model' => $model->model_name,
@@ -432,7 +443,7 @@ class AgenticChatbotController extends Controller
         return $this->handleProviderResponse($response, 'openai');
     }
 
-    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
         $baseUrl = $apiKey->provider->base_url ?: 'https://api.openai.com/v1/chat/completions';
         $payload = [
@@ -451,26 +462,40 @@ class AgenticChatbotController extends Controller
         return $this->handleProviderResponse($response, 'custom');
     }
 
-    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    private function callClaudeApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
+    {
+        // Minimal Claude implementation via HTTP
+        $payload = [
+            'model' => $model->model_name,
+            'max_tokens' => (int)$maxTokens,
+            'messages' => $messages,
+            'system' => $systemPrompt,
+        ];
+        if (!empty($tools)) $payload['tools'] = $tools;
+
+        $response = Http::withHeaders([
+            'x-api-key' => $apiKey->api_key,
+            'anthropic-version' => '2023-06-01',
+            'content-type' => 'application/json',
+        ])->post('https://api.anthropic.com/v1/messages', $payload);
+
+        return $this->handleProviderResponse($response, 'claude');
+    }
+
+    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model->model_name . ':generateContent?key=' . $apiKey->api_key;
-        
-        // Extract system instruction
-        $systemText = '';
-        foreach (ChatMessage::where('role', 'system')->get() as $s) { $systemText .= $s->content . "\n"; } // This logic is simplified; in actual loop we pass it
-        
-        // Find system message in original messages (if any)
-        foreach (request()->input('messages', []) as $m) {
-             if (isset($m['role']) && $m['role'] === 'system') $systemText = $m['content'];
-        }
 
         $payload = [
             'contents' => $messages,
-            'generationConfig' => ['maxOutputTokens' => (int)$maxTokens, 'temperature' => 0.7],
+            'generationConfig' => [
+                'maxOutputTokens' => (int)$maxTokens, 
+                'temperature' => 0.7
+            ],
         ];
 
-        if (!empty($systemText)) {
-            $payload['systemInstruction'] = ['parts' => [['text' => $systemText]]];
+        if (!empty($systemPrompt)) {
+            $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
         }
 
         if (!empty($tools)) {
@@ -652,13 +677,18 @@ Sapa pengguna sebagai Bapak/Ibu. Gunakan Bahasa Indonesia.
 PROMPT;
     }
 
-    private function processContentForCharts(string $content, array $toolResults): string { return $content; }
+    private function processContentForCharts(string $content, array $toolResults): string 
+    { 
+        // Logic for chart detection and processing can go here
+        return $content; 
+    }
     
     private function streamText(string $text): void 
     { 
-        foreach (mb_str_split($text, 30) as $chunk) { 
+        foreach (mb_str_split($text, 50) as $chunk) { 
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; 
             if (ob_get_level() > 0) ob_flush(); flush(); 
+            usleep(10000); // 10ms delay for smooth streaming
         } 
     }
 }
