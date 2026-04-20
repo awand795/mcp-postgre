@@ -333,44 +333,125 @@ class AgenticChatbotController extends Controller
 
     private function callGeminiApi(array $messages, array $tools, $url, $maxTokens)
     {
-        $contents = []; $systemInstruction = null;
+        $contents = [];
+        $systemInstruction = null;
+
         foreach ($messages as $msg) {
-            if ($msg['role'] === 'system') { $systemInstruction = ['parts' => [['text' => $msg['content']]]]; continue; }
-            if ($msg['role'] === 'tool') {
-                $contents[] = ['role' => 'function', 'parts' => [['functionResponse' => ['name' => $msg['name'] ?? '', 'response' => ['content' => $msg['content']]]]]];
+            $role = $msg['role'];
+            
+            // 1. Handle System Prompt
+            if ($role === 'system') {
+                $systemInstruction = ['parts' => [['text' => $msg['content']]]];
                 continue;
             }
+
+            // 2. Map Roles: Assistant -> model, User/Tool -> user
+            $geminiRole = ($role === 'assistant') ? 'model' : 'user';
             $parts = [];
-            if (isset($msg['content']) && !empty($msg['content'])) $parts[] = ['text' => (string)$msg['content']];
-            if ($msg['role'] === 'assistant' && !empty($msg['tool_calls'])) {
-                foreach ($msg['tool_calls'] as $tc) {
-                    $f = $tc['function'] ?? $tc;
-                    $parts[] = ['functionCall' => ['name' => $f['name'] ?? '', 'args' => isset($f['arguments']) ? (is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']) : (object)[]]];
+
+            if ($role === 'tool') {
+                $parts[] = [
+                    'functionResponse' => [
+                        'name' => $msg['name'] ?? '',
+                        'response' => ['content' => $msg['content']]
+                    ]
+                ];
+            } else {
+                if (isset($msg['content']) && !empty($msg['content'])) {
+                    $parts[] = ['text' => (string)$msg['content']];
+                }
+
+                if ($role === 'assistant' && !empty($msg['tool_calls'])) {
+                    foreach ($msg['tool_calls'] as $tc) {
+                        $f = $tc['function'] ?? $tc;
+                        $parts[] = [
+                            'functionCall' => [
+                                'name' => $f['name'] ?? '',
+                                'args' => isset($f['arguments']) ? (is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments']) : (object)[]
+                            ]
+                        ];
+                    }
                 }
             }
-            if (!empty($parts)) $contents[] = ['role' => $msg['role'] === 'assistant' ? 'model' : 'user', 'parts' => $parts];
+
+            if (!empty($parts)) {
+                // Gemini Rule: Merge consecutive roles to avoid 400 error
+                $lastIndex = count($contents) - 1;
+                if ($lastIndex >= 0 && $contents[$lastIndex]['role'] === $geminiRole) {
+                    $contents[$lastIndex]['parts'] = array_merge($contents[$lastIndex]['parts'], $parts);
+                } else {
+                    $contents[] = ['role' => $geminiRole, 'parts' => $parts];
+                }
+            }
         }
+
+        // Gemini requires declarations to be wrapped in an array
         $declarations = [];
         foreach ($tools as $t) {
             $f = isset($t['function']) ? $t['function'] : $t;
-            $declarations[] = ['name' => $f['name'] ?? '', 'description' => $f['description'] ?? '', 'parameters' => $f['parameters'] ?? ['type' => 'object', 'properties' => (object)[]]];
+            $declarations[] = [
+                'name' => $f['name'] ?? '',
+                'description' => $f['description'] ?? '',
+                'parameters' => $f['parameters'] ?? ['type' => 'object', 'properties' => (object)[]]
+            ];
         }
-        $payload = ['contents' => $contents, 'tools' => [['function_declarations' => $declarations]], 'generationConfig' => ['maxOutputTokens' => (int)$maxTokens, 'temperature' => 0.1]];
-        if ($systemInstruction) $payload['system_instruction'] = $systemInstruction;
+
+        $payload = [
+            'contents' => $contents,
+            'tools' => [['function_declarations' => $declarations]],
+            'generationConfig' => [
+                'maxOutputTokens' => (int)$maxTokens,
+                'temperature' => 0.1,
+            ]
+        ];
+
+        if ($systemInstruction) {
+            $payload['system_instruction'] = $systemInstruction;
+        }
 
         $response = Http::withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
-        if ($response->failed()) { Log::error("[Gemini] API Error: " . $response->status() . " - " . $response->body()); return null; }
+        
+        if ($response->failed()) {
+            Log::error("[Gemini] API Error: " . $response->status() . " - " . $response->body());
+            return null;
+        }
+
         $data = $response->json();
-        if (!isset($data['candidates'][0]['content'])) { Log::error("[Gemini] Invalid structure: " . json_encode($data)); return null; }
+        if (!isset($data['candidates'][0]['content'])) {
+            Log::error("[Gemini] Invalid structure: " . json_encode($data));
+            return null;
+        }
+
         $modelMsg = $data['candidates'][0]['content'];
-        $resContent = ''; $toolCalls = [];
+        $resContent = '';
+        $toolCalls = [];
+
         foreach ($modelMsg['parts'] as $part) {
-            if (isset($part['text'])) $resContent .= $part['text'];
+            if (isset($part['text'])) {
+                $resContent .= $part['text'];
+            }
             if (isset($part['functionCall'])) {
-                $toolCalls[] = ['id' => 'call_' . uniqid(), 'type' => 'function', 'function' => ['name' => $part['functionCall']['name'], 'arguments' => json_encode($part['functionCall']['args'] ?? (object)[])]];
+                $toolCalls[] = [
+                    'id' => 'call_' . uniqid(),
+                    'type' => 'function',
+                    'function' => [
+                        'name' => $part['functionCall']['name'],
+                        'arguments' => json_encode($part['functionCall']['args'] ?? (object)[])
+                    ]
+                ];
             }
         }
-        return ['choices' => [['message' => ['role' => 'assistant', 'content' => $resContent, 'tool_calls' => !empty($toolCalls) ? $toolCalls : null], 'finish_reason' => $data['candidates'][0]['finishReason'] ?? 'stop']]];
+
+        return [
+            'choices' => [[
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => $resContent,
+                    'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                ],
+                'finish_reason' => $data['candidates'][0]['finishReason'] ?? 'stop'
+            ]]
+        ];
     }
 
     private function buildMessages(string $systemPrompt, array $history, string $userMessage, string $lang): array
@@ -398,15 +479,32 @@ class AgenticChatbotController extends Controller
     private function processContentForCharts(string $content, array $toolResults): string { return $content; }
     private function streamText(string $text): void { foreach (mb_str_split($text, 30) as $chunk) { echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; ob_flush(); flush(); } }
     
-    private function buildSystemPrompt(string $lang, array $allowedDatabases = []): string 
-    { 
+    private function buildSystemPrompt(string $lang, array $allowedDatabases = []): string
+    {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
             $schemaList = implode(', ', array_keys($schemas));
-            $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
+            $dbSummaries[] = "- Kode Database: {$dbCode} (Skema: {$schemaList})";
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
-        return "You are DataBot, an expert AI Data Analyst for MBI with access to: \n{$dbSummaryText}\n Persona: Professional Executive Analyst. Use formal language. Never show SQL. Refer to system as Internal Analysis.";
+        if ($lang === 'en') {
+            return "You are DataBot, an expert AI Data Analyst with direct access to: \n{$dbSummaryText}\n 
+            PERSONA & POLICIES:
+            - Persona: Professional Executive Analyst.
+            - Tone: Polite, formal, and objective. Always address users professionally.
+            - Privacy: NEVER show SQL queries or technical system names. Refer to tools as 'Internal Analysis System'.
+            - Response Structure: Executive Summary (Bold), Data Table/Chart (if applicable), and Strategic Insights.
+            - Always provide 3-4 'Next Prompt Recommendations' at the end.";
+        }
+
+        return "Anda adalah DataBot, pakar Analis Data AI dengan akses langsung ke: \n{$dbSummaryText}\n
+        PERSONA & ATURAN:
+        - Gunakan Bahasa Indonesia Bisnis yang Formal dan Profesional.
+        - Sapa pengguna dengan 'Bapak/Ibu' yang sangat sopan.
+        - JANGAN PERNAH menampilkan query SQL, nama koneksi, atau detail teknis sistem.
+        - Sebut fitur Anda sebagai 'Sistem Analisis Internal'.
+        - Struktur Jawaban: Ringkasan Eksekutif (Tebal), Visualisasi Data (Tabel/Grafik jika ada), dan Analisis Strategis.
+        - Selalu akhiri dengan header '💡 **Rekomendasi Pertanyaan Selanjutnya:**' diikuti 3-4 poin saran pertanyaan yang relevan dengan konteks data yang sedang dibahas.";
     }
 }
