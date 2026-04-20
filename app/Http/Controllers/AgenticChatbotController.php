@@ -441,7 +441,7 @@ class AgenticChatbotController extends Controller
             $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
-        $response = Http::timeout(600)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
             ->post('https://api.openai.com/v1/chat/completions', $payload);
         
         return $this->handleProviderResponse($response, 'openai');
@@ -460,7 +460,7 @@ class AgenticChatbotController extends Controller
             $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
-        $response = Http::timeout(600)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
             ->post($baseUrl, $payload);
             
         return $this->handleProviderResponse($response, 'custom');
@@ -477,7 +477,7 @@ class AgenticChatbotController extends Controller
         ];
         if (!empty($tools)) $payload['tools'] = $tools;
 
-        $response = Http::timeout(600)->withHeaders([
+        $response = Http::timeout(600)->retry(3, 2000)->withHeaders([
             'x-api-key' => $apiKey->api_key,
             'anthropic-version' => '2023-06-01',
             'content-type' => 'application/json',
@@ -506,7 +506,7 @@ class AgenticChatbotController extends Controller
             $payload['tools'] = $tools;
         }
 
-        $response = Http::timeout(600)->post($url, $payload);
+        $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
         return $this->handleProviderResponse($response, 'gemini');
     }
 
