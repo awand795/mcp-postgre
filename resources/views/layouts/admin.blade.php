@@ -185,15 +185,16 @@
         }
 
         .btn-cancel {
-            background: rgba(255, 255, 255, 0.1);
-            color: #cbd5e1;
-            border: 1px solid var(--glass-border);
+            background: white;
+            color: #0f172a;
+            border: 1px solid white;
         }
 
         .btn-cancel:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
+            background: #f1f5f9;
+            color: #0f172a;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
         }
 
         /* Responsive Styles */
