@@ -62,9 +62,9 @@ class AgenticChatbotController extends Controller
                 ->where('ai_models.is_active', true)
                 ->where('user_ai_models.is_enabled', true)
                 ->first();
-                
+
             if (!$selectedModel) {
-                 return response()->json(['error' => 'Tidak ada model AI yang aktif. Silakan aktifkan di Pengaturan.'], 400);
+                return response()->json(['error' => 'Tidak ada model AI yang aktif. Silakan aktifkan di Pengaturan.'], 400);
             }
             $selectedModelId = $selectedModel->id;
         } else {
@@ -86,10 +86,6 @@ class AgenticChatbotController extends Controller
 
         $allowedDatabases = [];
         if ($user->is_admin) {
-            // FIX: Gunakan $c->database (nama database asli) sebagai key, bukan $c->code.
-            // Semua service (SchemaService, QueryService) melakukan lookup via:
-            //   DatabaseConnection::where('database', $databaseCode)
-            // Sehingga key di allowedDatabases HARUS sama dengan kolom `database` di tabel.
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
                 $allowedDatabases[$c->database] = ['*' => ['*']];
@@ -99,29 +95,27 @@ class AgenticChatbotController extends Controller
                 $allowedDatabases = $user->roleModel->getAllowedDatabases();
             } else {
                 foreach ($user->roleModel->permissions ?? [] as $perm) {
-                    $db = $perm->database_code;
+                    $db     = $perm->database_code;
                     $schema = $perm->schema_name;
-                    $tbl = $perm->table_name;
+                    $tbl    = $perm->table_name;
 
                     if ($db === '*') {
                         $conns = \App\Models\DatabaseConnection::active()->get();
                         foreach ($conns as $c) {
-                            // FIX: Konsisten gunakan ->database sebagai key untuk role juga
                             $allowedDatabases[$c->database] = ['*' => ['*']];
                         }
                         continue;
                     }
                     if (!$db) continue;
-                    
+
                     if (!isset($allowedDatabases[$db])) $allowedDatabases[$db] = [];
                     $schemaKey = ($schema && $schema !== '*') ? $schema : '*';
-                    
+
                     if (!isset($allowedDatabases[$db][$schemaKey])) $allowedDatabases[$db][$schemaKey] = [];
-                    
+
                     if ($tbl && $tbl !== '*') {
                         $allowedDatabases[$db][$schemaKey][] = $tbl;
                     } elseif ($schemaKey !== '*') {
-                        // Allow all tables in this specific schema
                         $allowedDatabases[$db][$schemaKey][] = '*';
                     }
                 }
@@ -143,11 +137,11 @@ class AgenticChatbotController extends Controller
             $history = [];
         }
 
-        $systemPrompt = $detectedLang === 'en' 
+        $systemPrompt = $detectedLang === 'en'
             ? $this->buildSystemPrompt($allowedDatabases)
             : $this->buildSystemPromptId($allowedDatabases);
 
-        $messages = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
+        $messages  = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
         $maxTokens = $user->max_tokens ?? 32768;
 
         session_write_close();
@@ -165,17 +159,16 @@ class AgenticChatbotController extends Controller
             },
             200,
             [
-                'Content-Type' => 'text/event-stream',
-                'Cache-Control' => 'no-cache',
+                'Content-Type'      => 'text/event-stream',
+                'Cache-Control'     => 'no-cache',
                 'X-Accel-Buffering' => 'no',
-                'Connection' => 'keep-alive',
+                'Connection'        => 'keep-alive',
             ]
         );
     }
 
     private function runAgenticLoop(array $messages, $apiKey, string $lang, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
     {
-        // Extract system prompt to be passed explicitly to providers
         $systemPrompt = '';
         foreach ($messages as $m) {
             if ($m['role'] === 'system') {
@@ -190,14 +183,12 @@ class AgenticChatbotController extends Controller
         if (ob_get_level() > 0) ob_flush(); flush();
 
         $this->toolExecutor->setAllowedTables($allowedDatabases);
-        $tools = ToolCallExecutor::getToolDefinitions();
-        $loopCount = 0;
+        $tools       = ToolCallExecutor::getToolDefinitions();
+        $loopCount   = 0;
         $allTurnToolResults = [];
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
-            
-            // Gunakan log resmi Laravel agar bisa dilihat di storage/logs/laravel.log
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
@@ -219,8 +210,8 @@ class AgenticChatbotController extends Controller
 
             $assistantMsg = $response['choices'][0]['message'];
             $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
-            $toolCalls = $assistantMsg['tool_calls'] ?? [];
-            $textContent = $assistantMsg['content'] ?? '';
+            $toolCalls    = $assistantMsg['tool_calls'] ?? [];
+            $textContent  = $assistantMsg['content'] ?? '';
 
             $messages[] = $assistantMsg;
 
@@ -235,9 +226,9 @@ class AgenticChatbotController extends Controller
                 if ($chatSessionId) {
                     ChatMessage::create([
                         'chat_session_id' => $chatSessionId,
-                        'role' => 'assistant',
-                        'content' => $processedContent,
-                        'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
+                        'role'            => 'assistant',
+                        'content'         => $processedContent,
+                        'tool_results'    => !empty($allTurnToolResults) ? $allTurnToolResults : null
                     ]);
                 }
 
@@ -249,15 +240,15 @@ class AgenticChatbotController extends Controller
 
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
-                $toolName = $toolCall['function']['name'] ?? '';
-                $argsRaw = $toolCall['function']['arguments'] ?? '{}';
-                $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
+                $toolName   = $toolCall['function']['name'] ?? '';
+                $argsRaw    = $toolCall['function']['arguments'] ?? '{}';
+                $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 Log::info("[Agentic] Executing Tool: {$toolName}");
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments);
-                
+
                 $decodedRes = json_decode($toolResult, true);
-                $aiContent = $toolResult;
+                $aiContent  = $toolResult;
                 if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 50) {
                     $aiContent = json_encode([
                         'rows_returned' => count($decodedRes['rows']),
@@ -276,14 +267,14 @@ class AgenticChatbotController extends Controller
                     ]
                 ]) . "\n\n";
                 if (ob_get_level() > 0) ob_flush(); flush();
-                
+
                 $allTurnToolResults[] = ['tool_name' => $toolName, 'data' => $decodedRes ?: $toolResult];
 
                 $messages[] = [
-                    'role' => 'tool',
+                    'role'         => 'tool',
                     'tool_call_id' => $toolCallId,
-                    'name' => $toolName,
-                    'content' => $aiContent,
+                    'name'         => $toolName,
+                    'content'      => $aiContent,
                 ];
             }
             if (ob_get_level() > 0) ob_flush(); flush();
@@ -297,11 +288,11 @@ class AgenticChatbotController extends Controller
 
     public function getSession($id)
     {
-        $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
+        $session  = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
         $messages = ChatMessage::where('chat_session_id', $session->id)->orderBy('created_at', 'asc')->get();
         return response()->json([
-            'session' => $session,
-            'history' => $messages,
+            'session'    => $session,
+            'history'    => $messages,
             'pagination' => ['has_more' => false, 'oldest_cursor' => null]
         ]);
     }
@@ -322,27 +313,15 @@ class AgenticChatbotController extends Controller
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = ''): ?array
     {
         $providerCode = $apiKey->provider->code;
-        $maxTokens = $maxTokens ?? 32768;
-        
-        // Prepare tools and messages specifically for this provider
-        $formattedTools = $this->formatToolsForProvider($providerCode, $tools);
+        $maxTokens    = $maxTokens ?? 32768;
+
+        $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
-        if ($providerCode === 'gemini') {
-            return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        }
-
-        if ($providerCode === 'claude') {
-            return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        }
-
-        if ($providerCode === 'custom') {
-            return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        }
-
-        if ($providerCode === 'mistral') {
-            return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        }
+        if ($providerCode === 'gemini')  return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'claude')  return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'custom')  return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'mistral') return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
 
         return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
     }
@@ -352,15 +331,13 @@ class AgenticChatbotController extends Controller
         if (empty($tools)) return [];
 
         if ($providerCode === 'gemini') {
-            // Gemini expects function_declarations without the 'type: function' wrapper
             $geminiTools = [];
             foreach ($tools as $t) {
-                // Determine if it's wrapped or raw
                 $f = isset($t['function']) ? $t['function'] : $t;
                 $geminiTools[] = [
-                    'name' => $f['name'],
+                    'name'        => $f['name'],
                     'description' => $f['description'],
-                    'parameters' => $f['parameters']
+                    'parameters'  => $f['parameters']
                 ];
             }
             return [['function_declarations' => $geminiTools]];
@@ -371,28 +348,26 @@ class AgenticChatbotController extends Controller
             foreach ($tools as $t) {
                 $f = isset($t['function']) ? $t['function'] : $t;
                 $claudeTools[] = [
-                    'name' => $f['name'],
-                    'description' => $f['description'],
+                    'name'         => $f['name'],
+                    'description'  => $f['description'],
                     'input_schema' => $f['parameters']
                 ];
             }
             return $claudeTools;
         }
 
-        // Standard OpenAI Format (used by OpenAI, Mistral, and Custom)
+        // Standard OpenAI format (OpenAI, Mistral, Custom)
         $standardTools = [];
         foreach ($tools as $t) {
             if (isset($t['function'])) {
-                // Already wrapped
                 $standardTools[] = $t;
             } else {
-                // Raw format, need to wrap into { type: 'function', function: { ... } }
                 $standardTools[] = [
-                    'type' => 'function',
+                    'type'     => 'function',
                     'function' => [
-                        'name' => $t['name'],
+                        'name'        => $t['name'],
                         'description' => $t['description'] ?? '',
-                        'parameters' => $t['parameters'] ?? (object)[],
+                        'parameters'  => $t['parameters'] ?? (object)[],
                     ]
                 ];
             }
@@ -405,38 +380,38 @@ class AgenticChatbotController extends Controller
         if ($providerCode === 'gemini') {
             $geminiMessages = [];
             foreach ($messages as $m) {
-                if ($m['role'] === 'system') continue; // Handled separately in callGeminiApi
+                if ($m['role'] === 'system') continue;
 
                 $role = $m['role'];
-                $geminiRole = ($role === 'assistant') ? 'model' : (($role === 'tool' || $role === 'function') ? 'function' : 'user');
-                
                 $parts = [];
+
                 if ($role === 'tool') {
-                    $geminiRole = 'user'; // Gemini REST API uses 'user' for function results
                     $parts[] = [
                         'functionResponse' => [
-                            'name' => $m['name'] ?? 'query',
+                            'name'     => $m['name'] ?? 'query',
                             'response' => (object)['content' => $m['content']]
                         ]
                     ];
-                } else {
-                    if (isset($m['content']) && !empty($m['content'])) {
-                        $parts[] = ['text' => (string)$m['content']];
-                    }
-                    if ($role === 'assistant' && !empty($m['tool_calls'])) {
-                        foreach ($m['tool_calls'] as $tc) {
-                            $f = $tc['function'] ?? $tc;
-                            $args = is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments'];
-                            $parts[] = [
-                                'functionCall' => [
-                                    'name' => $f['name'],
-                                    'args' => (object)($args ?? [])
-                                ]
-                            ];
-                        }
+                    $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                    continue;
+                }
+
+                if (!empty($m['content'])) {
+                    $parts[] = ['text' => (string)$m['content']];
+                }
+                if ($role === 'assistant' && !empty($m['tool_calls'])) {
+                    foreach ($m['tool_calls'] as $tc) {
+                        $f    = $tc['function'] ?? $tc;
+                        $args = is_string($f['arguments']) ? json_decode($f['arguments'], true) : $f['arguments'];
+                        $parts[] = [
+                            'functionCall' => [
+                                'name' => $f['name'],
+                                'args' => (object)($args ?? [])
+                            ]
+                        ];
                     }
                 }
-                $geminiMessages[] = ['role' => $geminiRole, 'parts' => $parts];
+                $geminiMessages[] = ['role' => ($role === 'assistant') ? 'model' : 'user', 'parts' => $parts];
             }
             return $geminiMessages;
         }
@@ -446,26 +421,22 @@ class AgenticChatbotController extends Controller
             foreach ($messages as $m) {
                 if ($m['role'] === 'system') continue;
 
-                // Tool result message — Claude needs special content block format
                 if ($m['role'] === 'tool') {
                     $claudeMessages[] = [
                         'role'    => 'user',
-                        'content' => [
-                            [
-                                'type'        => 'tool_result',
-                                'tool_use_id' => $m['tool_call_id'] ?? ('toolu_' . uniqid()),
-                                'content'     => (string) ($m['content'] ?? ''),
-                            ]
-                        ]
+                        'content' => [[
+                            'type'        => 'tool_result',
+                            'tool_use_id' => $m['tool_call_id'] ?? ('toolu_' . uniqid()),
+                            'content'     => (string)($m['content'] ?? ''),
+                        ]]
                     ];
                     continue;
                 }
 
-                // Assistant message that contains tool_calls — convert to tool_use blocks
                 if ($m['role'] === 'assistant' && !empty($m['tool_calls'])) {
                     $contentBlocks = [];
                     if (!empty($m['content'])) {
-                        $contentBlocks[] = ['type' => 'text', 'text' => (string) $m['content']];
+                        $contentBlocks[] = ['type' => 'text', 'text' => (string)$m['content']];
                     }
                     foreach ($m['tool_calls'] as $tc) {
                         $f    = $tc['function'] ?? $tc;
@@ -481,7 +452,6 @@ class AgenticChatbotController extends Controller
                     continue;
                 }
 
-                // Normal user or assistant message
                 $claudeMessages[] = [
                     'role'    => $m['role'] === 'assistant' ? 'assistant' : 'user',
                     'content' => $m['content'] ?? '',
@@ -496,36 +466,38 @@ class AgenticChatbotController extends Controller
     private function callMistralApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
         $payload = [
-            'model' => $model->model_name,
-            'messages' => $messages,
-            'max_tokens' => (int)$maxTokens,
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int)$maxTokens,
             'temperature' => 0.7,
         ];
         if (!empty($tools)) {
-            $payload['tools'] = $tools;
+            $payload['tools']       = $tools;
             $payload['tool_choice'] = 'auto';
         }
-        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+        $response = Http::timeout(600)->retry(3, 2000)
+            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
             ->post('https://api.mistral.ai/v1/chat/completions', $payload);
-        
+
         return $this->handleProviderResponse($response, 'mistral');
     }
 
     private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
         $payload = [
-            'model' => $model->model_name,
-            'messages' => $messages,
-            'max_tokens' => (int)$maxTokens,
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int)$maxTokens,
             'temperature' => 0.7,
         ];
         if (!empty($tools)) {
-            $payload['tools'] = $tools;
+            $payload['tools']       = $tools;
             $payload['tool_choice'] = 'auto';
         }
-        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+        $response = Http::timeout(600)->retry(3, 2000)
+            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
             ->post('https://api.openai.com/v1/chat/completions', $payload);
-        
+
         return $this->handleProviderResponse($response, 'openai');
     }
 
@@ -533,36 +505,36 @@ class AgenticChatbotController extends Controller
     {
         $baseUrl = $apiKey->provider->base_url ?: 'https://api.openai.com/v1/chat/completions';
         $payload = [
-            'model' => $model->model_name,
-            'messages' => $messages,
-            'max_tokens' => (int)$maxTokens,
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => (int)$maxTokens,
             'temperature' => 0.7,
         ];
         if (!empty($tools)) {
-            $payload['tools'] = $tools;
+            $payload['tools']       = $tools;
             $payload['tool_choice'] = 'auto';
         }
-        $response = Http::timeout(600)->retry(3, 2000)->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
+        $response = Http::timeout(600)->retry(3, 2000)
+            ->withHeaders(['Authorization' => 'Bearer ' . $apiKey->api_key])
             ->post($baseUrl, $payload);
-            
+
         return $this->handleProviderResponse($response, 'custom');
     }
 
     private function callClaudeApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
-        // Minimal Claude implementation via HTTP
         $payload = [
-            'model' => $model->model_name,
+            'model'      => $model->model_name,
             'max_tokens' => (int)$maxTokens,
-            'messages' => $messages,
-            'system' => $systemPrompt,
+            'messages'   => $messages,
+            'system'     => $systemPrompt,
         ];
         if (!empty($tools)) $payload['tools'] = $tools;
 
         $response = Http::timeout(600)->retry(3, 2000)->withHeaders([
-            'x-api-key' => $apiKey->api_key,
+            'x-api-key'         => $apiKey->api_key,
             'anthropic-version' => '2023-06-01',
-            'content-type' => 'application/json',
+            'content-type'      => 'application/json',
         ])->post('https://api.anthropic.com/v1/messages', $payload);
 
         return $this->handleProviderResponse($response, 'claude');
@@ -574,75 +546,67 @@ class AgenticChatbotController extends Controller
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
 
         $payload = [
-            'contents' => $messages,
-            'generationConfig' => [
-                'maxOutputTokens' => (int)$maxTokens, 
-                'temperature' => 0.7
-            ],
+            'contents'         => $messages,
+            'generationConfig' => ['maxOutputTokens' => (int)$maxTokens, 'temperature' => 0.7],
         ];
 
         if (!empty($systemPrompt)) {
             $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
         }
-
         if (!empty($tools)) {
             $payload['tools'] = $tools;
         }
 
         $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
 
-        // --- FALLBACK LOGIC ---
-        // If 503 occurs (Overloaded/Busy) after retries, try with a more stable model (1.5-flash)
+        // Fallback ke model stabil jika 503
         if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
-            Log::warning("[Agentic] Model {$currentModelName} is busy (503). Falling back to gemini-1.5-flash for this turn.");
+            Log::warning("[Agentic] Model {$currentModelName} busy (503). Falling back to gemini-1.5-flash.");
             $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
             $response = Http::timeout(600)->retry(2, 2000)->post($fallbackUrl, $payload);
         }
-        // ----------------------
 
         return $this->handleProviderResponse($response, 'gemini');
     }
 
     private function handleProviderResponse($response, string $providerCode): ?array
     {
-        if ($response->status() === 429) { 
-             // Handle rate limit
-             return null; 
+        if ($response->status() === 429) {
+            return null;
         }
-        
+
         if ($response->failed()) {
             Log::error("[Agentic] API Error ({$providerCode}): " . $response->body());
             return null;
         }
 
         $data = $response->json();
-        
-        // Normalize Gemini response
+
         if ($providerCode === 'gemini') {
             $candidate = $data['candidates'][0] ?? null;
             if (!$candidate) return null;
 
             $parts = $candidate['content']['parts'] ?? [];
-            $text = ''; $toolCalls = [];
+            $text  = '';
+            $toolCalls = [];
             foreach ($parts as $p) {
                 if (isset($p['text'])) $text .= $p['text'];
                 if (isset($p['functionCall'])) {
                     $toolCalls[] = [
-                        'id' => 'call_' . uniqid(),
+                        'id'   => 'call_' . uniqid(),
                         'type' => 'function',
                         'function' => [
-                            'name' => $p['functionCall']['name'],
+                            'name'      => $p['functionCall']['name'],
                             'arguments' => json_encode($p['functionCall']['args'] ?? (object)[])
                         ]
                     ];
                 }
             }
-
             return [
                 'choices' => [[
                     'message' => [
-                        'role' => 'assistant',
-                        'content' => $text,
+                        'role'       => 'assistant',
+                        'content'    => $text,
                         'tool_calls' => !empty($toolCalls) ? $toolCalls : null
                     ],
                     'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
@@ -650,12 +614,11 @@ class AgenticChatbotController extends Controller
             ];
         }
 
-        // Normalize Claude response (format is very different from OpenAI)
         if ($providerCode === 'claude') {
             $contentBlocks = $data['content'] ?? [];
-            $stopReason = $data['stop_reason'] ?? 'end_turn';
-            $text = '';
-            $toolCalls = [];
+            $stopReason    = $data['stop_reason'] ?? 'end_turn';
+            $text          = '';
+            $toolCalls     = [];
 
             foreach ($contentBlocks as $block) {
                 $type = $block['type'] ?? '';
@@ -673,8 +636,6 @@ class AgenticChatbotController extends Controller
                 }
             }
 
-            $finishReason = ($stopReason === 'tool_use') ? 'tool_calls' : 'stop';
-
             return [
                 'choices' => [[
                     'message' => [
@@ -682,12 +643,12 @@ class AgenticChatbotController extends Controller
                         'content'    => $text,
                         'tool_calls' => !empty($toolCalls) ? $toolCalls : null
                     ],
-                    'finish_reason' => $finishReason
+                    'finish_reason' => ($stopReason === 'tool_use') ? 'tool_calls' : 'stop'
                 ]]
             ];
         }
 
-        // Mistral/OpenAI/Custom are already in the expected format
+        // Mistral / OpenAI / Custom — sudah dalam format yang benar
         return $data;
     }
 
@@ -699,11 +660,20 @@ class AgenticChatbotController extends Controller
             if ($msg['role'] === 'assistant' && !empty($toolResults)) {
                 $fakeToolCalls = [];
                 foreach ($toolResults as $res) {
-                    $fakeToolCalls[] = ['id' => 'call_' . uniqid(), 'type' => 'function', 'function' => ['name' => $res['tool_name'] ?? 'query', 'arguments' => '{}']];
+                    $fakeToolCalls[] = [
+                        'id'       => 'call_' . uniqid(),
+                        'type'     => 'function',
+                        'function' => ['name' => $res['tool_name'] ?? 'query', 'arguments' => '{}']
+                    ];
                 }
                 $messages[] = ['role' => 'assistant', 'content' => $msg['content'] ?? '', 'tool_calls' => $fakeToolCalls];
                 foreach ($toolResults as $index => $res) {
-                    $messages[] = ['role' => 'tool', 'tool_call_id' => $fakeToolCalls[$index]['id'], 'name' => $res['tool_name'] ?? 'query', 'content' => is_string($res['data'] ?? '') ? $res['data'] : json_encode($res['data'])];
+                    $messages[] = [
+                        'role'         => 'tool',
+                        'tool_call_id' => $fakeToolCalls[$index]['id'],
+                        'name'         => $res['tool_name'] ?? 'query',
+                        'content'      => is_string($res['data'] ?? '') ? $res['data'] : json_encode($res['data'])
+                    ];
                 }
             } else {
                 $messages[] = ['role' => $msg['role'] ?? 'user', 'content' => $msg['content'] ?? ''];
@@ -713,130 +683,16 @@ class AgenticChatbotController extends Controller
         return $messages;
     }
 
-
-    private function buildSystemPrompt(array $allowedDatabases = []): string
-    {
-        $dbSummaries = [];
-        foreach ($allowedDatabases as $dbCode => $schemas) {
-            $schemaList = implode(', ', array_keys($schemas));
-            $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
-        }
-        $dbSummaryText = implode(PHP_EOL, $dbSummaries);
-
-        return <<<PROMPT
-You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to multiple business databases** via tools.
-
-## AVAILABLE DATABASES FOR THIS USER:
-{$dbSummaryText}
-
-## PERSONA & STYLE
-- **Persona**: Expert Data Analyst, professional, objective, and highly meticulous.
-- **Language**: Professional Business English.
-- **Tone**: Polite, executive, and informative. Always address the user as "Mr./Ms.".
-- **Response Structure (MANDATORY)**:
-    1. **Executive Summary**: 1-2 bold sentences summarizing the core finding directly.
-    2. **Visualization/Data (Optional)**: Use Smart Table or Chart to present supporting data. If the result is ONLY 1 row (e.g. single aggregate), SKIP THIS SECTION.
-    3. **Strategic Insight & Recommendations**: Provide 2-3 brief insights explaining "WHY" this matters and potential actions.
-
-## PRIVACY & TECHNICAL POLICY (STRICT)
-- **STRICTLY FORBIDDEN**: Showing SQL queries, internal database connection names, or technical error details in the final response.
-- **ERROR MASKING**: If technical errors occur, reply with polite business language: *"I apologize Mr./Ms., I am experiencing a technical adjustment in retrieving that data. I am refining the search parameters..."*
-- Never mention terms like "Database", "Query", "Tool", or "SQL" to the user. Refer to them as "Data System" or "Internal Analysis".
-
-## TOOLS AVAILABLE
-1. `get_database_schema_info`    — Get all tables and columns available. Call this FIRST.
-2. `search_schema`               — Search for tables or columns by keyword across all databases.
-3. `describe_table`              — Get specific data types, columns, INDEX, and FOREIGN KEY for a table.
-4. `get_column_values`           — Get unique values (DISTINCT) from a column. Use for category/status columns.
-5. `get_view_definition`         — Get DDL/logics behind a View. Use if table is a VIEW.
-6. `get_table_preview`           — Get 5 sample rows from a table to understand data format.
-7. `execute_query`               — Run SQL SELECT on a specific database code. Prefix table names with schema!
-8. `get_erp_guidance`            — Search and display ERP operational guides. Trigger when user asks "how to".
-9. `get_erp_menu_navigation`     — Get ERP menu location/path.
-10. `fetch_erp_guidance_from_web` — Get ERP guidance from a specific web URL.
-
-## ERP MENU NAVIGATION — FORMATTING RULE (CRITICAL)
-When `get_erp_menu_navigation` returns a `display_text` field, show it **verbatim**. Do NOT add "Executive Summary", "Analysis & Recommendations". Just output the `display_text` directly.
-
-## PROACTIVE BI MANDATE (CRITICAL)
-- **INDEPENDENT SEARCH**: You have a list of all tables AND their columns. USE IT.
-- **DO NOT ASK** the user for help. You MUST find the data yourself.
-- **SPEED-FIRST PRINCIPLE**: After `execute_query`, IMMEDIATELY present data + strategic insight.
-
-## ⚠️ CRITICAL SEARCH STRATEGY — READ CAREFULLY
-
-**MANDATORY PROTOCOL — STEP BY STEP (no skipping):**
-1. Call `get_database_schema_info` → you get a list of databases, schemas, and table names.
-2. **Scan the `databases` object** in the result. Look at every `table_name` in every schema.
-3. Identify the 1–2 most relevant tables by name (e.g. a table named "dealer" or "cabang" or "outlet").
-4. Call `describe_table` with **EXACT** database_code, schema_name, and table_name — NEVER use "*" or guesses.
-5. Once you have columns → call `get_column_values` if needed, then `execute_query`.
-
-**STRICT RULES:**
-- `describe_table` MUST always receive exact, specific names. **NEVER pass "*" for any parameter.**
-- If the table list is small and `is_eager_loaded: true` in the schema result, columns are already included — skip `describe_table` and go directly to `execute_query`.
-- Call `search_schema` at most ONCE per question — only if you truly cannot identify the right table from the schema result.
-- If `search_schema` finds no results, use `describe_table` on the most likely transaction table with its **exact name**.
-- **DO NOT call describe_table more than 3 times per question.** If you haven't found the data after 3 attempts, use the best available column name and run `execute_query`.
-
-## REASONING ORDER (MANDATORY)
-1. `get_database_schema_info` — get the list of databases, schemas, and table names
-2. Scan table names → identify which table is most likely to hold the requested data
-3. `describe_table` with EXACT schema_name and table_name (never "*") → get column list
-4. `get_column_values` (to see actual values of a column if needed)
-5. `execute_query` (with correct schema.table and column names)
-6. Generate Strategic Insight
-7. Offer Exploration Suggestions
-
-## SQL RULES — READ CAREFULLY
-- Always prefix table names: `schema_name.table_name`
-- **COLUMN AMBIGUITY (JOINS)**: Always use unique Table Aliases and prefix all columns in SELECT and WHERE.
-- SELECT only — no INSERT/UPDATE/DELETE/DROP
-- **⛔ NEVER GUESS COLUMN NAMES**: NEVER write `execute_query` using column names that did not come from a `describe_table` result or eager-loaded schema. Guessing names like `hpp`, `netto`, `diskon` ALWAYS causes errors. ALWAYS call `describe_table` first for any table you intend to query.
-- **BUSINESS LOGIC REASONING (MANDATORY)**: When calculating Profit/Margin, DO NOT blindly SELECT a column named "profit" or "gpn". ALWAYS identify correct Net Sales (e.g., 'total_netto') and COGS (e.g., 'total_hpp') via `describe_table` first. Profit = SUM(Net Sales) - SUM(COGS).
-- **TEXT SEARCHING (FUZZY MATCH)**: NEVER use exact `=` or `ILIKE '%word1 word2%'`. Always split keywords: `column ILIKE '%word1%' AND column ILIKE '%word2%'`.
-- **DATA ALIASING (MANDATORY)**: Use elegant Title Case aliases. Not `total_qty`, use `AS "Total Qty Sold"`.
-- **AGGREGATE ROUNDING (MANDATORY)**: Never round inside aggregate functions. Always `SUM()` on raw precision, then round the final result only: `ROUND(SUM(column), 0)` or `CAST(SUM(column) AS BIGINT)`.
-- **DATE FILTER OPTIMIZATION (MANDATORY)**: Always use BETWEEN for date filters, NOT EXTRACT(): `tgl_fak_jl BETWEEN '2025-03-01' AND '2025-03-31'`. BETWEEN is much faster as it can leverage indexes.
-- **SMART LIMIT POLICY**: Retrieve ALL rows when user wants to "see", "list", or "show". Use LIMIT only when user asks for specific number (e.g., "top 10").
-- **SELF-CORRECTION (MANDATORY)**: If `execute_query` returns an error with a `MANDATORY_AI_ACTION` field, MUST follow those instructions precisely. NEVER give up or say data does not exist just because of an error or timeout.
-
-## CURRENCY IDENTIFICATION (CRITICAL)
-- When calling `execute_query`, MUST identify all monetary columns (price, netto, total, amount, fee) in the `currency_columns` parameter.
-- In natural language, use "Rp" prefix for monetary values.
-- In JSON blocks (`chart`/`smart_table`), ALWAYS use raw numeric values.
-
-## SMART TABLE & CHART FORMAT
-- Use `smart_table` for ALL tabular query results:
-```smart_table
-{}
-```
-- If result is ONLY 1 row with 1 aggregate value, answer with concise text — NO table.
-- For charts, use the `chart` block with Chart.js JSON:
-```chart
-{"type": "bar", "data": {"labels":["A","B"],"datasets":[{"label":"Data","data":[10,20]}]}}
-```
-
-## PROMPT RECOMMENDATIONS
-End EVERY analysis with:
-```
-💡 **Next Prompt Recommendations:**
-1. "[Specific prompt relevant to current analysis]"
-2. "[Prompt for deeper insight]"
-3. "[Forward-looking prompt about trends or risks]"
-4. "[Cross-analysis prompt]"
-```
-Mention ACTUAL data entities from the current analysis. DO NOT use generic examples.
-
-Respond ENTIRELY in ENGLISH.
-PROMPT;
-    }
-
+    // ─────────────────────────────────────────────────────────────────────────
+    // SYSTEM PROMPT — BAHASA INDONESIA
+    // FIX: Ditambahkan blok ## 🚨 PROTOKOL TIMEOUT agar AI (Mistral) tidak
+    // langsung menyerah saat query timeout atau get_column_values gagal.
+    // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPromptId(array $allowedDatabases = []): string
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
-            $schemaList = implode(', ', array_keys($schemas));
+            $schemaList    = implode(', ', array_keys($schemas));
             $dbSummaries[] = "- Kode Database: {$dbCode} (Schema: {$schemaList})";
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
@@ -892,7 +748,7 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **secara 
 
 **ATURAN KETAT:**
 - `describe_table` WAJIB selalu menerima nama yang spesifik dan eksak. **JANGAN sekali pun menggunakan "*" di parameter manapun.**
-- Jika daftar tabel kecil dan `is_eager_loaded: true` ada di hasil schema, kolom sudah termuat — lewati `describe_table` dan langsung ke `execute_query`.
+- Jika daftar tabel kecil dan `is_eager_loaded: true` ada di hasil schema, kolom sudah termuat — **KECUALI** jika kolom tampak kosong atau tidak lengkap untuk sebuah VIEW, maka tetap WAJIB panggil `describe_table` sebelum `execute_query`.
 - Panggil `search_schema` paling banyak SATU KALI per pertanyaan — hanya jika Anda benar-benar tidak dapat mengidentifikasi tabel yang tepat dari hasil schema.
 - Jika `search_schema` tidak menemukan hasil, gunakan `describe_table` pada tabel transaksi paling relevan dengan **nama eksak**-nya.
 - **JANGAN panggil describe_table lebih dari 3 kali per pertanyaan.** Jika belum menemukan data setelah 3 percobaan, gunakan nama kolom terbaik yang tersedia dan jalankan `execute_query`.
@@ -900,9 +756,9 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **secara 
 ## URUTAN KERJA (WAJIB)
 1. `get_database_schema_info` — dapatkan daftar database, schema, dan nama tabel
 2. Pindai nama tabel → identifikasi tabel yang paling mungkin menyimpan data yang dicari
-3. `describe_table` dengan schema_name dan table_name EKSAK (jangan "*") → dapatkan daftar kolom
-4. `get_column_values` (untuk melihat nilai aktual kolom jika diperlukan)
-5. `execute_query` (dengan schema.table dan nama kolom yang benar)
+3. `describe_table` dengan schema_name dan table_name EKSAK (jangan "*") → dapatkan daftar kolom yang TERVERIFIKASI
+4. `get_column_values` (untuk melihat nilai aktual kolom jika diperlukan — skip jika gagal/timeout)
+5. `execute_query` (dengan schema.table dan nama kolom yang benar dari describe_table)
 6. Hasilkan Insight Strategis berdasar data
 7. Berikan Rekomendasi Eksplorasi
 
@@ -910,14 +766,44 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **secara 
 - **WAJIB PREFIX**: Selalu sebut nama tabel lengkap dengan skemanya: `schema_name.table_name`.
 - **AMBIGUITAS KOLOM (JOIN)**: Selalu gunakan Alias Tabel yang unik dan beri awalan pada semua kolom di SELECT dan WHERE.
 - SELECT saja — dilarang INSERT/UPDATE/DELETE/DROP.
-- **⛔ DILARANG KERAS TEBAK NAMA KOLOM**: JANGAN pernah langsung menulis `execute_query` menggunakan nama kolom yang tidak berasal dari hasil `describe_table` atau schema eager-loaded. Tebakan nama kolom seperti `hpp`, `netto`, `diskon` SELALU menyebabkan error. WAJIB `describe_table` terlebih dahulu untuk tabel yang akan di-query.
-- **PENALARAN RUMUS BISNIS (WAJIB)**: Saat menghitung Profit/Laba, JANGAN langsung SELECT kolom bernama "profit" atau "gpn". WAJIB identifikasi kolom Net Sales (misal: 'total_netto') dan HPP ('total_hpp') via `describe_table`. Profit = SUM(Net Sales) - SUM(HPP). Net Sales sudah bersih, dilarang dikurangi 'discount' lagi.
+- **⛔ DILARANG KERAS TEBAK NAMA KOLOM**: JANGAN pernah langsung menulis `execute_query` menggunakan nama kolom yang tidak berasal dari hasil `describe_table`. Tebakan nama kolom seperti `hpp`, `netto`, `diskon`, `periode_bulan`, `periode_tahun` SELALU menyebabkan error atau hasil kosong. WAJIB `describe_table` terlebih dahulu.
+- **PENALARAN RUMUS BISNIS (WAJIB)**: Saat menghitung Profit/Laba, JANGAN langsung SELECT kolom bernama "profit". WAJIB identifikasi kolom Net Sales dan HPP via `describe_table`. Profit = SUM(Net Sales) - SUM(HPP).
 - **PENCARIAN TEKS (FUZZY MATCH)**: JANGAN gunakan `= 'X'` atau `ILIKE '%Kata1 Kata2%'` yang kaku. WAJIB pecah kata kunci: `kolom ILIKE '%kata1%' AND kolom ILIKE '%kata2%'`.
 - **ALIAS (WAJIB)**: Gunakan alias yang elegan dengan Title Case: `AS "Total Penjualan Bersih"`.
-- **PEMBULATAN AGREGAT (WAJIB)**: Lakukan `SUM()` pada nilai asli, lalu bulatkan hanya pada hasil akhir: `ROUND(SUM(kolom), 0)` atau `CAST(SUM(kolom) AS BIGINT)`.
-- **OPTIMASI FILTER TANGGAL (WAJIB)**: Selalu gunakan range BETWEEN untuk filter tanggal, BUKAN EXTRACT(): `tgl_fak_jl BETWEEN '2025-03-01' AND '2025-03-31'`. BETWEEN jauh lebih cepat karena dapat memanfaatkan index.
+- **PEMBULATAN AGREGAT (WAJIB)**: Lakukan `SUM()` pada nilai asli, lalu bulatkan hanya pada hasil akhir: `ROUND(SUM(kolom), 0)`.
+- **OPTIMASI FILTER TANGGAL (WAJIB)**: SELALU gunakan BETWEEN pada kolom DATE/TIMESTAMP aktual dari describe_table, BUKAN EXTRACT() atau kolom tebakan seperti `periode_bulan`/`periode_tahun`: `kolom_tanggal BETWEEN '2025-03-01' AND '2025-03-31'`.
 - **SMART LIMIT**: Ambil SEMUA baris jika user minta "lihat", "tampilkan". Gunakan LIMIT hanya jika user minta angka spesifik.
-- **KOREKSI MANDIRI (WAJIB)**: Jika `execute_query` mengembalikan error dengan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut dengan seksama. JANGAN menyerah atau menyimpulkan data tidak ada hanya karena error atau timeout.
+- **KOREKSI MANDIRI (WAJIB)**: Jika `execute_query` atau tool apapun mengembalikan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut dengan seksama. JANGAN menyerah atau menyimpulkan data tidak ada hanya karena error atau timeout.
+
+## 🚨 PROTOKOL TIMEOUT & HASIL KOSONG — WAJIB DIIKUTI (KRITIS UNTUK MISTRAL)
+
+Jika `get_column_values` mengembalikan `warning` atau field `MANDATORY_AI_ACTION`:
+- **JANGAN tunggu, retry, atau berdebat** — langsung lewati dan lanjutkan ke `describe_table`.
+- `get_column_values` tidak bisa dipakai pada VIEW besar — ini normal, bukan error fatal.
+
+Jika `execute_query` mengembalikan `"error": "QUERY_TIMEOUT"` atau `rows: []` dengan field `MANDATORY_AI_ACTION`:
+1. **DILARANG KERAS** menyimpulkan "data tidak tersedia" atau "belum tercatat".
+2. **DILARANG** memberi rekomendasi kepada user untuk mencoba bulan/periode lain.
+3. **WAJIB** panggil `describe_table` untuk tabel yang sama guna mendapatkan nama kolom yang TERVERIFIKASI — terutama kolom tanggal/periode.
+4. **WAJIB** buat ulang `execute_query` dengan perbaikan:
+   - Filter tanggal: `kolom_tgl_aktual BETWEEN '2025-03-01' AND '2025-03-31'` (kolom dari describe_table)
+   - Filter cabang: `nama_cabang ILIKE '%hm%' AND nama_cabang ILIKE '%yamin%'`
+   - Hanya SELECT kolom yang dibutuhkan
+5. Ulangi minimal **3 kali** sebelum boleh menyatakan ada kendala teknis kepada user.
+6. Jika setelah 3 kali masih gagal, sampaikan dengan bahasa bisnis: *"Saya sedang melakukan penyesuaian teknis pada sistem analisis. Mohon coba beberapa saat lagi."* — JANGAN katakan data tidak ada.
+
+**CONTOH POLA QUERY YANG BENAR (gunakan nama kolom aktual dari describe_table):**
+```
+SELECT
+    SUM(kolom_hpp_aktual)   AS "Total HPP",
+    SUM(kolom_netto_aktual) AS "Total Netto",
+    SUM(kolom_disc_aktual)  AS "Total Diskon",
+    SUM(kolom_netto_aktual) - SUM(kolom_hpp_aktual) AS "Profit"
+FROM schema_aktual.view_atau_tabel_aktual
+WHERE nama_cabang ILIKE '%hm%'
+  AND nama_cabang ILIKE '%yamin%'
+  AND kolom_tanggal_aktual BETWEEN '2025-03-01' AND '2025-03-31'
+```
 
 ## IDENTIFIKASI MATA UANG (KRITIS)
 - Saat memanggil `execute_query`, WAJIB identifikasi kolom uang (price, netto, total, amount, fee) ke dalam parameter `currency_columns`.
@@ -950,18 +836,110 @@ Sapa pengguna sebagai Bapak/Ibu. Jawab SEPENUHNYA dalam BAHASA INDONESIA yang FO
 PROMPT;
     }
 
-    private function processContentForCharts(string $content, array $toolResults): string 
-    { 
-        // Logic for chart detection and processing can go here
-        return $content; 
+    // ─────────────────────────────────────────────────────────────────────────
+    // SYSTEM PROMPT — ENGLISH
+    // FIX: Added ## 🚨 TIMEOUT PROTOCOL block mirroring the ID version.
+    // ─────────────────────────────────────────────────────────────────────────
+    private function buildSystemPrompt(array $allowedDatabases = []): string
+    {
+        $dbSummaries = [];
+        foreach ($allowedDatabases as $dbCode => $schemas) {
+            $schemaList    = implode(', ', array_keys($schemas));
+            $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
+        }
+        $dbSummaryText = implode(PHP_EOL, $dbSummaries);
+
+        return <<<PROMPT
+You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to multiple business databases** via tools.
+
+## AVAILABLE DATABASES FOR THIS USER:
+{$dbSummaryText}
+
+## PERSONA & STYLE
+- **Persona**: Expert Data Analyst, professional, objective, and highly meticulous.
+- **Language**: Professional Business English.
+- **Tone**: Polite, executive, and informative. Always address the user as "Mr./Ms.".
+- **Response Structure (MANDATORY)**:
+    1. **Executive Summary**: 1-2 bold sentences summarizing the core finding directly.
+    2. **Visualization/Data (Optional)**: Use Smart Table or Chart. If result is ONLY 1 aggregate value, SKIP THIS SECTION.
+    3. **Strategic Insight & Recommendations**: 2-3 brief insights explaining "WHY" and potential actions.
+
+## PRIVACY & TECHNICAL POLICY (STRICT)
+- **STRICTLY FORBIDDEN**: Showing SQL queries, internal database connection names, or technical error details in the final response.
+- **ERROR MASKING**: If technical errors occur, reply with polite business language only.
+- Never mention terms like "Database", "Query", "Tool", or "SQL" to the user.
+
+## TOOLS AVAILABLE
+1. `get_database_schema_info` — Get all tables and columns. Call this FIRST.
+2. `search_schema` — Search tables/columns by keyword.
+3. `describe_table` — Get exact column names, types, indexes for a table. ALWAYS call this before execute_query.
+4. `get_column_values` — Get DISTINCT values from a column (skip if it fails/times out).
+5. `get_view_definition` — Get DDL behind a View.
+6. `get_table_preview` — Get 5 sample rows to understand data format.
+7. `execute_query` — Run SQL SELECT. Always prefix table with schema!
+8. `get_erp_guidance` — Search ERP guides.
+9. `get_erp_menu_navigation` — Get ERP menu path.
+10. `fetch_erp_guidance_from_web` — Fetch ERP guide from a URL.
+
+## MANDATORY WORKFLOW
+1. `get_database_schema_info` → get list of tables
+2. `describe_table` with EXACT names → get verified column list
+3. `get_column_values` if needed (skip if it fails)
+4. `execute_query` with correct column names from describe_table
+5. Present insight and recommendations
+
+## SQL RULES
+- Always prefix: `schema_name.table_name`
+- SELECT only — no INSERT/UPDATE/DELETE/DROP
+- **⛔ NEVER GUESS COLUMN NAMES** — only use names from `describe_table` results
+- **DATE FILTERS**: Always use BETWEEN on an actual DATE/TIMESTAMP column from describe_table — NEVER use guessed column names like `periode_bulan` or `periode_tahun`
+- **TEXT SEARCH**: Split keywords: `column ILIKE '%word1%' AND column ILIKE '%word2%'`
+- **SELF-CORRECTION**: If any tool returns `MANDATORY_AI_ACTION`, follow it precisely. NEVER give up.
+
+## 🚨 TIMEOUT & EMPTY RESULT PROTOCOL — MANDATORY
+
+If `get_column_values` returns a `warning` or `MANDATORY_AI_ACTION`:
+- Immediately skip it. Call `describe_table` instead to get verified column names.
+
+If `execute_query` returns `QUERY_TIMEOUT` or `rows: []` with `MANDATORY_AI_ACTION`:
+1. **NEVER** conclude "data not available" or suggest the user try another month.
+2. **MUST** call `describe_table` to get the correct DATE/TIMESTAMP column name.
+3. **MUST** rebuild `execute_query` with:
+   - Date filter: `actual_date_column BETWEEN '2025-03-01' AND '2025-03-31'`
+   - Branch filter: `branch_column ILIKE '%hm%' AND branch_column ILIKE '%yamin%'`
+   - Only SELECT the needed columns
+4. Retry at least **3 times** before reporting a technical issue to the user.
+
+## CURRENCY IDENTIFICATION
+- Identify all monetary columns in `currency_columns` parameter when calling `execute_query`.
+- Use "Rp" prefix in natural language responses.
+
+## SMART TABLE & CHART FORMAT
+```smart_table
+{}
+```
+```chart
+{"type": "bar", "data": {"labels":["A"],"datasets":[{"label":"Data","data":[10]}]}}
+```
+
+## PROMPT RECOMMENDATIONS
+End EVERY analysis with 3-4 specific next prompt suggestions relevant to the current data.
+
+Respond ENTIRELY in ENGLISH.
+PROMPT;
     }
-    
-    private function streamText(string $text): void 
-    { 
-        foreach (mb_str_split($text, 50) as $chunk) { 
-            echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; 
-            if (ob_get_level() > 0) ob_flush(); flush(); 
-            usleep(10000); // 10ms delay for smooth streaming
-        } 
+
+    private function processContentForCharts(string $content, array $toolResults): string
+    {
+        return $content;
+    }
+
+    private function streamText(string $text): void
+    {
+        foreach (mb_str_split($text, 50) as $chunk) {
+            echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
+            if (ob_get_level() > 0) ob_flush(); flush();
+            usleep(10000);
+        }
     }
 }

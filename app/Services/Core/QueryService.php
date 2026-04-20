@@ -81,7 +81,7 @@ class QueryService extends BaseService
             $permissions = RolePermission::where('role_id', $roleId)->get();
             $result = [];
             foreach ($permissions as $p) {
-                // To get description for regular roles, we might need a lookup, 
+                // To get description for regular roles, we might need a lookup,
                 // but for now let's at least structure it consistently.
                 $result[$p->database_code][$p->schema_name][] = [
                     'name' => $p->table_name,
@@ -112,7 +112,7 @@ class QueryService extends BaseService
             return $this->errorResponse('Hanya query SELECT yang diizinkan.');
         }
 
-        // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ─────────────────────────────
+        // ── LAYER 3: Blokir kata kunci berbahaya (driver-aware) ──────────────
         $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
         $driver = $dbModel ? $dbModel->driver : 'pgsql';
 
@@ -148,9 +148,9 @@ class QueryService extends BaseService
             return $this->errorResponse('Hanya satu query per panggilan.');
         }
 
-        // ── LAYER 5: Validasi akses tabel ─────────────────────────────────────
+        // ── LAYER 5: Validasi akses tabel ────────────────────────────────────
         $allowedDbs = $this->getAllowedTables();
-        
+
         if (!isset($allowedDbs[$databaseCode])) {
             return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
         }
@@ -185,16 +185,11 @@ class QueryService extends BaseService
         if (!$skipTableRbac) {
             // Ekstrak nama schema dan tabel dari query.
             // Support format: schema.table, "schema"."table", schema."table", "schema".table
-            // Regex menangkap identifier biasa ATAU quoted ("...") sebagai satu token.
             $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
             $pattern = '/(?:from|join)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?/i';
 
             if (preg_match_all($pattern, $trimmedSql, $matches, PREG_SET_ORDER)) {
                 foreach ($matches as $match) {
-                    // match[1] = quoted schema atau quoted lone-table
-                    // match[2] = unquoted schema atau unquoted lone-table
-                    // match[3] = quoted table (jika ada dot)
-                    // match[4] = unquoted table (jika ada dot)
                     $hasDot   = !empty($match[3]) || !empty($match[4]);
                     $firstId  = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
                     $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
@@ -212,13 +207,13 @@ class QueryService extends BaseService
                                     'join', 'inner', 'left', 'right', 'outer', 'cross', 'full'];
                     if (in_array($tbl, $sqlKeywords)) continue;
 
-                    // Validasi tabel — izinkan jika ada wildcard '*' di list tabel schema ini
+                    // Validasi tabel
                     if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
                         Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
                         return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan atau tidak ditemukan.");
                     }
 
-                    // Validasi schema — izinkan jika ada wildcard schema
+                    // Validasi schema
                     if ($schemaUsed && !$hasWildcardSchema && !in_array($schemaUsed, $allowedSchemasForDb)) {
                         Log::warning("[ToolCallExecutor] Access denied to schema '{$schemaUsed}' in DB '{$databaseCode}'");
                         return $this->errorResponse("Akses ditolak: schema '{$schemaUsed}' tidak diizinkan.");
@@ -227,13 +222,13 @@ class QueryService extends BaseService
             }
         }
 
-        // ── LAYER 6: Execute Query ─────────────────────────────────────────────
+        // ── LAYER 6: Execute Query ────────────────────────────────────────────
         $cleanSql = $trimmedSql;
         Log::info("[ToolCallExecutor] Executing SQL on DB {$databaseCode}: " . substr($cleanSql, 0, 300));
 
         // ── QUERY RESULT CACHING ──────────────────────────────────────────────
         $cacheKey = 'query_result_' . md5($cleanSql . '_' . $databaseCode . '_' . Auth::id());
-        
+
         $cachedResult = Cache::get($cacheKey);
         if ($cachedResult !== null) {
             Log::info("[ToolCallExecutor] Using cached query result (saved DB call)");
@@ -254,15 +249,12 @@ class QueryService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set driver-specific timeout:
-            // Gunakan 120 detik (120000ms) agar query berat pada view tetap bisa selesai.
-            // Ini cukup untuk agregasi data besar, namun masih ada batas agar tidak hang selamanya.
+            // Set driver-specific timeout: 120 detik untuk query agregasi pada view besar.
             if ($driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 120000'); // 120 detik
+                DB::connection($connName)->statement('SET statement_timeout = 120000');
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 120000'); // 120 detik
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 120000');
             }
-            // sqlsrv: handled via connection config options
 
             $rows = DB::connection($connName)->select($cleanSql);
         } catch (\Exception $e) {
@@ -270,24 +262,34 @@ class QueryService extends BaseService
             Log::error("[ToolCallExecutor] Query failed on {$databaseCode}: " . $e->getMessage() . " | SQL: " . $cleanSql);
 
             $dbError = $e->getMessage();
-
-            // Driver-specific error messages
             $msg = $this->formatDatabaseError($dbError, $driver, $cleanSql);
 
             return $this->safeJsonEncode(['error' => $msg]);
         }
 
+        // FIX: Jika rows kosong, berikan konteks yang lebih informatif kepada AI
+        // agar AI TIDAK langsung menyimpulkan "data tidak ada" — mungkin filter WHERE
+        // menggunakan nama kolom yang salah (misalnya: periode_bulan yang tidak ada di schema).
         if (empty($rows)) {
             return $this->safeJsonEncode([
                 'label'   => $label,
                 'total'   => 0,
-                'message' => 'Tidak ada data untuk query ini.',
-                'columns' => [],
                 'rows'    => [],
+                'columns' => [],
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    'Query berhasil dieksekusi tetapi mengembalikan 0 baris.',
+                    'JANGAN langsung simpulkan data tidak ada.',
+                    'Kemungkinan penyebab:',
+                    '(1) Nama kolom filter salah (misal: menggunakan periode_bulan/periode_tahun padahal kolom sebenarnya adalah DATE/TIMESTAMP seperti tgl_faktur).',
+                    '(2) Format nilai filter tidak cocok (misal: periode_bulan = \'3\' padahal tipe kolom integer atau tidak ada).',
+                    '(3) Nama cabang tidak cocok dengan nilai aktual di database.',
+                    'LANGKAH WAJIB: Panggil describe_table untuk verifikasi nama kolom tanggal yang benar,',
+                    'lalu retry execute_query dengan filter BETWEEN pada kolom DATE/TIMESTAMP yang tepat.',
+                ]),
             ]);
         }
 
-        $data = array_map(function($row) {
+        $data = array_map(function ($row) {
             $r = (array) $row;
             foreach ($r as $k => $v) {
                 if (is_string($v) && preg_match('/^-?\d+\.\d+$/', $v)) {
@@ -320,9 +322,9 @@ class QueryService extends BaseService
 
         foreach ($data as $row) {
             foreach ($row as $col => $val) {
-                if (in_array(strtolower($col), $monetaryCols) && is_numeric($val) && (float)$val < 0) {
+                if (in_array(strtolower($col), $monetaryCols) && is_numeric($val) && (float) $val < 0) {
                     $validationNotes[] = "Warning: Found negative value in monetary column '{$col}'. Please verify if this is expected (e.g., returns or cancellations).";
-                    break 2; // Only need one warning of this type
+                    break 2;
                 }
             }
         }
@@ -331,18 +333,19 @@ class QueryService extends BaseService
             $result['business_validation_notes'] = $validationNotes;
         }
 
-        // ANTI-LIMIT: Note removed for cleaner large data output
         $resultJson = $this->safeJsonEncode($result);
-        
+
         // Cache the result for future identical queries
         Cache::put($cacheKey, $resultJson, $this->queryCacheTtl);
-        
+
         return $resultJson;
     }
 
-
     /**
-     * Format database error message based on driver type
+     * Format database error message based on driver type.
+     *
+     * FIX: Pesan MANDATORY_AI_ACTION untuk timeout diperkuat agar Mistral
+     * tidak mengabaikan instruksi dan langsung menyimpulkan "data tidak ada".
      */
     private function formatDatabaseError(string $dbError, string $driver, string $sql): string
     {
@@ -365,41 +368,50 @@ class QueryService extends BaseService
             }
         }
 
-        // Detect PHP/Laravel connection-level timeout (query took too long before DB responded)
+        // Detect PHP/Laravel connection-level timeout
         if (!$isTimeout && (
             stripos($dbError, 'could not obtain lock') !== false ||
             stripos($dbError, 'SQLSTATE[HY000]') !== false ||
             stripos($dbError, 'server has gone away') !== false ||
-            // Laravel HTTP client timeout via PDO
             (stripos($dbError, 'SQLSTATE') !== false && stripos($dbError, 'timeout') !== false)
         )) {
             $isTimeout = true;
         }
 
         if ($isTimeout) {
+            // FIX: Format sebagai string tunggal + langkah bernomor eksplisit agar lebih mudah
+            // diproses oleh Mistral yang kadang mengabaikan nested JSON array.
             return json_encode([
                 'error'  => 'QUERY_TIMEOUT',
-                'detail' => 'Query melebihi batas waktu eksekusi (120 detik).',
-                'MANDATORY_AI_ACTION' => [
-                    'step1' => 'JANGAN menyimpulkan data tidak ada. Timeout berarti query terlalu berat, BUKAN data kosong.',
-                    'step2' => 'Optimasi query dengan salah satu strategi berikut:',
-                    'strategies' => [
-                        'A: Tambahkan filter tahun/bulan yang lebih spesifik menggunakan kolom bertipe date/timestamp yang ada di schema.',
-                        'B: Ganti fungsi EXTRACT() dengan range langsung: tgl_fak_jl BETWEEN \'2025-03-01\' AND \'2025-03-31\'',
-                        'C: Jika filter nama_cabang lambat, coba filter dengan kode_cabang jika tersedia (lebih cepat karena biasanya diindex).',
-                        'D: Kurangi kolom SELECT — hanya ambil kolom yang benar-benar dibutuhkan.',
-                    ],
-                    'step3' => 'Jalankan ulang execute_query dengan query yang sudah dioptimasi.',
-                ]
+                'detail' => 'Query melebihi batas waktu 120 detik.',
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    '*** PERINGATAN KRITIS: TIMEOUT BUKAN BERARTI DATA TIDAK ADA. ***',
+                    'Anda WAJIB melakukan langkah berikut — DILARANG menyerah atau memberikan jawaban kepada user:',
+                    'LANGKAH 1: Panggil describe_table untuk tabel yang sama guna mendapatkan nama kolom DATE/TIMESTAMP yang benar.',
+                    'LANGKAH 2: Buat ulang query execute_query dengan perbaikan:',
+                    '(a) Ganti periode_bulan/periode_tahun dengan filter BETWEEN pada kolom tanggal yang benar: kolom_tgl BETWEEN \'2025-03-01\' AND \'2025-03-31\'.',
+                    '(b) Pastikan filter cabang pakai ILIKE: nama_cabang ILIKE \'%hm%\' AND nama_cabang ILIKE \'%yamin%\'.',
+                    '(c) Hanya SELECT kolom yang dibutuhkan, jangan SELECT *.',
+                    'LANGKAH 3: Jalankan execute_query dengan query yang sudah dioptimasi.',
+                    'Ulangi minimal 3 kali sebelum menyatakan ada kendala teknis kepada user.',
+                ]),
             ]);
         }
 
-        // Undefined column / relation does not exist
-        if (stripos($dbError, 'Undefined column') !== false || stripos($dbError, 'column') !== false && stripos($dbError, 'does not exist') !== false) {
+        // Undefined column / does not exist
+        if (
+            stripos($dbError, 'Undefined column') !== false
+            || (stripos($dbError, 'column') !== false && stripos($dbError, 'does not exist') !== false)
+        ) {
             return json_encode([
                 'error'  => 'UNDEFINED_COLUMN',
                 'detail' => $dbError,
-                'MANDATORY_AI_ACTION' => 'Nama kolom salah. WAJIB panggil describe_table dengan database_code dan schema_name yang eksak untuk melihat daftar kolom yang benar, kemudian retry execute_query.',
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    'Nama kolom yang digunakan SALAH.',
+                    'WAJIB: Panggil describe_table dengan database_code dan schema_name yang eksak untuk melihat daftar kolom yang benar.',
+                    'Kemudian retry execute_query menggunakan nama kolom yang benar dari hasil describe_table.',
+                    'DILARANG menebak nama kolom.',
+                ]),
             ]);
         }
 
@@ -408,14 +420,22 @@ class QueryService extends BaseService
             return json_encode([
                 'error'  => 'RELATION_NOT_FOUND',
                 'detail' => $dbError,
-                'MANDATORY_AI_ACTION' => 'Nama tabel atau schema salah. WAJIB panggil get_database_schema_info untuk mendapatkan nama eksak, kemudian retry execute_query.',
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    'Nama tabel atau schema SALAH.',
+                    'WAJIB: Panggil get_database_schema_info untuk mendapatkan nama eksak tabel dan schema.',
+                    'Kemudian retry execute_query dengan nama yang benar.',
+                ]),
             ]);
         }
 
         return json_encode([
             'error'  => 'DATABASE_ERROR',
             'detail' => $dbError,
-            'MANDATORY_AI_ACTION' => 'Jika error disebabkan nama kolom atau tabel yang salah, WAJIB panggil describe_table untuk verifikasi struktur, kemudian retry. Jangan menyerah dan jangan bilang data tidak ada sebelum berhasil atau mencapai 3x retry.',
+            'MANDATORY_AI_ACTION' => implode(' ', [
+                'Terjadi error database.',
+                'Jika disebabkan nama kolom salah: panggil describe_table dulu, lalu retry execute_query.',
+                'JANGAN menyerah dan JANGAN simpulkan data tidak ada sebelum berhasil atau minimal 3x retry.',
+            ]),
         ]);
     }
 }

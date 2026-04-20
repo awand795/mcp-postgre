@@ -168,6 +168,11 @@ class SchemaService extends BaseService
 
     /**
      * Get distinct values for a specific column.
+     *
+     * FIX: Fallback SELECT DISTINCT dihapus karena menyebabkan timeout pada VIEW besar.
+     * Sekarang jika TABLESAMPLE gagal (misal: karena target adalah VIEW, bukan table fisik),
+     * langsung kembalikan instruksi MANDATORY_AI_ACTION agar AI melanjutkan ke describe_table
+     * + execute_query dengan filter ILIKE, tanpa membuang waktu 48 detik untuk SELECT DISTINCT.
      */
     public function getColumnValues(string $databaseCode, string $schemaName, string $tableName, string $columnName): string
     {
@@ -191,46 +196,56 @@ class SchemaService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set short timeout — 15 detik cukup untuk TABLESAMPLE, jika timeout return skip-hint
+            // Set short timeout — 10 detik cukup untuk TABLESAMPLE pada tabel fisik.
+            // Jika timeout/gagal (misal: target adalah VIEW), langsung return skip-hint ke AI.
             if ($dbModel->driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 15000');
+                DB::connection($connName)->statement('SET statement_timeout = 10000');
             } elseif (in_array($dbModel->driver, ['mysql', 'mariadb'])) {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 15000');
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 10000');
             }
 
             // Coba dengan TABLESAMPLE dulu (cepat, hanya scan ~5% baris)
-            $query  = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
-            $values = null;
+            // CATATAN: TABLESAMPLE hanya bisa dipakai pada tabel fisik & materialized view,
+            // BUKAN regular VIEW. Jika gagal karena alasan apapun, langsung return instruksi skip.
+            $query = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
             try {
                 $values = DB::connection($connName)->select($query);
+                $flatValues = array_map(fn($v) => current((array)$v), $values);
+                DB::purge($connName);
+                return $this->safeJsonEncode([
+                    'database'        => $databaseCode,
+                    'column'          => "{$schemaName}.{$tableName}.{$columnName}",
+                    'distinct_values' => $flatValues,
+                    'note'            => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
+                ]);
             } catch (\Exception $tablesampleErr) {
-                Log::warning("[SchemaService] Fast query failed for {$tableName}.{$columnName}, trying exact: " . $tablesampleErr->getMessage());
-                // Reset timeout lebih panjang lalu coba exact query
-                if ($dbModel->driver === 'pgsql') {
-                    DB::connection($connName)->statement('SET statement_timeout = 30000');
-                }
-                $fallbackQuery = method_exists($adapter, 'getDistinctValuesQueryExact')
-                    ? $adapter->getDistinctValuesQueryExact($schemaName, $tableName, $columnName, 20)
-                    : "SELECT DISTINCT \"{$columnName}\" FROM \"{$schemaName}\".\"{$tableName}\" WHERE \"{$columnName}\" IS NOT NULL ORDER BY \"{$columnName}\" LIMIT 20";
-                $values = DB::connection($connName)->select($fallbackQuery);
+                // FIX: JANGAN coba fallback SELECT DISTINCT — ini akan timeout pada VIEW besar.
+                // Langsung beri tahu AI untuk skip dan gunakan describe_table + ILIKE.
+                DB::purge($connName);
+                Log::warning("[SchemaService] get_column_values skipped for {$tableName}.{$columnName} (likely a VIEW): " . $tablesampleErr->getMessage());
+                return $this->safeJsonEncode([
+                    'warning' => "get_column_values tidak didukung untuk '{$tableName}' (kemungkinan VIEW atau tabel besar tanpa index pada kolom ini).",
+                    'MANDATORY_AI_ACTION' => implode(' ', [
+                        "JANGAN tunggu atau retry get_column_values.",
+                        "LANGKAH WAJIB BERIKUTNYA:",
+                        "(1) Panggil describe_table untuk '{$databaseCode}', '{$schemaName}', '{$tableName}' agar mendapat nama kolom yang TEPAT (terutama kolom tanggal/periode).",
+                        "(2) Gunakan filter ILIKE untuk kolom teks: {$columnName} ILIKE '%kata1%' AND {$columnName} ILIKE '%kata2%'.",
+                        "(3) Untuk filter tanggal, WAJIB pakai BETWEEN dengan kolom DATE/TIMESTAMP aktual dari describe_table, BUKAN periode_bulan atau periode_tahun.",
+                        "(4) Jalankan execute_query dengan nama kolom yang sudah diverifikasi dari describe_table.",
+                    ]),
+                ]);
             }
-
-            $flatValues = array_map(fn($v) => current((array)$v), $values);
-
-            DB::purge($connName);
-            return $this->safeJsonEncode([
-                'database'        => $databaseCode,
-                'column'          => "{$schemaName}.{$tableName}.{$columnName}",
-                'distinct_values' => $flatValues,
-                'note'            => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
-            ]);
         } catch (\Exception $e) {
             DB::purge($connName);
-            Log::warning("[SchemaService] getColumnValues failed for {$tableName}.{$columnName}: " . $e->getMessage());
-            // Jangan error — kembalikan instruksi ke AI untuk skip dan pakai ILIKE langsung
+            Log::warning("[SchemaService] getColumnValues outer exception for {$tableName}.{$columnName}: " . $e->getMessage());
             return $this->safeJsonEncode([
-                'warning' => 'get_column_values terlalu lambat atau gagal untuk tabel/view ini.',
-                'MANDATORY_AI_ACTION' => "SKIP get_column_values. Lanjutkan langsung ke execute_query. Gunakan filter ILIKE pada kolom {$columnName}: {$columnName} ILIKE '%kata1%' AND {$columnName} ILIKE '%kata2%'",
+                'warning' => 'get_column_values gagal untuk tabel/view ini.',
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    "JANGAN retry get_column_values.",
+                    "Panggil describe_table untuk '{$databaseCode}', '{$schemaName}', '{$tableName}' terlebih dahulu.",
+                    "Kemudian jalankan execute_query dengan nama kolom yang benar dari hasil describe_table.",
+                    "Gunakan ILIKE untuk filter teks dan BETWEEN untuk filter tanggal.",
+                ]),
             ]);
         }
     }
@@ -436,9 +451,9 @@ class SchemaService extends BaseService
             'total_tables'    => $totalTables,
             'is_eager_loaded' => $isSmallSchema,
             'databases'       => $overview,
-            'usage_note'      => $isSmallSchema 
-                ? 'Column info is eager loaded. You can write execute_query directly. IMPORTANT: Use the exact schema key (e.g. "sch_mbi", "public") and database key (e.g. "data_mbi") shown in this response. NEVER use "*" as schema_name or database_code.'
-                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the exact schema key and database key shown in this response as the database_code and schema_name parameters. NEVER use "*".',
+            'usage_note'      => $isSmallSchema
+                ? 'Column info is eager loaded. IMPORTANT: Even if is_eager_loaded is true, if columns appear empty or incomplete for a VIEW, you MUST call describe_table before execute_query. Use the exact schema key (e.g. "sch_mbi") and database key (e.g. "data_mbi"). NEVER use "*".'
+                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the exact schema key and database key shown in this response. NEVER use "*".',
         ]);
     }
 
