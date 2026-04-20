@@ -860,19 +860,20 @@
                 const toolBadges = {};
 
                 try {
-                    const selectedModelId = document.getElementById('ai-model-select')?.value;
-                    const response = await fetch('{{ route("chatbot.send") }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        },
-                        body: JSON.stringify({ 
-                            message, 
-                            history: conversationHistory,
-                            chat_session_id: currentSessionId,
-                            ai_model_id: selectedModelId
-                        }),
+                        const selectedModelId = document.getElementById('ai-model-select')?.value;
+                        const response = await fetch('{{ route("chatbot.send") }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: JSON.stringify({ 
+                                message, 
+                                history: conversationHistory,
+                                chat_session_id: currentSessionId,
+                                model_id: selectedModelId
+                            }),
                     });
 
                     // Save preference
@@ -2761,16 +2762,19 @@
             let lastUpdateTime = Date.now();
 
             try {
+                const selectedModelId = document.getElementById('ai-model-select')?.value;
                 const response = await fetch('{{ route("chatbot.send") }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     },
                     body: JSON.stringify({
                         message,
                         history: conversationHistory,
-                        chat_session_id: currentSessionId
+                        chat_session_id: currentSessionId,
+                        model_id: selectedModelId
                     }),
                 });
 
