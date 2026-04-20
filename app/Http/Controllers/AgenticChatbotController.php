@@ -81,7 +81,12 @@ class AgenticChatbotController extends Controller
         }
 
         $allowedDatabases = [];
-        if (!$user->is_admin && $user->roleModel) {
+        if ($user->is_admin) {
+            $conns = \App\Models\DatabaseConnection::active()->get();
+            foreach ($conns as $c) {
+                $allowedDatabases[$c->code] = ['*' => ['*']];
+            }
+        } elseif ($user->roleModel) {
             if (method_exists($user->roleModel, 'getAllowedDatabases')) {
                 $allowedDatabases = $user->roleModel->getAllowedDatabases();
             } else {
@@ -90,14 +95,25 @@ class AgenticChatbotController extends Controller
                     $schema = $perm->schema_name;
                     $tbl = $perm->table_name;
 
-                    if (!$db || $db === '*') continue;
+                    if ($db === '*') {
+                        $conns = \App\Models\DatabaseConnection::active()->get();
+                        foreach ($conns as $c) {
+                            $allowedDatabases[$c->code] = ['*' => ['*']];
+                        }
+                        continue;
+                    }
+                    if (!$db) continue;
                     
                     if (!isset($allowedDatabases[$db])) $allowedDatabases[$db] = [];
-                    if ($schema && $schema !== '*') {
-                        if (!isset($allowedDatabases[$db][$schema])) $allowedDatabases[$db][$schema] = [];
-                        if ($tbl && $tbl !== '*') {
-                            $allowedDatabases[$db][$schema][] = $tbl;
-                        }
+                    $schemaKey = ($schema && $schema !== '*') ? $schema : '*';
+                    
+                    if (!isset($allowedDatabases[$db][$schemaKey])) $allowedDatabases[$db][$schemaKey] = [];
+                    
+                    if ($tbl && $tbl !== '*') {
+                        $allowedDatabases[$db][$schemaKey][] = $tbl;
+                    } elseif ($schemaKey !== '*') {
+                        // Allow all tables in this specific schema
+                        $allowedDatabases[$db][$schemaKey][] = '*';
                     }
                 }
             }
