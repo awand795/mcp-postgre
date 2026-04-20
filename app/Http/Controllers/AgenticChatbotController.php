@@ -359,9 +359,9 @@ class AgenticChatbotController extends Controller
         if ($systemInstruction) $payload['system_instruction'] = $systemInstruction;
 
         $response = Http::withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
-        if ($response->failed()) { Log::error("[Gemini] Error: " . $response->body()); return null; }
+        if ($response->failed()) { Log::error("[Gemini] API Error: " . $response->status() . " - " . $response->body()); return null; }
         $data = $response->json();
-        if (!isset($data['candidates'][0]['content'])) return null;
+        if (!isset($data['candidates'][0]['content'])) { Log::error("[Gemini] Invalid structure: " . json_encode($data)); return null; }
         $modelMsg = $data['candidates'][0]['content'];
         $resContent = ''; $toolCalls = [];
         foreach ($modelMsg['parts'] as $part) {
@@ -397,5 +397,16 @@ class AgenticChatbotController extends Controller
 
     private function processContentForCharts(string $content, array $toolResults): string { return $content; }
     private function streamText(string $text): void { foreach (mb_str_split($text, 30) as $chunk) { echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n"; ob_flush(); flush(); } }
-    private function buildSystemPrompt(string $lang, array $allowedDatabases = []): string { return "You are DataBot..."; }
+    
+    private function buildSystemPrompt(string $lang, array $allowedDatabases = []): string 
+    { 
+        $dbSummaries = [];
+        foreach ($allowedDatabases as $dbCode => $schemas) {
+            $schemaList = implode(', ', array_keys($schemas));
+            $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
+        }
+        $dbSummaryText = implode(PHP_EOL, $dbSummaries);
+
+        return "You are DataBot, an expert AI Data Analyst for MBI with access to: \n{$dbSummaryText}\n Persona: Professional Executive Analyst. Use formal language. Never show SQL. Refer to system as Internal Analysis.";
+    }
 }
