@@ -4,10 +4,10 @@
 <div class="header">
     <h1>Management User</h1>
     <div class="header-actions">
-        <button class="btn btn-success" onclick="downloadTemplate()"><i class="fas fa-download"></i> <span class="btn-text">Template</span></button>
-        <button class="btn btn-info" onclick="showModal('import')"><i class="fas fa-file-import"></i> <span class="btn-text">Import</span></button>
-        <button class="btn btn-secondary" onclick="exportUsers()"><i class="fas fa-file-export"></i> <span class="btn-text">Export</span></button>
-        <button class="btn btn-primary" onclick="showModal('create')"><i class="fas fa-plus"></i> <span class="btn-text">Tambah User</span></button>
+        <button class="btn btn-success" onclick="downloadTemplate()"><i class="fas fa-download"></i> <span>Template</span></button>
+        <button class="btn btn-info" onclick="showModal('import')"><i class="fas fa-file-import"></i> <span>Import</span></button>
+        <button class="btn btn-secondary" onclick="exportUsers()"><i class="fas fa-file-export"></i> <span>Export</span></button>
+        <button class="btn btn-primary" onclick="showModal('create')"><i class="fas fa-plus"></i> <span>Tambah User</span></button>
     </div>
 </div>
 
@@ -20,7 +20,7 @@
 @if($errors->any())
     <div class="alert alert-error">
         <i class="fas fa-exclamation-circle"></i> <strong>Gagal!</strong>
-        <ul>
+        <ul style="margin-top: 5px; margin-left: 20px;">
             @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
@@ -32,11 +32,11 @@
 <div class="glass-card filter-card">
     <form action="{{ route('admin.users') }}" method="GET" class="filter-form">
         <div class="filter-group">
-            <label>Cari User</label>
+            <label><i class="fas fa-search"></i> Cari User</label>
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama atau Email...">
         </div>
         <div class="filter-group">
-            <label>Filter Role</label>
+            <label><i class="fas fa-user-tag"></i> Filter Role</label>
             <select name="role_filter">
                 <option value="">Semua Role</option>
                 @foreach($roles as $role)
@@ -45,8 +45,8 @@
             </select>
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cari</button>
-            <a href="{{ route('admin.users') }}" class="btn btn-reset btn-cancel"><i class="fas fa-sync"></i> Reset</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+            <a href="{{ route('admin.users') }}" class="btn btn-cancel"><i class="fas fa-sync"></i> Reset</a>
         </div>
     </form>
 </div>
@@ -209,10 +209,9 @@
 </div>
 
 <style>
-    .filter-group select option { background: #1a1a1a; color: white; }
+    .filter-group select option { background: #1e293b; color: white; }
     .action-buttons { display: flex; gap: 8px; }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
-    .btn-delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
     /* AI Config Grouping */
     .section-divider {
@@ -241,23 +240,36 @@
     .ai-check-label.active { border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.1); }
 
     .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .table-card { padding: 0; overflow: hidden; }
+    .table-card { padding: 0; overflow: hidden; margin-top: 1rem; }
     table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
-    th { padding: 1.5rem; text-align: left; color: #94a3b8; background: rgba(255,255,255,0.05); }
-    td { padding: 1.5rem; border-bottom: 1px solid var(--glass-border); }
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-content { width: 100%; max-width: 500px; max-height: 95vh; overflow-y: auto; }
-    .form-group { margin-bottom: 1.25rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; color: #94a3b8; }
-    .form-group input, .form-group select { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; }
-    .checkbox-group { display: flex; align-items: center; gap: 10px; }
-    .checkbox-group input { width: auto !important; }
+    th { padding: 1.25rem 1.5rem; text-align: left; color: #94a3b8; background: rgba(255,255,255,0.03); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--glass-border); font-size: 0.95rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.01); }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-content { width: 100%; max-width: 500px; max-height: 95vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-group label { display: block; margin-bottom: 0.6rem; color: #94a3b8; font-weight: 600; font-size: 0.9rem; }
+    .form-group input, .form-group select { width: 100%; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--glass-border); padding: 0.8rem 1rem; border-radius: 12px; color: white; transition: all 0.3s; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+    .checkbox-group { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); padding: 0.8rem 1rem; border-radius: 12px; border: 1px solid var(--glass-border); }
+    .checkbox-group input { width: 18px !important; height: 18px !important; cursor: pointer; }
+    .checkbox-group label { margin-bottom: 0; cursor: pointer; color: #e2e8f0; }
+    
+    .pagination-container { margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .pagination-info { color: #64748b; font-size: 0.9rem; }
 </style>
 
 <script>
     let currentEditingUserId = null;
 
     function showModal(type, user = null) {
+        if (type === 'import') {
+            document.getElementById('importModal').style.display = 'flex';
+            return;
+        }
+
         const modal = document.getElementById('userModal');
         const form = document.getElementById('userForm');
         modal.style.display = 'flex';
@@ -281,6 +293,14 @@
 
     function hideModal() { document.getElementById('userModal').style.display = 'none'; }
     function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
+
+    function downloadTemplate() {
+        window.location.href = "{{ route('admin.users.template') }}";
+    }
+
+    function exportUsers() {
+        window.location.href = "{{ route('admin.users.export') }}";
+    }
 
     function showAiConfig(user) {
         currentEditingUserId = user.id;
