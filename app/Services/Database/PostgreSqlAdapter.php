@@ -116,11 +116,16 @@ class PostgreSqlAdapter extends DriverAdapter
                 c.table_schema, 
                 c.table_name, 
                 c.column_name, 
-                obj_description(t.oid) AS description
+                COALESCE(col_description(t.oid, c.ordinal_position), obj_description(t.oid)) AS description
             FROM information_schema.columns c
             JOIN pg_class t ON t.relname = c.table_name
             JOIN pg_namespace n ON n.oid = t.relnamespace AND n.nspname = c.table_schema
-            WHERE (c.table_name ILIKE ? OR c.column_name ILIKE ?)
+            WHERE (
+                c.table_name ILIKE ? 
+                OR c.column_name ILIKE ? 
+                OR obj_description(t.oid) ILIKE ? 
+                OR col_description(t.oid, c.ordinal_position) ILIKE ?
+            )
             AND c.table_schema NOT IN ('pg_catalog', 'information_schema')
             ORDER BY c.table_schema, c.table_name
             LIMIT 100

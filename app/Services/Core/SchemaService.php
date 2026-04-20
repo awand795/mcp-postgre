@@ -212,7 +212,12 @@ class SchemaService extends BaseService
 
                 $query = $adapter->searchSchemaQuery();
                 $searchTerm = "%{$keyword}%";
-                $matches = DB::connection($connName)->select($query, [$searchTerm, $searchTerm]);
+                
+                // Dynamically determine number of placeholders needed
+                $placeholderCount = substr_count($query, '?');
+                $params = array_fill(0, $placeholderCount, $searchTerm);
+                
+                $matches = DB::connection($connName)->select($query, $params);
 
                 foreach ($matches as $match) {
                     // Filter matches by user's RBAC

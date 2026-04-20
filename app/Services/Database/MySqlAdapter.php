@@ -106,7 +106,7 @@ class MySqlAdapter extends DriverAdapter
                 column_name, 
                 column_comment AS description
             FROM information_schema.columns
-            WHERE (table_name LIKE ? OR column_name LIKE ?)
+            WHERE (table_name LIKE ? OR column_name LIKE ? OR column_comment LIKE ?)
             AND table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
             ORDER BY table_schema, table_name
             LIMIT 100

@@ -144,7 +144,7 @@ class SqlServerAdapter extends DriverAdapter
             LEFT JOIN sys.extended_properties ep ON ep.major_id = t.object_id 
                 AND ep.minor_id = c.column_id
                 AND ep.name = 'MS_Description'
-            WHERE (t.name LIKE ? OR c.name LIKE ?)
+            WHERE (t.name LIKE ? OR c.name LIKE ? OR CAST(ep.value AS NVARCHAR(MAX)) LIKE ?)
             AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA')
             ORDER BY s.name, t.name
         ";
