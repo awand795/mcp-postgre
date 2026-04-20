@@ -13,6 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Http;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
+use App\Services\Core\QueryService;
 use Exception;
 
 class AgenticChatbotController extends Controller
