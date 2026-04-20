@@ -91,7 +91,14 @@ class AgenticChatbotController extends Controller
 
         return response()->stream(
             function () use ($messages, $apiKey, $selectedModel, $detectedLang, $allowedDatabases, $chatSessionId, $maxTokens) {
-                $this->runAgenticLoop($messages, $apiKey, $detectedLang, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens);
+                try {
+                    $this->runAgenticLoop($messages, $apiKey, $detectedLang, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens);
+                } catch (\Throwable $e) {
+                    Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+                    $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
+                    echo "data: [DONE]\n\n";
+                    if (ob_get_level() > 0) ob_flush(); flush();
+                }
             },
             200,
             [
@@ -120,11 +127,11 @@ class AgenticChatbotController extends Controller
             $loopCount++;
             
             // Gunakan log resmi Laravel agar bisa dilihat di storage/logs/laravel.log
-            Log::info("[Agentic] Loop #{$loopCount} - User: " . Auth::user()->name . " - Model: " . $model->model_name);
+            Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
                 $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens);
-            } catch (Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
                 $response = null;
             }
