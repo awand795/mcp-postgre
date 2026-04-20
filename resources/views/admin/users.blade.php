@@ -383,18 +383,6 @@
         padding: 8px 12px;
     }
 
-    .btn-edit {
-        background: rgba(245, 158, 11, 0.2);
-        color: #f59e0b;
-        border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-
-    .btn-edit:hover {
-        background: rgba(245, 158, 11, 0.3);
-        color: #fbbf24;
-        transform: translateY(-2px);
-    }
-
     .btn-delete {
         background: rgba(239, 68, 68, 0.1);
         color: #ef4444;

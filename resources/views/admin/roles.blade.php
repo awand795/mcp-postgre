@@ -18,11 +18,11 @@
                             onclick="selectRole({{ $role->id }}, this)">
                             <span><i class="fas fa-user-shield" style="margin-right: 10px;"></i> {{ $role->name }}</span>
                             <div style="display: flex; gap: 8px;">
-                                <i class="fas fa-edit"
+                                <i class="fas fa-edit btn-edit"
                                     onclick="event.stopPropagation(); showRoleModal('edit', {{ json_encode($role) }})"
-                                    style="font-size: 0.9rem; opacity: 0.7; cursor: pointer;" title="Edit Role"></i>
+                                    style="font-size: 0.8rem; padding: 6px; border-radius: 8px; cursor: pointer;" title="Edit Role"></i>
                                 <i class="fas fa-trash" onclick="event.stopPropagation(); deleteRole({{ $role->id }})"
-                                    style="font-size: 0.9rem; opacity: 0.7; cursor: pointer; color: #ef4444;"
+                                    style="font-size: 0.8rem; padding: 6px; opacity: 0.7; cursor: pointer; color: #ef4444;"
                                     title="Hapus Role"></i>
                             </div>
                         </button>

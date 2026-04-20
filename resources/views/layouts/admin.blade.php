@@ -197,6 +197,18 @@
             box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
         }
 
+        .btn-edit {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-edit:hover {
+            background: rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            transform: translateY(-2px);
+        }
+
         /* Responsive Styles */
         @media (max-width: 1024px) {
             .sidebar {

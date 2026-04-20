@@ -55,7 +55,7 @@
                         <button class="btn-icon" onclick="testConnection({{ $db->id }})" title="Test Connection">
                             <i class="fas fa-plug"></i>
                         </button>
-                        <button class="btn-icon" onclick="showDatabaseModal('edit', {{ json_encode($db) }})" title="Edit">
+                        <button class="btn-icon btn-edit" onclick="showDatabaseModal('edit', {{ json_encode($db) }})" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         @if(!$db->is_default)
