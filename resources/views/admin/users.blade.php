@@ -118,7 +118,7 @@
 </div>
 @endif
 
-<!-- User Modal (Create/Edit) -->
+<!-- User Modal -->
 <div id="userModal" class="modal-overlay">
     <div class="glass-card modal-content">
         <h3 id="modalTitle">Tambah User</h3>
@@ -127,15 +127,15 @@
             <input type="hidden" name="_method" id="formMethod" value="POST">
             <div class="form-group">
                 <label>Nama Lengkap</label>
-                <input type="text" name="name" id="userName" required placeholder="Nama User">
+                <input type="text" name="name" id="userName" required>
             </div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" id="userEmail" required placeholder="email@domain.com">
+                <input type="email" name="email" id="userEmail" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" id="userPassword" placeholder="Kosongkan jika tidak ingin mengubah">
+                <input type="password" name="password" id="userPassword">
             </div>
             <div class="form-group">
                 <label>Role</label>
@@ -148,14 +148,12 @@
             </div>
             <div class="form-group">
                 <label>Max Tokens</label>
-                <input type="number" name="max_tokens" id="userMaxTokens" value="32768" required min="1">
-                <small style="color: #64748b; font-size: 0.75rem;">Default: 32768 (Kontrol panjang respon AI)</small>
+                <input type="number" name="max_tokens" id="userMaxTokens" value="32768" required>
             </div>
             <div class="form-group checkbox-group">
                 <input type="checkbox" name="is_admin" id="userIsAdmin" value="1">
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
-
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
                 <button type="submit" class="btn btn-primary">Simpan</button>
@@ -166,25 +164,29 @@
 
 <!-- AI Configuration Modal -->
 <div id="aiConfigModal" class="modal-overlay">
-    <div class="glass-card modal-content" style="max-width: 600px;">
-        <h3>AI Configuration - <span id="aiConfigUserName"></span></h3>
-        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">Aktifkan atau nonaktifkan akses model dan API key spesifik untuk user ini.</p>
+    <div class="glass-card modal-content" style="max-width: 700px; padding: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin:0">AI Access: <span id="aiConfigUserName"></span></h3>
+            <button class="btn btn-cancel" onclick="hideAiConfig()" style="padding: 5px 12px; border-radius: 50%">&times;</button>
+        </div>
         
-        <div style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
-            <h4 style="color: var(--primary); font-size: 0.95rem; margin-bottom: 1rem;"><i class="fas fa-brain"></i> AI Models Access</h4>
-            <div class="ai-config-list" id="aiModelsList">
-                <!-- Dynamic Content -->
+        <form id="aiConfigForm">
+            @csrf
+            <div style="max-height: 60vh; overflow-y: auto; padding-right: 15px;" id="aiConfigScrollArea">
+                <h4 class="section-divider"><i class="fas fa-brain"></i> AI Models Access</h4>
+                <div id="aiModelsGrouped"></div>
+
+                <h4 class="section-divider" style="color: #10b981; margin-top: 2rem;"><i class="fas fa-key"></i> API Keys Access</h4>
+                <div id="aiKeysGrouped"></div>
             </div>
 
-            <h4 style="color: #10b981; font-size: 0.95rem; margin-top: 2rem; margin-bottom: 1rem;"><i class="fas fa-key"></i> API Keys Access</h4>
-            <div class="ai-config-list" id="aiKeysList">
-                <!-- Dynamic Content -->
+            <div class="modal-actions" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                <button type="button" class="btn btn-cancel" onclick="hideAiConfig()">Batal</button>
+                <button type="button" class="btn btn-primary" id="btnSaveAiConfig">
+                    <i class="fas fa-save"></i> Simpan Akses AI
+                </button>
             </div>
-        </div>
-
-        <div class="modal-actions" style="margin-top: 2rem;">
-            <button type="button" class="btn btn-primary" onclick="location.reload()">Selesai & Refresh</button>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -195,9 +197,8 @@
         <form action="{{ route('admin.users.import') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="form-group">
-                <label>File Excel (.xlsx, .xls)</label>
-                <input type="file" name="file" required accept=".xlsx, .xls">
-                <small style="color: #64748b;">Gunakan template yang tersedia untuk format yang benar.</small>
+                <label>File Excel</label>
+                <input type="file" name="file" required>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideImportModal()">Batal</button>
@@ -208,389 +209,68 @@
 </div>
 
 <style>
-    .header-actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+    .filter-group select option { background: #1a1a1a; color: white; }
+    .action-buttons { display: flex; gap: 8px; }
+    .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
+    .btn-delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+    /* AI Config Grouping */
+    .section-divider {
+        font-size: 0.95rem; font-weight: 700; color: var(--primary);
+        display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem;
     }
-
-    .btn-success {
-        background: rgba(16, 185, 129, 0.2);
-        color: #10b981;
-        border: 1px solid rgba(16, 185, 129, 0.3);
+    .ai-group-box {
+        background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;
     }
-
-    .btn-success:hover {
-        background: rgba(16, 185, 129, 0.3);
+    .ai-group-name {
+        font-size: 0.75rem; font-weight: 800; color: #64748b;
+        text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;
     }
-
-    .btn-info {
-        background: rgba(59, 130, 246, 0.2);
-        color: #3b82f6;
-        border: 1px solid rgba(59, 130, 246, 0.3);
+    .ai-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;
     }
-
-    .btn-info:hover {
-        background: rgba(59, 130, 246, 0.3);
+    .ai-check-label {
+        display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.03);
+        padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+        border: 1px solid transparent;
     }
+    .ai-check-label:hover { background: rgba(255,255,255,0.07); }
+    .ai-check-label input { width: 16px !important; height: 16px !important; margin: 0; }
+    .ai-check-label span { font-size: 0.85rem; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-check-label.active { border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.1); }
 
-    .btn-secondary {
-        background: rgba(107, 114, 128, 0.2);
-        color: #9ca3af;
-        border: 1px solid rgba(107, 114, 128, 0.3);
-    }
-
-    .btn-secondary:hover {
-        background: rgba(107, 114, 128, 0.3);
-    }
-
-    .alert-error {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-        padding: 1rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-
-    .alert-error ul {
-        margin: 0.5rem 0 0 0;
-        padding-left: 1.5rem;
-    }
-
-    .alert-error li {
-        margin-bottom: 0.25rem;
-    }
-    .alert-success {
-        background: rgba(16, 185, 129, 0.2);
-        color: #10b981;
-        padding: 1rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-
-    .filter-card {
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-    }
-
-    .filter-form {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto;
-        gap: 1rem;
-        align-items: end;
-    }
-
-    .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .filter-group label {
-        color: #94a3b8;
-        font-size: 0.9rem;
-    }
-
-    .filter-group input,
-    .filter-group select {
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--glass-border);
-        padding: 0.8rem;
-        border-radius: 12px;
-        color: white;
-        font-size: 0.95rem;
-    }
-
-    .filter-actions {
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn-reset {
-        background: rgba(255,255,255,0.1);
-    }
-
-    /* Table Styles */
-    .table-card {
-        padding: 0;
-        overflow: hidden;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        color: #cbd5e1;
-        min-width: 800px;
-    }
-
-    thead tr {
-        background: rgba(255,255,255,0.05);
-        text-align: left;
-    }
-
-    th {
-        padding: 1.5rem;
-        font-weight: 600;
-        color: #94a3b8;
-        white-space: nowrap;
-    }
-
-    td {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--glass-border);
-    }
-
-    tbody tr:hover {
-        background: rgba(255,255,255,0.02);
-    }
-
-    .role-badge {
-        background: rgba(99, 102, 241, 0.1);
-        color: var(--primary);
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-
-    .status-yes {
-        color: #10b981;
-    }
-
-    .status-no {
-        color: #64748b;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 10px;
-    }
-
-    .btn-edit,
-    .btn-delete {
-        padding: 8px 12px;
-    }
-
-    .btn-delete {
-        background: rgba(239, 68, 68, 0.1);
-        color: #ef4444;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem !important;
-        color: #94a3b8;
-    }
-
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    /* Pagination */
-    .pagination-container {
-        margin-top: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .pagination-info {
-        color: #94a3b8;
-        font-size: 0.9rem;
-    }
-
-    .pagination-nav {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    /* Modal */
-    .modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.8);
-        backdrop-filter: blur(5px);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-    }
-
-    .modal-content {
-        width: 100%;
-        max-width: 500px;
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-
-    .form-group {
-        margin-bottom: 1rem;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: #94a3b8;
-    }
-
-    .form-group input,
-    .form-group select {
-        width: 100%;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid var(--glass-border);
-        padding: 0.8rem;
-        border-radius: 12px;
-        color: white;
-    }
-
-    .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 1.5rem;
-    }
-
-    .checkbox-group input {
-        width: auto;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        flex-wrap: wrap;
-    }
-
-    /* AI Config Items */
-    .ai-config-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-    }
-
-    .ai-config-item {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid var(--glass-border);
-        padding: 1rem;
-        border-radius: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .ai-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .ai-name {
-        font-weight: 600;
-        font-size: 0.95rem;
-    }
-
-    .ai-status-badge {
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 4px;
-        width: fit-content;
-    }
-
-    .status-enabled { background: rgba(16, 185, 129, 0.2); color: #10b981; }
-    .status-disabled { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-    .status-noaccess { background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
-
-    .btn-toggle {
-        padding: 6px 12px;
-        border-radius: 8px;
-        border: 1px solid var(--glass-border);
-        background: rgba(255,255,255,0.05);
-        color: white;
-        font-size: 0.8rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-toggle.btn-active {
-        background: rgba(239, 68, 68, 0.1);
-        color: #ef4444;
-        border-color: rgba(239, 68, 68, 0.2);
-    }
-
-    .btn-toggle:not(.btn-active) {
-        background: rgba(16, 185, 129, 0.1);
-        color: #10b981;
-        border-color: rgba(16, 185, 129, 0.2);
-    }
-
-    /* Responsive Styles */
-    @media (max-width: 768px) {
-        .header-actions {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .header-actions .btn {
-            flex: 1;
-            min-width: 120px;
-            justify-content: center;
-        }
-
-        .filter-form {
-            grid-template-columns: 1fr;
-        }
-
-        .filter-actions {
-            width: 100%;
-        }
-
-        .filter-actions .btn {
-            flex: 1;
-            justify-content: center;
-        }
-
-        .btn-text {
-            display: none;
-        }
-    }
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .table-card { padding: 0; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
+    th { padding: 1.5rem; text-align: left; color: #94a3b8; background: rgba(255,255,255,0.05); }
+    td { padding: 1.5rem; border-bottom: 1px solid var(--glass-border); }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
+    .modal-content { width: 100%; max-width: 500px; max-height: 95vh; overflow-y: auto; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; color: #94a3b8; }
+    .form-group input, .form-group select { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; }
+    .checkbox-group input { width: auto !important; }
 </style>
 
 <script>
+    let currentEditingUserId = null;
+
     function showModal(type, user = null) {
         const modal = document.getElementById('userModal');
         const form = document.getElementById('userForm');
-        const title = document.getElementById('modalTitle');
-        const method = document.getElementById('formMethod');
-
         modal.style.display = 'flex';
-
         if (type === 'create') {
-            title.innerText = 'Tambah User';
+            document.getElementById('modalTitle').innerText = 'Tambah User';
             form.action = "{{ route('admin.users.store') }}";
-            method.value = 'POST';
+            document.getElementById('formMethod').value = 'POST';
             form.reset();
             document.getElementById('userMaxTokens').value = 32768;
-        } else if (type === 'import') {
-            document.getElementById('importModal').style.display = 'flex';
-            return;
         } else {
-            title.innerText = 'Edit User';
+            document.getElementById('modalTitle').innerText = 'Edit User';
             form.action = `/admin/users/${user.id}`;
-            method.value = 'PUT';
+            document.getElementById('formMethod').value = 'PUT';
             document.getElementById('userName').value = user.name;
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
@@ -599,101 +279,110 @@
         }
     }
 
+    function hideModal() { document.getElementById('userModal').style.display = 'none'; }
+    function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
+
     function showAiConfig(user) {
-        const modal = document.getElementById('aiConfigModal');
+        currentEditingUserId = user.id;
         document.getElementById('aiConfigUserName').innerText = user.name;
         
-        const modelsList = document.getElementById('aiModelsList');
-        const keysList = document.getElementById('aiKeysList');
+        const modelsContainer = document.getElementById('aiModelsGrouped');
+        const keysContainer = document.getElementById('aiKeysGrouped');
         
         const allModels = @json($aiModels);
         const allKeys = @json($aiKeys);
+        const userModels = user.ai_models ? user.ai_models.map(m => m.id) : [];
+        const userKeys = user.ai_keys ? user.ai_keys.map(k => k.id) : [];
+
+        // Grouping logic
+        const groupedModels = {};
+        allModels.forEach(m => {
+            const provider = m.provider.name;
+            if (!groupedModels[provider]) groupedModels[provider] = [];
+            groupedModels[provider].push(m);
+        });
+
+        const groupedKeys = {};
+        allKeys.forEach(k => {
+            const provider = k.provider.name;
+            if (!groupedKeys[provider]) groupedKeys[provider] = [];
+            groupedKeys[provider].push(k);
+        });
+
+        // Render Models
+        modelsContainer.innerHTML = '';
+        Object.keys(groupedModels).forEach(provider => {
+            const group = document.createElement('div');
+            group.className = 'ai-group-box';
+            group.innerHTML = `<div class="ai-group-name">${provider}</div><div class="ai-grid"></div>`;
+            const grid = group.querySelector('.ai-grid');
+            groupedModels[provider].forEach(model => {
+                const isChecked = userModels.includes(model.id);
+                grid.innerHTML += `
+                    <label class="ai-check-label ${isChecked ? 'active' : ''}">
+                        <input type="checkbox" name="ai_models[]" value="${model.id}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('active', this.checked)">
+                        <span>${model.display_name}</span>
+                    </label>
+                `;
+            });
+            modelsContainer.appendChild(group);
+        });
+
+        // Render Keys
+        keysContainer.innerHTML = '';
+        Object.keys(groupedKeys).forEach(provider => {
+            const group = document.createElement('div');
+            group.className = 'ai-group-box';
+            group.innerHTML = `<div class="ai-group-name">${provider}</div><div class="ai-grid"></div>`;
+            const grid = group.querySelector('.ai-grid');
+            groupedKeys[provider].forEach(key => {
+                const isChecked = userKeys.includes(key.id);
+                grid.innerHTML += `
+                    <label class="ai-check-label ${isChecked ? 'active' : ''}">
+                        <input type="checkbox" name="ai_keys[]" value="${key.id}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('active', this.checked)">
+                        <span>${key.key_name}</span>
+                    </label>
+                `;
+            });
+            keysContainer.appendChild(group);
+        });
+
+        document.getElementById('aiConfigModal').style.display = 'flex';
+    }
+
+    function saveAiConfig() {
+        const btn = document.getElementById('btnSaveAiConfig');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+        const formData = new FormData(document.getElementById('aiConfigForm'));
         
-        const userModels = user.ai_models || [];
-        const userKeys = user.ai_keys || [];
-
-        // Build Models List
-        modelsList.innerHTML = '';
-        allModels.forEach(model => {
-            const assignment = userModels.find(m => m.id === model.id);
-            const isAssigned = !!assignment;
-            const isEnabled = isAssigned ? !!assignment.pivot.is_enabled : false;
-            
-            const item = document.createElement('div');
-            item.className = 'ai-config-item';
-            item.innerHTML = `
-                <div class="ai-info">
-                    <span class="ai-name">${model.provider.name} - ${model.display_name}</span>
-                    <span class="ai-status-badge ${isAssigned ? (isEnabled ? 'status-enabled' : 'status-disabled') : 'status-noaccess'}">
-                        ${isAssigned ? (isEnabled ? 'ACTIVE' : 'DISABLED') : 'NO ACCESS'}
-                    </span>
-                </div>
-                <div class="ai-toggle-action">
-                    ${isAssigned ? `
-                        <button class="btn-toggle ${isEnabled ? 'btn-active' : ''}" onclick="toggleModelAccess(${user.id}, ${model.id})">
-                            ${isEnabled ? 'Disable' : 'Enable'}
-                        </button>
-                    ` : '<small style="color:#475569">Use Edit User</small>'}
-                </div>
-            `;
-            modelsList.appendChild(item);
-        });
-
-        // Build Keys List
-        keysList.innerHTML = '';
-        allKeys.forEach(key => {
-            const assignment = userKeys.find(k => k.id === key.id);
-            const isAssigned = !!assignment;
-            const isEnabled = isAssigned ? !!assignment.pivot.is_enabled : false;
-            
-            const item = document.createElement('div');
-            item.className = 'ai-config-item';
-            item.innerHTML = `
-                <div class="ai-info">
-                    <span class="ai-name">${key.provider.name} - ${key.key_name}</span>
-                    <span class="ai-status-badge ${isAssigned ? (isEnabled ? 'status-enabled' : 'status-disabled') : 'status-noaccess'}">
-                        ${isAssigned ? (isEnabled ? 'ACTIVE' : 'DISABLED') : 'NO ACCESS'}
-                    </span>
-                </div>
-                <div class="ai-toggle-action">
-                    ${isAssigned ? `
-                        <button class="btn-toggle ${isEnabled ? 'btn-active' : ''}" onclick="toggleKeyAccess(${user.id}, ${key.id})">
-                            ${isEnabled ? 'Disable' : 'Enable'}
-                        </button>
-                    ` : '<small style="color:#475569">Use Edit User</small>'}
-                </div>
-            `;
-            keysList.appendChild(item);
-        });
-
-        modal.style.display = 'flex';
-    }
-
-    function toggleModelAccess(userId, modelId) {
-        fetch(`/admin/users/${userId}/ai-models/${modelId}/toggle`, {
+        fetch(`/admin/users/${currentEditingUserId}/ai-config`, {
             method: 'POST',
+            body: formData,
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-        }).then(() => location.reload());
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Konfigurasi AI diperbarui!', timer: 1500, showConfirmButton: false });
+                location.reload();
+            }
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
     }
 
-    function toggleKeyAccess(userId, keyId) {
-        fetch(`/admin/users/${userId}/ai-keys/${keyId}/toggle`, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-        }).then(() => location.reload());
-    }
-
-    function hideModal() { document.getElementById('userModal').style.display = 'none'; }
-    function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
     function hideAiConfig() { document.getElementById('aiConfigModal').style.display = 'none'; }
+    document.getElementById('btnSaveAiConfig').onclick = saveAiConfig;
 
-    function downloadTemplate() { window.location.href = "{{ route('admin.users.template') }}"; }
-    function exportUsers() { window.location.href = "{{ route('admin.users.export') }}"; }
-
-    window.onclick = function(event) {
-        if (event.target == document.getElementById('userModal')) hideModal();
-        if (event.target == document.getElementById('importModal')) hideImportModal();
-        if (event.target == document.getElementById('aiConfigModal')) hideAiConfig();
+    window.onclick = function(e) {
+        if (e.target.classList.contains('modal-overlay')) {
+            hideModal(); hideImportModal(); hideAiConfig();
+        }
     }
 </script>
 @endsection

@@ -58,6 +58,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
         Route::put('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
+        Route::post('/users/{user}/ai-config', [AdminController::class, 'updateAiConfig'])->name('users.ai_config.update');
         Route::post('/users/{user}/ai-models/{model}/toggle', [AdminController::class, 'toggleUserAiModel'])->name('users.ai_models.toggle');
         Route::post('/users/{user}/ai-keys/{key}/toggle', [AdminController::class, 'toggleUserAiKey'])->name('users.ai_keys.toggle');
         Route::delete('/users/{user}', [AdminController::class, 'userDelete'])->name('users.delete');

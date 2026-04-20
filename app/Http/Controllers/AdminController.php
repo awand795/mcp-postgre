@@ -151,6 +151,29 @@ class AdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function updateAiConfig(Request $request, User $user)
+    {
+        // Sync models with is_enabled = true
+        $models = [];
+        if ($request->has('ai_models')) {
+            foreach ($request->ai_models as $id) {
+                $models[$id] = ['is_enabled' => true];
+            }
+        }
+        $user->aiModels()->sync($models);
+
+        // Sync keys with is_enabled = true
+        $keys = [];
+        if ($request->has('ai_keys')) {
+            foreach ($request->ai_keys as $id) {
+                $keys[$id] = ['is_enabled' => true];
+            }
+        }
+        $user->aiKeys()->sync($keys);
+
+        return response()->json(['success' => true]);
+    }
+
     public function userDelete(User $user)
     {
         $user->delete();
