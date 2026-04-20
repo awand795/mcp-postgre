@@ -595,15 +595,25 @@ class AgenticChatbotController extends Controller
             ->post($url, $payload);
 
         if ($response->failed()) {
-            Log::error("Gemini API Error: " . $response->body());
+            Log::error("[Gemini] API Error: " . $response->status() . " - " . $response->body());
             return null;
         }
 
         $data = $response->json();
-        $candidate = $data['candidates'][0] ?? null;
-        if (!$candidate) return null;
+        
+        if (!isset($data['candidates'][0])) {
+            Log::error("[Gemini] No candidates in response: " . json_encode($data));
+            return null;
+        }
 
-        $modelMsg = $candidate['content'];
+        $candidate = $data['candidates'][0];
+        $modelMsg = $candidate['content'] ?? null;
+        
+        if (!$modelMsg || !isset($modelMsg['parts'])) {
+            Log::error("[Gemini] Invalid content structure: " . json_encode($candidate));
+            return null;
+        }
+
         $resContent = '';
         $toolCalls = [];
 
@@ -617,7 +627,7 @@ class AgenticChatbotController extends Controller
                     'type' => 'function',
                     'function' => [
                         'name' => $part['functionCall']['name'],
-                        'arguments' => json_encode($part['functionCall']['args'])
+                        'arguments' => json_encode($part['functionCall']['args'] ?? (object)[])
                     ]
                 ];
             }
