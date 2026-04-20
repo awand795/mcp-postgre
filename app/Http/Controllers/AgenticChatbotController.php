@@ -488,7 +488,8 @@ class AgenticChatbotController extends Controller
 
     private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '')
     {
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model->model_name . ':generateContent?key=' . $apiKey->api_key;
+        $currentModelName = $model->model_name;
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
 
         $payload = [
             'contents' => $messages,
@@ -507,6 +508,16 @@ class AgenticChatbotController extends Controller
         }
 
         $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
+
+        // --- FALLBACK LOGIC ---
+        // If 503 occurs (Overloaded/Busy) after retries, try with a more stable model (1.5-flash)
+        if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
+            Log::warning("[Agentic] Model {$currentModelName} is busy (503). Falling back to gemini-1.5-flash for this turn.");
+            $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
+            $response = Http::timeout(600)->retry(2, 2000)->post($fallbackUrl, $payload);
+        }
+        // ----------------------
+
         return $this->handleProviderResponse($response, 'gemini');
     }
 
