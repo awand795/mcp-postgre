@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [AdminController::class, 'users'])->name('users');
         Route::post('/users', [AdminController::class, 'userStore'])->name('users.store');
         Route::put('/users/{user}', [AdminController::class, 'userUpdate'])->name('users.update');
+        Route::post('/users/{user}/ai-models/{model}/toggle', [AdminController::class, 'toggleUserAiModel'])->name('users.ai_models.toggle');
+        Route::post('/users/{user}/ai-keys/{key}/toggle', [AdminController::class, 'toggleUserAiKey'])->name('users.ai_keys.toggle');
         Route::delete('/users/{user}', [AdminController::class, 'userDelete'])->name('users.delete');
 
         // User Import/Export
@@ -89,8 +91,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'updateKey'])->name('ai_management.update_key');
         Route::delete('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'deleteKey'])->name('ai_management.delete_key');
         Route::post('/ai-management/keys/{key}/reset-limit', [App\Http\Controllers\Admin\AiController::class, 'resetLimit'])->name('ai_management.reset_limit');
-        Route::post('/ai-management/models/{model}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleModel'])->name('ai_management.toggle_model');
-        Route::post('/ai-management/providers/{provider}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleProvider'])->name('ai_management.toggle_provider');
+        Route::post('/ai-management/models', [App\Http\Controllers\Admin\AiController::class, 'storeModel'])->name('ai_management.store_model');
+        Route::delete('/ai-management/models/{model}', [App\Http\Controllers\Admin\AiController::class, 'deleteModel'])->name('ai_management.delete_model');
+        Route::post('/ai-management/models/{model}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleModel'])->name('ai_management.toggle_model');        Route::post('/ai-management/providers/{provider}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleProvider'])->name('ai_management.toggle_provider');
     });
 });
 

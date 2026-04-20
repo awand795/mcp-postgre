@@ -59,14 +59,15 @@ class User extends Authenticatable
      */
     public function aiModels()
     {
-        return $this->belongsToMany(AiModel::class, 'user_ai_models', 'user_id', 'model_id');
+        return $this->belongsToMany(AiModel::class, 'user_ai_models', 'user_id', 'model_id')
+                    ->withPivot('is_enabled')
+                    ->withTimestamps();
     }
 
-    /**
-     * Get the AI API Keys accessible to the user.
-     */
     public function aiKeys()
     {
-        return $this->belongsToMany(AiApiKey::class, 'user_ai_keys', 'user_id', 'api_key_id');
+        return $this->belongsToMany(AiApiKey::class, 'user_ai_keys', 'user_id', 'api_key_id')
+                    ->withPivot('is_enabled')
+                    ->withTimestamps();
     }
 }

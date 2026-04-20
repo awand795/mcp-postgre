@@ -4,62 +4,54 @@
 <div class="header">
     <h1>Management User</h1>
     <div class="header-actions">
-        <button class="btn btn-success" onclick="downloadTemplate()"><i class="fas fa-download"></i> <span>Format Excel</span></button>
-        <button class="btn btn-info" onclick="showModal('import')"><i class="fas fa-file-import"></i> <span>Import Excel</span></button>
-        <button class="btn btn-secondary" onclick="exportUsers()"><i class="fas fa-file-export"></i> <span>Export Excel</span></button>
-        <button class="btn btn-primary" onclick="showModal('create')"><i class="fas fa-plus"></i> <span>Tambah User</span></button>
+        <button class="btn btn-success" onclick="downloadTemplate()"><i class="fas fa-download"></i> <span class="btn-text">Template</span></button>
+        <button class="btn btn-info" onclick="showModal('import')"><i class="fas fa-file-import"></i> <span class="btn-text">Import</span></button>
+        <button class="btn btn-secondary" onclick="exportUsers()"><i class="fas fa-file-export"></i> <span class="btn-text">Export</span></button>
+        <button class="btn btn-primary" onclick="showModal('create')"><i class="fas fa-plus"></i> <span class="btn-text">Tambah User</span></button>
     </div>
 </div>
 
 @if(session('success'))
-    <div class="alert-success">
-        {{ session('success') }}
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i> {{ session('success') }}
     </div>
 @endif
 
-@if(session('error'))
-    <div class="alert-error">
-        {{ session('error') }}
-    </div>
-@endif
-
-@if($errors->has('file'))
-    <div class="alert-error">
+@if($errors->any())
+    <div class="alert alert-error">
+        <i class="fas fa-exclamation-circle"></i> <strong>Gagal!</strong>
         <ul>
-            @foreach($errors->get('file') as $error)
+            @foreach($errors->all() as $error)
                 <li>{{ $error }}</li>
             @endforeach
         </ul>
     </div>
 @endif
 
-<!-- Search & Filter -->
+<!-- Filter & Search -->
 <div class="glass-card filter-card">
-    <form method="GET" action="{{ route('admin.users') }}" class="filter-form">
+    <form action="{{ route('admin.users') }}" method="GET" class="filter-form">
         <div class="filter-group">
-            <label><i class="fas fa-search"></i> Cari User</label>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama atau Email..."
-                   onkeypress="if(event.key === 'Enter') this.form.submit()">
+            <label>Cari User</label>
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama atau Email...">
         </div>
         <div class="filter-group">
-            <label><i class="fas fa-filter"></i> Filter Role</label>
-            <select name="role_filter" onchange="this.form.submit()">
+            <label>Filter Role</label>
+            <select name="role_filter">
                 <option value="">Semua Role</option>
                 @foreach($roles as $role)
-                    <option value="{{ $role->id }}" {{ request('role_filter') == $role->id ? 'selected' : '' }} style="color: black;">{{ $role->name }}</option>
+                    <option value="{{ $role->id }}" {{ request('role_filter') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                 @endforeach
             </select>
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> <span class="btn-text">Cari</span></button>
-            @if(request('search') || request('role_filter'))
-                <a href="{{ route('admin.users') }}" class="btn btn-reset"><i class="fas fa-times"></i> <span class="btn-text">Reset</span></a>
-            @endif
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cari</button>
+            <a href="{{ route('admin.users') }}" class="btn btn-reset btn-cancel"><i class="fas fa-sync"></i> Reset</a>
         </div>
     </form>
 </div>
 
-<!-- User Table -->
+<!-- Table -->
 <div class="glass-card table-card">
     <div class="table-responsive">
         <table>
@@ -89,6 +81,9 @@
                     </td>
                     <td>
                         <div class="action-buttons">
+                            <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
+                                <i class="fas fa-robot"></i>
+                            </button>
                             <button class="btn btn-edit" onclick="showModal('edit', {{ json_encode($user) }})"><i class="fas fa-edit"></i></button>
                             <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" onsubmit="return confirm('Hapus user ini?')">
                                 @csrf
@@ -118,62 +113,34 @@
         Menampilkan {{ $users->firstItem() }} - {{ $users->lastItem() }} dari {{ $users->total() }} user
     </p>
     <nav class="pagination-nav">
-        {{-- Previous Button --}}
-        @if($users->onFirstPage())
-            <span class="btn btn-page disabled">
-                <i class="fas fa-chevron-left"></i> <span class="btn-text">Prev</span>
-            </span>
-        @else
-            <a href="{{ $users->previousPageUrl() }}" class="btn btn-page">
-                <i class="fas fa-chevron-left"></i> <span class="btn-text">Prev</span>
-            </a>
-        @endif
-
-        {{-- Page Numbers --}}
-        @foreach($users->getUrlRange(1, $users->lastPage()) as $page => $url)
-            @if($page == $users->currentPage())
-                <span class="btn btn-page active">{{ $page }}</span>
-            @else
-                <a href="{{ $url }}" class="btn btn-page">{{ $page }}</a>
-            @endif
-        @endforeach
-
-        {{-- Next Button --}}
-        @if($users->hasMorePages())
-            <a href="{{ $users->nextPageUrl() }}" class="btn btn-page">
-                <span class="btn-text">Next</span> <i class="fas fa-chevron-right"></i>
-            </a>
-        @else
-            <span class="btn btn-page disabled">
-                <span class="btn-text">Next</span> <i class="fas fa-chevron-right"></i>
-            </span>
-        @endif
+        {{ $users->links() }}
     </nav>
 </div>
 @endif
 
-<!-- Modal User -->
+<!-- User Modal (Create/Edit) -->
 <div id="userModal" class="modal-overlay">
     <div class="glass-card modal-content">
-        <h3 id="modalTitle" style="margin-bottom: 1.5rem;">Tambah User</h3>
+        <h3 id="modalTitle">Tambah User</h3>
         <form id="userForm" method="POST">
             @csrf
             <input type="hidden" name="_method" id="formMethod" value="POST">
             <div class="form-group">
-                <label>Nama</label>
-                <input type="text" name="name" id="userName" required>
+                <label>Nama Lengkap</label>
+                <input type="text" name="name" id="userName" required placeholder="Nama User">
             </div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" id="userEmail" required>
+                <input type="email" name="email" id="userEmail" required placeholder="email@domain.com">
             </div>
             <div class="form-group">
-                <label>Password (Kosongkan jika tidak ganti)</label>
-                <input type="password" name="password">
+                <label>Password</label>
+                <input type="password" name="password" id="userPassword" placeholder="Kosongkan jika tidak ingin mengubah">
             </div>
             <div class="form-group">
                 <label>Role</label>
                 <select name="role" id="userRole" required>
+                    <option value="">Pilih Role</option>
                     @foreach($roles as $role)
                         <option value="{{ $role->id }}" style="color: black;">{{ $role->name }}</option>
                     @endforeach
@@ -189,35 +156,6 @@
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
 
-            <!-- AI Access Selection -->
-            <div class="form-group">
-                <label style="color: var(--primary); font-weight: 600; margin-bottom: 1rem; display: block;">
-                    <i class="fas fa-brain"></i> Akses AI Models
-                </label>
-                <div class="ai-selection-grid">
-                    @foreach($aiModels as $model)
-                        <label class="ai-checkbox-item">
-                            <input type="checkbox" name="ai_models[]" value="{{ $model->id }}" class="model-checkbox">
-                            <span>{{ $model->provider->name }} - {{ $model->display_name }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </div>
-
-            <div class="form-group" style="margin-top: 1.5rem;">
-                <label style="color: #10b981; font-weight: 600; margin-bottom: 1rem; display: block;">
-                    <i class="fas fa-key"></i> Akses API Keys
-                </label>
-                <div class="ai-selection-grid">
-                    @foreach($aiKeys as $key)
-                        <label class="ai-checkbox-item">
-                            <input type="checkbox" name="ai_keys[]" value="{{ $key->id }}" class="key-checkbox">
-                            <span>{{ $key->provider->name }} - {{ $key->key_name }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </div>
-
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
                 <button type="submit" class="btn btn-primary">Simpan</button>
@@ -226,22 +164,44 @@
     </div>
 </div>
 
-<!-- Modal Import Excel -->
+<!-- AI Configuration Modal -->
+<div id="aiConfigModal" class="modal-overlay">
+    <div class="glass-card modal-content" style="max-width: 600px;">
+        <h3>AI Configuration - <span id="aiConfigUserName"></span></h3>
+        <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;">Aktifkan atau nonaktifkan akses model dan API key spesifik untuk user ini.</p>
+        
+        <div style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+            <h4 style="color: var(--primary); font-size: 0.95rem; margin-bottom: 1rem;"><i class="fas fa-brain"></i> AI Models Access</h4>
+            <div class="ai-config-list" id="aiModelsList">
+                <!-- Dynamic Content -->
+            </div>
+
+            <h4 style="color: #10b981; font-size: 0.95rem; margin-top: 2rem; margin-bottom: 1rem;"><i class="fas fa-key"></i> API Keys Access</h4>
+            <div class="ai-config-list" id="aiKeysList">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 2rem;">
+            <button type="button" class="btn btn-primary" onclick="location.reload()">Selesai & Refresh</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
 <div id="importModal" class="modal-overlay">
     <div class="glass-card modal-content">
-        <h3 style="margin-bottom: 1.5rem;">Import User dari Excel</h3>
-        <form id="importForm" method="POST" action="{{ route('admin.users.import') }}" enctype="multipart/form-data">
+        <h3>Import User</h3>
+        <form action="{{ route('admin.users.import') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="form-group">
-                <label>File Excel (.xlsx, .xls, .csv)</label>
-                <input type="file" name="file" id="importFile" accept=".xlsx,.xls,.csv" required>
-                <small style="color: #94a3b8; display: block; margin-top: 0.5rem;">
-                    <i class="fas fa-info-circle"></i> Download format template terlebih dahulu untuk memastikan format yang benar.
-                </small>
+                <label>File Excel (.xlsx, .xls)</label>
+                <input type="file" name="file" required accept=".xlsx, .xls">
+                <small style="color: #64748b;">Gunakan template yang tersedia untuk format yang benar.</small>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideImportModal()">Batal</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Import</button>
+                <button type="submit" class="btn btn-primary">Upload</button>
             </div>
         </form>
     </div>
@@ -456,21 +416,6 @@
         flex-wrap: wrap;
     }
 
-    .btn-page {
-        background: rgba(255,255,255,0.1);
-        padding: 8px 16px;
-    }
-
-    .btn-page.active {
-        background: var(--primary);
-        color: white;
-    }
-
-    .btn-page.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-
     /* Modal */
     .modal-overlay {
         display: none;
@@ -522,43 +467,74 @@
         width: auto;
     }
 
-    .ai-selection-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.5rem;
-        background: rgba(0,0,0,0.1);
-        padding: 1rem;
-        border-radius: 12px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-
-    .ai-checkbox-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.85rem;
-        color: #cbd5e1;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 6px;
-        transition: background 0.2s;
-    }
-
-    .ai-checkbox-item:hover {
-        background: rgba(255,255,255,0.05);
-    }
-
-    .ai-checkbox-item input {
-        width: 16px !important;
-        height: 16px !important;
-    }
-
     .modal-actions {
         display: flex;
         gap: 10px;
         justify-content: flex-end;
         flex-wrap: wrap;
+    }
+
+    /* AI Config Items */
+    .ai-config-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ai-config-item {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--glass-border);
+        padding: 1rem;
+        border-radius: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ai-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .ai-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .ai-status-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        width: fit-content;
+    }
+
+    .status-enabled { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+    .status-disabled { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .status-noaccess { background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
+
+    .btn-toggle {
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--glass-border);
+        background: rgba(255,255,255,0.05);
+        color: white;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-toggle.btn-active {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-toggle:not(.btn-active) {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        border-color: rgba(16, 185, 129, 0.2);
     }
 
     /* Responsive Styles */
@@ -590,57 +566,6 @@
         .btn-text {
             display: none;
         }
-
-        .pagination-container {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-        }
-
-        .pagination-nav {
-            justify-content: center;
-        }
-
-        .btn-page {
-            padding: 8px 12px;
-            font-size: 0.9rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .glass-card {
-            padding: 1rem !important;
-            border-radius: 16px !important;
-        }
-
-        th, td {
-            padding: 1rem !important;
-            font-size: 0.9rem;
-        }
-
-        .role-badge {
-            font-size: 0.8rem;
-            padding: 3px 8px;
-        }
-
-        .btn-edit,
-        .btn-delete {
-            padding: 6px 10px;
-        }
-
-        .modal-content {
-            padding: 1.2rem !important;
-        }
-
-        h3 {
-            font-size: 1.2rem !important;
-        }
-
-        .form-group input,
-        .form-group select {
-            font-size: 0.9rem;
-            padding: 0.7rem;
-        }
     }
 </style>
 
@@ -659,78 +584,116 @@
             method.value = 'POST';
             form.reset();
             document.getElementById('userMaxTokens').value = 32768;
-            
-            // Reset AI checkboxes
-            document.querySelectorAll('.model-checkbox, .key-checkbox').forEach(cb => cb.checked = false);
         } else if (type === 'import') {
             document.getElementById('importModal').style.display = 'flex';
             return;
         } else {
             title.innerText = 'Edit User';
-            const currentParams = new URLSearchParams(window.location.search);
-            const redirectParams = new URLSearchParams();
-            if (currentParams.get('search')) redirectParams.set('search', currentParams.get('search'));
-            if (currentParams.get('role_filter')) redirectParams.set('role_filter', currentParams.get('role_filter'));
-            const redirectUrl = redirectParams.toString() ? '/admin/users?' + redirectParams.toString() : '/admin/users';
-
             form.action = `/admin/users/${user.id}`;
-            form.setAttribute('data-redirect', redirectUrl);
             method.value = 'PUT';
             document.getElementById('userName').value = user.name;
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
             document.getElementById('userIsAdmin').checked = user.is_admin;
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
-
-            // Handle AI Models
-            const userModels = user.ai_models ? user.ai_models.map(m => m.id) : [];
-            document.querySelectorAll('.model-checkbox').forEach(cb => {
-                cb.checked = userModels.includes(parseInt(cb.value));
-            });
-
-            // Handle AI Keys
-            const userKeys = user.ai_keys ? user.ai_keys.map(k => k.id) : [];
-            document.querySelectorAll('.key-checkbox').forEach(cb => {
-                cb.checked = userKeys.includes(parseInt(cb.value));
-            });
         }
     }
 
-    function hideModal() {
-        document.getElementById('userModal').style.display = 'none';
+    function showAiConfig(user) {
+        const modal = document.getElementById('aiConfigModal');
+        document.getElementById('aiConfigUserName').innerText = user.name;
+        
+        const modelsList = document.getElementById('aiModelsList');
+        const keysList = document.getElementById('aiKeysList');
+        
+        const allModels = @json($aiModels);
+        const allKeys = @json($aiKeys);
+        
+        const userModels = user.ai_models || [];
+        const userKeys = user.ai_keys || [];
+
+        // Build Models List
+        modelsList.innerHTML = '';
+        allModels.forEach(model => {
+            const assignment = userModels.find(m => m.id === model.id);
+            const isAssigned = !!assignment;
+            const isEnabled = isAssigned ? !!assignment.pivot.is_enabled : false;
+            
+            const item = document.createElement('div');
+            item.className = 'ai-config-item';
+            item.innerHTML = `
+                <div class="ai-info">
+                    <span class="ai-name">${model.provider.name} - ${model.display_name}</span>
+                    <span class="ai-status-badge ${isAssigned ? (isEnabled ? 'status-enabled' : 'status-disabled') : 'status-noaccess'}">
+                        ${isAssigned ? (isEnabled ? 'ACTIVE' : 'DISABLED') : 'NO ACCESS'}
+                    </span>
+                </div>
+                <div class="ai-toggle-action">
+                    ${isAssigned ? `
+                        <button class="btn-toggle ${isEnabled ? 'btn-active' : ''}" onclick="toggleModelAccess(${user.id}, ${model.id})">
+                            ${isEnabled ? 'Disable' : 'Enable'}
+                        </button>
+                    ` : '<small style="color:#475569">Use Edit User</small>'}
+                </div>
+            `;
+            modelsList.appendChild(item);
+        });
+
+        // Build Keys List
+        keysList.innerHTML = '';
+        allKeys.forEach(key => {
+            const assignment = userKeys.find(k => k.id === key.id);
+            const isAssigned = !!assignment;
+            const isEnabled = isAssigned ? !!assignment.pivot.is_enabled : false;
+            
+            const item = document.createElement('div');
+            item.className = 'ai-config-item';
+            item.innerHTML = `
+                <div class="ai-info">
+                    <span class="ai-name">${key.provider.name} - ${key.key_name}</span>
+                    <span class="ai-status-badge ${isAssigned ? (isEnabled ? 'status-enabled' : 'status-disabled') : 'status-noaccess'}">
+                        ${isAssigned ? (isEnabled ? 'ACTIVE' : 'DISABLED') : 'NO ACCESS'}
+                    </span>
+                </div>
+                <div class="ai-toggle-action">
+                    ${isAssigned ? `
+                        <button class="btn-toggle ${isEnabled ? 'btn-active' : ''}" onclick="toggleKeyAccess(${user.id}, ${key.id})">
+                            ${isEnabled ? 'Disable' : 'Enable'}
+                        </button>
+                    ` : '<small style="color:#475569">Use Edit User</small>'}
+                </div>
+            `;
+            keysList.appendChild(item);
+        });
+
+        modal.style.display = 'flex';
     }
 
-    function hideImportModal() {
-        document.getElementById('importModal').style.display = 'none';
+    function toggleModelAccess(userId, modelId) {
+        fetch(`/admin/users/${userId}/ai-models/${modelId}/toggle`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        }).then(() => location.reload());
     }
 
-    function downloadTemplate() {
-        window.location.href = "{{ route('admin.users.template') }}";
+    function toggleKeyAccess(userId, keyId) {
+        fetch(`/admin/users/${userId}/ai-keys/${keyId}/toggle`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        }).then(() => location.reload());
     }
 
-    function exportUsers() {
-        window.location.href = "{{ route('admin.users.export') }}";
+    function hideModal() { document.getElementById('userModal').style.display = 'none'; }
+    function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
+    function hideAiConfig() { document.getElementById('aiConfigModal').style.display = 'none'; }
+
+    function downloadTemplate() { window.location.href = "{{ route('admin.users.template') }}"; }
+    function exportUsers() { window.location.href = "{{ route('admin.users.export') }}"; }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('userModal')) hideModal();
+        if (event.target == document.getElementById('importModal')) hideImportModal();
+        if (event.target == document.getElementById('aiConfigModal')) hideAiConfig();
     }
-
-    document.getElementById('userForm')?.addEventListener('submit', function(e) {
-        const redirectUrl = this.getAttribute('data-redirect');
-        if (redirectUrl) {
-            let redirectInput = document.createElement('input');
-            redirectInput.type = 'hidden';
-            redirectInput.name = 'redirect_url';
-            redirectInput.value = redirectUrl;
-            this.appendChild(redirectInput);
-        }
-    });
-
-    // Close modals when clicking outside
-    window.addEventListener('click', function(e) {
-        if (e.target === document.getElementById('userModal')) {
-            hideModal();
-        }
-        if (e.target === document.getElementById('importModal')) {
-            hideImportModal();
-        }
-    });
 </script>
 @endsection

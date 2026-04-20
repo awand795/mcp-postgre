@@ -117,6 +117,40 @@ class AdminController extends Controller
         return $redirect->with('success', 'User berhasil diperbarui.');
     }
 
+    public function toggleUserAiModel(User $user, $modelId)
+    {
+        $pivot = DB::table('user_ai_models')
+            ->where('user_id', $user->id)
+            ->where('model_id', $modelId)
+            ->first();
+        
+        if ($pivot) {
+            DB::table('user_ai_models')
+                ->where('user_id', $user->id)
+                ->where('model_id', $modelId)
+                ->update(['is_enabled' => !$pivot->is_enabled]);
+        }
+        
+        return response()->json(['success' => true]);
+    }
+
+    public function toggleUserAiKey(User $user, $keyId)
+    {
+        $pivot = DB::table('user_ai_keys')
+            ->where('user_id', $user->id)
+            ->where('api_key_id', $keyId)
+            ->first();
+        
+        if ($pivot) {
+            DB::table('user_ai_keys')
+                ->where('user_id', $user->id)
+                ->where('api_key_id', $keyId)
+                ->update(['is_enabled' => !$pivot->is_enabled]);
+        }
+        
+        return response()->json(['success' => true]);
+    }
+
     public function userDelete(User $user)
     {
         $user->delete();

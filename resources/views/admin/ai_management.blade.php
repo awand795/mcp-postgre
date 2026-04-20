@@ -78,14 +78,24 @@
                 </div>
 
                 <!-- Models Section -->
-                <div class="section-title">
+                <div class="section-title" style="margin-top: 1rem;">
                     <h4><i class="fas fa-brain"></i> Models</h4>
+                    <button class="btn btn-sm btn-info" onclick="showModelModal({{ $provider->id }}, '{{ $provider->name }}')">
+                        <i class="fas fa-plus"></i> Tambah Model
+                    </button>
                 </div>
                 <div class="models-grid">
                     @foreach($provider->models as $model)
-                        <div class="model-tag {{ $model->is_active ? 'active' : 'disabled' }}" onclick="toggleModel({{ $model->id }})">
-                            {{ $model->display_name }}
-                            <i class="fas {{ $model->is_active ? 'fa-check-circle' : 'fa-times-circle' }}"></i>
+                        <div class="model-tag-wrapper">
+                            <div class="model-tag {{ $model->is_active ? 'active' : 'disabled' }}" onclick="toggleModel({{ $model->id }})">
+                                {{ $model->display_name }}
+                                <i class="fas {{ $model->is_active ? 'fa-check-circle' : 'fa-times-circle' }}"></i>
+                            </div>
+                            <form action="{{ route('admin.ai_management.delete_model', $model->id) }}" method="POST" onsubmit="return confirm('Hapus model ini?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-delete-model" title="Hapus Model"><i class="fas fa-times"></i></button>
+                            </form>
                         </div>
                     @endforeach
                 </div>
@@ -217,6 +227,35 @@
         .model-tag.disabled { background: rgba(0,0,0,0.2); color: #475569; opacity: 0.6; }
         .model-tag:hover { transform: translateY(-2px); }
 
+        .model-tag-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .btn-delete-model {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+
+        .model-tag-wrapper:hover .btn-delete-model {
+            opacity: 1;
+        }
+
         .empty-hint { color: #475569; font-size: 0.85rem; text-align: center; font-style: italic; }
 
         .modal-overlay {
@@ -252,6 +291,32 @@
         .badge-danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
         .badge-inactive { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
     </style>
+
+    <!-- AI Model Modal -->
+    <div id="modelModal" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3>Tambah Model AI</h3>
+            <p id="modelProviderName" style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
+            <form action="{{ route('admin.ai_management.store_model') }}" method="POST">
+                @csrf
+                <input type="hidden" name="provider_id" id="modelProviderIdInput">
+                <div class="form-group">
+                    <label>ID Model (System Name)</label>
+                    <input type="text" name="model_name" required placeholder="Contoh: gpt-5.4-turbo">
+                    <small style="color: #64748b; font-size: 0.75rem;">ID teknis yang dikirim ke API (misal: gpt-4o)</small>
+                </div>
+                <div class="form-group">
+                    <label>Nama Display</label>
+                    <input type="text" name="display_name" required placeholder="Contoh: GPT-5.4 Turbo">
+                    <small style="color: #64748b; font-size: 0.75rem;">Nama yang muncul di antarmuka user</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="hideModelModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Model</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         function toggleProvider(id) {
@@ -313,9 +378,22 @@
             document.getElementById('keyModal').style.display = 'none';
         }
 
+        function showModelModal(providerId, providerName) {
+            document.getElementById('modelModal').style.display = 'flex';
+            document.getElementById('modelProviderName').innerText = providerName;
+            document.getElementById('modelProviderIdInput').value = providerId;
+        }
+
+        function hideModelModal() {
+            document.getElementById('modelModal').style.display = 'none';
+        }
+
         window.onclick = function(event) {
             if (event.target == document.getElementById('keyModal')) {
                 hideKeyModal();
+            }
+            if (event.target == document.getElementById('modelModal')) {
+                hideModelModal();
             }
         }
     </script>

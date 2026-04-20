@@ -35,7 +35,14 @@ class AgenticChatbotController extends Controller
 
     public function index()
     {
-        return view('chatbot');
+        $user = Auth::user();
+        $availableModels = $user->aiModels()
+            ->where('ai_models.is_active', true)
+            ->where('user_ai_models.is_enabled', true)
+            ->with('provider')
+            ->get();
+
+        return view('chatbot', compact('availableModels'));
     }
 
     // ── Endpoint utama ────────────────────────────────────────────────────────
@@ -48,16 +55,19 @@ class AgenticChatbotController extends Controller
         $chatSessionId = $request->input('chat_session_id');
         $user = Auth::user();
 
-        // 1. Get User's Assigned Models
-        $userModels = $user->aiModels()->where('is_active', true)->get();
+        // 1. Get User's Assigned and Enabled Models
+        $userModels = $user->aiModels()
+            ->where('ai_models.is_active', true)
+            ->where('user_ai_models.is_enabled', true)
+            ->get();
+
         if ($userModels->isEmpty()) {
             return response()->json([
-                'error' => 'Mohon maaf, akun Anda belum memiliki akses ke model AI manapun. Silakan hubungi administrator untuk pengaturan akses layanan.'
+                'error' => 'Mohon maaf, akun Anda belum memiliki akses ke model AI yang aktif. Silakan hubungi administrator untuk pengaturan akses layanan.'
             ]);
         }
 
-        // 2. Select Model (for now pick first, or user could select from UI later)
-        // If chatSession has a model_id, we should use that. For now, we take first active.
+        // 2. Select Model (Always use the first one enabled by admin)
         $selectedModel = $userModels->first();
         $provider = $selectedModel->provider;
 
@@ -70,27 +80,30 @@ class AgenticChatbotController extends Controller
         // 3. Find an active API Key for this Provider assigned to the user
         $apiKey = $user->aiKeys()
             ->where('provider_id', $provider->id)
-            ->where('is_active', true)
+            ->where('ai_api_keys.is_active', true)
+            ->where('user_ai_keys.is_enabled', true)
             ->where('limit_reached', false)
             ->first();
 
         if (!$apiKey) {
             // Check if user has keys but they are inactive or reached limit
-            $hasKeys = $user->aiKeys()->where('provider_id', $provider->id)->exists();
-            if ($hasKeys) {
-                $limitedKey = $user->aiKeys()->where('provider_id', $provider->id)->where('limit_reached', true)->exists();
-                if ($limitedKey) {
-                    return response()->json([
-                        'error' => 'Mohon maaf, kuota penggunaan (limit) API Key Anda telah mencapai batas maksimal. Silakan hubungi Administrator untuk penambahan kuota atau pembaruan layanan.'
-                    ]);
-                }
+            $hasAssignedKeys = $user->aiKeys()->where('provider_id', $provider->id)->exists();
+            
+            if (!$hasAssignedKeys) {
                 return response()->json([
-                    'error' => 'Mohon maaf, akses API Key Anda untuk layanan ini telah dinonaktifkan oleh administrator. Silakan hubungi administrator untuk informasi lebih lanjut.'
+                    'error' => 'Mohon maaf, saat ini akun Anda belum memiliki API Key yang ditugaskan. Silakan hubungi Administrator untuk aktivasi layanan AI pada akun Anda.'
+                ]);
+            }
+
+            $limitedKey = $user->aiKeys()->where('provider_id', $provider->id)->where('limit_reached', true)->exists();
+            if ($limitedKey) {
+                return response()->json([
+                    'error' => 'Mohon maaf, kuota penggunaan (limit) API Key Anda telah mencapai batas maksimal. Silakan hubungi Administrator untuk penambahan kuota atau pembaruan layanan.'
                 ]);
             }
 
             return response()->json([
-                'error' => 'Layanan AI untuk provider ' . $provider->name . ' tidak tersedia untuk akun Anda. Silakan hubungi administrator.'
+                'error' => 'Mohon maaf, akses API Key Anda untuk layanan ini sedang dinonaktifkan oleh administrator. Silakan hubungi administrator untuk informasi lebih lanjut.'
             ]);
         }
 

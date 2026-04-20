@@ -29,6 +29,25 @@ class AiController extends Controller
         return back()->with('success', 'API Key berhasil ditambahkan.');
     }
 
+    public function storeModel(Request $request)
+    {
+        $request->validate([
+            'provider_id' => 'required|exists:ai_providers,id',
+            'model_name' => 'required|string|max:255',
+            'display_name' => 'required|string|max:255',
+        ]);
+
+        AiModel::create($request->all());
+
+        return back()->with('success', 'Model AI berhasil ditambahkan.');
+    }
+
+    public function deleteModel(AiModel $model)
+    {
+        $model->delete();
+        return back()->with('success', 'Model AI berhasil dihapus.');
+    }
+
     public function updateKey(Request $request, AiApiKey $key)
     {
         $request->validate([

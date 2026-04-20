@@ -466,6 +466,7 @@
         .erp-video-container video::-webkit-media-controls-panel {
             background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
         }
+
         @media (max-width: 768px) {
             .erp-video-container {
                 max-width: 100% !important;
@@ -859,6 +860,7 @@
                 const toolBadges = {};
 
                 try {
+                    const selectedModelId = document.getElementById('ai-model-select')?.value;
                     const response = await fetch('{{ route("chatbot.send") }}', {
                         method: 'POST',
                         headers: {
@@ -868,9 +870,13 @@
                         body: JSON.stringify({ 
                             message, 
                             history: conversationHistory,
-                            chat_session_id: currentSessionId
+                            chat_session_id: currentSessionId,
+                            ai_model_id: selectedModelId
                         }),
                     });
+
+                    // Save preference
+                    if (selectedModelId) localStorage.setItem('last_ai_model', selectedModelId);
 
                     // FIX: Tangani error JSON response (non-stream) dari server
                     const contentType = response.headers.get('content-type') || '';
