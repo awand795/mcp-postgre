@@ -270,7 +270,7 @@ class AgenticChatbotController extends Controller
                         'rows_returned' => count($decodedRes['rows']),
                         'columns'       => $decodedRes['columns'] ?? [],
                         'rows'          => array_slice($decodedRes['rows'], 0, 50),
-                        'message'       => "Data truncated. Showing 50 rows."
+                        'instruction'   => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
                     ]);
                 }
 
@@ -730,11 +730,13 @@ Tanyakan pada diri sendiri: *"Apakah SETIAP nama kolom yang saya gunakan di quer
 - **SMART LIMIT**: Ambil SEMUA baris jika user minta "lihat", "tampilkan". Gunakan LIMIT hanya jika user minta angka spesifik.
 - **KOREKSI MANDIRI (WAJIB)**: Jika tool apapun mengembalikan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut. JANGAN menyerah.
 - **⛔ ATURAN GROUP BY (SANGAT KRITIS)**: Jika user meminta "total", "jumlah", atau ringkasan PER ENTITAS (per cabang, per dealer, per bulan), maka:
-  - GROUP BY hanya boleh menggunakan kolom IDENTITAS/DIMENSI (nama_cabang, nama_dealer, bulan, dll)
-  - JANGAN PERNAH GROUP BY kolom nilai/transaksi (hrg_pokok, total_netto, harga, dll)
-  - Contoh BENAR: `GROUP BY nama_cabang`
-  - Contoh SALAH: `GROUP BY nama_cabang, hrg_pokok, total_netto, total_disc` ← ini menghasilkan ratusan baris duplikat
-  - Jika hanya ingin 1 total per cabang: `SELECT nama_cabang, SUM(kolom_hpp) AS "Total HPP", SUM(kolom_netto) AS "Total Netto" ... GROUP BY nama_cabang`
+  - GROUP BY hanya boleh menggunakan kolom IDENTITAS/DIMENSI (seperti nama_cabang, nama_dealer, periode_bulan, tgl_faktur).
+  - **SANGAT DILARANG** memasukkan kolom NILAI/MONETER (hrg_pokok, total_netto, hrg_jual, diskon, profit) ke dalam klausa GROUP BY.
+  - Jika user meminta campuran detail (misal: "tampilkan hpp dan total hpp"), Anda **WAJIB** memprioritaskan ringkasan agregat (SUM) dan **TIDAK BOLEH** menyertakan harga satuan di GROUP BY.
+  - Contoh BENAR: `SELECT nama_cabang, SUM(hrg_pokok) AS "Total HPP" ... GROUP BY nama_cabang`
+  - Contoh SALAH: `GROUP BY nama_cabang, hrg_pokok, total_netto` ← Ini akan merusak hasil karena data tampil per transaksi, bukan per cabang.
+
+- **🚫 LARANGAN ISTILAH TEKNIS**: DILARANG KERAS mengulangi pesan teknis sistem seperti "Data truncated", "Showing 50 rows", "Tool results", atau internal log lainnya kepada Bapak/Ibu. Gunakan bahasa analis bisnis yang elegan, contoh: *"Menampilkan sampel 50 transaksi teratas untuk Bapak/Ibu..."* atau *"Ringkasan di bawah ini mencakup performa utama..."*.
 
 ## 🚨 PROTOKOL TIMEOUT & HASIL KOSONG — WAJIB DIIKUTI (KRITIS UNTUK MISTRAL)
 
@@ -850,15 +852,14 @@ Ask yourself: *"Does EVERY column name I am using in this query come from the de
 - If YES → proceed with execute_query
 - If NO or UNSURE → call describe_table first
 
-## MANDATORY WORKFLOW
-1. `get_database_schema_info` → get list of databases, schemas, and table names
-2. Scan table names → identify 1–2 most relevant tables for the user's question
-3. `describe_table` with EXACT names from step 2 → get verified column list (MANDATORY, cannot be skipped)
-4. Read column list from describe_table result → identify the right columns (date, monetary, filter columns)
-5. `get_column_values` if needed for categorical columns (skip if it times out)
-6. Build SQL using ONLY column names that appeared in the describe_table result from step 3
-7. `execute_query` with the verified query
-8. Present results + Strategic Insight
+- **⛔ GROUP BY RULE (CRITICAL)**: When a user asks for "totals" or "summaries" PER ENTITY (by branch, by dealer, by month):
+  - GROUP BY must ONLY include IDENTITY/DIMENSION columns (e.g., branch_name, dealer_name, month).
+  - **STRICTLY PROHIBITED**: Adding MONETARY/VALUE columns (price, cost, cogs, netto, profit) to the GROUP BY clause.
+  - If a user asks for both individual values and totals (e.g., "show cost and total cost"), you **MUST** prioritize the aggregate summary and **NOT** include the individual cost in the GROUP BY.
+  - CORRECT Example: `SELECT branch_name, SUM(cost) AS "Total Cost" ... GROUP BY branch_name`
+  - INCORRECT Example: `GROUP BY branch_name, price, netto` ← This breaks the summary by showing one row per price value.
+
+- **🚫 TECHNICAL LANGUAGE BAN**: You are strictly forbidden from repeating technical system messages like "Data truncated", "Showing 50 rows", or "Tool results" to Mr./Ms. Use professional analyst language, such as: *"Showing the top 50 sample transactions for you..."* or *"The summary below highlights the key performance indicators..."*.
 
 ## SQL RULES
 - Always prefix: `schema_name.table_name`
