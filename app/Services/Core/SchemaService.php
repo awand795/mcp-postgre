@@ -281,6 +281,7 @@ class SchemaService extends BaseService
 
     /**
      * Get complete schema overview for all accessible databases.
+     * Optimization: If total tables < 50, eagerly include column names to save AI loops.
      */
     public function getSchemaInfo(): string
     {
@@ -293,26 +294,76 @@ class SchemaService extends BaseService
         $overview = [];
         $totalTables = 0;
 
+        // Count total tables first
+        foreach ($allowedDbs as $dbCode => $schemas) {
+            foreach ($schemas as $schema => $tables) {
+                $totalTables += count($tables);
+            }
+        }
+
+        $isSmallSchema = ($totalTables < 50);
+
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];
+            
+            // If small schema, try to get columns for all tables in one or few goes
             foreach ($schemas as $schema => $tables) {
-                // Return descriptive list
                 $formattedTables = [];
+                
                 foreach ($tables as $t) {
-                    $name = is_array($t) ? ($t['name'] ?? '') : $t;
-                    $desc = is_array($t) ? ($t['description'] ?? '') : '';
-                    $formattedTables[] = $name . ($desc ? " ({$desc})" : "");
+                    $tableName = is_array($t) ? ($t['name'] ?? '') : $t;
+                    $tableObj = ['table_name' => $tableName];
+
+                    if ($isSmallSchema) {
+                        try {
+                            $columns = $this->getCachedTableColumns($dbCode, $schema, $tableName);
+                            $tableObj['columns'] = $columns;
+                        } catch (\Exception $e) {
+                            $tableObj['columns_error'] = 'Failed to load';
+                        }
+                    }
+                    
+                    $formattedTables[] = $tableObj;
                 }
                 $overview[$dbCode][$schema] = $formattedTables;
-                $totalTables += count($tables);
             }
         }
 
         return $this->safeJsonEncode([
             'total_databases' => count($allowedDbs),
             'total_tables'    => $totalTables,
+            'is_eager_loaded' => $isSmallSchema,
             'databases'       => $overview,
-            'usage_note'      => 'Gunakan describe_table(database_code, schema_name, table_name) untuk mendapatkan tipe data setiap kolom. Pada SQL execute_query, SELALU nyatakan tabel lengkap dengan prefix schema, contoh: schema_name.table_name.',
+            'usage_note'      => $isSmallSchema 
+                ? 'Informasi kolom sudah dimuat secara otomatis (Eager Loaded). Anda bisa langsung menulis query tanpa describe_table.'
+                : 'Gunakan describe_table(database_code, schema_name, table_name) untuk melihat kolom. Pada execute_query, selalu pakai prefix schema.',
         ]);
+    }
+
+    /**
+     * Get columns for a table (Internal helper for eager loading).
+     */
+    private function getCachedTableColumns(string $databaseCode, string $schemaName, string $tableName): array
+    {
+        $connName = "temp_conn_{$databaseCode}_eager";
+        try {
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            if (!$dbModel) return [];
+
+            $adapter = $dbModel->getAdapter();
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+            $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
+            $query = $adapter->describeTableWithKeysQuery();
+            $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
+
+            $result = array_map(fn($col) => $col->column_name, $columns);
+            
+            DB::purge($connName);
+            return $result;
+        } catch (\Exception $e) {
+            DB::purge($connName);
+            return [];
+        }
     }
 }
