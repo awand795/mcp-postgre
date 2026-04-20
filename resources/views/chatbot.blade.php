@@ -1055,37 +1055,9 @@
                 initSmartTablesInBubble(bubble);
             }
 
-            // ── Render pesan biasa ────────────────────────────────────────────────
-            function addMessage(text, sender) {
-                const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                const wrap = document.createElement('div');
-                wrap.className = [
-                    'flex flex-col gap-1.5',
-                    sender === 'user' ? 'items-end ml-auto max-w-[80%]' : 'items-start max-w-[95%]'
-                ].join(' ');
-
-                const bubble = document.createElement('div');
-                bubble.className = [
-                    sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai',
-                    'p-4 rounded-2xl text-sm shadow-sm markdown-body'
-                ].join(' ');
-
-                if (sender === 'ai') {
-                    bubble.innerHTML = renderMarkdown(text);
-                    bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch(e) {} });
-                } else {
-                    bubble.textContent = text;
-                }
-
-                const timeEl = document.createElement('span');
-                timeEl.className = 'text-[10px] text-[#706f6c] ' + (sender === 'user' ? 'mr-1' : 'ml-1');
-                timeEl.textContent = time;
-
-                wrap.appendChild(bubble);
-                wrap.appendChild(timeEl);
-                chatMessages.appendChild(wrap);
-                requestAnimationFrame(() => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
-            }
+            // ── Render pesan biasa (legacy stub - panggil addMessage utama) ──────────────────────────────────────
+            // FIX: Fungsi ini dihapus karena duplikat dengan addMessage utama di bawah.
+            // addMessage utama sudah handle initSmartTables, initCharts, dll.
 
         async function loadSessions() {
             try {
@@ -1214,7 +1186,16 @@
 
             const timeEl = document.createElement('span');
             timeEl.className = 'text-[10px] text-[#706f6c] ' + (msg.role === 'user' ? 'mr-1' : 'ml-1');
-            timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            // FIX: Gunakan timestamp dari DB (created_at) jika tersedia, bukan waktu sekarang
+            if (msg.created_at) {
+                try {
+                    timeEl.textContent = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                } catch(e) {
+                    timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                }
+            } else {
+                timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            }
 
             wrap.appendChild(bubble);
             wrap.appendChild(timeEl);
@@ -1477,6 +1458,15 @@
                 // Update pagination state
                 sessionPagination.hasMore = data.pagination.has_more;
                 sessionPagination.oldestCursor = data.pagination.oldest_cursor;
+
+                // FIX: Rebuild conversationHistory dari DB agar AI punya konteks percakapan lama
+                // Hanya ambil role user & assistant (bukan tool/system) dan batasi maxHistory terakhir
+                const historyForAI = data.history
+                    .filter(m => m.role === 'user' || m.role === 'assistant')
+                    .slice(-20);
+                historyForAI.forEach(m => {
+                    conversationHistory.push({ role: m.role, content: m.content || '' });
+                });
 
                 // Render messages using the helper function
                 data.history.forEach((msg, index) => {

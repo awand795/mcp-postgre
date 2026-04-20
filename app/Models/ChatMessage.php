@@ -23,6 +23,8 @@ class ChatMessage extends Model
      */
     protected $casts = [
         'tool_results' => 'array',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
     ];
 
     public function session()

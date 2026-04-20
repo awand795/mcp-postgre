@@ -151,7 +151,12 @@ class QueryService extends BaseService
         // ── LAYER 4.5: AUTO-FIX — Deteksi & ganti filter periode_bulan/periode_tahun ──
         // Jika AI masih menggunakan kolom periode_bulan/periode_tahun yang menyebabkan
         // full scan atau hasil kosong, otomatis konversi ke filter DATE BETWEEN.
-        $trimmedSql = $this->autoFixPeriodFilter($trimmedSql, $databaseCode);
+        // FIX: hanya jalankan autofix jika query benar-benar mengandung periode_bulan/periode_tahun
+        // agar tidak mengacak-acak query yang sudah benar.
+        $lowerCheck = strtolower($trimmedSql);
+        if (str_contains($lowerCheck, 'periode_bulan') || str_contains($lowerCheck, 'periode_tahun')) {
+            $trimmedSql = $this->autoFixPeriodFilter($trimmedSql, $databaseCode);
+        }
 
         // ── LAYER 5: Validasi akses tabel ────────────────────────────────────
         $allowedDbs = $this->getAllowedTables();
@@ -254,7 +259,7 @@ class QueryService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set driver-specific timeout: unlimited untuk query agregasi pada view besar.
+            // Set driver-specific timeout: unlimited sesuai permintaan client.
             if ($driver === 'pgsql') {
                 DB::connection($connName)->statement('SET statement_timeout = 0');
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
@@ -514,8 +519,18 @@ class QueryService extends BaseService
 
         // Cek apakah masih ada WHERE clause
         if (preg_match('/\bWHERE\b/i', $cleanSql)) {
-            // Ada WHERE — append dengan AND
-            $cleanSql = preg_replace('/\bWHERE\b/i', "WHERE {$betweenFilter} AND", $cleanSql, 1);
+            // Ada WHERE — sisipkan betweenFilter tepat sebelum GROUP BY/ORDER BY/LIMIT/HAVING
+            // atau di akhir jika tidak ada klausa-klausa tersebut.
+            // JANGAN replace kata WHERE itu sendiri — merusak kondisi yang sudah ada.
+            if (preg_match('/\b(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\b/i', $cleanSql, $gm, PREG_OFFSET_CAPTURE)) {
+                $insertPos = $gm[0][1];
+                // Pastikan ada spasi pemisah & gunakan AND
+                $before = rtrim(substr($cleanSql, 0, $insertPos));
+                $after  = ltrim(substr($cleanSql, $insertPos));
+                $cleanSql = $before . " AND {$betweenFilter} " . $after;
+            } else {
+                $cleanSql = rtrim($cleanSql) . " AND {$betweenFilter}";
+            }
         } else {
             // Tidak ada WHERE — tambah sebelum GROUP BY / ORDER BY / LIMIT, atau di akhir
             if (preg_match('/\b(GROUP BY|ORDER BY|LIMIT|HAVING)\b/i', $cleanSql, $m, PREG_OFFSET_CAPTURE)) {
@@ -527,10 +542,12 @@ class QueryService extends BaseService
             }
         }
 
-        // Bersihkan whitespace berlebih
+        // Bersihkan whitespace berlebih & kondisi WHERE yang rusak
         $cleanSql = preg_replace('/\s+/', ' ', $cleanSql);
         $cleanSql = preg_replace('/WHERE\s+AND\s+/i', 'WHERE ', $cleanSql);
         $cleanSql = preg_replace('/WHERE\s+OR\s+/i', 'WHERE ', $cleanSql);
+        // FIX: hapus trailing AND/OR sebelum GROUP BY / ORDER BY / LIMIT
+        $cleanSql = preg_replace('/\s+(AND|OR)\s+(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)/i', ' $2', $cleanSql);
         $cleanSql = trim($cleanSql);
 
         Log::info("[QueryService] AutoFix SQL result: " . substr($cleanSql, 0, 400));

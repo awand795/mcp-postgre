@@ -137,6 +137,22 @@ class AgenticChatbotController extends Controller
             $history = [];
         }
 
+        // FIX: Simpan pesan USER ke database sebelum streaming dimulai.
+        // Sebelumnya hanya pesan assistant yang disimpan, sehingga history
+        // tidak lengkap dan saat chat di-reload, pesan user hilang.
+        ChatMessage::create([
+            'chat_session_id' => $session->id,
+            'role'            => 'user',
+            'content'         => $message,
+            'tool_results'    => null,
+        ]);
+
+        // Update session title jika ini bukan session baru
+        // (session baru sudah di-set titlenya saat create di atas)
+        if (!empty($history) && $session->title === 'New Chat') {
+            $session->update(['title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')]);
+        }
+
         $systemPrompt = $detectedLang === 'en'
             ? $this->buildSystemPrompt($allowedDatabases)
             : $this->buildSystemPromptId($allowedDatabases);
@@ -288,12 +304,31 @@ class AgenticChatbotController extends Controller
 
     public function getSession($id)
     {
-        $session  = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
-        $messages = ChatMessage::where('chat_session_id', $session->id)->orderBy('created_at', 'asc')->get();
+        $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
+
+        $limit  = (int) request('limit', 50);
+        $before = request('before'); // cursor: created_at timestamp
+
+        $query = ChatMessage::where('chat_session_id', $session->id)
+            ->orderBy('created_at', 'desc') // ambil dari belakang dulu untuk pagination
+            ->limit($limit + 1);            // ambil 1 ekstra untuk deteksi has_more
+
+        if ($before) {
+            $query->where('created_at', '<', $before);
+        }
+
+        $messages     = $query->get();
+        $hasMore      = $messages->count() > $limit;
+        $messages     = $messages->take($limit)->sortBy('created_at')->values(); // kembalikan urutan ASC
+        $oldestCursor = $hasMore ? ($messages->first()?->created_at?->toISOString() ?? null) : null;
+
         return response()->json([
             'session'    => $session,
             'history'    => $messages,
-            'pagination' => ['has_more' => false, 'oldest_cursor' => null]
+            'pagination' => [
+                'has_more'       => $hasMore,
+                'oldest_cursor'  => $oldestCursor,
+            ]
         ]);
     }
 
@@ -308,6 +343,81 @@ class AgenticChatbotController extends Controller
         $request->validate(['title' => 'required|string|max:255']);
         ChatSession::where('user_id', Auth::user()->id)->findOrFail($id)->update(['title' => $request->title]);
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Export tabel ke Excel (.xlsx)
+     * Dipanggil dari tombol Export Excel di smart table frontend.
+     */
+    public function exportExcel(Request $request)
+    {
+        $request->validate([
+            'headers'         => 'required|array',
+            'rows'            => 'required|array',
+            'title'           => 'nullable|string|max:100',
+            'currencyColumns' => 'nullable|array',
+        ]);
+
+        $headers         = $request->input('headers', []);
+        $rows            = $request->input('rows', []);
+        $title           = $request->input('title', 'Data Export');
+        $currencyColumns = $request->input('currencyColumns', []);
+        $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
+
+        // Pastikan rows adalah array of arrays (bukan array of objects dari JSON)
+        $normalizedRows = array_map(function ($row) {
+            return is_array($row) ? array_values($row) : (array) $row;
+        }, $rows);
+
+        $export = new \App\Exports\ChatTableExport($headers, $normalizedRows, $title, null, $currencyColumns);
+
+        return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
+    }
+
+    /**
+     * Export tabel ke PDF
+     * Dipanggil dari tombol Export PDF di smart table dan chart frontend.
+     */
+    public function exportPdf(Request $request)
+    {
+        $request->validate([
+            'headers'         => 'required|array',
+            'rows'            => 'required|array',
+            'title'           => 'nullable|string|max:100',
+            'currencyColumns' => 'nullable|array',
+        ]);
+
+        $headers         = $request->input('headers', []);
+        $rows            = $request->input('rows', []);
+        $title           = $request->input('title', 'Data Export');
+        $currencyColumns = $request->input('currencyColumns', []);
+        $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.pdf');
+
+        // Normalise rows
+        $normalizedRows = array_map(function ($row) {
+            return is_array($row) ? array_values($row) : (array) $row;
+        }, $rows);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
+            'title'           => $title,
+            'headers'         => $headers,
+            'rows'            => $normalizedRows,
+            'currencyColumns' => $currencyColumns,
+            'generatedAt'     => now()->format('d M Y H:i'),
+            // Variabel tambahan yang dibutuhkan view
+            'colCount'        => count($headers),
+            'fontSize'        => count($headers) > 10 ? 7 : (count($headers) > 7 ? 8 : 9),
+            'chartImage'      => null,
+            'columnTypes'     => array_map(function($header) use ($currencyColumns) {
+                $normalized = strtolower(preg_replace('/[\s_]+/', '_', $header));
+                $normCols   = array_map(fn($c) => strtolower(preg_replace('/[\s_]+/', '_', $c)), $currencyColumns);
+                if (in_array($normalized, $normCols)) return 'currency';
+                if (preg_match('/(qty|jumlah|count|total|amount|nilai)/i', $header)) return 'number';
+                return 'text';
+            }, $headers),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download($filename);
     }
 
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = ''): ?array
@@ -466,7 +576,11 @@ class AgenticChatbotController extends Controller
     private function buildMessages(string $systemPrompt, array $history, string $userMessage, string $lang): array
     {
         $messages = [['role' => 'system', 'content' => $systemPrompt]];
-        foreach ($history as $msg) {
+
+        // Batasi history agar context window tidak meluap
+        $recentHistory = array_slice($history, -$this->maxHistory);
+
+        foreach ($recentHistory as $msg) {
             $toolResults = $msg['tool_results'] ?? null;
             if ($msg['role'] === 'assistant' && !empty($toolResults)) {
                 $fakeToolCalls = [];
@@ -479,11 +593,25 @@ class AgenticChatbotController extends Controller
                 }
                 $messages[] = ['role' => 'assistant', 'content' => $msg['content'] ?? '', 'tool_calls' => $fakeToolCalls];
                 foreach ($toolResults as $index => $res) {
+                    // FIX: Truncate large tool results in history to avoid context overflow
+                    $toolData    = $res['data'] ?? '';
+                    $toolContent = is_string($toolData) ? $toolData : json_encode($toolData);
+                    if (strlen($toolContent) > 2000) {
+                        $decoded = is_array($toolData) ? $toolData : (json_decode($toolContent, true) ?? []);
+                        $truncated = [
+                            'rows_returned' => $decoded['rows_returned'] ?? '?',
+                            'columns'       => $decoded['columns'] ?? [],
+                            'rows'          => array_slice($decoded['rows'] ?? [], 0, 5),
+                            '_truncated'    => true,
+                            '_message'      => 'History truncated. Re-query if needed.',
+                        ];
+                        $toolContent = json_encode($truncated);
+                    }
                     $messages[] = [
                         'role'         => 'tool',
                         'tool_call_id' => $fakeToolCalls[$index]['id'],
                         'name'         => $res['tool_name'] ?? 'query',
-                        'content'      => is_string($res['data'] ?? '') ? $res['data'] : json_encode($res['data'])
+                        'content'      => $toolContent,
                     ];
                 }
             } else {
@@ -595,6 +723,12 @@ Tanyakan pada diri sendiri: *"Apakah SETIAP nama kolom yang saya gunakan di quer
 - **OPTIMASI FILTER TANGGAL (WAJIB)**: SELALU gunakan BETWEEN pada kolom DATE/TIMESTAMP aktual dari describe_table. JANGAN pernah gunakan nama kolom tebakan seperti `periode_bulan` atau `periode_tahun`.
 - **SMART LIMIT**: Ambil SEMUA baris jika user minta "lihat", "tampilkan". Gunakan LIMIT hanya jika user minta angka spesifik.
 - **KOREKSI MANDIRI (WAJIB)**: Jika tool apapun mengembalikan field `MANDATORY_AI_ACTION`, WAJIB ikuti instruksi tersebut. JANGAN menyerah.
+- **⛔ ATURAN GROUP BY (SANGAT KRITIS)**: Jika user meminta "total", "jumlah", atau ringkasan PER ENTITAS (per cabang, per dealer, per bulan), maka:
+  - GROUP BY hanya boleh menggunakan kolom IDENTITAS/DIMENSI (nama_cabang, nama_dealer, bulan, dll)
+  - JANGAN PERNAH GROUP BY kolom nilai/transaksi (hrg_pokok, total_netto, harga, dll)
+  - Contoh BENAR: `GROUP BY nama_cabang`
+  - Contoh SALAH: `GROUP BY nama_cabang, hrg_pokok, total_netto, total_disc` ← ini menghasilkan ratusan baris duplikat
+  - Jika hanya ingin 1 total per cabang: `SELECT nama_cabang, SUM(kolom_hpp) AS "Total HPP", SUM(kolom_netto) AS "Total Netto" ... GROUP BY nama_cabang`
 
 ## 🚨 PROTOKOL TIMEOUT & HASIL KOSONG — WAJIB DIIKUTI (KRITIS UNTUK MISTRAL)
 
@@ -724,6 +858,12 @@ Ask yourself: *"Does EVERY column name I am using in this query come from the de
 - **ALIASES**: Use Title Case: `AS "Total Net Sales"`
 - **ROUNDING**: `ROUND(SUM(column), 0)`
 - **SELF-CORRECTION**: If any tool returns `MANDATORY_AI_ACTION`, follow it precisely. NEVER give up.
+- **⛔ GROUP BY RULE (CRITICAL)**: When the user asks for "totals" or a summary PER entity (per branch, per dealer, per month):
+  - GROUP BY must only contain IDENTITY/DIMENSION columns (e.g. branch_name, dealer_name, month)
+  - NEVER include value/transaction columns in GROUP BY (e.g. hpp, total_netto, price)
+  - CORRECT: `GROUP BY branch_name`
+  - WRONG: `GROUP BY branch_name, hpp, total_netto, disc` ← produces hundreds of duplicate rows
+  - One total per branch: `SELECT branch_col, SUM(hpp_col) AS "Total HPP", SUM(netto_col) AS "Total Netto" ... GROUP BY branch_col`
 
 ## 🚨 TIMEOUT & EMPTY RESULT PROTOCOL — MANDATORY
 
