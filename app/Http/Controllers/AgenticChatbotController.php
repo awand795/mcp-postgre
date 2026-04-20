@@ -46,6 +46,8 @@ class AgenticChatbotController extends Controller
 
     public function send(Request $request)
     {
+        set_time_limit(0); // Prevent PHP script timeout
+
         $request->validate([
             'message'  => 'required|string',
             'model_id' => 'nullable|exists:ai_models,id'
