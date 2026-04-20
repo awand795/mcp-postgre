@@ -322,6 +322,8 @@
                         class="fas fa-users"></i> <span>Management User</span></a></li>
             <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}"><i
                         class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
+            <li><a href="{{ route('admin.ai_management') }}" class="{{ request()->routeIs('admin.ai_management') ? 'active' : '' }}"><i
+                        class="fas fa-robot"></i> <span>Management AI</span></a></li>
             <li><a href="{{ route('admin.databases') }}" class="{{ request()->routeIs('admin.databases') ? 'active' : '' }}"><i
                         class="fas fa-database"></i> <span>Management Database</span></a></li>
             <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a>

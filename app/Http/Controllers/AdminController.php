@@ -29,7 +29,7 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $query = User::with('roleModel');
+        $query = User::with(['roleModel', 'aiModels', 'aiKeys']);
         
         // Search functionality
         if ($request->filled('search')) {
@@ -47,8 +47,10 @@ class AdminController extends Controller
         
         $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         $roles = Role::all();
+        $aiModels = \App\Models\AiModel::with('provider')->where('is_active', true)->get();
+        $aiKeys = \App\Models\AiApiKey::with('provider')->where('is_active', true)->get();
         
-        return view('admin.users', compact('users', 'roles'));
+        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys'));
     }
 
     public function userStore(Request $request)
@@ -60,13 +62,21 @@ class AdminController extends Controller
             'role' => 'required',
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
             'is_admin' => $request->has('is_admin'),
+            'max_tokens' => $request->input('max_tokens', 32768),
         ]);
+
+        if ($request->has('ai_models')) {
+            $user->aiModels()->sync($request->ai_models);
+        }
+        if ($request->has('ai_keys')) {
+            $user->aiKeys()->sync($request->ai_keys);
+        }
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
         return $redirect->with('success', 'User berhasil ditambahkan.');
@@ -85,6 +95,7 @@ class AdminController extends Controller
             'email' => $request->email,
             'role' => $request->role,
             'is_admin' => $request->has('is_admin'),
+            'max_tokens' => $request->input('max_tokens', 32768),
         ];
 
         if ($request->filled('password')) {
@@ -98,6 +109,9 @@ class AdminController extends Controller
         }
 
         $user->update($data);
+
+        $user->aiModels()->sync($request->ai_models ?? []);
+        $user->aiKeys()->sync($request->ai_keys ?? []);
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
         return $redirect->with('success', 'User berhasil diperbarui.');

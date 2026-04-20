@@ -179,10 +179,45 @@
                     @endforeach
                 </select>
             </div>
+            <div class="form-group">
+                <label>Max Tokens</label>
+                <input type="number" name="max_tokens" id="userMaxTokens" value="32768" required min="1">
+                <small style="color: #64748b; font-size: 0.75rem;">Default: 32768 (Kontrol panjang respon AI)</small>
+            </div>
             <div class="form-group checkbox-group">
                 <input type="checkbox" name="is_admin" id="userIsAdmin" value="1">
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
+
+            <!-- AI Access Selection -->
+            <div class="form-group">
+                <label style="color: var(--primary); font-weight: 600; margin-bottom: 1rem; display: block;">
+                    <i class="fas fa-brain"></i> Akses AI Models
+                </label>
+                <div class="ai-selection-grid">
+                    @foreach($aiModels as $model)
+                        <label class="ai-checkbox-item">
+                            <input type="checkbox" name="ai_models[]" value="{{ $model->id }}" class="model-checkbox">
+                            <span>{{ $model->provider->name }} - {{ $model->display_name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="color: #10b981; font-weight: 600; margin-bottom: 1rem; display: block;">
+                    <i class="fas fa-key"></i> Akses API Keys
+                </label>
+                <div class="ai-selection-grid">
+                    @foreach($aiKeys as $key)
+                        <label class="ai-checkbox-item">
+                            <input type="checkbox" name="ai_keys[]" value="{{ $key->id }}" class="key-checkbox">
+                            <span>{{ $key->provider->name }} - {{ $key->key_name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
                 <button type="submit" class="btn btn-primary">Simpan</button>
@@ -487,6 +522,38 @@
         width: auto;
     }
 
+    .ai-selection-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        background: rgba(0,0,0,0.1);
+        padding: 1rem;
+        border-radius: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .ai-checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: background 0.2s;
+    }
+
+    .ai-checkbox-item:hover {
+        background: rgba(255,255,255,0.05);
+    }
+
+    .ai-checkbox-item input {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
     .modal-actions {
         display: flex;
         gap: 10px;
@@ -591,6 +658,10 @@
             form.action = "{{ route('admin.users.store') }}";
             method.value = 'POST';
             form.reset();
+            document.getElementById('userMaxTokens').value = 32768;
+            
+            // Reset AI checkboxes
+            document.querySelectorAll('.model-checkbox, .key-checkbox').forEach(cb => cb.checked = false);
         } else if (type === 'import') {
             document.getElementById('importModal').style.display = 'flex';
             return;
@@ -609,6 +680,19 @@
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
             document.getElementById('userIsAdmin').checked = user.is_admin;
+            document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
+
+            // Handle AI Models
+            const userModels = user.ai_models ? user.ai_models.map(m => m.id) : [];
+            document.querySelectorAll('.model-checkbox').forEach(cb => {
+                cb.checked = userModels.includes(parseInt(cb.value));
+            });
+
+            // Handle AI Keys
+            const userKeys = user.ai_keys ? user.ai_keys.map(k => k.id) : [];
+            document.querySelectorAll('.key-checkbox').forEach(cb => {
+                cb.checked = userKeys.includes(parseInt(cb.value));
+            });
         }
     }
 

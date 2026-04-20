@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_admin',
+        'max_tokens',
     ];
 
     public function roleModel()
@@ -51,5 +52,21 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the AI Models accessible to the user.
+     */
+    public function aiModels()
+    {
+        return $this->belongsToMany(AiModel::class, 'user_ai_models', 'user_id', 'model_id');
+    }
+
+    /**
+     * Get the AI API Keys accessible to the user.
+     */
+    public function aiKeys()
+    {
+        return $this->belongsToMany(AiApiKey::class, 'user_ai_keys', 'user_id', 'api_key_id');
     }
 }

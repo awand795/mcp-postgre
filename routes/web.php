@@ -82,6 +82,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/databases/load-schemas', [AdminController::class, 'loadSchemasFromParams'])->name('databases.load-schemas');
         Route::get('/databases/test-all', [AdminController::class, 'testAllConnections'])->name('databases.test-all');
         Route::post('/cache/clear', [AdminController::class, 'clearCache'])->name('cache.clear');
+
+        // AI Management
+        Route::get('/ai-management', [App\Http\Controllers\Admin\AiController::class, 'index'])->name('ai_management');
+        Route::post('/ai-management/keys', [App\Http\Controllers\Admin\AiController::class, 'storeKey'])->name('ai_management.store_key');
+        Route::put('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'updateKey'])->name('ai_management.update_key');
+        Route::delete('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'deleteKey'])->name('ai_management.delete_key');
+        Route::post('/ai-management/keys/{key}/reset-limit', [App\Http\Controllers\Admin\AiController::class, 'resetLimit'])->name('ai_management.reset_limit');
+        Route::post('/ai-management/models/{model}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleModel'])->name('ai_management.toggle_model');
+        Route::post('/ai-management/providers/{provider}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleProvider'])->name('ai_management.toggle_provider');
     });
 });
 
