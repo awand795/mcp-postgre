@@ -773,6 +773,89 @@ PROMPT;
     // API PROVIDER IMPLEMENTATIONS
     // ─────────────────────────────────────────────────────────────────────────
 
+    private function handleProviderResponse($response, string $providerCode): ?array
+    {
+        if ($response->status() === 429) {
+            return null;
+        }
+
+        if ($response->failed()) {
+            Log::error("[Agentic] API Error ({$providerCode}): " . $response->body());
+            return null;
+        }
+
+        $data = $response->json();
+
+        if ($providerCode === 'gemini') {
+            $candidate = $data['candidates'][0] ?? null;
+            if (!$candidate) return null;
+
+            $parts = $candidate['content']['parts'] ?? [];
+            $text  = '';
+            $toolCalls = [];
+            foreach ($parts as $p) {
+                if (isset($p['text'])) $text .= $p['text'];
+                if (isset($p['functionCall'])) {
+                    $toolCalls[] = [
+                        'id'   => 'call_' . uniqid(),
+                        'type' => 'function',
+                        'function' => [
+                            'name'      => $p['functionCall']['name'],
+                            'arguments' => json_encode($p['functionCall']['args'] ?? (object)[])
+                        ]
+                    ];
+                }
+            }
+            return [
+                'choices' => [[
+                    'message' => [
+                        'role'       => 'assistant',
+                        'content'    => $text,
+                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                    ],
+                    'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
+                ]]
+            ];
+        }
+
+        if ($providerCode === 'claude') {
+            $contentBlocks = $data['content'] ?? [];
+            $stopReason    = $data['stop_reason'] ?? 'end_turn';
+            $text          = '';
+            $toolCalls     = [];
+
+            foreach ($contentBlocks as $block) {
+                $type = $block['type'] ?? '';
+                if ($type === 'text') {
+                    $text .= $block['text'] ?? '';
+                } elseif ($type === 'tool_use') {
+                    $toolCalls[] = [
+                        'id'   => $block['id'] ?? ('call_' . uniqid()),
+                        'type' => 'function',
+                        'function' => [
+                            'name'      => $block['name'],
+                            'arguments' => json_encode($block['input'] ?? (object)[])
+                        ]
+                    ];
+                }
+            }
+
+            return [
+                'choices' => [[
+                    'message' => [
+                        'role'       => 'assistant',
+                        'content'    => $text,
+                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                    ],
+                    'finish_reason' => ($stopReason === 'tool_use') ? 'tool_calls' : 'stop'
+                ]]
+            ];
+        }
+
+        // Mistral / OpenAI / Custom — sudah dalam format yang benar
+        return $data;
+    }
+
     private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
     {
         $url = 'https://api.openai.com/v1/chat/completions';
