@@ -393,7 +393,11 @@ class AgenticChatbotController extends Controller
 
         return response()->json([
             'session' => $session,
-            'messages' => $messages
+            'history' => $messages,
+            'pagination' => [
+                'has_more' => false,
+                'oldest_cursor' => null
+            ]
         ]);
     }
 
