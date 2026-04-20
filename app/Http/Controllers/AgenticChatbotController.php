@@ -374,40 +374,148 @@ class AgenticChatbotController extends Controller
         flush();
     }
 
+    public function getSessions(Request $request)
+    {
+        return ChatSession::where('user_id', $request->user()->id)
+            ->orderBy('updated_at', 'desc')
+            ->get(['id', 'title', 'updated_at']);
+    }
+
     // ── Panggil AI API (Multi-Provider) ──────────────────────────────────────
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = null): ?array
     {
         $providerCode = $apiKey->provider->code;
-        $url = "";
-        
         $maxTokens = $maxTokens ?? $this->maxTokens;
         
-        // Define endpoints based on provider
-        switch ($providerCode) {
-            case 'openai':
-                $url = 'https://api.openai.com/v1/responses'; // Consistent with their previous URL
-                break;
-            case 'gemini':
-                $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model->model_name . ':generateContent?key=' . $apiKey->api_key;
-                // Gemini usually doesn't use standard OpenAI payload, but I'll follow the existing structure 
-                // and assume their backend/proxy handles it or they want me to adapt.
-                // For now, I'll use the OpenAI-like payload as requested for the management part.
-                break;
-            case 'claude':
-                $url = 'https://api.anthropic.com/v1/messages';
-                break;
-            default:
-                $url = 'https://api.openai.com/v1/responses';
+        Log::info("[Agentic] Calling {$providerCode} API with model: {$model->model_name}");
+
+        // 1. Google Gemini
+        if ($providerCode === 'gemini') {
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $model->model_name . ':generateContent?key=' . $apiKey->api_key;
+            return $this->callGeminiApi($messages, $tools, $url, $maxTokens);
         }
 
-        // Standardizing messages for the user's specific API format (OpenAI-like)
+        // 2. Anthropic Claude
+        if ($providerCode === 'claude') {
+            return $this->callClaudeApi($messages, $tools, $apiKey, $model, $maxTokens);
+        }
+
+        // 3. Custom / GPT-5.4 (Format OpenAI-like khusus yang menggunakan 'input' bukan 'messages')
+        if ($model->model_name === 'gpt-5.4' || $providerCode === 'custom') {
+            return $this->callCustomApi($messages, $tools, $apiKey, $model, $maxTokens);
+        }
+
+        // 4. Standard OpenAI
+        return $this->callOpenAiApi($messages, $tools, $apiKey, $model, $maxTokens);
+    }
+
+    private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    {
+        $url = 'https://api.openai.com/v1/chat/completions';
+        
+        $payload = [
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int)$maxTokens,
+            'temperature' => 0.7,
+        ];
+
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey->api_key,
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+        return $this->handleGenericResponse($response, $apiKey);
+    }
+
+    private function callClaudeApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    {
+        $url = 'https://api.anthropic.com/v1/messages';
+        
+        // Claude doesn't support 'system' role inside messages
+        $system = '';
+        $claudeMessages = [];
+        foreach ($messages as $m) {
+            if ($m['role'] === 'system') {
+                $system = $m['content'];
+            } else {
+                $claudeMessages[] = $m;
+            }
+        }
+
+        $payload = [
+            'model' => $model->model_name,
+            'max_tokens' => (int)$maxTokens,
+            'messages' => $claudeMessages,
+            'system' => $system,
+        ];
+
+        if (!empty($tools)) {
+            $claudeTools = [];
+            foreach ($tools as $t) {
+                $f = $t['function'];
+                $claudeTools[] = [
+                    'name' => $f['name'],
+                    'description' => $f['description'],
+                    'input_schema' => $f['parameters']
+                ];
+            }
+            $payload['tools'] = $claudeTools;
+        }
+
+        $response = Http::withHeaders([
+            'x-api-key' => $apiKey->api_key,
+            'anthropic-version' => '2023-06-01',
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+        if ($response->failed()) return null;
+        $data = $response->json();
+
+        // Map Claude response to OpenAI format for compatibility
+        $content = '';
+        $toolCalls = [];
+        foreach ($data['content'] as $block) {
+            if ($block['type'] === 'text') $content .= $block['text'];
+            if ($block['type'] === 'tool_use') {
+                $toolCalls[] = [
+                    'id' => $block['id'],
+                    'type' => 'function',
+                    'function' => [
+                        'name' => $block['name'],
+                        'arguments' => json_encode($block['input'])
+                    ]
+                ];
+            }
+        }
+
+        return [
+            'choices' => [[
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => $content,
+                    'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                ],
+                'finish_reason' => $data['stop_reason'] === 'tool_use' ? 'tool_calls' : 'stop'
+            ]]
+        ];
+    }
+
+    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens)
+    {
+        // Ini adalah format yang Anda minta (yang digunakan kemarin sebelum diubah)
+        // Menggunakan 'input' dan 'type' khusus
+        $url = ($apiKey->provider->code === 'openai') ? 'https://api.openai.com/v1/responses' : 'https://api.openai.com/v1/responses';
+
         $cleanMessages = [];
         foreach ($messages as $msg) {
             $role = $msg['role'] ?? '';
             $textVal = $msg['content'] ?? '';
-            if (is_array($textVal)) {
-                $textVal = $textVal[0]['text'] ?? '';
-            }
 
             if ($role === 'tool') {
                 $cleanMessages[] = [
@@ -419,35 +527,178 @@ class AgenticChatbotController extends Controller
             }
 
             $contentType = ($role === 'assistant') ? 'output_text' : 'input_text';
-            $clean = [
-                'role' => $role,
-                'content' => []
-            ];
+            $clean = ['role' => $role, 'content' => []];
 
             if ((string)$textVal !== '') {
                 $clean['content'][] = ['type' => $contentType, 'text' => (string)$textVal];
-            } else if (empty($msg['tool_calls'])) {
-                $clean['content'][] = ['type' => $contentType, 'text' => ''];
             }
 
-            if ($role === 'assistant') {
-                if (!empty($clean['content'])) {
-                    $cleanMessages[] = $clean;
-                }
-                if (!empty($msg['tool_calls'])) {
-                    foreach ($msg['tool_calls'] as $tc) {
-                        $funcData = $tc['function'] ?? $tc;
-                        $args = $funcData['arguments'] ?? '{}';
-                        
-                        $cleanMessages[] = [
-                            'type'      => 'function_call',
-                            'call_id'   => $tc['id'] ?? ($tc['call_id'] ?? ''),
-                            'name'      => $funcData['name'] ?? '',
-                            'arguments' => is_string($args) ? $args : json_encode($args)
-                        ];
-                    }
+            if ($role === 'assistant' && !empty($msg['tool_calls'])) {
+                $cleanMessages[] = $clean;
+                foreach ($msg['tool_calls'] as $tc) {
+                    $cleanMessages[] = [
+                        'type' => 'function_call',
+                        'call_id' => $tc['id'] ?? '',
+                        'name' => $tc['function']['name'],
+                        'arguments' => $tc['function']['arguments']
+                    ];
                 }
             } else {
+                $cleanMessages[] = $clean;
+            }
+        }
+
+        $payload = [
+            'model' => $model->model_name,
+            'input' => $cleanMessages,
+            'tools' => $tools,
+            'tool_choice' => 'auto',
+            'max_output_tokens' => (int)$maxTokens,
+            'temperature' => 0.2,
+        ];
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey->api_key,
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+        return $this->handleGenericResponse($response, $apiKey);
+    }
+
+    private function handleGenericResponse($response, $apiKey)
+    {
+        if ($response->status() === 429) {
+            $apiKey->update(['limit_reached' => true]);
+            return null;
+        }
+
+        if ($response->failed()) {
+            Log::error("[Agentic] API Error: " . $response->body());
+            return null;
+        }
+
+        return $response->json();
+    }
+
+    private function callGeminiApi(array $messages, array $tools, $url, $maxTokens)
+    {
+        $contents = [];
+        $systemInstruction = null;
+
+        foreach ($messages as $msg) {
+            $role = $msg['role'];
+            if ($role === 'system') {
+                $systemInstruction = ['parts' => [['text' => $msg['content']]]];
+                continue;
+            }
+
+            $geminiRole = ($role === 'assistant') ? 'model' : 'user';
+            
+            if ($role === 'tool') {
+                $contents[] = [
+                    'role' => 'function',
+                    'parts' => [[
+                        'functionResponse' => [
+                            'name' => $msg['name'] ?? '',
+                            'response' => ['content' => $msg['content']]
+                        ]
+                    ]]
+                ];
+                continue;
+            }
+
+            $parts = [];
+            if (isset($msg['content']) && !empty($msg['content'])) {
+                $parts[] = ['text' => $msg['content']];
+            }
+
+            if ($role === 'assistant' && !empty($msg['tool_calls'])) {
+                foreach ($msg['tool_calls'] as $tc) {
+                    $parts[] = [
+                        'functionCall' => [
+                            'name' => $tc['function']['name'],
+                            'args' => json_decode($tc['function']['arguments'], true)
+                        ]
+                    ];
+                }
+            }
+
+            if (!empty($parts)) {
+                $contents[] = ['role' => $geminiRole, 'parts' => $parts];
+            }
+        }
+
+        $geminiTools = [];
+        if (!empty($tools)) {
+            $declarations = [];
+            foreach ($tools as $t) {
+                $f = $t['function'];
+                $declarations[] = [
+                    'name' => $f['name'],
+                    'description' => $f['description'],
+                    'parameters' => $f['parameters']
+                ];
+            }
+            $geminiTools = [['function_declarations' => $declarations]];
+        }
+
+        $payload = [
+            'contents' => $contents,
+            'tools' => $geminiTools,
+            'generationConfig' => [
+                'maxOutputTokens' => (int)$maxTokens,
+                'temperature' => 0.1,
+            ]
+        ];
+
+        if ($systemInstruction) {
+            $payload['system_instruction'] = $systemInstruction;
+        }
+
+        $response = Http::withHeaders(['Content-Type' => 'application/json'])
+            ->post($url, $payload);
+
+        if ($response->failed()) {
+            \Log::error("Gemini API Error: " . $response->body());
+            return null;
+        }
+
+        $data = $response->json();
+        $candidate = $data['candidates'][0] ?? null;
+        if (!$candidate) return null;
+
+        $modelMsg = $candidate['content'];
+        $resRole = 'assistant';
+        $resContent = '';
+        $toolCalls = [];
+
+        foreach ($modelMsg['parts'] as $part) {
+            if (isset($part['text'])) {
+                $resContent .= $part['text'];
+            }
+            if (isset($part['functionCall'])) {
+                $toolCalls[] = [
+                    'id' => 'call_' . uniqid(),
+                    'type' => 'function',
+                    'function' => [
+                        'name' => $part['functionCall']['name'],
+                        'arguments' => json_encode($part['functionCall']['args'])
+                    ]
+                ];
+            }
+        }
+
+        return [
+            'choices' => [[
+                'message' => [
+                    'role' => $resRole,
+                    'content' => $resContent,
+                    'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                ],
+                'finish_reason' => $candidate['finishReason'] ?? 'stop'
+            ]]
+        ];
+    }
                 $cleanMessages[] = $clean;
             }
         }
