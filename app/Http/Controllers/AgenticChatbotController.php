@@ -46,15 +46,29 @@ class AgenticChatbotController extends Controller
     {
         $request->validate([
             'message'  => 'required|string',
-            'model_id' => 'required|exists:ai_models,id'
+            'model_id' => 'nullable|exists:ai_models,id'
         ]);
 
         $user = Auth::user();
         $message = $request->message;
         $selectedModelId = $request->model_id;
+
+        if (!$selectedModelId) {
+            $selectedModel = $user->aiModels()
+                ->where('ai_models.is_active', true)
+                ->where('user_ai_models.is_enabled', true)
+                ->first();
+                
+            if (!$selectedModel) {
+                 return response()->json(['error' => 'Tidak ada model AI yang aktif. Silakan aktifkan di Pengaturan.'], 400);
+            }
+            $selectedModelId = $selectedModel->id;
+        } else {
+            $selectedModel = $user->aiModels()->with('provider')->findOrFail($selectedModelId);
+        }
+
         $chatSessionId = $request->chat_session_id;
 
-        $selectedModel = $user->aiModels()->with('provider')->findOrFail($selectedModelId);
         $apiKey = $user->aiKeys()->where('provider_id', $selectedModel->provider_id)->where('is_active', true)->first();
 
         $detectedLang = $this->langDetector->detect($message);
