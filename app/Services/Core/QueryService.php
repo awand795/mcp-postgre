@@ -158,32 +158,71 @@ class QueryService extends BaseService
         // Kumpulkan semua tabel yang diizinkan untuk database ini dari semua schema
         $allowedTablesForDb = [];
         $allowedSchemasForDb = [];
+        $hasWildcardTable  = false; // true jika ada entri '*' di tabel
+        $hasWildcardSchema = false; // true jika ada key schema '*'
+
         foreach ($allowedDbs[$databaseCode] as $sch => $tbls) {
-            $allowedSchemasForDb[] = $sch;
+            if ($sch === '*') {
+                $hasWildcardSchema = true;
+            } else {
+                $allowedSchemasForDb[] = strtolower($sch);
+            }
             foreach ($tbls as $tbl) {
                 // tbl bisa berupa string atau ['name'=>..., 'description'=>...]
-                $allowedTablesForDb[] = is_array($tbl) ? ($tbl['name'] ?? '') : (string) $tbl;
+                $tblName = is_array($tbl) ? ($tbl['name'] ?? '') : (string) $tbl;
+                if ($tblName === '*') {
+                    $hasWildcardTable = true;
+                } else {
+                    $allowedTablesForDb[] = strtolower($tblName);
+                }
             }
         }
         $allowedTablesForDb = array_filter(array_unique($allowedTablesForDb));
 
-        // Ekstrak nama schema (opsional) dan tabel dari query
-        // Format umum: from schema.table atau join schema.table
-        if (preg_match_all('/(?:from|join)\s+(?:([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)/i', $trimmedSql, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $schemaUsed = !empty($match[1]) ? strtolower(trim($match[1])) : null;
-                $tbl = strtolower(trim($match[2]));
-                
-                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as', 'lateral', 'join', 'inner', 'left', 'right', 'outer'])) continue;
-                
-                if (!in_array($tbl, $allowedTablesForDb)) {
-                    Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
-                    return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan atau tidak ditemukan.");
-                }
+        // Jika ada wildcard schema DAN wildcard table, izinkan semua — skip RBAC tabel
+        $skipTableRbac = $hasWildcardSchema && $hasWildcardTable;
 
-                if ($schemaUsed && !in_array($schemaUsed, $allowedSchemasForDb)) {
-                     Log::warning("[ToolCallExecutor] Access denied to schema '{$schemaUsed}' in DB '{$databaseCode}'");
-                     return $this->errorResponse("Akses ditolak: schema '{$schemaUsed}' tidak diizinkan.");
+        if (!$skipTableRbac) {
+            // Ekstrak nama schema dan tabel dari query.
+            // Support format: schema.table, "schema"."table", schema."table", "schema".table
+            // Regex menangkap identifier biasa ATAU quoted ("...") sebagai satu token.
+            $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
+            $pattern = '/(?:from|join)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?/i';
+
+            if (preg_match_all($pattern, $trimmedSql, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $match) {
+                    // match[1] = quoted schema atau quoted lone-table
+                    // match[2] = unquoted schema atau unquoted lone-table
+                    // match[3] = quoted table (jika ada dot)
+                    // match[4] = unquoted table (jika ada dot)
+                    $hasDot   = !empty($match[3]) || !empty($match[4]);
+                    $firstId  = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
+                    $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
+
+                    if ($hasDot) {
+                        $schemaUsed = $firstId;
+                        $tbl        = $secondId;
+                    } else {
+                        $schemaUsed = null;
+                        $tbl        = $firstId;
+                    }
+
+                    // Skip SQL keywords yang bisa muncul setelah FROM/JOIN
+                    $sqlKeywords = ['select', 'where', 'on', 'and', 'or', 'as', 'lateral',
+                                    'join', 'inner', 'left', 'right', 'outer', 'cross', 'full'];
+                    if (in_array($tbl, $sqlKeywords)) continue;
+
+                    // Validasi tabel — izinkan jika ada wildcard '*' di list tabel schema ini
+                    if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
+                        Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
+                        return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan atau tidak ditemukan.");
+                    }
+
+                    // Validasi schema — izinkan jika ada wildcard schema
+                    if ($schemaUsed && !$hasWildcardSchema && !in_array($schemaUsed, $allowedSchemasForDb)) {
+                        Log::warning("[ToolCallExecutor] Access denied to schema '{$schemaUsed}' in DB '{$databaseCode}'");
+                        return $this->errorResponse("Akses ditolak: schema '{$schemaUsed}' tidak diizinkan.");
+                    }
                 }
             }
         }
