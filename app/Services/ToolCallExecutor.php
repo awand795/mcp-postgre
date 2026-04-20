@@ -194,7 +194,7 @@ class ToolCallExecutor
                         'module' => [
                             'type'        => 'string',
                             'description' => 'Specific module name to get navigation for.',
-                            'enum'        => ['', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse', 'Report Center', 'Document'],
+                            'enum'        => ['Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse', 'Report Center', 'Document'],
                         ],
                         'menu_keyword' => [
                             'type'        => 'string',
@@ -218,7 +218,7 @@ class ToolCallExecutor
                         'category' => [
                             'type'        => 'string',
                             'description' => 'Filter kategori modul.',
-                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', ''],
+                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory'],
                         ],
                         'list_all' => [
                             'type'        => 'boolean',
