@@ -383,12 +383,29 @@
             body: formData,
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         })
-        .then(res => res.json())
-        .then(data => {
+        .then(async res => {
+            const data = await res.json();
             if (data.success) {
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Konfigurasi AI diperbarui!', timer: 1500, showConfirmButton: false });
-                location.reload();
+                Swal.fire({ 
+                    icon: 'success', 
+                    title: 'Berhasil', 
+                    text: 'Konfigurasi AI diperbarui!', 
+                    timer: 1500, 
+                    showConfirmButton: false 
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                throw new Error(data.message || 'Gagal menyimpan konfigurasi');
             }
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: err.message || 'Terjadi kesalahan saat menyimpan.'
+            });
         })
         .finally(() => {
             btn.disabled = false;
