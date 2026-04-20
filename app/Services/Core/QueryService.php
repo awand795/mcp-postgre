@@ -254,14 +254,15 @@ class QueryService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set driver-specific timeout and limits
+            // Set driver-specific timeout:
+            // Gunakan 120 detik (120000ms) agar query berat pada view tetap bisa selesai.
+            // Ini cukup untuk agregasi data besar, namun masih ada batas agar tidak hang selamanya.
             if ($driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 0');
+                DB::connection($connName)->statement('SET statement_timeout = 120000'); // 120 detik
             } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
-            } elseif ($driver === 'sqlsrv') {
-                // SQL Server timeout is handled in connection config
+                DB::connection($connName)->statement('SET SESSION max_execution_time = 120000'); // 120 detik
             }
+            // sqlsrv: handled via connection config options
 
             $rows = DB::connection($connName)->select($cleanSql);
         } catch (\Exception $e) {
@@ -347,11 +348,11 @@ class QueryService extends BaseService
     {
         // Timeout detection per driver
         $timeoutPatterns = [
-            'pgsql' => ['statement timeout', 'canceling statement due to statement timeout'],
-            'mysql' => ['Statement timeout', 'max_execution_time'],
+            'pgsql'   => ['statement timeout', 'canceling statement due to statement timeout'],
+            'mysql'   => ['Statement timeout', 'max_execution_time'],
             'mariadb' => ['Statement timeout', 'max_execution_time'],
-            'sqlsrv' => ['Timeout expired', 'execution timeout'],
-            'sqlite' => ['database is locked'],
+            'sqlsrv'  => ['Timeout expired', 'execution timeout'],
+            'sqlite'  => ['database is locked'],
         ];
 
         $isTimeout = false;
@@ -364,10 +365,57 @@ class QueryService extends BaseService
             }
         }
 
-        if ($isTimeout) {
-            return 'Query memakan waktu terlalu lama. Coba persempit data dengan menambahkan filter tahun, bulan, atau wilayah (misal: WHERE periode_tahun = EXTRACT(YEAR FROM NOW())).';
+        // Detect PHP/Laravel connection-level timeout (query took too long before DB responded)
+        if (!$isTimeout && (
+            stripos($dbError, 'could not obtain lock') !== false ||
+            stripos($dbError, 'SQLSTATE[HY000]') !== false ||
+            stripos($dbError, 'server has gone away') !== false ||
+            // Laravel HTTP client timeout via PDO
+            (stripos($dbError, 'SQLSTATE') !== false && stripos($dbError, 'timeout') !== false)
+        )) {
+            $isTimeout = true;
         }
 
-        return "DATABASE_ERROR: {$dbError}. \n\nHINT UNTUK AI: Jika kesalahan disebabkan oleh nama kolom atau tabel yang tidak ditemukan, Anda WAJIB memanggil tool 'get_database_schema_info' atau 'describe_table' (dengan parameter database_code dan schema_name) untuk memverifikasi struktur tabel yang benar sebelum mencoba query lagi. Jangan menebak nama kolom atau schema.";
+        if ($isTimeout) {
+            return json_encode([
+                'error'  => 'QUERY_TIMEOUT',
+                'detail' => 'Query melebihi batas waktu eksekusi (120 detik).',
+                'MANDATORY_AI_ACTION' => [
+                    'step1' => 'JANGAN menyimpulkan data tidak ada. Timeout berarti query terlalu berat, BUKAN data kosong.',
+                    'step2' => 'Optimasi query dengan salah satu strategi berikut:',
+                    'strategies' => [
+                        'A: Tambahkan filter tahun/bulan yang lebih spesifik menggunakan kolom bertipe date/timestamp yang ada di schema.',
+                        'B: Ganti fungsi EXTRACT() dengan range langsung: tgl_fak_jl BETWEEN \'2025-03-01\' AND \'2025-03-31\'',
+                        'C: Jika filter nama_cabang lambat, coba filter dengan kode_cabang jika tersedia (lebih cepat karena biasanya diindex).',
+                        'D: Kurangi kolom SELECT — hanya ambil kolom yang benar-benar dibutuhkan.',
+                    ],
+                    'step3' => 'Jalankan ulang execute_query dengan query yang sudah dioptimasi.',
+                ]
+            ]);
+        }
+
+        // Undefined column / relation does not exist
+        if (stripos($dbError, 'Undefined column') !== false || stripos($dbError, 'column') !== false && stripos($dbError, 'does not exist') !== false) {
+            return json_encode([
+                'error'  => 'UNDEFINED_COLUMN',
+                'detail' => $dbError,
+                'MANDATORY_AI_ACTION' => 'Nama kolom salah. WAJIB panggil describe_table dengan database_code dan schema_name yang eksak untuk melihat daftar kolom yang benar, kemudian retry execute_query.',
+            ]);
+        }
+
+        // Relation / table does not exist
+        if (stripos($dbError, 'does not exist') !== false || stripos($dbError, 'relation') !== false) {
+            return json_encode([
+                'error'  => 'RELATION_NOT_FOUND',
+                'detail' => $dbError,
+                'MANDATORY_AI_ACTION' => 'Nama tabel atau schema salah. WAJIB panggil get_database_schema_info untuk mendapatkan nama eksak, kemudian retry execute_query.',
+            ]);
+        }
+
+        return json_encode([
+            'error'  => 'DATABASE_ERROR',
+            'detail' => $dbError,
+            'MANDATORY_AI_ACTION' => 'Jika error disebabkan nama kolom atau tabel yang salah, WAJIB panggil describe_table untuk verifikasi struktur, kemudian retry. Jangan menyerah dan jangan bilang data tidak ada sebelum berhasil atau mencapai 3x retry.',
+        ]);
     }
 }
