@@ -13,6 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Http;
 use App\Models\ChatSession;
 use App\Models\ChatMessage;
+use Exception;
 
 class AgenticChatbotController extends Controller
 {
@@ -118,10 +119,15 @@ class AgenticChatbotController extends Controller
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
             
-            // Gunakan error_log agar pasti muncul di log web server jika Log Laravel bermasalah
-            error_log("[Agentic] Loop #{$loopCount} - User: " . Auth::user()->name . " - Model: " . $model->model_name);
+            // Gunakan log resmi Laravel agar bisa dilihat di storage/logs/laravel.log
+            Log::info("[Agentic] Loop #{$loopCount} - User: " . Auth::user()->name . " - Model: " . $model->model_name);
 
-            $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens);
+            try {
+                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens);
+            } catch (Exception $e) {
+                Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
+                $response = null;
+            }
 
             if (!$response || !isset($response['choices'][0]['message'])) {
                 $errMsg = $lang === 'en'
@@ -169,7 +175,7 @@ class AgenticChatbotController extends Controller
                 $argsRaw = $toolCall['function']['arguments'] ?? '{}';
                 $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
-                error_log("[Agentic] Executing Tool: {$toolName}");
+                Log::info("[Agentic] Executing Tool: {$toolName}");
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments);
                 
                 $decodedRes = json_decode($toolResult, true);
@@ -240,11 +246,7 @@ class AgenticChatbotController extends Controller
         $providerCode = $apiKey->provider->code;
         $maxTokens = $maxTokens ?? $this->maxTokens;
         
-        // Proteksi jika nama model salah (Gemini 2.5 tidak ada, ganti ke 2.0)
         $modelName = $model->model_name;
-        if (str_contains($modelName, 'gemini-2.5')) {
-            $modelName = str_replace('gemini-2.5', 'gemini-2.0', $modelName);
-        }
 
         if ($providerCode === 'gemini') {
             $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $modelName . ':generateContent?key=' . $apiKey->api_key;
@@ -335,7 +337,7 @@ class AgenticChatbotController extends Controller
     private function handleGenericResponse($response, $apiKey)
     {
         if ($response->status() === 429) { $apiKey->update(['limit_reached' => true]); return null; }
-        if ($response->failed()) { error_log("[Agentic] API Error: " . $response->body()); return null; }
+        if ($response->failed()) { Log::error("[Agentic] API Error: " . $response->body()); return null; }
         return $response->json();
     }
 
@@ -377,7 +379,7 @@ class AgenticChatbotController extends Controller
         if ($systemInstruction) $payload['system_instruction'] = $systemInstruction;
 
         $response = Http::withHeaders(['Content-Type' => 'application/json'])->post($url, $payload);
-        if ($response->failed()) { error_log("[Gemini] API Error: " . $response->status() . " - " . $response->body()); return null; }
+        if ($response->failed()) { Log::error("[Gemini] API Error: " . $response->status() . " - " . $response->body()); return null; }
         
         $data = $response->json();
         if (!isset($data['candidates'][0]['content'])) return null;
