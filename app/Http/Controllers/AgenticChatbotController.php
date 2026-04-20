@@ -22,10 +22,10 @@ class AgenticChatbotController extends Controller
     private int $maxHistory = 20;
 
     private LanguageDetector $langDetector;
-    private ToolCallExecutor $toolExecutor;
-    private QueryService $queryService;
+    private \App\Services\ToolCallExecutor $toolExecutor;
+    private \App\Services\Core\QueryService $queryService;
 
-    public function __construct(ToolCallExecutor $toolExecutor, QueryService $queryService)
+    public function __construct(\App\Services\ToolCallExecutor $toolExecutor, \App\Services\Core\QueryService $queryService)
     {
         $this->langDetector = new LanguageDetector();
         $this->toolExecutor = $toolExecutor;
