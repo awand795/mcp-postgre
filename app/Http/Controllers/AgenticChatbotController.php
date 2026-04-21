@@ -1212,6 +1212,38 @@ PROMPT;
             ];
         }
 
+        // ── Custom / OpenAI-compatible salvage logic ──────────────────────────
+        // Some models (Llama 3.3 via OpenRouter) sometimes output JSON tool calls 
+        // as plain text content instead of properly using tool_calls field.
+        if (isset($data['choices'][0]['message'])) {
+            $msg = &$data['choices'][0]['message'];
+            $content = $msg['content'] ?? '';
+            
+            if (!empty($content) && empty($msg['tool_calls'] ?? [])) {
+                // Regex to detect JSON tool call patterns
+                if (preg_match('/\{\s*"type"\s*:\s*"function"\s*,\s*"name"\s*:\s*"([^"]+)"/i', $content, $matches)) {
+                    try {
+                        $json = json_decode($content, true);
+                        if ($json && isset($json['name']) && isset($json['parameters'])) {
+                            Log::info("[Agentic] Salvaged text-based tool call from content: " . $json['name']);
+                            $msg['tool_calls'] = [[
+                                'id'       => 'call_' . uniqid(),
+                                'type'     => 'function',
+                                'function' => [
+                                    'name'      => $json['name'],
+                                    'arguments' => is_string($json['parameters']) ? $json['parameters'] : json_encode($json['parameters'])
+                                ]
+                            ]];
+                            $msg['content'] = null;
+                            $data['choices'][0]['finish_reason'] = 'tool_calls';
+                        }
+                    } catch (\Throwable $e) {
+                        // Not valid JSON, ignore
+                    }
+                }
+            }
+        }
+
         return $data;
     }
 
@@ -1312,12 +1344,13 @@ PROMPT;
 
         $providerCode = strtolower($apiKey->provider->code ?? '');
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
+        $isLlama = str_contains(strtolower($model->model_name), 'llama');
 
         // ── Groq / Llama: Isolated Turn One Strategy ───────────────────────
-        // To prevent Llama 3.3 from "jumping the gun" and hallucinating table names
+        // To prevent Llama from "jumping the gun" and hallucinating table names
         // based on the complex SQL instructions in the rich system prompt, we provide
         // a minimalist isolated prompt for the first turn only.
-        if ($isGroq && $loopCount === 1) {
+        if (($isGroq || ($providerCode === 'openrouter' && $isLlama)) && $loopCount === 1) {
             $userMsg = '';
             foreach ($messages as $m) {
                 if ($m['role'] === 'user') $userMsg = $m['content'];
@@ -1338,12 +1371,9 @@ PROMPT;
         }
 
         // ── Groq / Llama: History Pruning for TPM Management ────────────────
-        // Once we hit Loop 3+, the history can become too large for Groq's TPM.
-        // We prune older tool results while keeping the most recent context.
-        if ($isGroq && $loopCount >= 3) {
+        if (($isGroq || ($providerCode === 'openrouter' && $isLlama)) && $loopCount >= 3) {
             $prunedCount = 0;
             $totalMessages = count($messages);
-            // We prune everything except the very last tool result (the most relevant context)
             for ($i = 0; $i < $totalMessages - 1; $i++) {
                 if ($messages[$i]['role'] === 'tool' && strlen($messages[$i]['content']) > 500) {
                     $toolName = $messages[$i]['name'] ?? 'unknown';
@@ -1355,12 +1385,12 @@ PROMPT;
                 }
             }
             if ($prunedCount > 0) {
-                Log::info("[Agentic] Pruned {$prunedCount} old tool results for Groq Loop #{$loopCount} to mitigate TPM limit.");
+                Log::info("[Agentic] Pruned {$prunedCount} old tool results for Loop #{$loopCount}");
             }
         }
 
         // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
-        if ($isGroq && !empty($tools)) {
+        if (($isGroq || ($providerCode === 'openrouter' && $isLlama)) && !empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters'])) return $tool;
                 $params  = &$tool['function']['parameters'];
@@ -1375,27 +1405,19 @@ PROMPT;
         }
 
         // ── Groq / Llama: normalisasi message history ────────────────────────
-        // KRITIS: Groq menolak (400) jika:
-        //   1. assistant message memiliki content: null (harus string kosong "")
-        //   2. tool message memiliki content bukan string (harus string)
-        //   3. assistant message memiliki tool_calls tapi tidak ada tool result setelahnya
-        // Normalisasi ini diperlukan untuk SEMUA loop, bukan hanya loop pertama.
-        if ($isGroq) {
+        if ($isGroq || ($providerCode === 'openrouter' && $isLlama)) {
             $normalizedMessages = [];
             foreach ($messages as $idx => $m) {
                 $role = $m['role'] ?? '';
 
                 if ($role === 'assistant') {
-                    // Pastikan content selalu string, bukan null
                     $m['content'] = $m['content'] ?? '';
                     if (!is_string($m['content'])) {
                         $m['content'] = '';
                     }
-                    // Pastikan tool_calls ada tipe 'function' pada setiap item
                     if (!empty($m['tool_calls'])) {
                         $m['tool_calls'] = array_map(function ($tc) {
                             $tc['type'] = $tc['type'] ?? 'function';
-                            // arguments harus berupa string JSON
                             if (isset($tc['function']['arguments']) && !is_string($tc['function']['arguments'])) {
                                 $tc['function']['arguments'] = json_encode($tc['function']['arguments']);
                             }
@@ -1405,7 +1427,6 @@ PROMPT;
                 }
 
                 if ($role === 'tool') {
-                    // content harus string
                     if (!is_string($m['content'] ?? null)) {
                         $m['content'] = json_encode($m['content'] ?? '');
                     }
@@ -1417,24 +1438,16 @@ PROMPT;
         }
 
         // ── Groq / Llama: Prompt Compression for Tool Loops ───────────────
-        // If we are in Loop 2 or higher, and the AI is still calling tools,
-        // we strip the "visual/formatting" instructions from the system prompt
-        // to save significant tokens and avoid 429 TPM limits.
-        if ($isGroq && $loopCount >= 2 && !empty($messages)) {
+        if (($isGroq || ($providerCode === 'openrouter' && $isLlama)) && $loopCount >= 2 && !empty($messages)) {
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
-                    // Strip examples and heavy formatting instructions
-                    // We look for common markers in the system prompt
                     $originalContent = $m['content'];
-                    
-                    // Remove everything after "### FORMAT OUTPUT" or similar tags if present
-                    // This is a heuristic to keep only the SQL/Business rules
                     $sectionsToKeep = explode("### FORMAT OUTPUT", $originalContent)[0];
                     $sectionsToKeep = explode("### EXAMPLES", $sectionsToKeep)[0];
                     
                     if (strlen($sectionsToKeep) < strlen($originalContent)) {
                         $m['content'] = $sectionsToKeep . "\n\n[ADMIN NOTE]: Visual formatting rules (Smart Tables, Charts) are hidden to save tokens during the tool-calling phase. Focus on SQL and data accuracy. They will be restored for your final answer.";
-                        Log::info("[Agentic] Compressed system prompt for Groq Loop #{$loopCount}");
+                        Log::info("[Agentic] Compressed system prompt for Loop #{$loopCount}");
                     }
                     break;
                 }
@@ -1443,15 +1456,14 @@ PROMPT;
         }
 
         // ── Groq / Llama: inject system reminder di loop pertama ─────────────
-        if ($isGroq && $loopCount === 1 && !empty($messages)) {
-            $groqReminder = "[SYSTEM INSTRUCTION]: You MUST call the get_database_schema_info tool first. "
-                . "Provide a brief reasoning in the 'justification' parameter. "
-                . "Ensure you output ONLY the tool call in valid JSON format. NEVER use tag-based formats like <function> or XML tags. "
-                . "Do not attempt to guess table names or execute queries before receiving schema information.\n\n";
+        if (($isGroq || ($providerCode === 'openrouter' && $isLlama)) && $loopCount === 1 && !empty($messages)) {
+            $llamaReminder = "[SYSTEM INSTRUCTION]: You MUST call the get_database_schema_info tool first. "
+                . "Ensure you output ONLY the tool call in valid JSON format using the native tool calling mechanism. "
+                . "DO NOT write the tool call as plain text. Do not attempt to guess table names or execute queries before receiving schema information.\n\n";
 
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
-                    $m['content'] = $groqReminder . $m['content'];
+                    $m['content'] = $llamaReminder . $m['content'];
                     break;
                 }
             }
