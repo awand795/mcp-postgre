@@ -45,6 +45,7 @@
                         </button>
                         @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
                             <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
+                                  style="display:inline;"
                                   onsubmit="return confirm('Hapus provider \'{{ $provider->name }}\' beserta semua modelnya?')">
                                 @csrf
                                 @method('DELETE')
@@ -268,7 +269,7 @@
 
         .provider-info h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
         .provider-code { color: #64748b; font-size: 0.8rem; margin: 0; }
-        .provider-actions { margin-left: auto; }
+        .provider-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
         .section-title {
             display: flex;
