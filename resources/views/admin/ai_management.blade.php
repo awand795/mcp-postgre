@@ -3,6 +3,11 @@
 @section('content')
     <div class="header">
         <h1>Management AI & API Keys</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="showProviderModal()">
+                <i class="fas fa-plus"></i> Tambah Provider
+            </button>
+        </div>
     </div>
 
     @if(session('success'))
@@ -16,44 +21,6 @@
             <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
         </div>
     @endif
-
-    {{-- ═══════════════════════════════════════════════════════════
-         FORM TAMBAH PROVIDER BARU — selalu tampil di paling atas
-    ═══════════════════════════════════════════════════════════ --}}
-    <div class="glass-card add-provider-card">
-        <div class="add-provider-header">
-            <div class="add-provider-icon">
-                <i class="fas fa-plug"></i>
-            </div>
-            <div>
-                <h3>Tambah Provider AI Baru</h3>
-                <p class="provider-code">OpenAI-compatible · Groq · OpenRouter · DeepSeek · LM Studio · dan lainnya</p>
-            </div>
-        </div>
-        <form action="{{ route('admin.ai_management.store_provider') }}" method="POST" class="add-provider-form">
-            @csrf
-            <div class="form-group">
-                <label>Nama Provider <span class="required">*</span></label>
-                <input type="text" name="name" required placeholder="Contoh: Groq, OpenRouter, DeepSeek"
-                       value="{{ old('name') }}">
-            </div>
-            <div class="form-group">
-                <label>Kode Unik <span class="required">*</span></label>
-                <input type="text" name="code" required placeholder="Contoh: groq, openrouter, deepseek"
-                       value="{{ old('code') }}" pattern="[a-z0-9_]+" title="Huruf kecil, angka, underscore saja">
-                <small class="hint">Huruf kecil, angka, underscore. Digunakan sebagai identifier internal.</small>
-            </div>
-            <div class="form-group">
-                <label>Base URL API</label>
-                <input type="url" name="base_url" placeholder="Contoh: https://api.groq.com/openai/v1"
-                       value="{{ old('base_url') }}">
-                <small class="hint">Kosongkan untuk provider built-in (OpenAI, Gemini, Claude, Mistral). Wajib diisi untuk provider lainnya.</small>
-            </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Tambah Provider
-            </button>
-        </form>
-    </div>
 
     <div class="ai-provider-grid">
         @foreach($providers as $provider)
@@ -448,6 +415,41 @@
         </div>
     </div>
 
+    <!-- Provider Modal -->
+    <div id="providerModal" class="modal-overlay">
+        <div class="glass-card modal-content">
+            <h3>Tambah Provider AI Baru</h3>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.5rem;">
+                <i class="fas fa-info-circle"></i>
+                Mendukung semua provider OpenAI-compatible: Groq, OpenRouter, DeepSeek, LM Studio, dan lainnya.
+            </p>
+            <form action="{{ route('admin.ai_management.store_provider') }}" method="POST">
+                @csrf
+                <div class="form-group">
+                    <label>Nama Provider <span style="color:#ef4444">*</span></label>
+                    <input type="text" name="name" required placeholder="Contoh: Groq, OpenRouter, DeepSeek"
+                           value="{{ old('name') }}">
+                </div>
+                <div class="form-group">
+                    <label>Kode Unik <span style="color:#ef4444">*</span></label>
+                    <input type="text" name="code" required placeholder="Contoh: groq, openrouter, deepseek"
+                           value="{{ old('code') }}" pattern="[a-z0-9_]+" title="Huruf kecil, angka, underscore saja">
+                    <small style="color:#64748b;font-size:0.75rem;">Huruf kecil, angka, underscore. Identifier internal sistem.</small>
+                </div>
+                <div class="form-group">
+                    <label>Base URL API</label>
+                    <input type="url" name="base_url" placeholder="Contoh: https://api.groq.com/openai/v1"
+                           value="{{ old('base_url') }}">
+                    <small style="color:#64748b;font-size:0.75rem;">Wajib diisi untuk provider custom. Kosongkan jika sudah built-in.</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="hideProviderModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Tambah Provider</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         function toggleProvider(id) {
             fetch(`/admin/ai-management/providers/${id}/toggle`, {
@@ -518,13 +520,18 @@
             document.getElementById('modelModal').style.display = 'none';
         }
 
+        function showProviderModal() {
+            document.getElementById('providerModal').style.display = 'flex';
+        }
+
+        function hideProviderModal() {
+            document.getElementById('providerModal').style.display = 'none';
+        }
+
         window.onclick = function(event) {
-            if (event.target == document.getElementById('keyModal')) {
-                hideKeyModal();
-            }
-            if (event.target == document.getElementById('modelModal')) {
-                hideModelModal();
-            }
+            if (event.target == document.getElementById('keyModal')) hideKeyModal();
+            if (event.target == document.getElementById('modelModal')) hideModelModal();
+            if (event.target == document.getElementById('providerModal')) hideProviderModal();
         }
     </script>
 @endsection
