@@ -1308,17 +1308,28 @@ PROMPT;
         $providerCode = strtolower($apiKey->provider->code ?? '');
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
 
-        // ── Groq / Llama: STRATEGY - Only allow get_database_schema_info in Loop #1 ──
-        // This prevents the model from "hallucinating" table names before it has actually
-        // looked at the database schema. Subsequent loops will have all tools available.
-        if ($isGroq && $loopCount === 1 && !empty($tools)) {
-            $filtered = array_filter($tools, function ($t) {
-                $name = $t['function']['name'] ?? $t['name'] ?? '';
-                return $name === 'get_database_schema_info';
-            });
-            if (!empty($filtered)) {
-                $tools = array_values($filtered);
+        // ── Groq / Llama: Isolated Turn One Strategy ───────────────────────
+        // To prevent Llama 3.3 from "jumping the gun" and hallucinating table names
+        // based on the complex SQL instructions in the rich system prompt, we provide
+        // a minimalist isolated prompt for the first turn only.
+        if ($isGroq && $loopCount === 1) {
+            $userMsg = '';
+            foreach ($messages as $m) {
+                if ($m['role'] === 'user') $userMsg = $m['content'];
             }
+            
+            $messages = [
+                [
+                    'role' => 'system', 
+                    'content' => "You are a Data Analyst. Your ONLY task is to call 'get_database_schema_info' to understand the available database structure. "
+                               . "DO NOT write any SQL or guess table names yet. Use the 'justification' parameter to explain why you are calling it."
+                ],
+                ['role' => 'user', 'content' => $userMsg ?: 'Requesting schema info.']
+            ];
+
+            $tools = array_values(array_filter($tools, function ($t) {
+                return ($t['function']['name'] ?? '') === 'get_database_schema_info';
+            }));
         }
 
         // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
@@ -1405,9 +1416,14 @@ PROMPT;
             $payload['tools'] = $tools;
 
             if ($isGroq) {
-                // 'required' is more stable for Groq + Llama 3 than specific function objects
-                // which often trigger the <function> tag failed generation error.
-                $payload['tool_choice'] = ($loopCount === 1) ? 'required' : 'auto';
+                if ($loopCount === 1) {
+                    $payload['tool_choice'] = [
+                        'type'     => 'function',
+                        'function' => ['name' => 'get_database_schema_info'],
+                    ];
+                } else {
+                    $payload['tool_choice'] = 'auto';
+                }
             } else {
                 $payload['tool_choice'] = 'auto';
             }
