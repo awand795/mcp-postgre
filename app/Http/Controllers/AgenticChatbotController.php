@@ -395,10 +395,26 @@ class AgenticChatbotController extends Controller
                 if (is_array($decodedRes) && $toolName === 'execute_query') {
                     $currencyCols = $decodedRes['currency_columns'] ?? [];
 
+                    // ── GUARD: Hapus kolom non-moneter yang mungkin salah dimasukkan AI ──
+                    // Kolom COUNT/jumlah/persentase/kode tidak boleh di-format sebagai Rp.
+                    $nonMonetaryPattern = '/^(total_?(?:cabang|dealer|unit|qty|jumlah|count|record|row|data)|jumlah_?(?:cabang|dealer|unit)|count|qty|persentase|persen|percentage|id|kode|code|no|nomor)/i';
+                    if (!empty($currencyCols)) {
+                        $currencyCols = array_values(array_filter($currencyCols, function ($col) use ($nonMonetaryPattern) {
+                            return !preg_match($nonMonetaryPattern, $col);
+                        }));
+                        if ($currencyCols !== ($decodedRes['currency_columns'] ?? [])) {
+                            Log::info("[Agentic] Removed non-monetary columns from currency_columns. Remaining: " . implode(', ', $currencyCols));
+                            $decodedRes['currency_columns'] = $currencyCols;
+                            $toolResult = json_encode($decodedRes);
+                        }
+                    }
+
+                    // ── FALLBACK: Jika AI tidak mengisi currency_columns sama sekali ──
+                    // Deteksi berdasarkan nama kolom alias (dari hasil query)
                     if (empty($currencyCols) && !empty($decodedRes['columns'])) {
-                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i';
+                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total_(?!cabang|dealer|unit|qty|count|jumlah|record))/i';
                         foreach ($decodedRes['columns'] as $col) {
-                            if (preg_match($currencyKeywords, $col)) {
+                            if (preg_match($currencyKeywords, $col) && !preg_match($nonMonetaryPattern, $col)) {
                                 $currencyCols[] = $col;
                             }
                         }
@@ -947,12 +963,19 @@ GROUP BY nama_cabang
 -- SALAH: menggunakan nama kolom tebakan tanpa describe_table
 ```
 
-## 🔴 ATURAN TERPENTING #3 — SMART TABLE WAJIB
+## 🔴 ATURAN TERPENTING #3 — SMART TABLE
 
-**SETIAP hasil execute_query yang memiliki ≥ 2 kolom WAJIB ditampilkan dalam blok `smart_table`.**
+**Kapan WAJIB pakai smart_table:**
+- Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
+- Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
+- Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
 
-Ini berlaku meskipun hasilnya hanya 1 baris data. Format wajib:
+**Kapan TIDAK perlu smart_table (cukup jawab inline):**
+- Hasil query hanya **1 baris 1 kolom** (contoh: `COUNT(*) = 91`, `SUM(total) = 5.000.000`) → JANGAN buat smart_table, cukup sebutkan angkanya langsung di narasi.
+  - Contoh BENAR: "**Perusahaan memiliki total 91 cabang yang aktif.**"
+  - Contoh SALAH: membuat tabel 1 baris 1 kolom hanya untuk angka tunggal.
 
+Format smart_table:
 ```smart_table
 {"title":"Judul Tabel","headers":["Kolom1","Kolom2"],"rows":[["nilai1","nilai2"]],"currency_columns":["Kolom2"]}
 ```
@@ -961,14 +984,18 @@ Struktur JSON smart_table:
 - `title` (string): judul tabel yang deskriptif
 - `headers` (array string): nama-nama kolom dari alias query
 - `rows` (array of arrays): setiap baris adalah array nilai sesuai urutan headers
-- `currency_columns` (array string): nama kolom yang berisi nilai uang (untuk format Rp)
+- `currency_columns` (array string): **HANYA** kolom yang berisi nilai UANG (Rp). JANGAN masukkan kolom COUNT, jumlah unit, persentase, atau angka non-moneter ke sini.
 
-**CONTOH WAJIB untuk hasil 1 baris multi-kolom:**
+**ATURAN CURRENCY_COLUMNS (KRITIS):**
+- ✅ MASUKKAN: kolom dengan nilai rupiah/mata uang (total_netto, hpp, revenue, omset, profit, dll)
+- ❌ JANGAN MASUKKAN: kolom COUNT, jumlah cabang, jumlah dealer, qty, persentase, ID, kode
+- Contoh SALAH: `"currency_columns":["Total Cabang"]` ← angka 91 akan diformat Rp 91!
+- Contoh BENAR: `"currency_columns":["Total Penjualan","Total HPP"]`
+
+**CONTOH WAJIB untuk hasil 1 baris multi-kolom (multi-metrik):**
 ```smart_table
 {"title":"Ringkasan Penjualan Cabang HM Yamin - Maret 2025","headers":["Nama Cabang","Total HPP","Total Netto","Total Diskon","Profit"],"rows":[["HM Yamin",88400000,177600000,18300000,89200000]],"currency_columns":["Total HPP","Total Netto","Total Diskon","Profit"]}
 ```
-
-**DILARANG** hanya menyebutkan angka di narasi tanpa smart_table jika kolom ≥ 2.
 
 ## 🔴 ATURAN TERPENTING #4 — GRAFIK WAJIB UNTUK DATA TREN/PERIODE
 
@@ -1262,6 +1289,23 @@ If `execute_query` returns `QUERY_TIMEOUT` or `rows: []` with `MANDATORY_AI_ACTI
 - Use "Rp" prefix in natural language responses.
 
 ## SMART TABLE & CHART FORMAT
+
+**When to use smart_table:**
+- Query result has **≥ 2 columns** AND **≥ 2 rows** → MUST use smart_table
+- Query result has **≥ 2 columns** AND **1 row** with multiple metrics (e.g. HPP, Netto, Profit together) → MUST use smart_table
+- Query result has **≥ 2 rows** even if only 1 column → MUST use smart_table
+
+**When NOT to use smart_table (answer inline instead):**
+- Result is only **1 row, 1 column** (e.g. `COUNT(*) = 91`, `SUM(total) = 5,000,000`) → DO NOT create a smart_table. Just state the number directly in the narrative.
+  - CORRECT: "**The company has a total of 91 active branches.**"
+  - WRONG: Creating a 1-row, 1-column table just for a single number.
+
+**CURRENCY_COLUMNS RULE (CRITICAL):**
+- ✅ INCLUDE: columns with monetary/Rupiah values (total_netto, hpp, revenue, profit, etc.)
+- ❌ DO NOT INCLUDE: COUNT columns, branch counts, dealer counts, qty, percentages, IDs, or codes
+- WRONG example: `"currency_columns":["Total Branches"]` ← the number 91 will be displayed as Rp 91!
+- CORRECT example: `"currency_columns":["Total Sales","Total HPP"]`
+
 ```smart_table
 {}
 ```
