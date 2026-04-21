@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class AiProvider extends Model
 {
-    protected $fillable = ['name', 'code', 'is_active'];
+    protected $fillable = ['name', 'code', 'base_url', 'is_active'];
 
     public function models()
     {

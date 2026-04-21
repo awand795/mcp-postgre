@@ -11,6 +11,50 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
+        </div>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════
+         FORM TAMBAH PROVIDER BARU — selalu tampil di paling atas
+    ═══════════════════════════════════════════════════════════ --}}
+    <div class="glass-card add-provider-card">
+        <div class="add-provider-header">
+            <div class="add-provider-icon">
+                <i class="fas fa-plug"></i>
+            </div>
+            <div>
+                <h3>Tambah Provider AI Baru</h3>
+                <p class="provider-code">OpenAI-compatible · Groq · OpenRouter · DeepSeek · LM Studio · dan lainnya</p>
+            </div>
+        </div>
+        <form action="{{ route('admin.ai_management.store_provider') }}" method="POST" class="add-provider-form">
+            @csrf
+            <div class="form-group">
+                <label>Nama Provider <span class="required">*</span></label>
+                <input type="text" name="name" required placeholder="Contoh: Groq, OpenRouter, DeepSeek"
+                       value="{{ old('name') }}">
+            </div>
+            <div class="form-group">
+                <label>Kode Unik <span class="required">*</span></label>
+                <input type="text" name="code" required placeholder="Contoh: groq, openrouter, deepseek"
+                       value="{{ old('code') }}" pattern="[a-z0-9_]+" title="Huruf kecil, angka, underscore saja">
+                <small class="hint">Huruf kecil, angka, underscore. Digunakan sebagai identifier internal.</small>
+            </div>
+            <div class="form-group">
+                <label>Base URL API</label>
+                <input type="url" name="base_url" placeholder="Contoh: https://api.groq.com/openai/v1"
+                       value="{{ old('base_url') }}">
+                <small class="hint">Kosongkan untuk provider built-in (OpenAI, Gemini, Claude, Mistral). Wajib diisi untuk provider lainnya.</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Tambah Provider
+            </button>
+        </form>
+    </div>
+
     <div class="ai-provider-grid">
         @foreach($providers as $provider)
             <div class="glass-card provider-card {{ !$provider->is_active ? 'inactive' : '' }}">
@@ -32,6 +76,16 @@
                                 title="{{ $provider->is_active ? 'Disable' : 'Enable' }} Provider">
                             <i class="fas {{ $provider->is_active ? 'fa-pause' : 'fa-play' }}"></i>
                         </button>
+                        @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
+                            <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
+                                  onsubmit="return confirm('Hapus provider \'{{ $provider->name }}\' beserta semua modelnya?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-icon btn-danger" title="Hapus Provider">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        @endif
                     </div>
                 </div>
 
@@ -168,6 +222,82 @@
         .icon-openai { background: #10a37f; }
         .icon-gemini { background: #4285f4; }
         .icon-claude { background: #d97757; }
+        .icon-mistral { background: #ff7000; }
+        .icon-groq { background: #f55036; }
+        .icon-openrouter { background: #7c3aed; }
+        .icon-deepseek { background: #0ea5e9; }
+        /* Fallback warna untuk provider custom apapun yang tidak dikenal */
+        [class^="icon-"] { background: #6366f1; }
+
+        /* ── Form Tambah Provider ───────────────────────────────────────── */
+        .add-provider-card {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px dashed rgba(99, 102, 241, 0.4);
+        }
+
+        .add-provider-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .add-provider-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px dashed rgba(99, 102, 241, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: #818cf8;
+            flex-shrink: 0;
+        }
+
+        .add-provider-header h3 { margin: 0; font-size: 1.1rem; }
+
+        .add-provider-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        @media (max-width: 900px) {
+            .add-provider-form {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .add-provider-form {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .hint {
+            color: #64748b;
+            font-size: 0.75rem;
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        .required { color: #ef4444; }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
 
         .provider-info h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
         .provider-code { color: #64748b; font-size: 0.8rem; margin: 0; }

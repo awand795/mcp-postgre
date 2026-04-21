@@ -89,4 +89,46 @@ class AiController extends Controller
         $key->update(['limit_reached' => false]);
         return back()->with('success', 'Limit API Key berhasil di-reset.');
     }
+
+    public function storeProvider(Request $request)
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'code'     => 'required|string|max:50|unique:ai_providers,code|regex:/^[a-z0-9_]+$/',
+            'base_url' => 'nullable|url|max:500',
+        ], [
+            'code.unique' => 'Kode provider sudah digunakan.',
+            'code.regex'  => 'Kode provider hanya boleh huruf kecil, angka, dan underscore.',
+            'base_url.url' => 'Format Base URL tidak valid.',
+        ]);
+
+        AiProvider::create([
+            'name'     => $request->name,
+            'code'     => $request->code,
+            'base_url' => $request->base_url ?: null,
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', 'Provider AI "' . $request->name . '" berhasil ditambahkan.');
+    }
+
+    public function deleteProvider(AiProvider $provider)
+    {
+        // Cegah hapus provider built-in
+        $builtIn = ['openai', 'gemini', 'claude', 'mistral'];
+        if (in_array($provider->code, $builtIn)) {
+            return back()->with('error', 'Provider built-in tidak dapat dihapus.');
+        }
+
+        // Cegah hapus jika masih ada API key aktif
+        if ($provider->apiKeys()->count() > 0) {
+            return back()->with('error', 'Hapus semua API Key provider ini terlebih dahulu sebelum menghapus provider.');
+        }
+
+        // Hapus semua model terkait lalu hapus provider
+        $provider->models()->delete();
+        $provider->delete();
+
+        return back()->with('success', 'Provider "' . $provider->name . '" berhasil dihapus.');
+    }
 }

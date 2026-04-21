@@ -496,10 +496,12 @@ class AgenticChatbotController extends Controller
 
         if ($providerCode === 'gemini')  return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         if ($providerCode === 'claude')  return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        if ($providerCode === 'custom')  return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         if ($providerCode === 'mistral') return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'openai')  return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
 
-        return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        // Semua provider selain 4 built-in di atas (groq, openrouter, deepseek, dll)
+        // menggunakan callCustomApi() yang pakai base_url dari tabel ai_providers.
+        return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
     }
 
     private function formatToolsForProvider(string $providerCode, array $tools): array
