@@ -677,55 +677,114 @@ class AgenticChatbotController extends Controller
     private function formatMessagesForProvider(string $providerCode, array $messages): array
     {
         if ($providerCode === 'gemini') {
+            // Gemini memakai format 'contents' — bukan 'messages'.
+            // Aturan penting Gemini API:
+            //   1. Role hanya boleh 'user' atau 'model' (bukan 'assistant'/'tool'/'system').
+            //   2. functionResponse WAJIB dibungkus dalam role 'user'.
+            //   3. functionCall (dari model) dibungkus dalam role 'model'.
+            //   4. Urutan WAJIB: model(functionCall) → user(functionResponse) → model(text)
+            //   5. DILARANG kirim 'functionCall' kembali di history dari sisi client —
+            //      Gemini hanya menerima 'functionCall' sebagai OUTPUT dari model,
+            //      bukan sebagai INPUT dari client. Kirim 'functionResponse' saja.
+            //   6. Dua pesan berurutan dengan role yang sama AKAN menyebabkan error 400.
+            //      Gemini API mengharuskan role bergantian: user → model → user → model.
+
             $geminiMessages = [];
+            $prevRole       = null; // Lacak role terakhir untuk cegah duplikat
+
             foreach ($messages as $m) {
                 if ($m['role'] === 'system') continue;
 
                 $role = $m['role'];
-                $parts = [];
 
+                // ── Tool result → kirim sebagai role 'user' + functionResponse ──
                 if ($role === 'tool') {
                     $rawContent = $m['content'] ?? '';
-                    $parsedContent = null;
                     if (is_string($rawContent)) {
-                        $decoded = json_decode($rawContent, true);
-                        $parsedContent = (is_array($decoded)) ? $decoded : ['result' => $rawContent];
+                        $decoded      = json_decode($rawContent, true);
+                        $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
                     } elseif (is_array($rawContent)) {
                         $parsedContent = $rawContent;
                     } else {
                         $parsedContent = ['result' => (string) $rawContent];
                     }
 
-                    $parts[] = [
+                    $parts = [[
                         'functionResponse' => [
-                            'name'     => $m['name'] ?? 'query',
+                            'name'     => $m['name'] ?? 'tool',
                             'response' => $parsedContent,
                         ]
-                    ];
-                    $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                    ]];
+
+                    // Jika role sebelumnya juga 'user', gabung parts-nya
+                    // agar tidak ada dua pesan 'user' berturut-turut.
+                    if ($prevRole === 'user' && !empty($geminiMessages)) {
+                        $last = &$geminiMessages[count($geminiMessages) - 1];
+                        $last['parts'] = array_merge($last['parts'], $parts);
+                    } else {
+                        $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                        $prevRole = 'user';
+                    }
                     continue;
                 }
 
-                if (!empty($m['content'])) {
-                    $parts[] = ['text' => (string)$m['content']];
+                // ── Assistant message → kirim sebagai role 'model' ──
+                if ($role === 'assistant') {
+                    $parts = [];
+
+                    // Teks biasa
+                    if (!empty($m['content'])) {
+                        $parts[] = ['text' => (string) $m['content']];
+                    }
+
+                    // functionCall dari assistant — kirim sebagai 'functionCall' di model
+                    // CATATAN: Ini valid karena kita mereproduksi output model sebelumnya.
+                    // Yang TIDAK valid adalah klien mengirim functionCall sebagai input baru.
+                    if (!empty($m['tool_calls'])) {
+                        foreach ($m['tool_calls'] as $tc) {
+                            $args    = $tc['function']['arguments'] ?? '{}';
+                            $argsArr = is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args;
+                            $parts[] = [
+                                'functionCall' => [
+                                    'name' => $tc['function']['name'],
+                                    'args' => $argsArr,
+                                ]
+                            ];
+                        }
+                    }
+
+                    if (empty($parts)) continue;
+
+                    // Hindari dua pesan 'model' berturut-turut
+                    if ($prevRole === 'model' && !empty($geminiMessages)) {
+                        $last = &$geminiMessages[count($geminiMessages) - 1];
+                        $last['parts'] = array_merge($last['parts'], $parts);
+                    } else {
+                        $geminiMessages[] = ['role' => 'model', 'parts' => $parts];
+                        $prevRole = 'model';
+                    }
+                    continue;
                 }
 
-                if (!empty($m['tool_calls'])) {
-                    foreach ($m['tool_calls'] as $tc) {
-                        $args = $tc['function']['arguments'] ?? '{}';
-                        $parts[] = [
-                            'functionCall' => [
-                                'name' => $tc['function']['name'],
-                                'args' => is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args
-                            ]
-                        ];
+                // ── User message → kirim sebagai role 'user' ──
+                if ($role === 'user') {
+                    $parts = [];
+                    if (!empty($m['content'])) {
+                        $parts[] = ['text' => (string) $m['content']];
+                    }
+                    if (empty($parts)) continue;
+
+                    // Hindari dua pesan 'user' berturut-turut
+                    if ($prevRole === 'user' && !empty($geminiMessages)) {
+                        $last = &$geminiMessages[count($geminiMessages) - 1];
+                        $last['parts'] = array_merge($last['parts'], $parts);
+                    } else {
+                        $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                        $prevRole = 'user';
                     }
                 }
-
-                if (!empty($parts)) {
-                    $geminiMessages[] = ['role' => ($role === 'assistant') ? 'model' : 'user', 'parts' => $parts];
-                }
             }
+
             return $geminiMessages;
         }
 
