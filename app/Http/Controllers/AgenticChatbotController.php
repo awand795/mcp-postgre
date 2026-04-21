@@ -340,26 +340,26 @@ class AgenticChatbotController extends Controller
                             }
                         }
 
+                        $formatReminder = implode("\n", [
+                                '[SYSTEM FORMAT REMINDER - WAJIB DIIKUTI]:',
+                                'Anda sudah berhasil mendapatkan data. ' . $toolSummary,
+                                'Sekarang Anda WAJIB menyajikan hasil dalam format LENGKAP berikut:',
+                                '',
+                                '1. **Ringkasan Eksekutif**: 1-2 kalimat cetak tebal dengan angka kunci.',
+                                '2. **Insight Strategis**: 2-3 poin insight bisnis yang menjelaskan konteks.',
+                                '3. **Rekomendasi Prompt Selanjutnya** (WAJIB ADA):',
+                                '   💡 **Rekomendasi Prompt Selanjutnya:**',
+                                '   1. "[pertanyaan lanjutan spesifik]"',
+                                '   2. "[pertanyaan analisis lebih dalam]"',
+                                '   3. "[pertanyaan tren atau perbandingan]"',
+                                '   4. "[pertanyaan cross-analysis]"',
+                                '',
+                                'JANGAN hanya menulis 1 kalimat. Sajikan dalam format LENGKAP seperti di atas.',
+                                'Jawab dalam Bahasa Indonesia formal yang profesional.',
+                            ]);
                         $messages[] = [
                             'role'    => 'user',
-                            'content' => implode("
-", [
-                                "[SYSTEM FORMAT REMINDER — WAJIB DIIKUTI]:",
-                                "Anda sudah berhasil mendapatkan data. {$toolSummary}",
-                                "Sekarang Anda WAJIB menyajikan hasil dalam format LENGKAP berikut:",
-                                "",
-                                "1. **Ringkasan Eksekutif**: 1-2 kalimat cetak tebal dengan angka kunci.",
-                                "2. **Insight Strategis**: 2-3 poin insight bisnis yang menjelaskan konteks.",
-                                "3. **Rekomendasi Prompt Selanjutnya** (WAJIB ADA):",
-                                "   💡 **Rekomendasi Prompt Selanjutnya:**",
-                                "   1. "[pertanyaan lanjutan spesifik]"",
-                                "   2. "[pertanyaan analisis lebih dalam]"",
-                                "   3. "[pertanyaan tren atau perbandingan]"",
-                                "   4. "[pertanyaan cross-analysis]"",
-                                "",
-                                "JANGAN hanya menulis 1 kalimat. Sajikan dalam format LENGKAP seperti di atas.",
-                                "Jawab dalam Bahasa Indonesia formal yang profesional.",
-                            ]),
+                            'content' => $formatReminder,
                         ];
                         continue; // Ulangi loop untuk generate ulang dengan format yang benar
                     }
