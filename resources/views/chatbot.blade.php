@@ -1046,13 +1046,16 @@
                 return { bubble, toolArea, wrapper: wrap };
             }
 
-            function renderStreamToBubble(bubble, text) {
+            function renderStreamToBubble(bubble, text, toolResultsForRender) {
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => {
                     try { hljs.highlightElement(b); } catch(e) {}
                 });
                 initChartsInBubble(bubble);
                 initSmartTablesInBubble(bubble);
+                // Auto-inject smart table jika AI tidak mengirim blok smart_table
+                const activeResults = toolResultsForRender !== undefined ? toolResultsForRender : currentToolResults;
+                autoInjectSmartTableFromToolResults(bubble, activeResults);
             }
 
             // ── Render pesan biasa (legacy stub - panggil addMessage utama) ──────────────────────────────────────
@@ -1172,6 +1175,7 @@
                     initChartsInBubble(bubble, toolResultsForInit);
                     initDashboardsInBubble(bubble);
                     initSmartTablesInBubble(bubble, toolResultsForInit);
+                    autoInjectSmartTableFromToolResults(bubble, toolResultsForInit);
                 }, 50);
 
                 // Check for ERP guidance video and add video player below
@@ -2434,6 +2438,81 @@
 
             wrap.setAttribute('data-initialized', 'true');
         }
+        // ── AUTO-INJECT: Build smart_table dari execute_query tool result jika AI tidak mengirimnya ──
+        function autoInjectSmartTableFromToolResults(bubble, toolResults) {
+            if (!toolResults || toolResults.length === 0) return;
+            // Hanya inject jika belum ada smart-table-wrap di bubble
+            if (bubble.querySelector('.smart-table-wrap')) return;
+
+            // Cari execute_query result yang punya rows dan >= 2 kolom
+            let queryResult = null;
+            for (let i = toolResults.length - 1; i >= 0; i--) {
+                const tr = toolResults[i];
+                if (!tr) continue;
+                const toolName = tr.tool_name || tr.tool || '';
+                if (toolName !== 'execute_query') continue;
+                const data = tr.data || tr;
+                const rows = data.rows || data.data?.rows || [];
+                const cols = data.columns || data.data?.columns || [];
+                if (rows.length > 0 && cols.length >= 2) {
+                    queryResult = { data, tr };
+                    break;
+                }
+            }
+            if (!queryResult) return;
+
+            const { data, tr } = queryResult;
+            const rows = data.rows || data.data?.rows || [];
+            const cols = data.columns || data.data?.columns || [];
+            const currCols = data.currency_columns || data.data?.currency_columns || tr.currency_columns || [];
+            const label = data.label || data.data?.label || 'Hasil Data';
+
+            // Buat JSON smart_table dan inject ke bubble
+            const stData = {
+                title: label,
+                headers: cols,
+                rows: rows.map(r => cols.map(c => r[c] !== undefined ? r[c] : '')),
+                currency_columns: currCols
+            };
+
+            const tableId = 'st-auto-' + Math.random().toString(36).substr(2, 9);
+            const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(stData.headers))));
+            const rb64 = btoa(unescape(encodeURIComponent(JSON.stringify(stData.rows))));
+
+            const wrapDiv = document.createElement('div');
+            wrapDiv.className = 'smart-table-wrap';
+            wrapDiv.id = tableId;
+            wrapDiv.setAttribute('data-table-id', tableId);
+            wrapDiv.setAttribute('data-title', stData.title);
+            wrapDiv.setAttribute('data-currency-columns', JSON.stringify(currCols));
+            wrapDiv.setAttribute('data-headers-b64', hb64);
+            wrapDiv.setAttribute('data-rows-b64', rb64);
+            wrapDiv.innerHTML = `
+                <div class="smart-table-toolbar">
+                    <span class="smart-table-info">📊 ${rows.length} baris · ${cols.length} kol</span>
+                </div>
+                <div class="smart-table-scroll">
+                    <table><thead></thead><tbody></tbody></table>
+                </div>
+                <div class="smart-table-pagination">
+                    <span class="smart-table-page-info"></span>
+                    <div class="smart-table-btns"></div>
+                </div>`;
+
+            bubble.appendChild(wrapDiv);
+
+            smartTables[tableId] = {
+                headers: stData.headers,
+                allRows: stData.rows,
+                filteredRows: stData.rows,
+                sortCol: -1, sortDir: 'asc', page: 0, query: '',
+                currencyColumns: currCols,
+                label: stData.title
+            };
+            buildSmartTable(tableId);
+            wrapDiv.setAttribute('data-initialized', 'true');
+        }
+
         function initSmartTablesInBubble(bubble, messageToolResults = null) {
             const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
 
