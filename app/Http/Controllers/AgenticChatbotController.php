@@ -1365,6 +1365,35 @@ PROMPT;
     {
         $baseUrl = rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/');
         $url = $baseUrl . '/chat/completions';
+
+        $providerCode = strtolower($apiKey->provider->code ?? '');
+        $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
+
+        // Groq + model Llama punya bug parsing: jika sebuah tool memiliki
+        // properties kosong ({}) dan required kosong ([]), Llama menggenerate
+        // nama tool dengan suffix '{}' sehingga validasi Groq gagal.
+        // Solusi: hapus key 'required' dan pastikan 'properties' benar-benar
+        // stdClass (bukan array kosong) untuk tool yang tidak punya parameter.
+        if ($isGroq && !empty($tools)) {
+            $tools = array_map(function ($tool) {
+                if (!isset($tool['function']['parameters'])) return $tool;
+
+                $params = &$tool['function']['parameters'];
+
+                // Jika properties kosong ([] atau {}), buang key 'required'
+                // dan paksa properties jadi stdClass agar json_encode → {}
+                $props   = $params['properties'] ?? null;
+                $isEmpty = empty($props) || $props === [] || ($props instanceof \stdClass && (array) $props === []);
+
+                if ($isEmpty) {
+                    $params['properties'] = new \stdClass();
+                    unset($params['required']);
+                }
+
+                return $tool;
+            }, $tools);
+        }
+
         $payload = [
             'model'       => $model->model_name,
             'messages'    => $messages,
@@ -1375,6 +1404,13 @@ PROMPT;
             $payload['tools']       = $tools;
             $payload['tool_choice'] = 'auto';
         }
+
+        // Groq tidak support parallel_tool_calls untuk model Llama —
+        // nonaktifkan agar tidak terjadi race condition tool call id.
+        if ($isGroq) {
+            $payload['parallel_tool_calls'] = false;
+        }
+
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
             ->post($url, $payload);
