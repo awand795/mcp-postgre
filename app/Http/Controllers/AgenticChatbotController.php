@@ -230,6 +230,18 @@ class AgenticChatbotController extends Controller
 
             $messages[] = $assistantMsg;
 
+            // ── PROTEKSI: Intersepsi Raw SQL di Teks ─────────────────────────
+            // Jika AI mengirim SQL mentah di teks tanpa tool call, jangan stream ke user.
+            // Berikan reminder ke AI dan ulangi loop.
+            if (empty($toolCalls) && preg_match('/SELECT\s+.*\s+FROM\s+/i', $textContent)) {
+                Log::warning("[Agentic] Detected raw SQL in text content. Intercepting and retrying...");
+                $messages[] = [
+                    'role'    => 'user',
+                    'content' => "[SYSTEM REMINDER]: Anda baru saja mengirimkan query SQL mentah ke dalam teks jawaban. Ini DILARANG. Jangan pernah tunjukkan query SQL kepada Bapak/Ibu user. Gunakan tool 'execute_query' jika Anda ingin mengambil data, lalu sajikan hasilnya dalam Bahasa Indonesia bisnis yang sopan menggunakan 'smart_table'. Silakan perbaiki respon Anda sekarang."
+                ];
+                continue; 
+            }
+
             if (empty($toolCalls) || in_array($finishReason, ['stop', 'end_turn'])) {
                 $finalContent = trim($textContent);
                 if (empty($finalContent)) {
