@@ -1335,6 +1335,28 @@ PROMPT;
             }));
         }
 
+        // ── Groq / Llama: History Pruning for TPM Management ────────────────
+        // Once we hit Loop 3+, the history can become too large for Groq's TPM.
+        // We prune older tool results while keeping the most recent context.
+        if ($isGroq && $loopCount >= 3) {
+            $prunedCount = 0;
+            $totalMessages = count($messages);
+            // We prune everything except the very last tool result (the most relevant context)
+            for ($i = 0; $i < $totalMessages - 1; $i++) {
+                if ($messages[$i]['role'] === 'tool' && strlen($messages[$i]['content']) > 500) {
+                    $toolName = $messages[$i]['name'] ?? 'unknown';
+                    $messages[$i]['content'] = json_encode([
+                        'status' => 'success',
+                        'message' => "Stale result from '{$toolName}' truncated for token efficiency. Latest relevant data is preserved below.",
+                    ]);
+                    $prunedCount++;
+                }
+            }
+            if ($prunedCount > 0) {
+                Log::info("[Agentic] Pruned {$prunedCount} old tool results for Groq Loop #{$loopCount} to mitigate TPM limit.");
+            }
+        }
+
         // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
         if ($isGroq && !empty($tools)) {
             $tools = array_map(function ($tool) {
