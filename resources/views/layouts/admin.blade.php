@@ -487,10 +487,10 @@
             <li><a href="{{ route('admin.dashboard') }}"
                     class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><i
                         class="fas fa-chart-line"></i> <span>Dashboard</span></a></li>
-            <li><a href="{{ route('admin.ai_management') }}" class="{{ request()->routeIs('admin.ai_management') ? 'active' : '' }}"><i
-                        class="fas fa-robot"></i> <span>Management AI</span></a></li>
             <li><a href="{{ route('admin.databases') }}" class="{{ request()->routeIs('admin.databases') ? 'active' : '' }}"><i
                         class="fas fa-database"></i> <span>Management Database</span></a></li>
+            <li><a href="{{ route('admin.ai_management') }}" class="{{ request()->routeIs('admin.ai_management') ? 'active' : '' }}"><i
+                        class="fas fa-robot"></i> <span>Management AI</span></a></li>
             <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}"><i
                         class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
             <li><a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users') ? 'active' : '' }}"><i
