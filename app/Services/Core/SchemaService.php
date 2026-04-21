@@ -414,7 +414,7 @@ class SchemaService extends BaseService
             }
         }
 
-        $isSmallSchema = ($totalTables < 50);
+        $isSmallSchema = ($totalTables < 10);
 
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];

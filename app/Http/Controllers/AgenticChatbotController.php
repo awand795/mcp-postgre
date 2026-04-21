@@ -1132,13 +1132,13 @@ PROMPT;
 
     private function handleProviderResponse($response, string $providerCode): ?array
     {
-        if ($response->status() === 429) {
-            Log::warning("[Agentic] Rate limited (429) for provider: {$providerCode}");
-            return null;
-        }
-
         if ($response->failed()) {
-            Log::error("[Agentic] API Error ({$providerCode}) status=" . $response->status() . " body=" . $response->body());
+            $body = $response->body();
+            Log::error("[Agentic] API Error ({$providerCode}) status=" . $response->status() . " body=" . $body);
+            
+            if ($response->status() === 429) {
+                Log::warning("[Agentic] Rate Limit Details: " . $body);
+            }
             return null;
         }
 
@@ -1227,6 +1227,7 @@ PROMPT;
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
+            ->retry(3, 2000)
             ->withToken($apiKey->api_key)
             ->post($url, $payload);
         return $this->handleProviderResponse($response, 'openai');
@@ -1246,6 +1247,7 @@ PROMPT;
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
+            ->retry(3, 2000)
             ->withToken($apiKey->api_key)
             ->post($url, $payload);
         return $this->handleProviderResponse($response, 'mistral');
@@ -1266,6 +1268,7 @@ PROMPT;
             $payload['tools'] = $tools;
         }
         $response = Http::timeout(600)
+            ->retry(3, 2000)
             ->withHeaders([
                 'x-api-key'         => $apiKey->api_key,
                 'anthropic-version' => '2023-06-01',
@@ -1441,6 +1444,7 @@ PROMPT;
             . " msg_count=" . count($messages));
 
         $response = Http::timeout(600)
+            ->retry(3, 2000)
             ->withToken($apiKey->api_key)
             ->post($url, $payload);
 
