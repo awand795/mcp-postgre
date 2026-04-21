@@ -670,6 +670,47 @@ Nama kolom yang DILARANG ditebak (harus dari describe_table):
 - Jangan gunakan: `periode_bulan`, `periode_tahun` → kolom tanggal asli harus dari describe_table
 - `profit`/`laba` hampir tidak pernah kolom tersimpan — hitung: `SUM(col_net) - SUM(col_hpp)`
 
+## 🔴 ATURAN TERPENTING #1B — RESOLVE NAMA CABANG/ENTITAS SEBELUM QUERY
+
+User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis ("hm yamin", "HM Yamin", "yamin", dll). Nama yang tersimpan di database bisa berbeda ("HM. YAMIN", "HM YAMIN BC", dll).
+
+**WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas:**
+
+**Langkah 1 — Resolve nama eksak dulu:**
+```sql
+SELECT DISTINCT nama_cabang
+FROM schema.tabel
+WHERE nama_cabang ILIKE '%keyword_dari_user%'
+LIMIT 10
+```
+→ Dapatkan nama eksak dari hasil query ini (misal: "HM. YAMIN")
+
+**Langkah 2 — Gunakan nama eksak (bukan ILIKE) untuk query utama:**
+```sql
+WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
+```
+
+**DILARANG** langsung pakai keyword user sebagai filter tanpa Langkah 1.
+**DILARANG** pakai `ILIKE` di query utama jika sudah mendapat nama eksak dari Langkah 1.
+
+Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
+
+## 🔴 ATURAN TERPENTING #1C — KALKULASI HPP vs TOTAL HPP
+
+Dua istilah berbeda yang WAJIB dipahami:
+
+- **HPP** = `SUM(hrg_pokok)` → jumlah harga pokok per baris transaksi (tanpa dikali qty)
+- **Total HPP** = `SUM(hrg_pokok * qty_jual)` → harga pokok dikalikan jumlah qty terjual
+
+Jika user meminta **"Total HPP"** atau **"HPP"** dalam konteks ringkasan penjualan, WAJIB gunakan:
+```sql
+ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"
+```
+
+Nama kolom `hrg_pokok` dan `qty_jual` harus diverifikasi dari `describe_table` terlebih dahulu — kolom di database lain mungkin berbeda namanya.
+
+**Profit yang benar** = `SUM(total_netto) - SUM(hrg_pokok * qty_jual)`
+
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
 Jika user menyebut istilah bisnis (HPP, Netto, Diskon, Profit, Omzet, Qty) **tanpa kata "detail" atau "per transaksi"**, Anda WAJIB:
@@ -866,6 +907,47 @@ Business terms spoken by the user ("HPP", "netto", "discount", "profit", "revenu
 Ask yourself: *"Does EVERY column name I am using in this query come from the describe_table result I called in this loop?"*
 - If YES → proceed with execute_query
 - If NO or UNSURE → call describe_table first
+
+## 🔴 MANDATORY — RESOLVE ENTITY NAME BEFORE QUERYING
+
+Users often mention branch/dealer/entity names with imprecise spelling ("hm yamin", "yamin", "HM Yamin"). The actual stored name may differ ("HM. YAMIN", "YAMIN BC", etc.).
+
+**ALWAYS PERFORM THESE 2 STEPS when user mentions a branch/dealer/entity name:**
+
+**Step 1 — Resolve the exact name first:**
+```sql
+SELECT DISTINCT branch_col
+FROM schema.table
+WHERE branch_col ILIKE '%user_keyword%'
+LIMIT 10
+```
+→ Get the exact name from result (e.g.: "HM. YAMIN")
+
+**Step 2 — Use exact name (NOT ILIKE) in the main query:**
+```sql
+WHERE branch_col = 'HM. YAMIN'  -- use result from Step 1
+```
+
+**FORBIDDEN**: Directly using user keyword as filter without Step 1.
+**FORBIDDEN**: Using `ILIKE` in the main query once you have the exact name from Step 1.
+
+If Step 1 returns >1 name, ask user: "Which branch did you mean? [show options]"
+
+## 🔴 MANDATORY — HPP vs TOTAL HPP CALCULATION
+
+Two different concepts that MUST be understood:
+
+- **HPP (COGS)** = `SUM(cost_col)` → sum of unit cost per transaction row (without multiplying by qty)
+- **Total HPP (Total COGS)** = `SUM(cost_col * qty_col)` → unit cost multiplied by quantity sold
+
+When user requests **"Total HPP"** or **"COGS"** in a sales summary context, ALWAYS use:
+```sql
+ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"
+```
+
+Column names `hrg_pokok` and `qty_jual` must be verified from `describe_table` first — other databases may use different column names.
+
+**Correct Profit formula** = `SUM(netto_col) - SUM(cost_col * qty_col)`
 
 - **⛔ GROUP BY CLARIFICATION**:
   - The `GROUP BY` clause is for dimensions, **NOT** for transaction values.
