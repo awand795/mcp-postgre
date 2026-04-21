@@ -30,6 +30,28 @@ class QueryService extends BaseService
     private int $queryCacheTtl = 60;
 
     /**
+     * Query execution timeout: 0 = UNLIMITED.
+     *
+     * Cara set UNLIMITED di PHP/PDO level untuk PostgreSQL:
+     *   1. options DSN  : tidak set "-c statement_timeout" sama sekali (kosong / tidak di-pass)
+     *   2. PDO::ATTR_TIMEOUT tidak di-set (default PDO = unlimited)
+     *   3. SET statement_timeout = 0  di awal sesi PostgreSQL
+     *      → 0 berarti tidak ada batas waktu di sisi server
+     *
+     * Cara set UNLIMITED di PHP/PDO level untuk MySQL:
+     *   1. Tidak set PDO::ATTR_TIMEOUT
+     *   2. SET SESSION max_execution_time = 0  → unlimited di sisi server
+     *
+     * Catatan penting: PDO::ATTR_TIMEOUT di PHP hanya mengontrol
+     * berapa lama PDO menunggu KONEKSI terbuka (connect timeout),
+     * BUKAN durasi eksekusi query. Setelah koneksi terbuka, PHP
+     * akan menunggu hasil query tanpa batas kecuali ada timeout
+     * di sisi database server (statement_timeout / max_execution_time).
+     * Jadi untuk unlimited: cukup set statement_timeout = 0 di server.
+     */
+    private int $queryTimeoutSeconds = 0; // 0 = unlimited
+
+    /**
      * Set cached allowed databases (used before session_write_close).
      */
     public function setAllowedTables(array $databases): void
@@ -245,8 +267,33 @@ class QueryService extends BaseService
             return $cachedResult;
         }
 
-        // Siapkan koneksi dinamis
-        $connName = "temp_conn_{$databaseCode}";
+        // ── PERSISTENT CONNECTION (KEEP-ALIVE) ────────────────────────────
+        // Strategi: gunakan koneksi yang sama (keep-alive) selama satu request
+        // HTTP berlangsung. Koneksi hanya dibuat sekali per database per request,
+        // lalu di-reuse oleh semua tool call berikutnya dalam loop yang sama.
+        //
+        // CARA KERJA KEEP-ALIVE di PHP/PDO:
+        //   - PHP tidak memiliki connection pooling built-in seperti PgBouncer.
+        //   - Tapi selama object PDO masih ada di memory (dalam satu PHP process),
+        //     koneksi tetap terbuka dan bisa di-reuse.
+        //   - Kuncinya: JANGAN panggil DB::purge() di awal setiap execute_query.
+        //     Purge hanya dilakukan saat error (agar koneksi rusak tidak di-reuse).
+        //   - DB::connection($connName) akan REUSE koneksi yang sudah ada jika
+        //     config sudah di-set dan koneksi belum di-purge.
+        //
+        // KENAPA INI MEMBUAT TIMEOUT HILANG:
+        //   - Sebelumnya: setiap query membuat koneksi baru → PHP socket baru →
+        //     bisa kena default socket timeout OS atau framework.
+        //   - Sekarang: koneksi dibuat sekali, query berikutnya langsung pakai
+        //     channel yang sudah terbuka → tidak ada overhead re-connect.
+        //   - `SET statement_timeout = 0` juga hanya perlu diset sekali per sesi.
+        //
+        // UNLIMITED TIMEOUT = kombinasi:
+        //   1. `set_time_limit(0)` di controller (PHP script tidak die)
+        //   2. `statement_timeout = 0` di PostgreSQL (server tidak cancel query)
+        //   3. Koneksi keep-alive (tidak ada re-connect yang bisa trigger timeout)
+        //   4. `Http::timeout(600)` di AI API call (sudah ada di controller)
+        $connName = "persistent_conn_{$databaseCode}";
         try {
             if (!$dbModel) {
                 $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
@@ -256,20 +303,67 @@ class QueryService extends BaseService
                 return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }
 
-            DB::purge($connName);
-            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+            // Cek apakah koneksi sudah ada dan masih hidup (keep-alive check)
+            $needNewConn = true;
+            try {
+                // Coba ping koneksi yang sudah ada
+                DB::connection($connName)->getPdo();
+                $needNewConn = false;
+                Log::info("[QueryService] Reusing persistent connection for {$databaseCode}");
+            } catch (\Throwable $pingEx) {
+                // Koneksi belum ada atau sudah mati → buat baru
+                Log::info("[QueryService] Creating new persistent connection for {$databaseCode}");
+                $needNewConn = true;
+            }
 
-            // Set driver-specific timeout: unlimited sesuai permintaan client.
-            if ($driver === 'pgsql') {
-                DB::connection($connName)->statement('SET statement_timeout = 0');
-            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
+            if ($needNewConn) {
+                // Bersihkan koneksi lama yang mungkin rusak, lalu buat baru
+                DB::purge($connName);
+                $connConfig = $dbModel->getConnectionConfig();
+
+                // Inject opsi keep-alive di level PDO/DSN
+                if ($driver === 'pgsql') {
+                    // connect_timeout: gagal cepat jika server tidak bisa dicapai (bukan query timeout)
+                    $connConfig['connect_timeout'] = 10;
+                    // options DSN: set keepalives agar TCP connection tidak di-drop oleh OS/firewall
+                    // keepalives=1        → aktifkan TCP keepalive
+                    // keepalives_idle=60  → kirim probe setelah 60 detik idle
+                    // keepalives_interval=10 → interval antar probe
+                    // keepalives_count=3  → max 3 probe sebelum dianggap dead
+                    // statement_timeout=0 → UNLIMITED query timeout di sisi server
+                    $connConfig['options'] = '-c statement_timeout=0 keepalives=1 keepalives_idle=60 keepalives_interval=10 keepalives_count=3';
+                } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                    // MySQL: PDO::MYSQL_ATTR_INIT_COMMAND untuk set timeout=0 saat koneksi dibuat
+                    $connConfig['options'][\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET SESSION max_execution_time = 0';
+                    // Tidak ada setting keep-alive native di MySQL PDO, tapi
+                    // PDO_MYSQL secara default menggunakan persistent connection jika diset
+                    $connConfig['options'][\PDO::ATTR_PERSISTENT] = false; // jangan persistent global
+                }
+
+                config(["database.connections.{$connName}" => $connConfig]);
+
+                // Buka koneksi dan set server-side unlimited timeout
+                if ($driver === 'pgsql') {
+                    // statement_timeout sudah di-set via DSN options di atas,
+                    // ini sebagai double confirmation
+                    DB::connection($connName)->statement('SET statement_timeout = 0');
+                } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                    // Untuk MySQL, INIT_COMMAND sudah handle, tapi set lagi untuk safety
+                    DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
+                }
+
+                Log::info("[QueryService] Persistent connection established for {$databaseCode} (keep-alive enabled)");
             }
 
             $rows = DB::connection($connName)->select($cleanSql);
+
+            // JANGAN purge koneksi setelah query sukses — biarkan keep-alive
+            // Koneksi akan otomatis ditutup saat PHP process selesai (end of request)
+
         } catch (\Exception $e) {
+            // Hanya purge saat error, agar koneksi rusak tidak di-reuse
             DB::purge($connName);
-            Log::error("[ToolCallExecutor] Query failed on {$databaseCode}: " . $e->getMessage() . " | SQL: " . $cleanSql);
+            Log::error("[QueryService] Query failed on {$databaseCode}: " . $e->getMessage() . " | SQL: " . $cleanSql);
 
             $dbError = $e->getMessage();
             $msg = $this->formatDatabaseError($dbError, $driver, $cleanSql);
@@ -495,8 +589,19 @@ class QueryService extends BaseService
         $lastDay   = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahun));
         $dateEnd   = sprintf('%04d-%02d-%02d', $useTahun, $useBulan, $lastDay);
 
-        // Coba temukan nama kolom tanggal aktual dari schema
+        // Coba temukan nama kolom tanggal aktual dari schema secara mandiri
         $dateColumn = $this->detectDateColumn($databaseCode, $sql);
+
+        // Jika detectDateColumn tidak berhasil (null), JANGAN tebak/hardcode.
+        // Kembalikan SQL asli tanpa modifikasi + log agar AI tetap berjalan.
+        // AI akan mendapat 0 rows atau error kolom tidak ada, lalu MANDATORY_AI_ACTION
+        // di execute_query akan memaksanya panggil describe_table secara mandiri.
+        if ($dateColumn === null) {
+            Log::warning('[QueryService] autoFixPeriodFilter: detectDateColumn returned null — cannot auto-fix, returning original SQL. AI must self-discover date column via describe_table.');
+            // Kembalikan SQL asli agar proses tidak berhenti;
+            // AI akan belajar dari hasil query (error/empty) dan panggil describe_table sendiri.
+            return $sql;
+        }
 
         Log::info("[QueryService] AutoFix: Bulan={$bulan} Tahun={$tahun} (Alias: " . ($alias ?: 'none') . ") "
             . "-> BETWEEN '{$dateStart}' AND '{$dateEnd}' "
@@ -557,62 +662,64 @@ class QueryService extends BaseService
 
 
     /**
-     * Deteksi nama kolom tanggal aktual dari SQL dan schema database.
-     * Urutan prioritas: kolom yang sudah ada di query > lookup schema > fallback default.
+     * Deteksi nama kolom tanggal dari schema database secara MANDIRI.
+     *
+     * Tidak ada hardcoded fallback nama kolom.
+     * Jika deteksi gagal total, kembalikan NULL dan biarkan AI
+     * yang memutuskan lewat MANDATORY_AI_ACTION di autoFixPeriodFilter.
+     *
+     * Prioritas:
+     *   1. Describe tabel dari schema DB → cari kolom DATE/TIMESTAMP pertama
+     *   2. NULL → trigger AI untuk panggil describe_table sendiri
      */
-    private function detectDateColumn(string $databaseCode, string $sql): string
+    private function detectDateColumn(string $databaseCode, string $sql): ?string
     {
-        // Kandidat nama kolom tanggal yang umum dipakai
-        $commonDateColumns = [
-            'tgl_faktur', 'tgl_transaksi', 'tgl_jual', 'tgl_penjualan',
-            'tanggal', 'tgl', 'tanggal_faktur', 'tanggal_transaksi',
-            'created_at', 'transaction_date', 'invoice_date', 'sale_date',
-            'tgl_order', 'order_date', 'tgl_nota', 'tgl_dokumen',
-        ];
-
-        // Coba ekstrak nama tabel dari SQL untuk lookup schema
-        if (preg_match('/FROM\s+["\`]?([\w]+)["\`]?\s*\.\s*["\`]?([\w]+)["\`]?/i', $sql, $m)) {
-            $schemaName = $m[1];
-            $tableName  = $m[2];
-
-            try {
-                $connName = "temp_conn_{$databaseCode}_detect";
-                $dbModel  = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
-                if ($dbModel) {
-                    DB::purge($connName);
-                    config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
-
-                    $adapter = $dbModel->getAdapter();
-                    $cols    = DB::connection($connName)->select(
-                        $adapter->describeTableQuery(),
-                        [$tableName, $schemaName]
-                    );
-                    DB::purge($connName);
-
-                    // Cari kolom bertipe DATE atau TIMESTAMP
-                    foreach ($cols as $col) {
-                        $colName = strtolower($col->column_name ?? '');
-                        $colType = strtolower($col->data_type ?? '');
-                        $isDate  = str_contains($colType, 'date') || str_contains($colType, 'timestamp');
-                        if ($isDate && in_array($colName, $commonDateColumns)) {
-                            return $col->column_name;
-                        }
-                    }
-
-                    // Fallback: kolom DATE/TIMESTAMP pertama yang ditemukan
-                    foreach ($cols as $col) {
-                        $colType = strtolower($col->data_type ?? '');
-                        if (str_contains($colType, 'date') || str_contains($colType, 'timestamp')) {
-                            return $col->column_name;
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::warning("[QueryService] detectDateColumn failed: " . $e->getMessage());
-            }
+        // Ekstrak schema.tabel dari SQL
+        if (!preg_match('/FROM\s+["\`]?([\w]+)["\`]?\s*\.\s*["\`]?([\w]+)["\`]?/i', $sql, $m)) {
+            // Tidak bisa ekstrak nama tabel — kembalikan null, AI yang handle
+            Log::warning('[QueryService] detectDateColumn: cannot extract table name from SQL');
+            return null;
         }
 
-        // Fallback default — nama kolom paling umum di sistem MBI
-        return 'tgl_faktur';
+        $schemaName = $m[1];
+        $tableName  = $m[2];
+
+        try {
+            $connName = "temp_conn_{$databaseCode}_detect";
+            $dbModel  = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+
+            if (!$dbModel) {
+                Log::warning("[QueryService] detectDateColumn: DB model not found for '{$databaseCode}'");
+                return null;
+            }
+
+            DB::purge($connName);
+            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+
+            $adapter = $dbModel->getAdapter();
+            $cols    = DB::connection($connName)->select(
+                $adapter->describeTableQuery(),
+                [$tableName, $schemaName]
+            );
+            DB::purge($connName);
+
+            // Cari kolom bertipe DATE atau TIMESTAMP — kembalikan yang PERTAMA ditemukan
+            // tanpa mencocokkan dengan daftar nama hardcoded apapun
+            foreach ($cols as $col) {
+                $colType = strtolower($col->data_type ?? '');
+                if (str_contains($colType, 'date') || str_contains($colType, 'timestamp')) {
+                    Log::info("[QueryService] detectDateColumn: found '{$col->column_name}' ({$col->data_type}) in {$schemaName}.{$tableName}");
+                    return $col->column_name;
+                }
+            }
+
+            // Tidak ditemukan kolom DATE/TIMESTAMP sama sekali di tabel ini
+            Log::warning("[QueryService] detectDateColumn: no DATE/TIMESTAMP column found in {$schemaName}.{$tableName}");
+            return null;
+
+        } catch (\Exception $e) {
+            Log::warning('[QueryService] detectDateColumn failed: ' . $e->getMessage());
+            return null;
+        }
     }
 }
