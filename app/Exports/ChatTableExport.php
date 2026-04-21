@@ -102,25 +102,22 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         for ($i = 1; $i <= $lastColIndex; $i++) {
             $colLetter = Coordinate::stringFromColumnIndex($i);
             $headerName = $this->headers[$i - 1] ?? '';
-            $normalizedHeader = $this->normalizeLabel($headerName);
 
-            // 1. AI Decision Priority (MANDATORY: Use "Rp" if AI identified this column)
-            // Compare normalized versions to handle "Total Netto" vs "total_netto"
-            if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
+            // 1. AI Decision Priority: gunakan isCurrencyCol yang mendukung partial match
+            if ($this->isCurrencyCol($headerName, $normalizedCurrencyCols)) {
                 $formats[$colLetter] = '"Rp" #,##0';
             }
-            // 2. Detect ID/Fixed String columns to format as Text instead of Number
-            // This prevents scientific notation FOR GOOD for long codes/IDs
-            elseif (preg_match('/(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
+            // 2. Detect ID/Fixed String columns to format as Text
+            elseif (preg_match('/(^id$|^no$|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
                 $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
             }
-            // 3. Fallback Detect Value/Currency columns (Old Regex - kept as safety)
-            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian)/i', $headerName)) {
+            // 3. Fallback Keyword Detection untuk kolom currency yang tidak ter-cover AI
+            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total_)/i', $headerName)) {
                 $formats[$colLetter] = '"Rp" #,##0';
             }
-            // 4. For generic numbers (Qty, Points, Index), use plain number WITHOUT scientific notation
+            // 4. Default: number dengan separator ribuan
             else {
-                $formats[$colLetter] = '#,##0'; // Default to number with separators
+                $formats[$colLetter] = '#,##0';
             }
         }
 
@@ -130,6 +127,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     /**
      * Normalize label for comparison with currency columns metadata.
      * Converts "Total Netto" -> "total_netto", "GPN" -> "gpn", etc.
+     * Also handles display names like "Total Netto" matching DB name "total_netto".
      */
     private function normalizeLabel(string $label): string
     {
@@ -139,11 +137,37 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         // Replace spaces with underscores (reverse of toHumanLabel)
         $normalized = preg_replace('/\s+/', '_', $normalized);
 
+        // Remove non-alphanumeric chars except underscore
+        $normalized = preg_replace('/[^a-z0-9_]/', '', $normalized);
+
         // Remove extra underscores
         $normalized = preg_replace('/_+/', '_', $normalized);
         $normalized = trim($normalized, '_');
 
         return $normalized;
+    }
+
+    /**
+     * Check if a column should be treated as currency.
+     * Supports both exact match (after normalization) and keyword fallback.
+     */
+    private function isCurrencyCol(string $headerName, array $normalizedCurrencyCols): bool
+    {
+        $normalizedHeader = $this->normalizeLabel($headerName);
+
+        // 1. Exact match after normalization
+        if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
+            return true;
+        }
+
+        // 2. Partial match: apakah header mengandung salah satu currency col atau sebaliknya
+        foreach ($normalizedCurrencyCols as $col) {
+            if (!empty($col) && (str_contains($normalizedHeader, $col) || str_contains($col, $normalizedHeader))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

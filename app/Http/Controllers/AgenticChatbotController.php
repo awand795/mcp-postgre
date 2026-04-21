@@ -398,23 +398,51 @@ class AgenticChatbotController extends Controller
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
+        // Fungsi normalisasi untuk smart matching (sama dengan ChatTableExport)
+        $normalizeForMatch = function(string $s): string {
+            return trim(preg_replace('/_+/', '_', preg_replace('/[^a-z0-9_]/', '', strtolower(preg_replace('/[\s]+/', '_', $s)))), '_');
+        };
+
+        // Smart currency column detection:
+        // 1. Exact match setelah normalisasi (misal 'Total Netto' == 'total_netto')
+        // 2. Partial match (misal 'Total' cocok dengan 'total_netto')
+        // 3. Keyword fallback jika currencyColumns kosong
+        $normalizedCurrencyCols = array_map($normalizeForMatch, $currencyColumns);
+        $isCurrencyHeader = function(string $header) use ($normalizedCurrencyCols, $normalizeForMatch, $currencyColumns): bool {
+            // Jika AI menyediakan currencyColumns, gunakan smart match
+            if (!empty($currencyColumns)) {
+                $normalizedHeader = $normalizeForMatch($header);
+                foreach ($normalizedCurrencyCols as $col) {
+                    if (!empty($col) && ($col === $normalizedHeader || str_contains($normalizedHeader, $col) || str_contains($col, $normalizedHeader))) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            // Fallback keyword detection jika tidak ada currencyColumns dari AI
+            return (bool) preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i', $header);
+        };
+
+        // Deteksi tipe tiap kolom
+        $columnTypes = array_map(function($header) use ($isCurrencyHeader) {
+            if ($isCurrencyHeader($header)) return 'currency';
+            if (preg_match('/(^qty$|^jumlah$|^count$|^no$|^no\.$)/i', $header)) return 'number';
+            return 'text';
+        }, $headers);
+
+        // Ambil chart image dari request jika ada (untuk export grafik)
+        $chartImage = $request->input('chartImage', null);
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
             'title'           => $title,
             'headers'         => $headers,
             'rows'            => $normalizedRows,
             'currencyColumns' => $currencyColumns,
             'generatedAt'     => now()->format('d M Y H:i'),
-            // Variabel tambahan yang dibutuhkan view
             'colCount'        => count($headers),
             'fontSize'        => count($headers) > 10 ? 7 : (count($headers) > 7 ? 8 : 9),
-            'chartImage'      => null,
-            'columnTypes'     => array_map(function($header) use ($currencyColumns) {
-                $normalized = strtolower(preg_replace('/[\s_]+/', '_', $header));
-                $normCols   = array_map(fn($c) => strtolower(preg_replace('/[\s_]+/', '_', $c)), $currencyColumns);
-                if (in_array($normalized, $normCols)) return 'currency';
-                if (preg_match('/(qty|jumlah|count|total|amount|nilai)/i', $header)) return 'number';
-                return 'text';
-            }, $headers),
+            'chartImage'      => $chartImage,
+            'columnTypes'     => $columnTypes,
         ])->setPaper('a4', 'landscape');
 
         return $pdf->download($filename);

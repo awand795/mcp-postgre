@@ -153,8 +153,18 @@
                         $colType = $columnTypes[$colIndex] ?? 'text';
                         $class = $colType === 'number' ? 'number-col' : ($colType === 'currency' ? 'currency-col' : 'text-col');
 
-                        if ($colType === 'currency' && is_numeric($cell)) {
-                            $cell = 'Rp ' . number_format($cell, 0, ',', '.');
+                        if ($colType === 'currency' && is_numeric($cell) && $cell !== '' && $cell !== null) {
+                            // Format angka penuh: 5500000 → Rp 5.500.000
+                            $cell = 'Rp ' . number_format((float)$cell, 0, ',', '.');
+                        } elseif ($colType === 'currency' && is_string($cell) && preg_match('/^[\d.,]+$/', trim(str_replace(['Rp', ' '], '', $cell)))) {
+                            // Sudah formatted sebagai string currency — pastikan format konsisten
+                            $numericVal = (float) preg_replace('/[^0-9,]/', '', str_replace(['.'], '', str_replace(',', '.', trim(str_replace(['Rp', ' '], '', $cell)))));
+                            if ($numericVal > 0) {
+                                $cell = 'Rp ' . number_format($numericVal, 0, ',', '.');
+                            }
+                        } elseif ($colType === 'number' && is_numeric($cell)) {
+                            // Format angka biasa dengan separator ribuan
+                            $cell = number_format((float)$cell, 0, ',', '.');
                         }
                     @endphp
                     <td class="{{ $class }}">{{ $cell }}</td>

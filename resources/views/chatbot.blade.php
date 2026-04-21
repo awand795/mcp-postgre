@@ -1821,6 +1821,21 @@
                     return `${typeLabel} ${i + 1}`;
                 })];
                 
+                // AI-detect currency columns untuk chart export:
+                // Cocokan nama dataset dengan currencyColumns (DB name) atau deteksi dari label
+                const detectedChartCurrencyCols = datasets.map((d, i) => {
+                    const dsLabel = d.label || `${chartType} ${i + 1}`;
+                    // Cek apakah dataset ini cocok dengan currencyColumns dari AI
+                    if (isColumnCurrencyByAI(dsLabel, currencyColumns)) return dsLabel;
+                    // Fallback: deteksi dari nama label
+                    if (isLikelyCurrencyLabel(dsLabel)) return dsLabel;
+                    return null;
+                }).filter(Boolean);
+
+                // Gabungkan dengan currencyColumns yang ada
+                const finalCurrencyCols = [...new Set([...currencyColumns, ...detectedChartCurrencyCols])];
+
+                
                 // Find max length
                 const maxLength = Math.max(
                     labels.length, 
@@ -1893,7 +1908,7 @@
                         rows: rows,
                         filename: filename,
                         title: chartTitle,
-                        currencyColumns: currencyColumns,
+                        currencyColumns: finalCurrencyCols,
                         chartInfo: {
                             type: chartType,
                             title: chartTitle,
@@ -2077,6 +2092,15 @@
                 const datasets = chartConfig.data?.datasets || [];
                 const chartType = chartConfig.type || 'bar';
 
+                // AI-detect currency columns untuk chart PDF export
+                const detectedPdfCurrencyCols = datasets.map((d, i) => {
+                    const dsLabel = d.label || `${chartType} ${i + 1}`;
+                    if (isColumnCurrencyByAI(dsLabel, currencyColumns)) return dsLabel;
+                    if (isLikelyCurrencyLabel(dsLabel)) return dsLabel;
+                    return null;
+                }).filter(Boolean);
+                const finalPdfCurrencyCols = [...new Set([...currencyColumns, ...detectedPdfCurrencyCols])];
+
                 // Prepare table data from chart
                 const rows = [];
                 const headers = ['No', 'Label', ...datasets.map((d, i) => d.label || `${chartType} ${i + 1}`)];
@@ -2117,7 +2141,7 @@
                         rows: rows,
                         filename: filename,
                         title: chartTitle,
-                        currencyColumns: currencyColumns,
+                        currencyColumns: finalPdfCurrencyCols,
                         chartImage: chartImage
                     }),
                 });
@@ -2167,7 +2191,6 @@
             const h = header.toLowerCase();
             
             // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
-            // HANYA bergantung pada metadata AI
             if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
                 const aiCols = smartTables[tableId].currencyColumns.map(c => c.toLowerCase());
                 if (aiCols.includes(h)) {
@@ -2176,6 +2199,26 @@
             }
 
             return false;
+        }
+
+        // Deteksi otomatis apakah label kemungkinan kolom currency
+        // Digunakan untuk grafik yang tidak memiliki currencyColumns metadata
+        function isLikelyCurrencyLabel(label) {
+            if (!label) return false;
+            const h = label.toLowerCase();
+            return /(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/.test(h);
+        }
+
+        // Smart match: cocokkan currencyColumns (nama DB) dengan nama header/dataset (nama display)
+        // Contoh: 'total_netto' cocok dengan 'Total Netto' atau 'Total Netto (Rp)'
+        function isColumnCurrencyByAI(colName, currencyColumns) {
+            if (!colName || !currencyColumns || currencyColumns.length === 0) return false;
+            const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normalizedCol = normalize(colName);
+            return currencyColumns.some(c => {
+                const nc = normalize(c);
+                return nc === normalizedCol || normalizedCol.includes(nc) || nc.includes(normalizedCol);
+            });
         }
 
         function toHumanLabel(str) {
@@ -3165,27 +3208,34 @@
                 if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
                 if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
 
-                // Format currency di ticks Y jika datanya besar
+                // Format currency di ticks Y — angka penuh tanpa singkatan
                 if (axis === 'y') {
-                    const oldCallback = scales[axis].ticks.callback;
+                    // Batasi jumlah ticks agar label tidak tumpang tindih
+                    if (!scales[axis].ticks.maxTicksLimit) {
+                        scales[axis].ticks.maxTicksLimit = 8;
+                    }
+
                     scales[axis].ticks.callback = function(value) {
-                        if (oldCallback) return oldCallback.call(this, value);
-                        
                         // Check if ANY dataset in this chart is a currency column
                         let isCurrencyChart = false;
                         if (currencyColumns && currencyColumns.length > 0) {
                             isCurrencyChart = true;
                         } else {
+                            // Fallback: deteksi otomatis dari label dataset
                             const firstLabel = config.data?.datasets?.[0]?.label;
-                            if (firstLabel && isCurrencyColumn(firstLabel)) {
+                            if (firstLabel && isLikelyCurrencyLabel(firstLabel)) {
                                 isCurrencyChart = true;
                             }
                         }
 
+                        // Selalu tampilkan angka PENUH — tidak disingkat (tidak ada 5.5M dll)
+                        const numVal = typeof value === 'number' ? value : parseFloat(value);
+                        if (isNaN(numVal)) return value;
+
                         if (isCurrencyChart) {
-                            return 'Rp ' + value.toLocaleString('id-ID');
+                            return 'Rp\u00a0' + numVal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
                         }
-                        return value.toLocaleString('id-ID');
+                        return numVal.toLocaleString('id-ID', { maximumFractionDigits: 2 });
                     };
                 }
             });
