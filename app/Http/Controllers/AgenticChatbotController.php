@@ -141,8 +141,6 @@ class AgenticChatbotController extends Controller
         }
 
         // FIX: Simpan pesan USER ke database sebelum streaming dimulai.
-        // Sebelumnya hanya pesan assistant yang disimpan, sehingga history
-        // tidak lengkap dan saat chat di-reload, pesan user hilang.
         ChatMessage::create([
             'chat_session_id' => $session->id,
             'role'            => 'user',
@@ -150,8 +148,6 @@ class AgenticChatbotController extends Controller
             'tool_results'    => null,
         ]);
 
-        // Update session title jika ini bukan session baru
-        // (session baru sudah di-set titlenya saat create di atas)
         if (!empty($history) && $session->title === 'New Chat') {
             $session->update(['title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')]);
         }
@@ -211,7 +207,9 @@ class AgenticChatbotController extends Controller
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
-                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt);
+                // FIX GROQ: Pass $loopCount ke callAiApi agar callCustomApi bisa
+                // menggunakan tool_choice: 'required' hanya di loop pertama.
+                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
             } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
                 $response = null;
@@ -268,14 +266,9 @@ class AgenticChatbotController extends Controller
 
                 $decodedRes = json_decode($toolResult, true);
 
-                // FIX #5: Pastikan currency_columns selalu ada di level atas result
-                // agar frontend bisa akses lewat toolRes.currency_columns langsung.
-                // Jika AI tidak menyertakan currency_columns (Gemini/Mistral kadang lupa),
-                // lakukan fallback detection dari nama kolom.
                 if (is_array($decodedRes) && $toolName === 'execute_query') {
                     $currencyCols = $decodedRes['currency_columns'] ?? [];
 
-                    // Fallback: deteksi otomatis dari nama kolom jika AI tidak menyertakan
                     if (empty($currencyCols) && !empty($decodedRes['columns'])) {
                         $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i';
                         foreach ($decodedRes['columns'] as $col) {
@@ -286,7 +279,6 @@ class AgenticChatbotController extends Controller
                         if (!empty($currencyCols)) {
                             Log::info("[Agentic] currency_columns fallback detected: " . implode(', ', $currencyCols));
                             $decodedRes['currency_columns'] = $currencyCols;
-                            // Re-encode karena decodedRes dipakai untuk aiContent juga
                             $toolResult = json_encode($decodedRes);
                         }
                     }
@@ -303,8 +295,6 @@ class AgenticChatbotController extends Controller
                     ]);
                 }
 
-                // FIX #5: Sertakan currency_columns di level atas result yang dikirim ke frontend
-                // agar frontend bisa akses via toolRes.currency_columns tanpa nested lookup
                 $frontendResult = [
                     'tool_name'        => $toolName,
                     'data'             => $decodedRes ?: $toolResult,
@@ -345,11 +335,11 @@ class AgenticChatbotController extends Controller
         $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
 
         $limit  = (int) request('limit', 50);
-        $before = request('before'); // cursor: created_at timestamp
+        $before = request('before');
 
         $query = ChatMessage::where('chat_session_id', $session->id)
-            ->orderBy('created_at', 'desc') // ambil dari belakang dulu untuk pagination
-            ->limit($limit + 1);            // ambil 1 ekstra untuk deteksi has_more
+            ->orderBy('created_at', 'desc')
+            ->limit($limit + 1);
 
         if ($before) {
             $query->where('created_at', '<', $before);
@@ -357,7 +347,7 @@ class AgenticChatbotController extends Controller
 
         $messages     = $query->get();
         $hasMore      = $messages->count() > $limit;
-        $messages     = $messages->take($limit)->sortBy('created_at')->values(); // kembalikan urutan ASC
+        $messages     = $messages->take($limit)->sortBy('created_at')->values();
         $oldestCursor = $hasMore ? ($messages->first()?->created_at?->toISOString() ?? null) : null;
 
         return response()->json([
@@ -383,10 +373,6 @@ class AgenticChatbotController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /**
-     * Export tabel ke Excel (.xlsx)
-     * Dipanggil dari tombol Export Excel di smart table frontend.
-     */
     public function exportExcel(Request $request)
     {
         $request->validate([
@@ -402,7 +388,6 @@ class AgenticChatbotController extends Controller
         $currencyColumns = $request->input('currencyColumns', []);
         $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
 
-        // Pastikan rows adalah array of arrays (bukan array of objects dari JSON)
         $normalizedRows = array_map(function ($row) {
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
@@ -412,10 +397,6 @@ class AgenticChatbotController extends Controller
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
     }
 
-    /**
-     * Export tabel ke PDF
-     * Dipanggil dari tombol Export PDF di smart table dan chart frontend.
-     */
     public function exportPdf(Request $request)
     {
         $request->validate([
@@ -431,23 +412,16 @@ class AgenticChatbotController extends Controller
         $currencyColumns = $request->input('currencyColumns', []);
         $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.pdf');
 
-        // Normalise rows
         $normalizedRows = array_map(function ($row) {
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
-        // Fungsi normalisasi untuk smart matching (sama dengan ChatTableExport)
         $normalizeForMatch = function(string $s): string {
             return trim(preg_replace('/_+/', '_', preg_replace('/[^a-z0-9_]/', '', strtolower(preg_replace('/[\s]+/', '_', $s)))), '_');
         };
 
-        // Smart currency column detection:
-        // 1. Exact match setelah normalisasi (misal 'Total Netto' == 'total_netto')
-        // 2. Partial match (misal 'Total' cocok dengan 'total_netto')
-        // 3. Keyword fallback jika currencyColumns kosong
         $normalizedCurrencyCols = array_map($normalizeForMatch, $currencyColumns);
         $isCurrencyHeader = function(string $header) use ($normalizedCurrencyCols, $normalizeForMatch, $currencyColumns): bool {
-            // Jika AI menyediakan currencyColumns, gunakan smart match
             if (!empty($currencyColumns)) {
                 $normalizedHeader = $normalizeForMatch($header);
                 foreach ($normalizedCurrencyCols as $col) {
@@ -457,18 +431,15 @@ class AgenticChatbotController extends Controller
                 }
                 return false;
             }
-            // Fallback keyword detection jika tidak ada currencyColumns dari AI
             return (bool) preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i', $header);
         };
 
-        // Deteksi tipe tiap kolom
         $columnTypes = array_map(function($header) use ($isCurrencyHeader) {
             if ($isCurrencyHeader($header)) return 'currency';
             if (preg_match('/(^qty$|^jumlah$|^count$|^no$|^no\.$)/i', $header)) return 'number';
             return 'text';
         }, $headers);
 
-        // Ambil chart image dari request jika ada (untuk export grafik)
         $chartImage = $request->input('chartImage', null);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
@@ -486,7 +457,8 @@ class AgenticChatbotController extends Controller
         return $pdf->download($filename);
     }
 
-    private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = ''): ?array
+    // FIX GROQ: tambah parameter $loopCount agar callCustomApi tahu ini loop keberapa
+    private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $providerCode = $apiKey->provider->code;
         $maxTokens    = $maxTokens ?? 32768;
@@ -499,29 +471,22 @@ class AgenticChatbotController extends Controller
         if ($providerCode === 'mistral') return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         if ($providerCode === 'openai')  return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
 
-        // Semua provider selain 4 built-in di atas (groq, openrouter, deepseek, dll)
-        // menggunakan callCustomApi() yang pakai base_url dari tabel ai_providers.
-        return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
     }
 
     private function formatToolsForProvider(string $providerCode, array $tools): array
     {
         if (empty($tools)) return [];
 
-        // FIX #3: Tool definitions dari getToolDefinitions() menggunakan flat structure
-        // (name, description, parameters di root level, bukan di dalam key 'function').
-        // Normalkan dulu ke format internal yang konsisten sebelum dikonversi per provider.
         $normalized = [];
         foreach ($tools as $t) {
             if (isset($t['function'])) {
-                // Format OpenAI wrapper: {type, function: {name, description, parameters}}
                 $normalized[] = [
                     'name'        => $t['function']['name'],
                     'description' => $t['function']['description'] ?? '',
                     'parameters'  => $t['function']['parameters'] ?? (object)[],
                 ];
             } else {
-                // Format flat: {type, name, description, parameters}
                 $normalized[] = [
                     'name'        => $t['name'],
                     'description' => $t['description'] ?? '',
@@ -531,7 +496,6 @@ class AgenticChatbotController extends Controller
         }
 
         if ($providerCode === 'gemini') {
-            // Gemini: function_declarations array
             $geminiTools = [];
             foreach ($normalized as $f) {
                 $geminiTools[] = [
@@ -544,7 +508,6 @@ class AgenticChatbotController extends Controller
         }
 
         if ($providerCode === 'claude') {
-            // Claude Anthropic: tools array dengan input_schema
             $claudeTools = [];
             foreach ($normalized as $f) {
                 $claudeTools[] = [
@@ -556,7 +519,6 @@ class AgenticChatbotController extends Controller
             return $claudeTools;
         }
 
-        // OpenAI / Mistral / Custom: standard function calling format
         $standardTools = [];
         foreach ($normalized as $f) {
             $standardTools[] = [
@@ -582,10 +544,6 @@ class AgenticChatbotController extends Controller
                 $parts = [];
 
                 if ($role === 'tool') {
-                    // FIX #2: Gemini mengharapkan functionResponse.response berupa object JSON
-                    // langsung (bukan string yang di-wrap). Sebelumnya: {content: "json_string"}
-                    // yang menyebabkan Gemini kesulitan parsing.
-                    // Sekarang: parse content ke object/array jika berupa JSON string.
                     $rawContent = $m['content'] ?? '';
                     $parsedContent = null;
                     if (is_string($rawContent)) {
@@ -600,7 +558,7 @@ class AgenticChatbotController extends Controller
                     $parts[] = [
                         'functionResponse' => [
                             'name'     => $m['name'] ?? 'query',
-                            'response' => $parsedContent, // object langsung, bukan string
+                            'response' => $parsedContent,
                         ]
                     ];
                     $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
@@ -640,7 +598,6 @@ class AgenticChatbotController extends Controller
                         'role'    => 'user',
                         'content' => [[
                             'type'        => 'tool_result',
-                            // FIX #1 Claude side: tool_use_id sudah dijamin konsisten dari buildMessages()
                             'tool_use_id' => $m['tool_call_id'] ?? ('hist_' . uniqid()),
                             'content'     => $m['content'] ?? ''
                         ]]
@@ -671,7 +628,6 @@ class AgenticChatbotController extends Controller
             return $claudeMessages;
         }
 
-        // Mistral / OpenAI / Custom — sudah dalam format yang benar
         return $messages;
     }
 
@@ -679,17 +635,11 @@ class AgenticChatbotController extends Controller
     {
         $messages = [['role' => 'system', 'content' => $systemPrompt]];
 
-        // Batasi history agar context window tidak meluap
         $recentHistory = array_slice($history, -$this->maxHistory);
 
         foreach ($recentHistory as $msg) {
             $toolResults = $msg['tool_results'] ?? null;
             if ($msg['role'] === 'assistant' && !empty($toolResults)) {
-                // FIX #1: Buat fake tool_call_ids yang SAMA untuk assistant message
-                // dan tool result messages berikutnya.
-                // Sebelumnya: ID dibuat dua kali terpisah (uniqid() berbeda)
-                // sehingga Claude menolak karena tool_use_id tidak cocok.
-                // Sekarang: ID dibuat sekali dan direferensikan ulang.
                 $fakeToolCalls = [];
                 foreach ($toolResults as $res) {
                     $fakeToolCalls[] = [
@@ -704,7 +654,6 @@ class AgenticChatbotController extends Controller
                     'tool_calls'  => $fakeToolCalls,
                 ];
                 foreach ($toolResults as $index => $res) {
-                    // FIX: Truncate large tool results in history to avoid context overflow
                     $toolData    = $res['data'] ?? '';
                     $toolContent = is_string($toolData) ? $toolData : json_encode($toolData);
                     if (strlen($toolContent) > 2000) {
@@ -720,7 +669,6 @@ class AgenticChatbotController extends Controller
                     }
                     $messages[] = [
                         'role'         => 'tool',
-                        // FIX #1: Gunakan ID yang sama persis dari fakeToolCalls di atas
                         'tool_call_id' => $fakeToolCalls[$index]['id'] ?? ('hist_' . uniqid()),
                         'name'         => $res['tool_name'] ?? 'query',
                         'content'      => $toolContent,
@@ -736,8 +684,6 @@ class AgenticChatbotController extends Controller
 
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — BAHASA INDONESIA
-    // FIX v3: Perbaikan agregasi (hapus placeholder kolom), perkuat smart_table
-    //         wajib untuk semua hasil query multi-kolom, perbaiki format instruksi.
     // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPromptId(array $allowedDatabases = []): string
     {
@@ -764,6 +710,9 @@ JIKA pertanyaan atau permintaan Bapak/Ibu berada di luar dua domain di atas (mis
 *"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?"*
 
 **DILARANG KERAS** menjawab pertanyaan di luar domain tersebut, meskipun Anda mengetahui jawabannya. Tidak ada pengecualian.
+
+**⚠️ PENTING — SEBELUM MEMUTUSKAN APAKAH PERTANYAAN "DI LUAR DOMAIN":**
+Anda WAJIB memanggil tool `get_database_schema_info` terlebih dahulu untuk mengetahui konteks data yang tersedia. Jangan pernah memutuskan "di luar domain" sebelum mengecek database. Pertanyaan singkat seperti "total cabang", "berapa dealer", "data penjualan" adalah pertanyaan bisnis yang VALID dan harus dijawab dengan tool.
 
 ## KONTEKS WAKTU (SANGAT PENTING):
 - **Tanggal Sekarang**: {$currentTime}
@@ -984,9 +933,6 @@ PROMPT;
 
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — ENGLISH
-    // FIX v2: Removed placeholder column name examples that caused AI to guess
-    //         column names. Added BUSINESS TERM → COLUMN NAME warning section
-    //         and mandatory pre-query checkpoint.
     // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPrompt(array $allowedDatabases = []): string
     {
@@ -1013,6 +959,9 @@ IF the user's message or request falls outside these two domains (e.g. general k
 *"I appreciate your inquiry. However, my role is strictly limited to Business Data Analysis and ERP System Guidance for this organization. I am not authorized to provide responses on topics outside this scope. Is there any data analysis or ERP-related matter I can assist you with?"*
 
 **STRICTLY FORBIDDEN** to answer questions outside this domain, even if you possess the knowledge. No exceptions.
+
+**⚠️ IMPORTANT — BEFORE DECIDING A QUESTION IS "OUT OF DOMAIN":**
+You MUST call the `get_database_schema_info` tool first to understand what data is available. Never decide "out of domain" before checking the database. Short questions like "total branches", "how many dealers", "sales data" are VALID business questions that must be answered using tools.
 
 ## TIME CONTEXT (CRITICAL):
 - **Current Date**: {$currentTime}
@@ -1265,7 +1214,6 @@ PROMPT;
             ];
         }
 
-        // Mistral / OpenAI / Custom — sudah dalam format yang benar
         return $data;
     }
 
@@ -1280,7 +1228,7 @@ PROMPT;
         ];
         if (!empty($tools)) {
             $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto'; // OpenAI: 'auto' agar AI bebas pilih
+            $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
@@ -1298,12 +1246,7 @@ PROMPT;
             'temperature' => 0.3,
         ];
         if (!empty($tools)) {
-            $payload['tools'] = $tools;
-            // FIX #4: Mistral menggunakan 'any' bukan 'auto' untuk tool_choice.
-            // 'any' = AI WAJIB memanggil salah satu tool yang tersedia.
-            // 'auto' di Mistral = AI bebas menjawab tanpa memanggil tool (sering skip tools).
-            // Gunakan 'auto' agar perilaku sesuai OpenAI (AI boleh jawab langsung jika sudah cukup).
-            // Ref: https://docs.mistral.ai/capabilities/function_calling/
+            $payload['tools']       = $tools;
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
@@ -1361,7 +1304,7 @@ PROMPT;
         return $this->handleProviderResponse($response, 'gemini');
     }
 
-    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $baseUrl = rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/');
         $url = $baseUrl . '/chat/completions';
@@ -1369,19 +1312,14 @@ PROMPT;
         $providerCode = strtolower($apiKey->provider->code ?? '');
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
 
-        // Groq + model Llama punya bug parsing: jika sebuah tool memiliki
-        // properties kosong ({}) dan required kosong ([]), Llama menggenerate
-        // nama tool dengan suffix '{}' sehingga validasi Groq gagal.
-        // Solusi: hapus key 'required' dan pastikan 'properties' benar-benar
-        // stdClass (bukan array kosong) untuk tool yang tidak punya parameter.
+        // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
+        // Llama menggenerate nama tool dengan suffix '{}' jika properties kosong
+        // dan required ada (meski kosong). Hapus required, paksa properties = stdClass.
         if ($isGroq && !empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters'])) return $tool;
 
-                $params = &$tool['function']['parameters'];
-
-                // Jika properties kosong ([] atau {}), buang key 'required'
-                // dan paksa properties jadi stdClass agar json_encode → {}
+                $params  = &$tool['function']['parameters'];
                 $props   = $params['properties'] ?? null;
                 $isEmpty = empty($props) || $props === [] || ($props instanceof \stdClass && (array) $props === []);
 
@@ -1394,22 +1332,52 @@ PROMPT;
             }, $tools);
         }
 
+        // ── Groq / Llama: inject system reminder di loop pertama ─────────────
+        // Llama terlalu literal membaca instruksi "DILARANG" di system prompt
+        // dan memilih jawab sendiri tanpa tool. Kita prepend pesan singkat
+        // ke messages[0] (system) agar Llama tahu wajib pakai tool dulu.
+        if ($isGroq && $loopCount === 1 && !empty($messages)) {
+            $groqReminder = "[INSTRUKSI SISTEM]: Kamu WAJIB memanggil tool terlebih dahulu sebelum menjawab. "
+                . "Jangan pernah balas dengan teks apapun sebelum memanggil get_database_schema_info. "
+                . "Semua pertanyaan tentang data bisnis (cabang, dealer, penjualan, dll) adalah pertanyaan VALID — "
+                . "cek database dulu, baru putuskan apakah relevan.\n\n";
+
+            foreach ($messages as &$m) {
+                if ($m['role'] === 'system') {
+                    $m['content'] = $groqReminder . $m['content'];
+                    break;
+                }
+            }
+            unset($m);
+        }
+
         $payload = [
             'model'       => $model->model_name,
             'messages'    => $messages,
             'max_tokens'  => (int) $maxTokens,
             'temperature' => 0.3,
         ];
+
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto';
+            $payload['tools'] = $tools;
+
+            // FIX GROQ: Loop pertama pakai 'required' agar Llama WAJIB memanggil tool
+            // dan tidak langsung menjawab berdasarkan sistem prompt saja.
+            // Loop selanjutnya pakai 'auto' agar AI bisa menyimpulkan setelah tool selesai.
+            if ($isGroq) {
+                $payload['tool_choice'] = ($loopCount === 1) ? 'required' : 'auto';
+            } else {
+                $payload['tool_choice'] = 'auto';
+            }
         }
 
-        // Groq tidak support parallel_tool_calls untuk model Llama —
-        // nonaktifkan agar tidak terjadi race condition tool call id.
+        // Groq tidak support parallel_tool_calls untuk model Llama
         if ($isGroq) {
             $payload['parallel_tool_calls'] = false;
         }
+
+        Log::info("[Agentic] callCustomApi loop={$loopCount} isGroq=" . ($isGroq ? 'true' : 'false')
+            . " tool_choice=" . ($payload['tool_choice'] ?? 'none'));
 
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
