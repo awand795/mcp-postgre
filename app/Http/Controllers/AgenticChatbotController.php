@@ -320,6 +320,51 @@ class AgenticChatbotController extends Controller
             }
 
             if (empty($toolCalls) || in_array($finishReason, ['stop', 'end_turn'])) {
+                // ── FIX: Jika OpenRouter/Llama menghasilkan teks SANGAT SINGKAT (< 200 char)
+                // setelah tool selesai, inject format reminder dan retry SEKALI
+                if (!empty($allTurnToolResults) && strlen(trim($textContent)) < 200) {
+                    $providerCodeCheck = strtolower($apiKey->provider->code ?? '');
+                    $baseUrlCheck = $apiKey->provider->base_url ?? '';
+                    $isOpenRouterCheck = $providerCodeCheck === 'openrouter' || str_contains($baseUrlCheck, 'openrouter.ai');
+
+                    if ($isOpenRouterCheck && $loopCount <= $this->maxToolLoops - 2) {
+                        Log::warning("[Agentic] OpenRouter short response detected (" . strlen(trim($textContent)) . " chars). Injecting format reminder.");
+
+                        // Ambil ringkasan hasil tool untuk konteks
+                        $toolSummary = '';
+                        foreach ($allTurnToolResults as $tr) {
+                            if (isset($tr['data']['rows_returned'])) {
+                                $toolSummary .= "Tool '{$tr['tool_name']}' berhasil mengembalikan {$tr['data']['rows_returned']} baris data. ";
+                            } elseif (isset($tr['data']['rows'])) {
+                                $toolSummary .= "Tool '{$tr['tool_name']}' berhasil. ";
+                            }
+                        }
+
+                        $messages[] = [
+                            'role'    => 'user',
+                            'content' => implode("
+", [
+                                "[SYSTEM FORMAT REMINDER — WAJIB DIIKUTI]:",
+                                "Anda sudah berhasil mendapatkan data. {$toolSummary}",
+                                "Sekarang Anda WAJIB menyajikan hasil dalam format LENGKAP berikut:",
+                                "",
+                                "1. **Ringkasan Eksekutif**: 1-2 kalimat cetak tebal dengan angka kunci.",
+                                "2. **Insight Strategis**: 2-3 poin insight bisnis yang menjelaskan konteks.",
+                                "3. **Rekomendasi Prompt Selanjutnya** (WAJIB ADA):",
+                                "   💡 **Rekomendasi Prompt Selanjutnya:**",
+                                "   1. "[pertanyaan lanjutan spesifik]"",
+                                "   2. "[pertanyaan analisis lebih dalam]"",
+                                "   3. "[pertanyaan tren atau perbandingan]"",
+                                "   4. "[pertanyaan cross-analysis]"",
+                                "",
+                                "JANGAN hanya menulis 1 kalimat. Sajikan dalam format LENGKAP seperti di atas.",
+                                "Jawab dalam Bahasa Indonesia formal yang profesional.",
+                            ]),
+                        ];
+                        continue; // Ulangi loop untuk generate ulang dengan format yang benar
+                    }
+                }
+
                 $finalContent = trim($textContent);
                 if (empty($finalContent)) {
                     $finalContent = "Mohon maaf, sistem tidak memberikan respon. Silakan coba pertanyaan lain.";
@@ -1477,18 +1522,19 @@ PROMPT;
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
         $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
 
-        // ── Groq: Isolated Turn One Strategy ───────────────────────
-        if ($isGroq && $loopCount === 1) {
+        // ── Groq & OpenRouter: Isolated Turn One Strategy ────────────
+        if (($isGroq || $isOpenRouter) && $loopCount === 1) {
             $userMsg = '';
             foreach ($messages as $m) {
                 if ($m['role'] === 'user') $userMsg = $m['content'];
             }
-            
+
             $messages = [
                 [
-                    'role' => 'system', 
-                    'content' => "You are a Data Analyst. Your ONLY task is to call 'get_database_schema_info' to understand the available database structure. "
-                               . "DO NOT write any SQL or guess table names yet. Use the 'justification' parameter to explain why you are calling it."
+                    'role' => 'system',
+                    'content' => "You are a Business Data Analyst AI. Your ONLY task right now is to call 'get_database_schema_info' to discover available databases, schemas, and tables. "
+                               . "Do NOT write any response text. Do NOT say you cannot help. Do NOT decide anything about the question. "
+                               . "Simply call get_database_schema_info with justification='Retrieving schema to answer user business data query.'"
                 ],
                 ['role' => 'user', 'content' => $userMsg ?: 'Requesting schema info.']
             ];
@@ -1498,8 +1544,8 @@ PROMPT;
             }));
         }
 
-        // ── Groq: History Pruning for TPM Management ────────────────
-        if ($isGroq && $loopCount >= 3) {
+        // ── Groq & OpenRouter: History Pruning for TPM Management ─────
+        if (($isGroq || $isOpenRouter) && $loopCount >= 3) {
             $prunedCount = 0;
             $totalMessages = count($messages);
             for ($i = 0; $i < $totalMessages - 1; $i++) {
@@ -1517,8 +1563,8 @@ PROMPT;
             }
         }
 
-        // ── Groq: sanitasi tool schema kosong ───────────────────────
-        if ($isGroq && !empty($tools)) {
+        // ── Groq & OpenRouter: sanitasi tool schema kosong ──────────
+        if (($isGroq || $isOpenRouter) && !empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters'])) return $tool;
                 $params  = &$tool['function']['parameters'];
@@ -1532,8 +1578,8 @@ PROMPT;
             }, $tools);
         }
 
-        // ── Groq: normalisasi message history ────────────────────────
-        if ($isGroq) {
+        // ── Groq & OpenRouter: normalisasi message history ───────────
+        if ($isGroq || $isOpenRouter) {
             $normalizedMessages = [];
             foreach ($messages as $idx => $m) {
                 $role = $m['role'] ?? '';
@@ -1565,8 +1611,8 @@ PROMPT;
             $messages = $normalizedMessages;
         }
 
-        // ── Groq: Prompt Compression for Tool Loops ───────────────
-        if ($isGroq && $loopCount >= 2 && !empty($messages)) {
+        // ── Groq & OpenRouter: Prompt Compression for Tool Loops ────
+        if (($isGroq || $isOpenRouter) && $loopCount >= 2 && !empty($messages)) {
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
                     $originalContent = $m['content'];
@@ -1627,7 +1673,7 @@ PROMPT;
         if (!empty($tools)) {
             $payload['tools'] = $tools;
 
-            if ($isGroq) {
+            if ($isGroq || $isOpenRouter) {
                 if ($loopCount === 1) {
                     $payload['tool_choice'] = [
                         'type'     => 'function',
@@ -1641,7 +1687,7 @@ PROMPT;
             }
         }
 
-        if ($isGroq) {
+        if ($isGroq || $isOpenRouter) {
             $payload['parallel_tool_calls'] = false;
         }
 
