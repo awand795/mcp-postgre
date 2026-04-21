@@ -1310,14 +1310,18 @@ PROMPT;
         if ($response->failed()) {
             $body = $response->body();
             Log::error("[Agentic] API Error ({$providerCode}) status=" . $response->status() . " body=" . $body);
-            
+
             if ($response->status() === 429) {
-                Log::warning("[Agentic] Rate Limit Details: " . $body);
+                Log::warning("[Agentic] Rate Limit ({$providerCode}): " . $body);
             }
             return null;
         }
 
         $data = $response->json();
+
+        // Provider custom (selain gemini & claude) semuanya OpenAI-compatible.
+        // Tidak perlu transformasi khusus — langsung lanjut ke salvage logic di bawah.
+        $isCustomProvider = !in_array($providerCode, ['gemini', 'claude', 'openai', 'mistral']);
 
         if ($providerCode === 'gemini') {
             $candidate = $data['candidates'][0] ?? null;
@@ -1510,59 +1514,59 @@ PROMPT;
     private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $baseUrl = rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/');
-        $url = $baseUrl . '/chat/completions';
+        $url     = $baseUrl . '/chat/completions';
 
         $providerCode = strtolower($apiKey->provider->code ?? '');
-        $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
+        $isGroq       = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
         $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
 
-        // ── Groq: Isolated Turn One Strategy ───────────────────────
-        if ($isGroq && $loopCount === 1) {
-            $userMsg = '';
-            foreach ($messages as $m) {
-                if ($m['role'] === 'user') $userMsg = $m['content'];
-            }
-            
-            $messages = [
-                [
-                    'role' => 'system', 
-                    'content' => "You are a Data Analyst. Your ONLY task is to call 'get_database_schema_info' to understand the available database structure. "
-                               . "DO NOT write any SQL or guess table names yet. Use the 'justification' parameter to explain why you are calling it."
-                ],
-                ['role' => 'user', 'content' => $userMsg ?: 'Requesting schema info.']
-            ];
+        // ════════════════════════════════════════════════════════════
+        // NORMALISASI MESSAGES — berlaku untuk SEMUA provider custom
+        // Standar OpenAI-compatible: assistant.content wajib string,
+        // tool.content wajib string, tool_calls.arguments wajib string.
+        // ════════════════════════════════════════════════════════════
+        $normalizedMessages = [];
+        foreach ($messages as $m) {
+            $role = $m['role'] ?? '';
 
-            $tools = array_values(array_filter($tools, function ($t) {
-                return ($t['function']['name'] ?? '') === 'get_database_schema_info';
-            }));
-        }
-
-        // ── Groq: History Pruning for TPM Management ────────────────
-        if ($isGroq && $loopCount >= 3) {
-            $prunedCount = 0;
-            $totalMessages = count($messages);
-            for ($i = 0; $i < $totalMessages - 1; $i++) {
-                if ($messages[$i]['role'] === 'tool' && strlen($messages[$i]['content']) > 500) {
-                    $toolName = $messages[$i]['name'] ?? 'unknown';
-                    $messages[$i]['content'] = json_encode([
-                        'status' => 'success',
-                        'message' => "Stale result from '{$toolName}' truncated for token efficiency. Latest relevant data is preserved below.",
-                    ]);
-                    $prunedCount++;
+            if ($role === 'assistant') {
+                // content harus string (bukan null / array)
+                $m['content'] = is_string($m['content'] ?? null) ? $m['content'] : '';
+                // normalisasi setiap tool_call
+                if (!empty($m['tool_calls'])) {
+                    $m['tool_calls'] = array_map(function ($tc) {
+                        $tc['type'] = $tc['type'] ?? 'function';
+                        if (isset($tc['function']['arguments']) && !is_string($tc['function']['arguments'])) {
+                            $tc['function']['arguments'] = json_encode($tc['function']['arguments']);
+                        }
+                        return $tc;
+                    }, $m['tool_calls']);
                 }
             }
-            if ($prunedCount > 0) {
-                Log::info("[Agentic] Pruned {$prunedCount} old tool results for Groq Loop #{$loopCount}");
-            }
-        }
 
-        // ── Groq: sanitasi tool schema kosong ───────────────────────
-        if ($isGroq && !empty($tools)) {
+            if ($role === 'tool') {
+                // content harus string
+                if (!is_string($m['content'] ?? null)) {
+                    $m['content'] = json_encode($m['content'] ?? '');
+                }
+            }
+
+            $normalizedMessages[] = $m;
+        }
+        $messages = $normalizedMessages;
+
+        // ════════════════════════════════════════════════════════════
+        // NORMALISASI TOOLS — sanitasi parameter schema kosong
+        // Groq (dan beberapa provider lain) menolak tools dengan
+        // "properties": [] (array) — harus object kosong: {}
+        // ════════════════════════════════════════════════════════════
+        if (!empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters'])) return $tool;
                 $params  = &$tool['function']['parameters'];
                 $props   = $params['properties'] ?? null;
-                $isEmpty = empty($props) || $props === [] || ($props instanceof \stdClass && (array) $props === []);
+                $isEmpty = $props === null || $props === [] ||
+                           ($props instanceof \stdClass && (array) $props === []);
                 if ($isEmpty) {
                     $params['properties'] = new \stdClass();
                     unset($params['required']);
@@ -1571,73 +1575,33 @@ PROMPT;
             }, $tools);
         }
 
-        // ── Groq: normalisasi message history ────────────────────────
-        if ($isGroq) {
-            $normalizedMessages = [];
-            foreach ($messages as $idx => $m) {
-                $role = $m['role'] ?? '';
-
-                if ($role === 'assistant') {
-                    $m['content'] = $m['content'] ?? '';
-                    if (!is_string($m['content'])) {
-                        $m['content'] = '';
-                    }
-                    if (!empty($m['tool_calls'])) {
-                        $m['tool_calls'] = array_map(function ($tc) {
-                            $tc['type'] = $tc['type'] ?? 'function';
-                            if (isset($tc['function']['arguments']) && !is_string($tc['function']['arguments'])) {
-                                $tc['function']['arguments'] = json_encode($tc['function']['arguments']);
-                            }
-                            return $tc;
-                        }, $m['tool_calls']);
-                    }
-                }
-
-                if ($role === 'tool') {
-                    if (!is_string($m['content'] ?? null)) {
-                        $m['content'] = json_encode($m['content'] ?? '');
-                    }
-                }
-
-                $normalizedMessages[] = $m;
-            }
-            $messages = $normalizedMessages;
-        }
-
-        // ── Groq: Prompt Compression for Tool Loops ───────────────
-        if ($isGroq && $loopCount >= 2 && !empty($messages)) {
-            foreach ($messages as &$m) {
-                if ($m['role'] === 'system') {
-                    $originalContent = $m['content'];
-                    $sectionsToKeep = explode("### FORMAT OUTPUT", $originalContent)[0];
-                    $sectionsToKeep = explode("### EXAMPLES", $sectionsToKeep)[0];
-                    
-                    if (strlen($sectionsToKeep) < strlen($originalContent)) {
-                        $m['content'] = $sectionsToKeep . "\n\n[ADMIN NOTE]: Visual formatting rules (Smart Tables, Charts) are hidden to save tokens during the tool-calling phase. Focus on SQL and data accuracy. They will be restored for your final answer.";
-                        Log::info("[Agentic] Compressed system prompt for Groq Loop #{$loopCount}");
-                    }
-                    break;
+        // ════════════════════════════════════════════════════════════
+        // GROQ — History Pruning untuk manajemen TPM
+        // Pangkas tool results lama agar tidak meledak di token limit.
+        // PENTING: Hanya truncate pesan lama (bukan 4 pesan terakhir).
+        // ════════════════════════════════════════════════════════════
+        if ($isGroq && $loopCount >= 3) {
+            $totalMessages = count($messages);
+            $guardZone     = 4; // jaga 4 pesan terakhir tetap utuh
+            $prunedCount   = 0;
+            for ($i = 0; $i < $totalMessages - $guardZone; $i++) {
+                if (($messages[$i]['role'] ?? '') === 'tool' && strlen($messages[$i]['content'] ?? '') > 500) {
+                    $toolName = $messages[$i]['name'] ?? 'unknown';
+                    $messages[$i]['content'] = json_encode([
+                        'status'  => 'success',
+                        'message' => "Previous result from '{$toolName}' pruned for token efficiency.",
+                    ]);
+                    $prunedCount++;
                 }
             }
-            unset($m);
-        }
-
-        // ── Groq: inject system reminder di loop pertama ─────────────
-        if ($isGroq && $loopCount === 1 && !empty($messages)) {
-            $groqReminder = "[SYSTEM INSTRUCTION]: You MUST call the get_database_schema_info tool first. "
-                . "Provide a brief reasoning in the 'justification' parameter. "
-                . "Ensure you output ONLY the tool call in valid JSON format. NEVER use tag-based formats like <function> or XML tags. "
-                . "Do not attempt to guess table names or execute queries before receiving schema information.\n\n";
-
-            foreach ($messages as &$m) {
-                if ($m['role'] === 'system') {
-                    $m['content'] = $groqReminder . $m['content'];
-                    break;
-                }
+            if ($prunedCount > 0) {
+                Log::info("[Agentic] Groq: pruned {$prunedCount} stale tool results at loop #{$loopCount}");
             }
-            unset($m);
         }
 
+        // ════════════════════════════════════════════════════════════
+        // BUILD PAYLOAD — standar OpenAI-compatible
+        // ════════════════════════════════════════════════════════════
         $payload = [
             'model'       => $model->model_name,
             'messages'    => $messages,
@@ -1646,44 +1610,37 @@ PROMPT;
         ];
 
         if (!empty($tools)) {
-            $payload['tools'] = $tools;
-
-            if ($isGroq) {
-                if ($loopCount === 1) {
-                    $payload['tool_choice'] = [
-                        'type'     => 'function',
-                        'function' => ['name' => 'get_database_schema_info'],
-                    ];
-                } else {
-                    $payload['tool_choice'] = 'auto';
-                }
-            } else {
-                $payload['tool_choice'] = 'auto';
-            }
+            $payload['tools']       = $tools;
+            $payload['tool_choice'] = 'auto';
         }
 
+        // Groq tidak support parallel tool calls
         if ($isGroq) {
             $payload['parallel_tool_calls'] = false;
         }
 
-        Log::info("[Agentic] callCustomApi loop={$loopCount} isGroq=" . ($isGroq ? 'true' : 'false')
-            . " tool_choice=" . (is_array($payload['tool_choice'] ?? null)
-                ? ($payload['tool_choice']['function']['name'] ?? 'specific')
-                : ($payload['tool_choice'] ?? 'none'))
-            . " msg_count=" . count($messages));
-
+        // ════════════════════════════════════════════════════════════
+        // CUSTOM HEADERS — per provider
+        // ════════════════════════════════════════════════════════════
         $httpRequest = Http::timeout(600)->retry(3, 2000);
 
         if ($isOpenRouter) {
             $httpRequest = $httpRequest->withHeaders([
-                'HTTP-Referer' => config('app.url', 'http://74.48.112.31:5000/'),
+                'HTTP-Referer' => config('app.url', 'http://localhost'),
                 'X-Title'      => 'MBI Agentic DataBot',
             ]);
         }
 
-        $response = $httpRequest->withToken($apiKey->api_key)
+        Log::info("[Agentic] callCustomApi provider={$providerCode} loop={$loopCount}"
+            . " isGroq=" . ($isGroq ? 'true' : 'false')
+            . " isOpenRouter=" . ($isOpenRouter ? 'true' : 'false')
+            . " msg_count=" . count($messages)
+            . " tool_count=" . count($tools));
+
+        $response = $httpRequest
+            ->withToken($apiKey->api_key)
             ->post($url, $payload);
 
-        return $this->handleProviderResponse($response, 'custom');
+        return $this->handleProviderResponse($response, $providerCode);
     }
 }
