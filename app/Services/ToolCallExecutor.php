@@ -62,8 +62,13 @@ class ToolCallExecutor
                 'description' => 'Mendapatkan daftar lengkap database, schema, dan tabel yang diizinkan untuk diakses oleh pengguna saat ini. SELALU panggil tool ini pertama kali sebelum menulis query SQL agar Anda tahu database apa saja yang tersedia.',
                 'parameters'  => [
                     'type'       => 'object',
-                    'properties' => new \stdClass(),
-                    'required'   => [],
+                    'properties' => [
+                        'justification' => [
+                            'type'        => 'string',
+                            'description' => 'Alasan mengapa Anda memanggil tool ini (misal: "Memeriksa daftar tabel yang tersedia sebelum menulis query").',
+                        ],
+                    ],
+                    'required'   => ['justification'],
                 ],
             ],
             [

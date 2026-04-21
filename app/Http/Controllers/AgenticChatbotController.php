@@ -1308,6 +1308,19 @@ PROMPT;
         $providerCode = strtolower($apiKey->provider->code ?? '');
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
 
+        // ── Groq / Llama: STRATEGY - Only allow get_database_schema_info in Loop #1 ──
+        // This prevents the model from "hallucinating" table names before it has actually
+        // looked at the database schema. Subsequent loops will have all tools available.
+        if ($isGroq && $loopCount === 1 && !empty($tools)) {
+            $filtered = array_filter($tools, function ($t) {
+                $name = $t['function']['name'] ?? $t['name'] ?? '';
+                return $name === 'get_database_schema_info';
+            });
+            if (!empty($filtered)) {
+                $tools = array_values($filtered);
+            }
+        }
+
         // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
         if ($isGroq && !empty($tools)) {
             $tools = array_map(function ($tool) {
@@ -1367,9 +1380,10 @@ PROMPT;
 
         // ── Groq / Llama: inject system reminder di loop pertama ─────────────
         if ($isGroq && $loopCount === 1 && !empty($messages)) {
-            $groqReminder = "[SYSTEM INSTRUCTION]: You MUST call get_database_schema_info tool first before providing any analysis. "
-                . "Ensure you output only the tool call in valid JSON format. Do not use tag-based formats like <function>. "
-                . "Business questions (total sales, branch counts, etc.) are always VALID—check the database structure first.\n\n";
+            $groqReminder = "[SYSTEM INSTRUCTION]: You MUST call the get_database_schema_info tool first. "
+                . "Provide a brief reasoning in the 'justification' parameter. "
+                . "Ensure you output ONLY the tool call in valid JSON format. NEVER use tag-based formats like <function> or XML tags. "
+                . "Do not attempt to guess table names or execute queries before receiving schema information.\n\n";
 
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
