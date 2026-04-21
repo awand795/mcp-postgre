@@ -1493,9 +1493,17 @@ PROMPT;
                 : ($payload['tool_choice'] ?? 'none'))
             . " msg_count=" . count($messages));
 
-        $response = Http::timeout(600)
-            ->retry(3, 2000)
-            ->withToken($apiKey->api_key)
+        $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
+        $httpRequest = Http::timeout(600)->retry(3, 2000);
+
+        if ($isOpenRouter) {
+            $httpRequest = $httpRequest->withHeaders([
+                'HTTP-Referer' => config('app.url', 'http://74.48.112.31:5000/'),
+                'X-Title'      => 'MBI Agentic DataBot',
+            ]);
+        }
+
+        $response = $httpRequest->withToken($apiKey->api_key)
             ->post($url, $payload);
 
         return $this->handleProviderResponse($response, 'custom');

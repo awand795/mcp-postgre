@@ -266,7 +266,12 @@ class ToolCallExecutor
                 'get_table_preview'     => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
                 'get_column_values'     => $this->schemaService->getColumnValues($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? '', $arguments['column_name'] ?? ''),
                 'get_view_definition'   => $this->schemaService->getViewDefinition($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['view_name'] ?? ''),
-                'execute_query'         => $this->queryService->executeQuery($arguments['database_code'] ?? '', $arguments['sql'] ?? '', $arguments['label'] ?? '', $arguments['currency_columns'] ?? []),
+                'execute_query'         => $this->queryService->executeQuery(
+                    $arguments['database_code'] ?? '',
+                    $arguments['sql'] ?? '',
+                    $arguments['label'] ?? '',
+                    $this->ensureArray($arguments['currency_columns'] ?? [])
+                ),
 
                 // ERP Tools
                 'get_erp_menu_navigation' => $this->erpService->getErpMenuNavigation($arguments['module'] ?? '', $arguments['menu_keyword'] ?? ''),
@@ -279,6 +284,31 @@ class ToolCallExecutor
             $this->logToolFailure($toolName, $e);
             return json_encode(['error' => 'Permintaan tidak dapat diproses saat ini. Silakan coba lagi.']);
         }
+    }
+
+    /**
+     * Ensure the given value is an array.
+     * Some AI models mistakenly send JSON strings like "[]" for array parameters.
+     */
+    private function ensureArray($value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+            
+            // Handle case like "[]" or empty string
+            if (trim($value) === '[]' || trim($value) === '') {
+                return [];
+            }
+        }
+
+        return (array) $value;
     }
 
     // ── get_business_context ──────────────────────────────────────────────────
