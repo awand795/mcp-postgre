@@ -208,7 +208,7 @@ class AgenticChatbotController extends Controller
 
             try {
                 // FIX GROQ: Pass $loopCount ke callAiApi agar callCustomApi bisa
-                // menggunakan tool_choice: 'required' hanya di loop pertama.
+                // menggunakan tool_choice spesifik hanya di loop pertama.
                 $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
             } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
@@ -1337,10 +1337,10 @@ PROMPT;
         // dan memilih jawab sendiri tanpa tool. Kita prepend pesan singkat
         // ke messages[0] (system) agar Llama tahu wajib pakai tool dulu.
         if ($isGroq && $loopCount === 1 && !empty($messages)) {
-            $groqReminder = "[INSTRUKSI SISTEM]: Kamu WAJIB memanggil tool terlebih dahulu sebelum menjawab. "
+            $groqReminder = "[INSTRUKSI SISTEM]: Kamu WAJIB memanggil tool get_database_schema_info terlebih dahulu sebelum menjawab. "
                 . "Jangan pernah balas dengan teks apapun sebelum memanggil get_database_schema_info. "
                 . "Semua pertanyaan tentang data bisnis (cabang, dealer, penjualan, dll) adalah pertanyaan VALID — "
-                . "cek database dulu, baru putuskan apakah relevan.\n\n";
+                . "cek database dulu dengan get_database_schema_info, baru putuskan apakah relevan.\n\n";
 
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
@@ -1361,11 +1361,30 @@ PROMPT;
         if (!empty($tools)) {
             $payload['tools'] = $tools;
 
-            // FIX GROQ: Loop pertama pakai 'required' agar Llama WAJIB memanggil tool
-            // dan tidak langsung menjawab berdasarkan sistem prompt saja.
-            // Loop selanjutnya pakai 'auto' agar AI bisa menyimpulkan setelah tool selesai.
             if ($isGroq) {
-                $payload['tool_choice'] = ($loopCount === 1) ? 'required' : 'auto';
+                // ── FIX GROQ tool_choice ─────────────────────────────────────────
+                // MASALAH LAMA: loop #1 pakai 'required' → Llama bebas pilih tool apa
+                // saja, termasuk langsung execute_query dengan nama tabel tebakan.
+                // SOLUSI BARU: loop #1 paksa tool SPESIFIK get_database_schema_info
+                // agar Llama WAJIB discovery schema dulu sebelum apapun.
+                // loop #2+ pakai 'auto' agar Llama bisa lanjut ke step berikutnya
+                // (describe_table, execute_query) atau stop jika sudah selesai.
+                if ($loopCount === 1) {
+                    $toolNames = array_column(array_column($tools, 'function'), 'name');
+                    if (in_array('get_database_schema_info', $toolNames)) {
+                        // Paksa tool spesifik — bukan 'required' sembarangan
+                        $payload['tool_choice'] = [
+                            'type'     => 'function',
+                            'function' => ['name' => 'get_database_schema_info'],
+                        ];
+                    } else {
+                        // Fallback jika tool schema tidak ada dalam daftar
+                        $payload['tool_choice'] = 'required';
+                    }
+                } else {
+                    // Loop #2+: biarkan model pilih tool atau stop sendiri
+                    $payload['tool_choice'] = 'auto';
+                }
             } else {
                 $payload['tool_choice'] = 'auto';
             }
@@ -1377,7 +1396,9 @@ PROMPT;
         }
 
         Log::info("[Agentic] callCustomApi loop={$loopCount} isGroq=" . ($isGroq ? 'true' : 'false')
-            . " tool_choice=" . ($payload['tool_choice'] ?? 'none'));
+            . " tool_choice=" . (is_array($payload['tool_choice'] ?? null)
+                ? ($payload['tool_choice']['function']['name'] ?? 'specific')
+                : ($payload['tool_choice'] ?? 'none')));
 
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
