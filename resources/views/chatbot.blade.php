@@ -2092,8 +2092,8 @@
                 }
 
                 // Ambil chart image dari snapshot yang sudah disimpan saat render
-                const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container') || document.getElementById(chartId);
-                let chartImage = chartContainer?.getAttribute('data-chart-image') || null;
+                const chartImageContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container') || document.getElementById(chartId);
+                let chartImage = chartImageContainer?.getAttribute('data-chart-image') || null;
                 if (!chartImage) {
                     // fallback: coba capture langsung
                     const canvas = document.querySelector(`#${chartId}-canvas`) || document.querySelector(`#${chartId} canvas`);
