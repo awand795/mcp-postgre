@@ -121,7 +121,6 @@ class AgenticChatbotController extends Controller
                 }
             }
         } else {
-            // FIX #6: User bukan admin dan tidak punya roleModel — log untuk debugging
             Log::warning("[Agentic] User ID {$user->id} has no roleModel and is not admin. allowedDatabases will be empty.");
         }
 
@@ -140,7 +139,6 @@ class AgenticChatbotController extends Controller
             $history = [];
         }
 
-        // FIX: Simpan pesan USER ke database sebelum streaming dimulai.
         ChatMessage::create([
             'chat_session_id' => $session->id,
             'role'            => 'user',
@@ -207,8 +205,6 @@ class AgenticChatbotController extends Controller
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
-                // FIX GROQ: Pass $loopCount ke callAiApi agar callCustomApi bisa
-                // menggunakan tool_choice spesifik hanya di loop pertama.
                 $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
             } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
@@ -457,7 +453,6 @@ class AgenticChatbotController extends Controller
         return $pdf->download($filename);
     }
 
-    // FIX GROQ: tambah parameter $loopCount agar callCustomApi tahu ini loop keberapa
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $providerCode = $apiKey->provider->code;
@@ -1138,11 +1133,12 @@ PROMPT;
     private function handleProviderResponse($response, string $providerCode): ?array
     {
         if ($response->status() === 429) {
+            Log::warning("[Agentic] Rate limited (429) for provider: {$providerCode}");
             return null;
         }
 
         if ($response->failed()) {
-            Log::error("[Agentic] API Error ({$providerCode}): " . $response->body());
+            Log::error("[Agentic] API Error ({$providerCode}) status=" . $response->status() . " body=" . $response->body());
             return null;
         }
 
@@ -1313,29 +1309,63 @@ PROMPT;
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
 
         // ── Groq / Llama: sanitasi tool schema kosong ───────────────────────
-        // Llama menggenerate nama tool dengan suffix '{}' jika properties kosong
-        // dan required ada (meski kosong). Hapus required, paksa properties = stdClass.
         if ($isGroq && !empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters'])) return $tool;
-
                 $params  = &$tool['function']['parameters'];
                 $props   = $params['properties'] ?? null;
                 $isEmpty = empty($props) || $props === [] || ($props instanceof \stdClass && (array) $props === []);
-
                 if ($isEmpty) {
                     $params['properties'] = new \stdClass();
                     unset($params['required']);
                 }
-
                 return $tool;
             }, $tools);
         }
 
+        // ── Groq / Llama: normalisasi message history ────────────────────────
+        // KRITIS: Groq menolak (400) jika:
+        //   1. assistant message memiliki content: null (harus string kosong "")
+        //   2. tool message memiliki content bukan string (harus string)
+        //   3. assistant message memiliki tool_calls tapi tidak ada tool result setelahnya
+        // Normalisasi ini diperlukan untuk SEMUA loop, bukan hanya loop pertama.
+        if ($isGroq) {
+            $normalizedMessages = [];
+            foreach ($messages as $idx => $m) {
+                $role = $m['role'] ?? '';
+
+                if ($role === 'assistant') {
+                    // Pastikan content selalu string, bukan null
+                    $m['content'] = $m['content'] ?? '';
+                    if (!is_string($m['content'])) {
+                        $m['content'] = '';
+                    }
+                    // Pastikan tool_calls ada tipe 'function' pada setiap item
+                    if (!empty($m['tool_calls'])) {
+                        $m['tool_calls'] = array_map(function ($tc) {
+                            $tc['type'] = $tc['type'] ?? 'function';
+                            // arguments harus berupa string JSON
+                            if (isset($tc['function']['arguments']) && !is_string($tc['function']['arguments'])) {
+                                $tc['function']['arguments'] = json_encode($tc['function']['arguments']);
+                            }
+                            return $tc;
+                        }, $m['tool_calls']);
+                    }
+                }
+
+                if ($role === 'tool') {
+                    // content harus string
+                    if (!is_string($m['content'] ?? null)) {
+                        $m['content'] = json_encode($m['content'] ?? '');
+                    }
+                }
+
+                $normalizedMessages[] = $m;
+            }
+            $messages = $normalizedMessages;
+        }
+
         // ── Groq / Llama: inject system reminder di loop pertama ─────────────
-        // Llama terlalu literal membaca instruksi "DILARANG" di system prompt
-        // dan memilih jawab sendiri tanpa tool. Kita prepend pesan singkat
-        // ke messages[0] (system) agar Llama tahu wajib pakai tool dulu.
         if ($isGroq && $loopCount === 1 && !empty($messages)) {
             $groqReminder = "[INSTRUKSI SISTEM]: Kamu WAJIB memanggil tool get_database_schema_info terlebih dahulu sebelum menjawab. "
                 . "Jangan pernah balas dengan teks apapun sebelum memanggil get_database_schema_info. "
@@ -1362,27 +1392,17 @@ PROMPT;
             $payload['tools'] = $tools;
 
             if ($isGroq) {
-                // ── FIX GROQ tool_choice ─────────────────────────────────────────
-                // MASALAH LAMA: loop #1 pakai 'required' → Llama bebas pilih tool apa
-                // saja, termasuk langsung execute_query dengan nama tabel tebakan.
-                // SOLUSI BARU: loop #1 paksa tool SPESIFIK get_database_schema_info
-                // agar Llama WAJIB discovery schema dulu sebelum apapun.
-                // loop #2+ pakai 'auto' agar Llama bisa lanjut ke step berikutnya
-                // (describe_table, execute_query) atau stop jika sudah selesai.
                 if ($loopCount === 1) {
                     $toolNames = array_column(array_column($tools, 'function'), 'name');
                     if (in_array('get_database_schema_info', $toolNames)) {
-                        // Paksa tool spesifik — bukan 'required' sembarangan
                         $payload['tool_choice'] = [
                             'type'     => 'function',
                             'function' => ['name' => 'get_database_schema_info'],
                         ];
                     } else {
-                        // Fallback jika tool schema tidak ada dalam daftar
                         $payload['tool_choice'] = 'required';
                     }
                 } else {
-                    // Loop #2+: biarkan model pilih tool atau stop sendiri
                     $payload['tool_choice'] = 'auto';
                 }
             } else {
@@ -1398,11 +1418,13 @@ PROMPT;
         Log::info("[Agentic] callCustomApi loop={$loopCount} isGroq=" . ($isGroq ? 'true' : 'false')
             . " tool_choice=" . (is_array($payload['tool_choice'] ?? null)
                 ? ($payload['tool_choice']['function']['name'] ?? 'specific')
-                : ($payload['tool_choice'] ?? 'none')));
+                : ($payload['tool_choice'] ?? 'none'))
+            . " msg_count=" . count($messages));
 
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
             ->post($url, $payload);
+
         return $this->handleProviderResponse($response, 'custom');
     }
 }
