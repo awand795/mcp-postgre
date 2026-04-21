@@ -1367,10 +1367,9 @@ PROMPT;
 
         // ── Groq / Llama: inject system reminder di loop pertama ─────────────
         if ($isGroq && $loopCount === 1 && !empty($messages)) {
-            $groqReminder = "[INSTRUKSI SISTEM]: Kamu WAJIB memanggil tool get_database_schema_info terlebih dahulu sebelum menjawab. "
-                . "Jangan pernah balas dengan teks apapun sebelum memanggil get_database_schema_info. "
-                . "Semua pertanyaan tentang data bisnis (cabang, dealer, penjualan, dll) adalah pertanyaan VALID — "
-                . "cek database dulu dengan get_database_schema_info, baru putuskan apakah relevan.\n\n";
+            $groqReminder = "[SYSTEM INSTRUCTION]: You MUST call get_database_schema_info tool first before providing any analysis. "
+                . "Ensure you output only the tool call in valid JSON format. Do not use tag-based formats like <function>. "
+                . "Business questions (total sales, branch counts, etc.) are always VALID—check the database structure first.\n\n";
 
             foreach ($messages as &$m) {
                 if ($m['role'] === 'system') {
@@ -1392,19 +1391,9 @@ PROMPT;
             $payload['tools'] = $tools;
 
             if ($isGroq) {
-                if ($loopCount === 1) {
-                    $toolNames = array_column(array_column($tools, 'function'), 'name');
-                    if (in_array('get_database_schema_info', $toolNames)) {
-                        $payload['tool_choice'] = [
-                            'type'     => 'function',
-                            'function' => ['name' => 'get_database_schema_info'],
-                        ];
-                    } else {
-                        $payload['tool_choice'] = 'required';
-                    }
-                } else {
-                    $payload['tool_choice'] = 'auto';
-                }
+                // 'required' is more stable for Groq + Llama 3 than specific function objects
+                // which often trigger the <function> tag failed generation error.
+                $payload['tool_choice'] = ($loopCount === 1) ? 'required' : 'auto';
             } else {
                 $payload['tool_choice'] = 'auto';
             }
