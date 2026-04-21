@@ -461,6 +461,7 @@ class AgenticChatbotController extends Controller
                     'tool_call_id' => $toolCallId,
                     'name'         => $toolName,
                     'content'      => $aiContent,
+                    'decoded_data' => $decodedRes, // Pass already decoded data to avoid redundant parsing
                 ];
             }
             if (ob_get_level() > 0) ob_flush(); flush();
@@ -699,14 +700,21 @@ class AgenticChatbotController extends Controller
 
                 // ── Tool result → kirim sebagai role 'user' + functionResponse ──
                 if ($role === 'tool') {
-                    $rawContent = $m['content'] ?? '';
-                    if (is_string($rawContent)) {
-                        $decoded      = json_decode($rawContent, true);
-                        $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
-                    } elseif (is_array($rawContent)) {
-                        $parsedContent = $rawContent;
+                    $parsedContent = null;
+                    
+                    // Optimization: Check if we have pre-decoded data
+                    if (!empty($m['decoded_data'])) {
+                        $parsedContent = $m['decoded_data'];
                     } else {
-                        $parsedContent = ['result' => (string) $rawContent];
+                        $rawContent = $m['content'] ?? '';
+                        if (is_string($rawContent)) {
+                            $decoded      = json_decode($rawContent, true);
+                            $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
+                        } elseif (is_array($rawContent)) {
+                            $parsedContent = $rawContent;
+                        } else {
+                            $parsedContent = ['result' => (string) $rawContent];
+                        }
                     }
 
                     $parts = [[
@@ -730,23 +738,19 @@ class AgenticChatbotController extends Controller
 
                 // ── Assistant message → kirim sebagai role 'model' ──
                 if ($role === 'assistant') {
-                    // STRATEGI GEMINI UNTUK HISTORY:
-                    // Gemini API sangat strict: dalam satu turn model, TIDAK BOLEH ada
-                    // text + functionCall bersamaan di parts[] yang sama.
-                    // Untuk history (turn sebelumnya), kita pakai pendekatan sederhana:
-                    //   - Jika ada tool_calls → kirim HANYA functionCall (tanpa text)
-                    //   - Jika tidak ada tool_calls → kirim teks saja
-                    // Teks jawaban final dari turn sebelumnya tidak diperlukan karena
-                    // Gemini akan tetap punya konteks dari functionResponse di bawahnya.
+                    // Gemini API (Contents) allows mixing text and function calls in a single turn.
+                    $parts = [];
+                    
+                    // 1. Add text part if exists
+                    if (!empty($m['content'])) {
+                        $parts[] = ['text' => (string) $m['content']];
+                    }
 
+                    // 2. Add tool call parts if exist
                     if (!empty($m['tool_calls'])) {
-                        // Ada tool calls: kirim hanya functionCall tanpa teks
-                        $parts = [];
                         foreach ($m['tool_calls'] as $tc) {
                             $args    = $tc['function']['arguments'] ?? '{}';
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
-                            // json_decode dengan false (object mode) agar {} tetap stdClass
-                            // Fallback ke stdClass jika decode gagal atau null
                             if ($argsArr === null || $argsArr === []) {
                                 $argsArr = new \stdClass();
                             }
@@ -757,27 +761,16 @@ class AgenticChatbotController extends Controller
                                 ]
                             ];
                         }
-                        if (empty($parts)) continue;
+                    }
 
-                        if ($prevRole === 'model' && !empty($geminiMessages)) {
-                            $last = &$geminiMessages[count($geminiMessages) - 1];
-                            $last['parts'] = array_merge($last['parts'], $parts);
-                        } else {
-                            $geminiMessages[] = ['role' => 'model', 'parts' => $parts];
-                            $prevRole = 'model';
-                        }
+                    if (empty($parts)) continue;
+
+                    if ($prevRole === 'model' && !empty($geminiMessages)) {
+                        $last = &$geminiMessages[count($geminiMessages) - 1];
+                        $last['parts'] = array_merge($last['parts'], $parts);
                     } else {
-                        // Tidak ada tool calls: kirim teks biasa saja
-                        if (empty($m['content'])) continue;
-                        $parts = [['text' => (string) $m['content']]];
-
-                        if ($prevRole === 'model' && !empty($geminiMessages)) {
-                            $last = &$geminiMessages[count($geminiMessages) - 1];
-                            $last['parts'] = array_merge($last['parts'], $parts);
-                        } else {
-                            $geminiMessages[] = ['role' => 'model', 'parts' => $parts];
-                            $prevRole = 'model';
-                        }
+                        $geminiMessages[] = ['role' => 'model', 'parts' => $parts];
+                        $prevRole = 'model';
                     }
                     continue;
                 }
@@ -899,7 +892,9 @@ class AgenticChatbotController extends Controller
                         'tool_call_id' => $fakeToolCalls[$index]['id'] ?? ('hist_' . uniqid()),
                         'name'         => $res['tool_name'] ?? 'query',
                         'content'      => $toolContent,
+                        'decoded_data' => isset($truncated) ? $truncated : $toolData,
                     ];
+                    unset($truncated); // Clear for next iteration
                 }
             } else {
                 $messages[] = ['role' => $msg['role'] ?? 'user', 'content' => $msg['content'] ?? ''];
@@ -1631,12 +1626,15 @@ PROMPT;
         if (!empty($tools)) {
             $payload['tools'] = $tools;
         }
-        $response = Http::timeout(600)->retry(3, 2000)->post($url, $payload);
+        $payloadJson = json_encode($payload);
+        Log::info("[Agentic] Sending request to Gemini. Model={$currentModelName} PayloadSize=" . strlen($payloadJson) . " bytes");
+
+        $response = Http::timeout(600)->retry(3, 2000)->withBody($payloadJson, 'application/json')->post($url);
 
         if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
             Log::warning("[Agentic] Model {$currentModelName} busy (503). Falling back to gemini-1.5-flash.");
             $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
-            $response = Http::timeout(600)->retry(2, 2000)->post($fallbackUrl, $payload);
+            $response = Http::timeout(600)->retry(2, 2000)->withBody($payloadJson, 'application/json')->post($fallbackUrl);
         }
         return $this->handleProviderResponse($response, 'gemini');
     }
