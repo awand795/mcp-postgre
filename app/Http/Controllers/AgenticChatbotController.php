@@ -246,14 +246,21 @@ class AgenticChatbotController extends Controller
             // sebenarnya hanya gagal menemukan tabel karena schema salah. Jika AI belum
             // berhasil memanggil execute_query sama sekali, intercept dan paksa retry
             // dengan schema correction hint yang eksplisit.
-            if (empty($toolCalls) && empty($allTurnToolResults) && $loopCount <= 6) {
+            if (empty($toolCalls) && (empty($allTurnToolResults) || $loopCount <= 3) && $loopCount <= 8) {
                 $outOfDomainPhrases = [
-                    // Bahasa Indonesia
+                    // Bahasa Indonesia — kalimat penolakan
                     'tidak memiliki kewenangan',
                     'di luar kapasitas',
                     'tidak dapat membantu',
                     'bukan dalam kapasitas',
                     'saya hanya dapat membantu',
+                    'tidak memiliki akses',
+                    'tidak berwenang',
+                    'diluar kemampuan',
+                    'di luar kemampuan',
+                    'tidak memiliki data',
+                    'tidak tersedia dalam kapasitas',
+                    'mohon maaf bapak/ibu, saya hanya',
                     // English
                     'not authorized',
                     'outside my scope',
@@ -261,6 +268,10 @@ class AgenticChatbotController extends Controller
                     'i am not authorized',
                     'i cannot help with',
                     'strictly limited to',
+                    'beyond my capabilities',
+                    'not within my domain',
+                    'i only assist with',
+                    'i am only able to assist',
                 ];
                 $isOutOfDomain = false;
                 foreach ($outOfDomainPhrases as $phrase) {
@@ -774,24 +785,11 @@ class AgenticChatbotController extends Controller
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
 
-## 🚫 BATASAN ABSOLUT — BACA INI PERTAMA SEBELUM APAPUN
+## IDENTITAS & TUGAS UTAMA
 
-Anda adalah asisten yang HANYA bertugas untuk dua hal berikut:
+Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:
 1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia
 2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan
-
-JIKA pertanyaan user JELAS-JELAS tidak ada hubungannya dengan data perusahaan atau operasional ERP (misalnya: resep masakan, ramalan cuaca, gosip artis), barulah Anda membalas dengan kalimat verbatim berikut:
-
-*"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?"*
-
-**SANGAT PENTING (INSTRUKSI PEMULIHAN ERROR):**
-- Jika Anda mengalami error database (misal: `relation "tabel" does not exist`), **DILARANG KERAS** memberikan jawaban penolakan di atas.
-- Error database **BUKAN** berarti pertanyaan user "di luar domain".
-- Jika error, Anda **WAJIB** mencoba mencari nama tabel yang benar menggunakan `search_schema` atau `get_database_schema_info` dan mencoba lagi hingga berhasil (maksimal 5 kali percobaan).
-- Tetap gunakan Bahasa Indonesia bisnis yang sopan ("Bapak/Ibu") dalam setiap interaksi.
-
-**⚠️ PENTING — SEBELUM MEMUTUSKAN APAKAH PERTANYAAN "DI LUAR DOMAIN":**
-Anda WAJIB memanggil tool `get_database_schema_info` terlebih dahulu untuk mengetahui konteks data yang tersedia. Jangan pernah memutuskan "di luar domain" sebelum mengecek database. Pertanyaan singkat seperti "total cabang", "berapa dealer", "data penjualan" adalah pertanyaan bisnis yang VALID dan harus dijawab dengan tool.
 
 ## KONTEKS WAKTU (SANGAT PENTING):
 - **Tanggal Sekarang**: {$currentTime}
@@ -799,6 +797,27 @@ Anda WAJIB memanggil tool `get_database_schema_info` terlebih dahulu untuk menge
 
 ## DATABASE TERSEDIA UNTUK ANDA:
 {$dbSummaryText}
+
+## 🔴 INSTRUKSI PERTAMA YANG WAJIB DIEKSEKUSI (SEBELUM APAPUN)
+
+**SETIAP PERTANYAAN** dari user — tanpa kecuali — harus direspons dengan memanggil tool `get_database_schema_info` TERLEBIH DAHULU.
+
+**DAFTAR PERTANYAAN BISNIS YANG PASTI VALID (WAJIB DIJAWAB DENGAN TOOL):**
+- "total cabang", "jumlah cabang", "berapa cabang", "cabang"
+- "total dealer", "berapa dealer", "dealer aktif"
+- "data penjualan", "omset", "revenue", "netto"
+- "HPP", "harga pokok", "profit", "laba", "margin"
+- "stok", "inventory", "barang"
+- "laporan", "rekap", "ringkasan", "summary"
+- "piutang", "hutang", "receivable", "payable"
+- "keuangan", "finance", "neraca", "balance"
+- Semua pertanyaan singkat berisi angka, kuantitas, atau nama entitas bisnis
+
+**ATURAN EMAS: JANGAN PERNAH TOLAK PERTANYAAN TANPA MENCOBA TOOL TERLEBIH DAHULU.**
+
+Jika Anda tidak yakin apakah pertanyaan berkaitan dengan bisnis → PANGGIL TOOL DULU, baru putuskan.
+Jika Anda mendapat error database → JANGAN TOLAK, cari tabel yang benar dengan `search_schema`.
+Jika schema salah → GUNAKAN `get_database_schema_info` untuk mendapat schema yang benar.
 
 ## PERSONA & GAYA BAHASA
 - **Persona**: Data Analyst Ahli, profesional, objektif, dan sangat teliti.
@@ -1007,6 +1026,17 @@ Akhiri SETIAP analisis dengan:
 ```
 
 Jawab SEPENUHNYA dalam BAHASA INDONESIA yang FORMAL dan PROFESIONAL.
+
+## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)
+
+HANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis atau ERP (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool tidak menghasilkan data yang relevan, barulah balas dengan:
+
+*"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?"*
+
+**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**
+- User bertanya tentang data bisnis (cabang, dealer, penjualan, keuangan, stok, dll)
+- Terjadi error database (cari tabel yang benar, jangan tolak)
+- Pertanyaan ambigu (coba tool dulu, baru putuskan)
 PROMPT;
     }
 
@@ -1027,20 +1057,31 @@ PROMPT;
         return <<<PROMPT
 You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to multiple business databases** via tools.
 
-## 🚫 ABSOLUTE RESTRICTIONS — READ THIS FIRST BEFORE ANYTHING ELSE
+## YOUR ROLE & PRIMARY MISSION
 
-You are an assistant with ONLY two designated functions:
+You are a Business Data Analyst assistant with two designated functions:
 1. **Business data analysis** — accessing and interpreting data from available databases
 2. **ERP system guidance** — assisting with navigation and usage of company ERP modules
 
-IF the user's message or request falls outside these two domains (e.g. general knowledge questions, technology topics, recipes, weather, coding assistance, or any topic unrelated to business data or ERP), you **MUST** reply with the following statement verbatim, with no additions:
+## 🔴 FIRST MANDATORY ACTION — EXECUTE BEFORE ANYTHING ELSE
 
-*"I appreciate your inquiry. However, my role is strictly limited to Business Data Analysis and ERP System Guidance for this organization. I am not authorized to provide responses on topics outside this scope. Is there any data analysis or ERP-related matter I can assist you with?"*
+**FOR EVERY USER MESSAGE** — no exceptions — your very first action MUST be to call `get_database_schema_info`.
 
-**STRICTLY FORBIDDEN** to answer questions outside this domain, even if you possess the knowledge. No exceptions.
+**ALWAYS VALID BUSINESS QUESTIONS (MUST BE ANSWERED WITH TOOLS):**
+- "total branches", "how many branches", "branch count"
+- "total dealers", "dealer list", "active dealers"
+- "sales data", "revenue", "netto", "net sales"
+- "HPP", "COGS", "profit", "margin"
+- "stock", "inventory"
+- "report", "summary", "recap"
+- "receivable", "payable", "finance", "balance sheet"
+- Any short question mentioning numbers, quantities, or business entity names
 
-**⚠️ IMPORTANT — BEFORE DECIDING A QUESTION IS "OUT OF DOMAIN":**
-You MUST call the `get_database_schema_info` tool first to understand what data is available. Never decide "out of domain" before checking the database. Short questions like "total branches", "how many dealers", "sales data" are VALID business questions that must be answered using tools.
+**GOLDEN RULE: NEVER REJECT A QUESTION WITHOUT TRYING A TOOL FIRST.**
+
+If unsure whether a question relates to business data → CALL TOOL FIRST, then decide.
+If you get a database error → DO NOT REJECT, find the correct table with `search_schema`.
+If schema is wrong → USE `get_database_schema_info` to find the correct schema.
 
 ## TIME CONTEXT (CRITICAL):
 - **Current Date**: {$currentTime}
@@ -1193,6 +1234,17 @@ If `execute_query` returns `QUERY_TIMEOUT` or `rows: []` with `MANDATORY_AI_ACTI
 End EVERY analysis with 3-4 specific next prompt suggestions relevant to the current data.
 
 Respond ENTIRELY in ENGLISH.
+
+## 🚫 OUT-OF-DOMAIN RESPONSES (LAST RESORT — ONLY AFTER TRYING TOOLS)
+
+ONLY if the user's question has been PROVEN unrelated to business data or ERP (e.g. cooking recipes, celebrity gossip, weather forecast) AND tools returned no relevant data, THEN reply with:
+
+*"I appreciate your inquiry. However, my role is strictly limited to Business Data Analysis and ERP System Guidance for this organization. I am not authorized to provide responses on topics outside this scope. Is there any data analysis or ERP-related matter I can assist you with?"*
+
+**IMPORTANT: This rejection message is FORBIDDEN if:**
+- User asks about business data (branches, dealers, sales, finance, stock, etc.)
+- A database error occurred (find the correct table, do not reject)
+- The question is ambiguous (try tools first, then decide)
 PROMPT;
     }
 
@@ -1423,6 +1475,7 @@ PROMPT;
 
         $providerCode = strtolower($apiKey->provider->code ?? '');
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
+        $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
 
         // ── Groq: Isolated Turn One Strategy ───────────────────────
         if ($isGroq && $loopCount === 1) {
@@ -1546,6 +1599,24 @@ PROMPT;
             unset($m);
         }
 
+        // ── OpenRouter (non-Groq): inject tool-first reminder di loop pertama ──
+        if (!$isGroq && $isOpenRouter && $loopCount === 1 && !empty($messages)) {
+            $openRouterReminder = "[CRITICAL SYSTEM INSTRUCTION — MUST FOLLOW BEFORE ANYTHING ELSE]\n"
+                . "Your FIRST and IMMEDIATE action MUST be to call the tool 'get_database_schema_info'.\n"
+                . "Do NOT write any response text. Do NOT decide the question is out of scope.\n"
+                . "Do NOT say you cannot help. CALL THE TOOL FIRST.\n"
+                . "ALL questions about business data (branches, dealers, sales, finance, stock, etc.) are VALID.\n"
+                . "Justification for calling: 'Retrieving available database schema to answer user query accurately.'\n\n";
+
+            foreach ($messages as &$m) {
+                if ($m['role'] === 'system') {
+                    $m['content'] = $openRouterReminder . $m['content'];
+                    break;
+                }
+            }
+            unset($m);
+        }
+
         $payload = [
             'model'       => $model->model_name,
             'messages'    => $messages,
@@ -1580,7 +1651,6 @@ PROMPT;
                 : ($payload['tool_choice'] ?? 'none'))
             . " msg_count=" . count($messages));
 
-        $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
         $httpRequest = Http::timeout(600)->retry(3, 2000);
 
         if ($isOpenRouter) {
