@@ -230,16 +230,82 @@ class AgenticChatbotController extends Controller
 
             $messages[] = $assistantMsg;
 
-            // ── PROTEKSI: Intersepsi Raw SQL di Teks ─────────────────────────
+            // ── PROTEKSI 1: Intersepsi Raw SQL di Teks ────────────────────────
             // Jika AI mengirim SQL mentah di teks tanpa tool call, jangan stream ke user.
-            // Berikan reminder ke AI dan ulangi loop.
             if (empty($toolCalls) && preg_match('/SELECT\s+.*\s+FROM\s+/i', $textContent)) {
                 Log::warning("[Agentic] Detected raw SQL in text content. Intercepting and retrying...");
                 $messages[] = [
                     'role'    => 'user',
                     'content' => "[SYSTEM REMINDER]: Anda baru saja mengirimkan query SQL mentah ke dalam teks jawaban. Ini DILARANG. Jangan pernah tunjukkan query SQL kepada Bapak/Ibu user. Gunakan tool 'execute_query' jika Anda ingin mengambil data, lalu sajikan hasilnya dalam Bahasa Indonesia bisnis yang sopan menggunakan 'smart_table'. Silakan perbaiki respon Anda sekarang."
                 ];
-                continue; 
+                continue;
+            }
+
+            // ── FIX #3: Intersepsi "Di Luar Domain" False-Positive ───────────
+            // Llama/OpenRouter kadang menyimpulkan "pertanyaan di luar domain" padahal
+            // sebenarnya hanya gagal menemukan tabel karena schema salah. Jika AI belum
+            // berhasil memanggil execute_query sama sekali, intercept dan paksa retry
+            // dengan schema correction hint yang eksplisit.
+            if (empty($toolCalls) && empty($allTurnToolResults) && $loopCount <= 6) {
+                $outOfDomainPhrases = [
+                    // Bahasa Indonesia
+                    'tidak memiliki kewenangan',
+                    'di luar kapasitas',
+                    'tidak dapat membantu',
+                    'bukan dalam kapasitas',
+                    'saya hanya dapat membantu',
+                    // English
+                    'not authorized',
+                    'outside my scope',
+                    'outside this scope',
+                    'i am not authorized',
+                    'i cannot help with',
+                    'strictly limited to',
+                ];
+                $isOutOfDomain = false;
+                foreach ($outOfDomainPhrases as $phrase) {
+                    if (stripos($textContent, $phrase) !== false) {
+                        $isOutOfDomain = true;
+                        break;
+                    }
+                }
+
+                if ($isOutOfDomain) {
+                    Log::warning("[Agentic] FIX#3 — False 'out-of-domain' detected at loop #{$loopCount} before any successful tool call. Injecting schema recovery.");
+
+                    // Buat hint schema eksak dari allowedDatabases agar model tahu persis
+                    $schemaHints = [];
+                    foreach ($allowedDatabases as $dbCode => $schemas) {
+                        $realSchemas = array_filter(array_keys($schemas), fn($s) => $s !== '*');
+                        foreach ($realSchemas as $s) {
+                            $schemaHints[] = "database_code='{$dbCode}', schema_name='{$s}'";
+                        }
+                    }
+                    $schemaHintText = !empty($schemaHints)
+                        ? implode('; ', $schemaHints)
+                        : 'Panggil get_database_schema_info untuk melihat daftar schema';
+
+                    $messages[] = [
+                        'role'    => 'user',
+                        'content' => implode("\n", [
+                            "[SYSTEM CORRECTION — WAJIB DIBACA]:",
+                            "Pertanyaan user adalah pertanyaan DATA BISNIS yang VALID. Jangan tolak.",
+                            "Anda BELUM berhasil mengambil data apapun. Ini bukan pertanyaan di luar domain.",
+                            "",
+                            "SCHEMA YANG BENAR UNTUK DIGUNAKAN:",
+                            $schemaHintText,
+                            "",
+                            "LANGKAH WAJIB SEKARANG:",
+                            "1. Panggil get_database_schema_info untuk melihat daftar tabel yang tersedia.",
+                            "2. Gunakan schema_name yang EKSAK dari hasil di atas (JANGAN gunakan '*').",
+                            "3. Panggil describe_table dengan schema_name yang benar.",
+                            "4. Jalankan execute_query dan sajikan hasilnya kepada user.",
+                            "",
+                            "DILARANG memberikan jawaban penolakan sebelum mencoba tool.",
+                        ]),
+                    ];
+                    continue;
+                }
             }
 
             if (empty($toolCalls) || in_array($finishReason, ['stop', 'end_turn'])) {
@@ -1229,14 +1295,11 @@ PROMPT;
         }
 
         // ── Custom / OpenAI-compatible salvage logic ──────────────────────────
-        // Some models (Llama 3.3 via OpenRouter) sometimes output JSON tool calls 
-        // as plain text content instead of properly using tool_calls field.
         if (isset($data['choices'][0]['message'])) {
             $msg = &$data['choices'][0]['message'];
             $content = $msg['content'] ?? '';
             
             if (!empty($content) && empty($msg['tool_calls'] ?? [])) {
-                // Regex to detect JSON tool call patterns
                 if (preg_match('/\{\s*"type"\s*:\s*"function"\s*,\s*"name"\s*:\s*"([^"]+)"/i', $content, $matches)) {
                     try {
                         $json = json_decode($content, true);
@@ -1362,7 +1425,6 @@ PROMPT;
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
 
         // ── Groq: Isolated Turn One Strategy ───────────────────────
-        // Only for Groq provider to prevent hallucination.
         if ($isGroq && $loopCount === 1) {
             $userMsg = '';
             foreach ($messages as $m) {
@@ -1508,7 +1570,6 @@ PROMPT;
             }
         }
 
-        // Groq tidak support parallel_tool_calls untuk model Llama
         if ($isGroq) {
             $payload['parallel_tool_calls'] = false;
         }

@@ -59,13 +59,31 @@ class SchemaService extends BaseService
             return $this->errorResponse('database_code, schema_name, and table_name are required');
         }
 
-        // Guard: reject wildcard calls — AI must supply exact names
-        if ($schemaName === '*' || $tableName === '*') {
-            return $this->errorResponse(
-                'Please provide an exact schema_name and table_name. ' .
-                'Wildcard "*" is not allowed. Use get_database_schema_info to discover available tables, ' .
-                'then call describe_table with specific names.'
-            );
+        // FIX: Auto-resolve wildcard schema_name='*' agar Llama/OpenRouter tidak loop.
+        // Sebelumnya langsung error, sekarang kita bantu resolve schema yang benar dari RBAC.
+        if ($schemaName === '*') {
+            $allowedDbsTemp = $this->queryService->getAllowedTables();
+            if (isset($allowedDbsTemp[$databaseCode])) {
+                $schemas = array_keys($allowedDbsTemp[$databaseCode]);
+                $resolvedSchemas = array_filter($schemas, fn($s) => $s !== '*');
+                if (!empty($resolvedSchemas)) {
+                    $schemaName = array_values($resolvedSchemas)[0];
+                    Log::info("[SchemaService] Auto-resolved wildcard schema_name='*' to '{$schemaName}' for db='{$databaseCode}'");
+                } else {
+                    return $this->safeJsonEncode([
+                        'error' => "schema_name '*' tidak valid. Tidak ditemukan schema di database '{$databaseCode}'.",
+                        'MANDATORY_AI_ACTION' => "Panggil get_database_schema_info untuk melihat daftar schema dan tabel yang tersedia, kemudian panggil describe_table dengan schema_name yang eksak.",
+                    ]);
+                }
+            }
+        }
+
+        // Guard: reject wildcard table_name
+        if ($tableName === '*') {
+            return $this->safeJsonEncode([
+                'error' => "table_name '*' tidak valid. Berikan nama tabel yang eksak.",
+                'MANDATORY_AI_ACTION' => "Panggil get_database_schema_info untuk melihat daftar tabel, kemudian panggil describe_table dengan table_name yang spesifik.",
+            ]);
         }
 
         $allowedDbs = $this->queryService->getAllowedTables();
@@ -79,7 +97,13 @@ class SchemaService extends BaseService
             || isset($allowedDbs[$databaseCode]['*']);
 
         if (!$schemaAllowed) {
-            return $this->errorResponse("Access denied: You don't have access to schema '{$schemaName}' in database '{$databaseCode}'.");
+            // FIX: Berikan daftar schema yang valid agar AI tahu harus pakai schema apa
+            $availableSchemas = array_keys($allowedDbs[$databaseCode]);
+            return $this->safeJsonEncode([
+                'error' => "Access denied: Schema '{$schemaName}' tidak ditemukan di database '{$databaseCode}'.",
+                'available_schemas' => $availableSchemas,
+                'MANDATORY_AI_ACTION' => "Gunakan salah satu schema dari 'available_schemas' di atas, bukan '{$schemaName}'. Kemudian panggil describe_table lagi dengan schema yang benar.",
+            ]);
         }
 
         // Resolve which table list to use (exact schema or wildcard)
@@ -150,7 +174,24 @@ class SchemaService extends BaseService
             DB::purge($connName);
 
             if (empty($result)) {
-                return $this->errorResponse("Table '{$schemaName}.{$tableName}' not found or has no columns.");
+                // FIX: Jika tabel tidak ditemukan di schema itu, coba search schema lain
+                // dan berikan MANDATORY_AI_ACTION agar model tahu harus pakai schema apa
+                $alternativeSchema = null;
+                foreach ($allowedDbs[$databaseCode] as $s => $tbls) {
+                    if ($s !== '*' && $s !== $schemaName) {
+                        $alternativeSchema = $s;
+                        break;
+                    }
+                }
+
+                $hint = $alternativeSchema
+                    ? "MANDATORY_AI_ACTION: Tabel '{$tableName}' tidak ditemukan di schema '{$schemaName}'. Coba panggil describe_table dengan schema_name='{$alternativeSchema}' sebagai gantinya. Atau panggil search_schema dengan keyword='{$tableName}' untuk menemukan lokasi tabel yang tepat."
+                    : "MANDATORY_AI_ACTION: Panggil search_schema dengan keyword='{$tableName}' untuk menemukan di schema mana tabel ini berada.";
+
+                return $this->safeJsonEncode([
+                    'error'               => "Table '{$schemaName}.{$tableName}' not found or has no columns.",
+                    'MANDATORY_AI_ACTION' => $hint,
+                ]);
             }
 
             return $this->safeJsonEncode([
@@ -196,13 +237,6 @@ class SchemaService extends BaseService
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Timeout dinonaktifkan — biarkan query berjalan sampai selesai.
-            // get_column_values pakai TABLESAMPLE jadi harusnya cepat pada tabel fisik.
-            // Jika target adalah VIEW, akan langsung catch exception dan return skip-hint.
-
-            // Coba dengan TABLESAMPLE dulu (cepat, hanya scan ~5% baris)
-            // CATATAN: TABLESAMPLE hanya bisa dipakai pada tabel fisik & materialized view,
-            // BUKAN regular VIEW. Jika gagal karena alasan apapun, langsung return instruksi skip.
             $query = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
             try {
                 $values = DB::connection($connName)->select($query);
@@ -216,7 +250,6 @@ class SchemaService extends BaseService
                 ]);
             } catch (\Exception $tablesampleErr) {
                 // FIX: JANGAN coba fallback SELECT DISTINCT — ini akan timeout pada VIEW besar.
-                // Langsung beri tahu AI untuk skip dan gunakan describe_table + ILIKE.
                 DB::purge($connName);
                 Log::warning("[SchemaService] get_column_values skipped for {$tableName}.{$columnName} (likely a VIEW): " . $tablesampleErr->getMessage());
                 return $this->safeJsonEncode([
@@ -272,7 +305,6 @@ class SchemaService extends BaseService
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
             $query = $adapter->getViewDefinitionQuery();
-            // SQLite adapter needs different handling usually, but we'll follow general pattern
             $params = ($dbModel->driver === 'sqlite') ? [$viewName] : [$viewName, $schemaName];
             $definition = DB::connection($connName)->select($query, $params);
 
@@ -313,14 +345,12 @@ class SchemaService extends BaseService
                 $query = $adapter->searchSchemaQuery();
                 $searchTerm = "%{$keyword}%";
                 
-                // Dynamically determine number of placeholders needed
                 $placeholderCount = substr_count($query, '?');
                 $params = array_fill(0, $placeholderCount, $searchTerm);
                 
                 $matches = DB::connection($connName)->select($query, $params);
 
                 foreach ($matches as $match) {
-                    // Filter matches by user's RBAC — support wildcard schema/table and object-format entries
                     $matchSchema = $match->table_schema;
                     $matchTable  = $match->table_name;
 
@@ -407,7 +437,6 @@ class SchemaService extends BaseService
         $overview = [];
         $totalTables = 0;
 
-        // Count total tables first
         foreach ($allowedDbs as $dbCode => $schemas) {
             foreach ($schemas as $schema => $tables) {
                 $totalTables += count($tables);
@@ -419,7 +448,6 @@ class SchemaService extends BaseService
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];
             
-            // If small schema, try to get columns for all tables in one or few goes
             foreach ($schemas as $schema => $tables) {
                 $formattedTables = [];
                 
@@ -442,14 +470,25 @@ class SchemaService extends BaseService
             }
         }
 
+        // FIX: Tambahkan MANDATORY hint di response getSchemaInfo agar model Llama
+        // langsung tahu nama schema eksak yang harus dipakai (bukan menebak '*')
+        $schemaHints = [];
+        foreach ($allowedDbs as $dbCode => $schemas) {
+            $realSchemas = array_filter(array_keys($schemas), fn($s) => $s !== '*');
+            foreach ($realSchemas as $s) {
+                $schemaHints[] = "database_code='{$dbCode}' gunakan schema_name='{$s}'";
+            }
+        }
+
         return $this->safeJsonEncode([
             'total_databases' => count($allowedDbs),
             'total_tables'    => $totalTables,
             'is_eager_loaded' => $isSmallSchema,
             'databases'       => $overview,
+            'MANDATORY_SCHEMA_USAGE' => implode('; ', $schemaHints),
             'usage_note'      => $isSmallSchema
-                ? 'Column info is eager loaded. IMPORTANT: Even if is_eager_loaded is true, if columns appear empty or incomplete for a VIEW, you MUST call describe_table before execute_query. Use the exact schema key (e.g. "sch_mbi") and database key (e.g. "data_mbi"). NEVER use "*".'
-                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the exact schema key and database key shown in this response. NEVER use "*".',
+                ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*" as schema_name.'
+                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*".',
         ]);
     }
 
@@ -464,7 +503,6 @@ class SchemaService extends BaseService
             if (!$dbModel) return [];
 
             $adapter = $dbModel->getAdapter();
-            // FIX: Purge before re-configuring to avoid stale connection config on multi-DB eager load
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
