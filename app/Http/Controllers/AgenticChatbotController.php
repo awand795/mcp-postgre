@@ -769,7 +769,16 @@ Format blok chart:
 {"type":"bar","title":"Judul Grafik","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Total Penjualan","data":[1000000,2000000,1500000]}]}}
 ```
 
-- `type`: `"bar"` untuk batang, `"line"` untuk garis, `"pie"` untuk lingkaran
+**PANDUAN PINTAR MEMILIH JENIS GRAFIK:**
+- `"line"` → untuk **tren waktu** (per bulan, per tahun, perubahan dari waktu ke waktu)
+- `"bar"` → untuk **perbandingan antar entitas** (per cabang, per produk, per kategori)
+- `"pie"` → untuk **komposisi/proporsi** (kontribusi % tiap cabang, market share)
+
+Contoh:
+- "grafik penjualan per bulan" → `line` (tren waktu)
+- "grafik penjualan per cabang" → `bar` (perbandingan)
+- "kontribusi penjualan tiap cabang" → `pie` (proporsi)
+
 - `labels`: array label sumbu X (nama bulan, nama cabang, dll)
 - `datasets`: array dataset, masing-masing punya `label` dan `data` (array angka)
 - Untuk data tren bulanan: gunakan nama bulan sebagai label ("Jan", "Feb", dst)
