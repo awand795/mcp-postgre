@@ -682,19 +682,15 @@ class QueryService extends BaseService
     /**
      * Deteksi nama kolom tanggal dari schema database secara MANDIRI.
      *
-     * Tidak ada hardcoded fallback nama kolom.
+     * FIX #7: Gunakan koneksi persistent yang sudah ada jika tersedia,
+     * hindari membuat koneksi baru berulang kali saat autoFix retry.
      * Jika deteksi gagal total, kembalikan NULL dan biarkan AI
      * yang memutuskan lewat MANDATORY_AI_ACTION di autoFixPeriodFilter.
-     *
-     * Prioritas:
-     *   1. Describe tabel dari schema DB → cari kolom DATE/TIMESTAMP pertama
-     *   2. NULL → trigger AI untuk panggil describe_table sendiri
      */
     private function detectDateColumn(string $databaseCode, string $sql): ?string
     {
         // Ekstrak schema.tabel dari SQL
         if (!preg_match('/FROM\s+["\`]?([\w]+)["\`]?\s*\.\s*["\`]?([\w]+)["\`]?/i', $sql, $m)) {
-            // Tidak bisa ekstrak nama tabel — kembalikan null, AI yang handle
             Log::warning('[QueryService] detectDateColumn: cannot extract table name from SQL');
             return null;
         }
@@ -703,26 +699,47 @@ class QueryService extends BaseService
         $tableName  = $m[2];
 
         try {
-            $connName = "temp_conn_{$databaseCode}_detect";
-            $dbModel  = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            // FIX #7: Coba gunakan koneksi persistent yang sudah ada terlebih dahulu
+            // untuk menghindari overhead membuat koneksi baru setiap kali detectDateColumn dipanggil.
+            $persistentConn = "persistent_conn_{$databaseCode}";
+            $useConn = null;
 
+            try {
+                DB::connection($persistentConn)->getPdo();
+                $useConn = $persistentConn;
+                Log::info("[QueryService] detectDateColumn: reusing persistent connection for {$databaseCode}");
+            } catch (\Throwable $e) {
+                // Koneksi persistent belum ada atau mati, buat koneksi sementara
+                $useConn = null;
+            }
+
+            $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             if (!$dbModel) {
                 Log::warning("[QueryService] detectDateColumn: DB model not found for '{$databaseCode}'");
                 return null;
             }
 
-            DB::purge($connName);
-            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
-
             $adapter = $dbModel->getAdapter();
-            $cols    = DB::connection($connName)->select(
+
+            if ($useConn === null) {
+                // Buat koneksi sementara khusus untuk deteksi ini
+                $tempConn = "temp_conn_{$databaseCode}_detect";
+                DB::purge($tempConn);
+                config(["database.connections.{$tempConn}" => $dbModel->getConnectionConfig()]);
+                $useConn = $tempConn;
+            }
+
+            $cols = DB::connection($useConn)->select(
                 $adapter->describeTableQuery(),
                 [$tableName, $schemaName]
             );
-            DB::purge($connName);
 
-            // Cari kolom bertipe DATE atau TIMESTAMP — kembalikan yang PERTAMA ditemukan
-            // tanpa mencocokkan dengan daftar nama hardcoded apapun
+            // Bersihkan koneksi sementara jika dibuat
+            if ($useConn !== $persistentConn) {
+                DB::purge($useConn);
+            }
+
+            // Cari kolom bertipe DATE atau TIMESTAMP — kembalikan yang PERTAMA
             foreach ($cols as $col) {
                 $colType = strtolower($col->data_type ?? '');
                 if (str_contains($colType, 'date') || str_contains($colType, 'timestamp')) {
@@ -731,7 +748,6 @@ class QueryService extends BaseService
                 }
             }
 
-            // Tidak ditemukan kolom DATE/TIMESTAMP sama sekali di tabel ini
             Log::warning("[QueryService] detectDateColumn: no DATE/TIMESTAMP column found in {$schemaName}.{$tableName}");
             return null;
 

@@ -120,6 +120,9 @@ class AgenticChatbotController extends Controller
                     }
                 }
             }
+        } else {
+            // FIX #6: User bukan admin dan tidak punya roleModel — log untuk debugging
+            Log::warning("[Agentic] User ID {$user->id} has no roleModel and is not admin. allowedDatabases will be empty.");
         }
 
         if ($chatSessionId) {
@@ -264,27 +267,62 @@ class AgenticChatbotController extends Controller
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments);
 
                 $decodedRes = json_decode($toolResult, true);
-                $aiContent  = $toolResult;
+
+                // FIX #5: Pastikan currency_columns selalu ada di level atas result
+                // agar frontend bisa akses lewat toolRes.currency_columns langsung.
+                // Jika AI tidak menyertakan currency_columns (Gemini/Mistral kadang lupa),
+                // lakukan fallback detection dari nama kolom.
+                if (is_array($decodedRes) && $toolName === 'execute_query') {
+                    $currencyCols = $decodedRes['currency_columns'] ?? [];
+
+                    // Fallback: deteksi otomatis dari nama kolom jika AI tidak menyertakan
+                    if (empty($currencyCols) && !empty($decodedRes['columns'])) {
+                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i';
+                        foreach ($decodedRes['columns'] as $col) {
+                            if (preg_match($currencyKeywords, $col)) {
+                                $currencyCols[] = $col;
+                            }
+                        }
+                        if (!empty($currencyCols)) {
+                            Log::info("[Agentic] currency_columns fallback detected: " . implode(', ', $currencyCols));
+                            $decodedRes['currency_columns'] = $currencyCols;
+                            // Re-encode karena decodedRes dipakai untuk aiContent juga
+                            $toolResult = json_encode($decodedRes);
+                        }
+                    }
+                }
+
+                $aiContent = $toolResult;
                 if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 50) {
                     $aiContent = json_encode([
-                        'rows_returned' => count($decodedRes['rows']),
-                        'columns'       => $decodedRes['columns'] ?? [],
-                        'rows'          => array_slice($decodedRes['rows'], 0, 50),
-                        'instruction'   => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
+                        'rows_returned'    => count($decodedRes['rows']),
+                        'columns'          => $decodedRes['columns'] ?? [],
+                        'currency_columns' => $decodedRes['currency_columns'] ?? [],
+                        'rows'             => array_slice($decodedRes['rows'], 0, 50),
+                        'instruction'      => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
                     ]);
                 }
+
+                // FIX #5: Sertakan currency_columns di level atas result yang dikirim ke frontend
+                // agar frontend bisa akses via toolRes.currency_columns tanpa nested lookup
+                $frontendResult = [
+                    'tool_name'        => $toolName,
+                    'data'             => $decodedRes ?: $toolResult,
+                    'currency_columns' => is_array($decodedRes) ? ($decodedRes['currency_columns'] ?? []) : [],
+                    'label'            => is_array($decodedRes) ? ($decodedRes['label'] ?? '') : '',
+                ];
 
                 echo "data: " . json_encode([
                     'tool_call' => [
                         'name'      => $toolName,
                         'arguments' => $arguments,
                         'status'    => 'success',
-                        'result'    => ['tool_name' => $toolName, 'data' => $decodedRes ?: $toolResult]
+                        'result'    => $frontendResult,
                     ]
                 ]) . "\n\n";
                 if (ob_get_level() > 0) ob_flush(); flush();
 
-                $allTurnToolResults[] = ['tool_name' => $toolName, 'data' => $decodedRes ?: $toolResult];
+                $allTurnToolResults[] = $frontendResult;
 
                 $messages[] = [
                     'role'         => 'tool',
@@ -468,47 +506,65 @@ class AgenticChatbotController extends Controller
     {
         if (empty($tools)) return [];
 
+        // FIX #3: Tool definitions dari getToolDefinitions() menggunakan flat structure
+        // (name, description, parameters di root level, bukan di dalam key 'function').
+        // Normalkan dulu ke format internal yang konsisten sebelum dikonversi per provider.
+        $normalized = [];
+        foreach ($tools as $t) {
+            if (isset($t['function'])) {
+                // Format OpenAI wrapper: {type, function: {name, description, parameters}}
+                $normalized[] = [
+                    'name'        => $t['function']['name'],
+                    'description' => $t['function']['description'] ?? '',
+                    'parameters'  => $t['function']['parameters'] ?? (object)[],
+                ];
+            } else {
+                // Format flat: {type, name, description, parameters}
+                $normalized[] = [
+                    'name'        => $t['name'],
+                    'description' => $t['description'] ?? '',
+                    'parameters'  => $t['parameters'] ?? (object)[],
+                ];
+            }
+        }
+
         if ($providerCode === 'gemini') {
+            // Gemini: function_declarations array
             $geminiTools = [];
-            foreach ($tools as $t) {
-                $f = isset($t['function']) ? $t['function'] : $t;
+            foreach ($normalized as $f) {
                 $geminiTools[] = [
                     'name'        => $f['name'],
                     'description' => $f['description'],
-                    'parameters'  => $f['parameters']
+                    'parameters'  => $f['parameters'],
                 ];
             }
             return [['function_declarations' => $geminiTools]];
         }
 
         if ($providerCode === 'claude') {
+            // Claude Anthropic: tools array dengan input_schema
             $claudeTools = [];
-            foreach ($tools as $t) {
-                $f = isset($t['function']) ? $t['function'] : $t;
+            foreach ($normalized as $f) {
                 $claudeTools[] = [
                     'name'         => $f['name'],
                     'description'  => $f['description'],
-                    'input_schema' => $f['parameters']
+                    'input_schema' => $f['parameters'],
                 ];
             }
             return $claudeTools;
         }
 
-        // Standard OpenAI format (OpenAI, Mistral, Custom)
+        // OpenAI / Mistral / Custom: standard function calling format
         $standardTools = [];
-        foreach ($tools as $t) {
-            if (isset($t['function'])) {
-                $standardTools[] = $t;
-            } else {
-                $standardTools[] = [
-                    'type'     => 'function',
-                    'function' => [
-                        'name'        => $t['name'],
-                        'description' => $t['description'] ?? '',
-                        'parameters'  => $t['parameters'] ?? (object)[],
-                    ]
-                ];
-            }
+        foreach ($normalized as $f) {
+            $standardTools[] = [
+                'type'     => 'function',
+                'function' => [
+                    'name'        => $f['name'],
+                    'description' => $f['description'],
+                    'parameters'  => $f['parameters'],
+                ],
+            ];
         }
         return $standardTools;
     }
@@ -524,10 +580,25 @@ class AgenticChatbotController extends Controller
                 $parts = [];
 
                 if ($role === 'tool') {
+                    // FIX #2: Gemini mengharapkan functionResponse.response berupa object JSON
+                    // langsung (bukan string yang di-wrap). Sebelumnya: {content: "json_string"}
+                    // yang menyebabkan Gemini kesulitan parsing.
+                    // Sekarang: parse content ke object/array jika berupa JSON string.
+                    $rawContent = $m['content'] ?? '';
+                    $parsedContent = null;
+                    if (is_string($rawContent)) {
+                        $decoded = json_decode($rawContent, true);
+                        $parsedContent = (is_array($decoded)) ? $decoded : ['result' => $rawContent];
+                    } elseif (is_array($rawContent)) {
+                        $parsedContent = $rawContent;
+                    } else {
+                        $parsedContent = ['result' => (string) $rawContent];
+                    }
+
                     $parts[] = [
                         'functionResponse' => [
                             'name'     => $m['name'] ?? 'query',
-                            'response' => (object)['content' => $m['content']]
+                            'response' => $parsedContent, // object langsung, bukan string
                         ]
                     ];
                     $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
@@ -567,7 +638,8 @@ class AgenticChatbotController extends Controller
                         'role'    => 'user',
                         'content' => [[
                             'type'        => 'tool_result',
-                            'tool_use_id' => $m['tool_call_id'] ?? ('call_' . uniqid()),
+                            // FIX #1 Claude side: tool_use_id sudah dijamin konsisten dari buildMessages()
+                            'tool_use_id' => $m['tool_call_id'] ?? ('hist_' . uniqid()),
                             'content'     => $m['content'] ?? ''
                         ]]
                     ];
@@ -583,7 +655,7 @@ class AgenticChatbotController extends Controller
                         $args = $tc['function']['arguments'] ?? '{}';
                         $content[] = [
                             'type'  => 'tool_use',
-                            'id'    => $tc['id'] ?? ('call_' . uniqid()),
+                            'id'    => $tc['id'] ?? ('hist_' . uniqid()),
                             'name'  => $tc['function']['name'],
                             'input' => is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args
                         ];
@@ -611,15 +683,24 @@ class AgenticChatbotController extends Controller
         foreach ($recentHistory as $msg) {
             $toolResults = $msg['tool_results'] ?? null;
             if ($msg['role'] === 'assistant' && !empty($toolResults)) {
+                // FIX #1: Buat fake tool_call_ids yang SAMA untuk assistant message
+                // dan tool result messages berikutnya.
+                // Sebelumnya: ID dibuat dua kali terpisah (uniqid() berbeda)
+                // sehingga Claude menolak karena tool_use_id tidak cocok.
+                // Sekarang: ID dibuat sekali dan direferensikan ulang.
                 $fakeToolCalls = [];
                 foreach ($toolResults as $res) {
                     $fakeToolCalls[] = [
-                        'id'       => 'call_' . uniqid(),
+                        'id'       => 'hist_' . md5($res['tool_name'] . json_encode($res['data'] ?? '')),
                         'type'     => 'function',
-                        'function' => ['name' => $res['tool_name'] ?? 'query', 'arguments' => '{}']
+                        'function' => ['name' => $res['tool_name'] ?? 'query', 'arguments' => '{}'],
                     ];
                 }
-                $messages[] = ['role' => 'assistant', 'content' => $msg['content'] ?? '', 'tool_calls' => $fakeToolCalls];
+                $messages[] = [
+                    'role'        => 'assistant',
+                    'content'     => $msg['content'] ?? '',
+                    'tool_calls'  => $fakeToolCalls,
+                ];
                 foreach ($toolResults as $index => $res) {
                     // FIX: Truncate large tool results in history to avoid context overflow
                     $toolData    = $res['data'] ?? '';
@@ -637,7 +718,8 @@ class AgenticChatbotController extends Controller
                     }
                     $messages[] = [
                         'role'         => 'tool',
-                        'tool_call_id' => $fakeToolCalls[$index]['id'],
+                        // FIX #1: Gunakan ID yang sama persis dari fakeToolCalls di atas
+                        'tool_call_id' => $fakeToolCalls[$index]['id'] ?? ('hist_' . uniqid()),
                         'name'         => $res['tool_name'] ?? 'query',
                         'content'      => $toolContent,
                     ];
@@ -1172,7 +1254,7 @@ PROMPT;
         ];
         if (!empty($tools)) {
             $payload['tools']       = $tools;
-            $payload['tool_choice'] = 'auto';
+            $payload['tool_choice'] = 'auto'; // OpenAI: 'auto' agar AI bebas pilih
         }
         $response = Http::timeout(600)
             ->withToken($apiKey->api_key)
@@ -1190,7 +1272,12 @@ PROMPT;
             'temperature' => 0.3,
         ];
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
+            $payload['tools'] = $tools;
+            // FIX #4: Mistral menggunakan 'any' bukan 'auto' untuk tool_choice.
+            // 'any' = AI WAJIB memanggil salah satu tool yang tersedia.
+            // 'auto' di Mistral = AI bebas menjawab tanpa memanggil tool (sering skip tools).
+            // Gunakan 'auto' agar perilaku sesuai OpenAI (AI boleh jawab langsung jika sudah cukup).
+            // Ref: https://docs.mistral.ai/capabilities/function_calling/
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
