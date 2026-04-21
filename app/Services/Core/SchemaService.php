@@ -396,7 +396,7 @@ class SchemaService extends BaseService
      * Get complete schema overview for all accessible databases.
      * Optimization: If total tables < 50, eagerly include column names to save AI loops.
      */
-    public function getSchemaInfo(): string
+    public function getSchemaInfo(bool $isGroq = false): string
     {
         $allowedDbs = $this->queryService->getAllowedTables();
 
@@ -414,7 +414,7 @@ class SchemaService extends BaseService
             }
         }
 
-        $isSmallSchema = ($totalTables < 10);
+        $isSmallSchema = ($totalTables < 10) && !$isGroq;
 
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];

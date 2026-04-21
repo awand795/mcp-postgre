@@ -202,6 +202,8 @@ class AgenticChatbotController extends Controller
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
+            $providerCode = strtolower($apiKey->provider->code ?? '');
+            $isGroq = $providerCode === 'groq' || str_contains($apiKey->provider->base_url ?? '', 'groq.com');
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             try {
@@ -258,7 +260,7 @@ class AgenticChatbotController extends Controller
                 $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 Log::info("[Agentic] Executing Tool: {$toolName}");
-                $toolResult = $this->toolExecutor->execute($toolName, $arguments);
+                $toolResult = $this->toolExecutor->execute($toolName, $arguments, $isGroq);
 
                 $decodedRes = json_decode($toolResult, true);
 
@@ -1412,6 +1414,32 @@ PROMPT;
                 $normalizedMessages[] = $m;
             }
             $messages = $normalizedMessages;
+        }
+
+        // ── Groq / Llama: Prompt Compression for Tool Loops ───────────────
+        // If we are in Loop 2 or higher, and the AI is still calling tools,
+        // we strip the "visual/formatting" instructions from the system prompt
+        // to save significant tokens and avoid 429 TPM limits.
+        if ($isGroq && $loopCount >= 2 && !empty($messages)) {
+            foreach ($messages as &$m) {
+                if ($m['role'] === 'system') {
+                    // Strip examples and heavy formatting instructions
+                    // We look for common markers in the system prompt
+                    $originalContent = $m['content'];
+                    
+                    // Remove everything after "### FORMAT OUTPUT" or similar tags if present
+                    // This is a heuristic to keep only the SQL/Business rules
+                    $sectionsToKeep = explode("### FORMAT OUTPUT", $originalContent)[0];
+                    $sectionsToKeep = explode("### EXAMPLES", $sectionsToKeep)[0];
+                    
+                    if (strlen($sectionsToKeep) < strlen($originalContent)) {
+                        $m['content'] = $sectionsToKeep . "\n\n[ADMIN NOTE]: Visual formatting rules (Smart Tables, Charts) are hidden to save tokens during the tool-calling phase. Focus on SQL and data accuracy. They will be restored for your final answer.";
+                        Log::info("[Agentic] Compressed system prompt for Groq Loop #{$loopCount}");
+                    }
+                    break;
+                }
+            }
+            unset($m);
         }
 
         // ── Groq / Llama: inject system reminder di loop pertama ─────────────

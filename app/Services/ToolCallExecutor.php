@@ -253,14 +253,14 @@ class ToolCallExecutor
     }
 
     // ── Dispatch tool call dari AI ────────────────────────────────────────────
-    public function execute(string $toolName, array $arguments): string
+    public function execute(string $toolName, array $arguments, bool $isGroq = false): string
     {
         $this->logToolCall($toolName, $arguments);
 
         try {
             return match ($toolName) {
                 // Core Tools
-                'get_database_schema_info' => $this->schemaService->getSchemaInfo(),
+                'get_database_schema_info' => $this->schemaService->getSchemaInfo($isGroq),
                 'describe_table'        => $this->schemaService->describeTable($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
                 'search_schema'         => $this->schemaService->searchSchema($arguments['keyword'] ?? ''),
                 'get_table_preview'     => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
