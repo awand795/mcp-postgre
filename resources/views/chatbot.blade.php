@@ -2091,15 +2091,14 @@
                     rows.push(row);
                 }
 
-                // Convert chart to image for PDF
-                const canvas = document.querySelector(`#${chartId}-canvas`) || document.querySelector(`#${chartId} canvas`);
-                let chartImage = null;
-                if (canvas) {
-                    try {
-                        chartImage = canvas.toDataURL('image/png', 0.7);
-                    } catch (e) {
-                        console.warn('[PDF Chart] Canvas tainted or error, skipping image');
-                        chartImage = null;
+                // Ambil chart image dari snapshot yang sudah disimpan saat render
+                const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container') || document.getElementById(chartId);
+                let chartImage = chartContainer?.getAttribute('data-chart-image') || null;
+                if (!chartImage) {
+                    // fallback: coba capture langsung
+                    const canvas = document.querySelector(`#${chartId}-canvas`) || document.querySelector(`#${chartId} canvas`);
+                    if (canvas) {
+                        try { chartImage = canvas.toDataURL('image/png', 0.9); } catch(e) { chartImage = null; }
                     }
                 }
 
@@ -3210,6 +3209,32 @@
                     label += isMoney ? currencyFormatter.format(context.parsed.y) : context.parsed.y.toLocaleString('id-ID');
                 }
                 return label;
+            };
+
+            // Smooth line chart: tambahkan tension agar bergelombang
+            if (config.type === 'line') {
+                config.data.datasets = (config.data.datasets || []).map(ds => ({
+                    ...ds,
+                    tension: ds.tension ?? 0.4,
+                    fill: ds.fill ?? false,
+                    pointRadius: ds.pointRadius ?? 4,
+                    pointHoverRadius: ds.pointHoverRadius ?? 6,
+                    borderWidth: ds.borderWidth ?? 2.5,
+                }));
+            }
+
+            // Simpan snapshot canvas ke data-chart-image setelah animasi selesai
+            if (!config.options.animation) config.options.animation = {};
+            const prevOnComplete = config.options.animation.onComplete;
+            config.options.animation.onComplete = function(ctx) {
+                if (prevOnComplete) prevOnComplete.call(this, ctx);
+                try {
+                    const snapshotCanvas = canvas;
+                    if (snapshotCanvas) {
+                        const img = snapshotCanvas.toDataURL('image/png', 0.9);
+                        container.setAttribute('data-chart-image', img);
+                    }
+                } catch(e) { /* canvas tainted, skip */ }
             };
 
             try {
