@@ -760,7 +760,28 @@ Struktur JSON smart_table:
 
 **DILARANG** hanya menyebutkan angka di narasi tanpa smart_table jika kolom ≥ 2.
 
-## STRUKTUR RESPONS WAJIB
+## 🔴 ATURAN TERPENTING #4 — GRAFIK WAJIB UNTUK DATA TREN/PERIODE
+
+Jika user meminta **"grafik"**, **"chart"**, **"tren"**, **"per bulan"**, **"per tahun"**, atau data yang memiliki dimensi waktu, WAJIB tampilkan blok `chart` **selain** smart_table.
+
+Format blok chart:
+```chart
+{"type":"bar","title":"Judul Grafik","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Total Penjualan","data":[1000000,2000000,1500000]}]}}
+```
+
+- `type`: `"bar"` untuk batang, `"line"` untuk garis, `"pie"` untuk lingkaran
+- `labels`: array label sumbu X (nama bulan, nama cabang, dll)
+- `datasets`: array dataset, masing-masing punya `label` dan `data` (array angka)
+- Untuk data tren bulanan: gunakan nama bulan sebagai label ("Jan", "Feb", dst)
+- Untuk data per cabang: gunakan nama cabang sebagai label
+
+**URUTAN WAJIB jika user minta grafik:**
+1. Ringkasan Eksekutif
+2. chart (grafik visualisasi)
+3. smart_table (tabel data)
+4. Insight Strategis
+
+## STRUKTUR RESPONS WAJIB (tanpa grafik)
 
 1. **Ringkasan Eksekutif**: 1-2 kalimat cetak tebal, sebutkan angka kunci.
 2. **Smart Table**: WAJIB jika hasil query memiliki ≥ 2 kolom (blok `smart_table`).

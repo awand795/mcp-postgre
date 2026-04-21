@@ -592,14 +592,20 @@ class QueryService extends BaseService
             return $sql; // Nothing to fix
         }
 
-        // Hitung tanggal awal dan akhir bulan
-        // Fallback tahun/bulan jika salah satu tidak ada (tapi biasanya ada berpasangan)
+        // Hitung tanggal awal dan akhir
+        // Jika hanya tahun (tanpa bulan) → range 1 tahun penuh
         $useTahun = ($tahun >= 2000 && $tahun <= 2099) ? $tahun : (int)date('Y');
-        $useBulan = ($bulan >= 1 && $bulan <= 12) ? $bulan : (int)date('m');
 
-        $dateStart = sprintf('%04d-%02d-01', $useTahun, $useBulan);
-        $lastDay   = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahun));
-        $dateEnd   = sprintf('%04d-%02d-%02d', $useTahun, $useBulan, $lastDay);
+        if ($bulan === 0) {
+            // Query tahunan: tanpa filter bulan → ambil seluruh tahun
+            $dateStart = sprintf('%04d-01-01', $useTahun);
+            $dateEnd   = sprintf('%04d-12-31', $useTahun);
+        } else {
+            $useBulan  = ($bulan >= 1 && $bulan <= 12) ? $bulan : (int)date('m');
+            $dateStart = sprintf('%04d-%02d-01', $useTahun, $useBulan);
+            $lastDay   = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahun));
+            $dateEnd   = sprintf('%04d-%02d-%02d', $useTahun, $useBulan, $lastDay);
+        }
 
         // Coba temukan nama kolom tanggal aktual dari schema secara mandiri
         $dateColumn = $this->detectDateColumn($databaseCode, $sql);
