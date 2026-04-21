@@ -180,8 +180,15 @@ class PostgreSqlAdapter extends DriverAdapter
             $connection['sslmode'] = $connection['ssl_mode'];
         }
 
-        // Timeout is handled via SET statement_timeout in QueryService, not here
-        // (Laravel 'options' key maps to PDO options array, not pg options string)
+        // GUARD: Laravel connector memanggil array_diff_key($options, $defaults)
+        // pada key 'options'. Jika nilainya bukan array (string, null, dsb),
+        // PHP akan lempar TypeError. Paksa jadi array kosong jika bukan array.
+        if (!isset($connection['options']) || !is_array($connection['options'])) {
+            $connection['options'] = [];
+        }
+
+        // Timeout dan keepalives di-set via SQL (SET statement_timeout = 0)
+        // setelah koneksi terbuka di QueryService, bukan di sini.
 
         // Clean up keys not used by Laravel
         unset($connection['search_path'], $connection['ssl_mode'], $connection['connection_timeout']);

@@ -325,19 +325,31 @@ class QueryService extends BaseService
                 if ($driver === 'pgsql') {
                     // connect_timeout: gagal cepat jika server tidak bisa dicapai (bukan query timeout)
                     $connConfig['connect_timeout'] = 10;
-                    // options DSN: set keepalives agar TCP connection tidak di-drop oleh OS/firewall
-                    // keepalives=1        → aktifkan TCP keepalive
-                    // keepalives_idle=60  → kirim probe setelah 60 detik idle
-                    // keepalives_interval=10 → interval antar probe
-                    // keepalives_count=3  → max 3 probe sebelum dianggap dead
-                    // statement_timeout=0 → UNLIMITED query timeout di sisi server
-                    $connConfig['options'] = '-c statement_timeout=0 keepalives=1 keepalives_idle=60 keepalives_interval=10 keepalives_count=3';
+
+                    // PENTING: Laravel PostgreSQL driver meneruskan 'options' ke PDO sebagai
+                    // array PDO::ATTR_* — BUKAN string DSN. Untuk menginject parameter
+                    // libpq seperti keepalives dan statement_timeout, kita gunakan
+                    // 'sslmode' dan custom key 'pgsql_options' yang di-handle adapter,
+                    // ATAU inject langsung via SET setelah koneksi terbuka (lebih andal).
+                    //
+                    // SOLUSI: Pastikan 'options' tetap array (PDO options), bukan string.
+                    // keepalives dan statement_timeout di-set via SQL setelah koneksi dibuat.
+                    // Hapus key 'options' jika berisi string dari config lama agar tidak crash.
+                    if (isset($connConfig['options']) && is_string($connConfig['options'])) {
+                        unset($connConfig['options']);
+                    }
+                    if (!isset($connConfig['options'])) {
+                        $connConfig['options'] = [];
+                    }
+
                 } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                    // MySQL: PDO::MYSQL_ATTR_INIT_COMMAND untuk set timeout=0 saat koneksi dibuat
-                    $connConfig['options'][\PDO::MYSQL_ATTR_INIT_COMMAND] = 'SET SESSION max_execution_time = 0';
-                    // Tidak ada setting keep-alive native di MySQL PDO, tapi
-                    // PDO_MYSQL secara default menggunakan persistent connection jika diset
-                    $connConfig['options'][\PDO::ATTR_PERSISTENT] = false; // jangan persistent global
+                    // MySQL: INIT_COMMAND diset via SQL setelah koneksi terbuka
+                    if (isset($connConfig['options']) && is_string($connConfig['options'])) {
+                        unset($connConfig['options']);
+                    }
+                    if (!isset($connConfig['options'])) {
+                        $connConfig['options'] = [];
+                    }
                 }
 
                 config(["database.connections.{$connName}" => $connConfig]);
