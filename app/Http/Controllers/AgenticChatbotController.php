@@ -506,9 +506,12 @@ class AgenticChatbotController extends Controller
                     // ── FALLBACK: Jika AI tidak mengisi currency_columns sama sekali ──
                     // Deteksi berdasarkan nama kolom alias (dari hasil query)
                     if (empty($currencyCols) && !empty($decodedRes['columns'])) {
-                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total_(?!cabang|dealer|unit|qty|count|jumlah|record))/i';
+                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|pembelian|laba|profit|nilai|biaya|cost|fee|harga|price|total(?!\s*(cabang|dealer|unit|qty|count|jumlah|record|pelanggan|produk|transaksi)))/i';
                         foreach ($decodedRes['columns'] as $col) {
-                            if (preg_match($currencyKeywords, $col) && !preg_match($nonMonetaryPattern, $col)) {
+                            // Deteksi via keyword bisnis ATAU via suffix "(Rp)" di alias
+                            $isCurrencyByKeyword = preg_match($currencyKeywords, $col) && !preg_match($nonMonetaryPattern, $col);
+                            $isCurrencyByRpSuffix = preg_match('/\(rp\.?\)/i', $col);
+                            if ($isCurrencyByKeyword || $isCurrencyByRpSuffix) {
                                 $currencyCols[] = $col;
                             }
                         }
