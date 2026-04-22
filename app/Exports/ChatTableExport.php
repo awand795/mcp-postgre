@@ -103,19 +103,15 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             $colLetter = Coordinate::stringFromColumnIndex($i);
             $headerName = $this->headers[$i - 1] ?? '';
 
-            // 1. AI Decision Priority: gunakan isCurrencyCol yang mendukung partial match
+            // AI Decision: gunakan hanya currency_columns yang dikirim AI — tanpa fallback
             if ($this->isCurrencyCol($headerName, $normalizedCurrencyCols)) {
                 $formats[$colLetter] = '"Rp" #,##0';
             }
-            // 2. Detect ID/Fixed String columns to format as Text
+            // Detect ID/Fixed String columns to format as Text
             elseif (preg_match('/(^id$|^no$|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|sku|ref)/i', $headerName)) {
                 $formats[$colLetter] = NumberFormat::FORMAT_TEXT;
             }
-            // 3. Fallback Keyword Detection untuk kolom currency yang tidak ter-cover AI
-            elseif (preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total_)/i', $headerName)) {
-                $formats[$colLetter] = '"Rp" #,##0';
-            }
-            // 4. Default: number dengan separator ribuan
+            // Default: number dengan separator ribuan
             else {
                 $formats[$colLetter] = '#,##0';
             }

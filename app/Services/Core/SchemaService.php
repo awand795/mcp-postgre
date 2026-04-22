@@ -194,15 +194,6 @@ class SchemaService extends BaseService
                 ]);
             }
 
-            // ── Deteksi kolom status/aktif dan inject MANDATORY hint ─────────
-            $statusColumns = [];
-            $statusKeywordPattern = '/^(status|is_active|aktif|status_aktif|flag_aktif|active|enabled|is_enabled)$/i';
-            foreach ($result as $col) {
-                if (preg_match($statusKeywordPattern, $col['column'])) {
-                    $statusColumns[] = $col['column'];
-                }
-            }
-
             $response = [
                 'database' => $databaseCode,
                 'table'    => "{$schemaName}.{$tableName}",
@@ -210,17 +201,6 @@ class SchemaService extends BaseService
                 'indexes'  => $indexes,
                 'usage_tip' => 'Gunakan get_column_values untuk melihat variasi isi data pada kolom kategori/status.'
             ];
-
-            if (!empty($statusColumns)) {
-                $colList = implode(', ', $statusColumns);
-                $response['MANDATORY_AI_ACTION'] = implode(' ', [
-                    "Tabel ini memiliki kolom STATUS: [{$colList}].",
-                    "WAJIB: Sebelum menulis query COUNT atau agregasi apapun,",
-                    "panggil get_column_values untuk kolom [{$colList}] agar tahu nilai aktif yang benar.",
-                    "Kemudian WAJIB tambahkan filter WHERE {$statusColumns[0]} = '[nilai_aktif]' di semua query COUNT.",
-                    "DILARANG menggunakan COUNT tanpa filter status — hasilnya akan SALAH karena termasuk data non-aktif.",
-                ]);
-            }
 
             return $this->safeJsonEncode($response);
         } catch (\Exception $e) {

@@ -488,39 +488,6 @@ class AgenticChatbotController extends Controller
 
                 if (is_array($decodedRes) && $toolName === 'execute_query') {
                     $currencyCols = $decodedRes['currency_columns'] ?? [];
-
-                    // ── GUARD: Hapus kolom non-moneter yang mungkin salah dimasukkan AI ──
-                    // Kolom COUNT/jumlah/persentase/kode tidak boleh di-format sebagai Rp.
-                    $nonMonetaryPattern = '/^(total_?(?:cabang|dealer|unit|qty|jumlah|count|record|row|data)|jumlah_?(?:cabang|dealer|unit)|count|qty|persentase|persen|percentage|id|kode|code|no|nomor)/i';
-                    if (!empty($currencyCols)) {
-                        $currencyCols = array_values(array_filter($currencyCols, function ($col) use ($nonMonetaryPattern) {
-                            return !preg_match($nonMonetaryPattern, $col);
-                        }));
-                        if ($currencyCols !== ($decodedRes['currency_columns'] ?? [])) {
-                            Log::info("[Agentic] Removed non-monetary columns from currency_columns. Remaining: " . implode(', ', $currencyCols));
-                            $decodedRes['currency_columns'] = $currencyCols;
-                            $toolResult = json_encode($decodedRes);
-                        }
-                    }
-
-                    // ── FALLBACK: Jika AI tidak mengisi currency_columns sama sekali ──
-                    // Deteksi berdasarkan nama kolom alias (dari hasil query)
-                    if (empty($currencyCols) && !empty($decodedRes['columns'])) {
-                        $currencyKeywords = '/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|pembelian|laba|profit|nilai|biaya|cost|fee|harga|price|total(?!\s*(cabang|dealer|unit|qty|count|jumlah|record|pelanggan|produk|transaksi)))/i';
-                        foreach ($decodedRes['columns'] as $col) {
-                            // Deteksi via keyword bisnis ATAU via suffix "(Rp)" di alias
-                            $isCurrencyByKeyword = preg_match($currencyKeywords, $col) && !preg_match($nonMonetaryPattern, $col);
-                            $isCurrencyByRpSuffix = preg_match('/\(rp\.?\)/i', $col);
-                            if ($isCurrencyByKeyword || $isCurrencyByRpSuffix) {
-                                $currencyCols[] = $col;
-                            }
-                        }
-                        if (!empty($currencyCols)) {
-                            Log::info("[Agentic] currency_columns fallback detected: " . implode(', ', $currencyCols));
-                            $decodedRes['currency_columns'] = $currencyCols;
-                            $toolResult = json_encode($decodedRes);
-                        }
-                    }
                 }
 
                 $aiContent = $toolResult;
@@ -679,22 +646,9 @@ class AgenticChatbotController extends Controller
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
-        $normalizeForMatch = function(string $s): string {
-            return trim(preg_replace('/_+/', '_', preg_replace('/[^a-z0-9_]/', '', strtolower(preg_replace('/[\s]+/', '_', $s)))), '_');
-        };
-
-        $normalizedCurrencyCols = array_map($normalizeForMatch, $currencyColumns);
-        $isCurrencyHeader = function(string $header) use ($normalizedCurrencyCols, $normalizeForMatch, $currencyColumns): bool {
-            if (!empty($currencyColumns)) {
-                $normalizedHeader = $normalizeForMatch($header);
-                foreach ($normalizedCurrencyCols as $col) {
-                    if (!empty($col) && ($col === $normalizedHeader || str_contains($normalizedHeader, $col) || str_contains($col, $normalizedHeader))) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return (bool) preg_match('/(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|nilai|total)/i', $header);
+        // AI sepenuhnya menentukan currency — langsung pakai currencyColumns dari request
+        $isCurrencyHeader = function(string $header) use ($currencyColumns): bool {
+            return in_array($header, $currencyColumns);
         };
 
         $columnTypes = array_map(function($header) use ($isCurrencyHeader) {
