@@ -264,10 +264,17 @@ class AgenticChatbotController extends Controller
 
             // ── FIX #3: Intersepsi "Di Luar Domain" False-Positive ───────────
             // Llama/OpenRouter kadang menyimpulkan "pertanyaan di luar domain" padahal
-            // sebenarnya hanya gagal menemukan tabel karena schema salah. Jika AI belum
-            // berhasil memanggil execute_query sama sekali, intercept dan paksa retry
-            // dengan schema correction hint yang eksplisit.
-            if (empty($toolCalls) && (empty($allTurnToolResults) || $loopCount <= 3) && $loopCount <= 8) {
+            // sebenarnya hanya gagal menemukan tabel karena schema salah.
+            //
+            // KONDISI INTERCEPT (semua harus terpenuhi):
+            // 1. Tidak ada tool call di response ini
+            // 2. Loop masih awal (belum banyak tool dipanggil)
+            // 3. Belum ada tool apapun yang pernah dipanggil di turn ini
+            //    → Jika sudah ada tool call sebelumnya (misal AI sudah search schema
+            //      dan memang tidak ada data cuaca/topik luar domain), penolakan AI
+            //      adalah VALID — jangan di-intercept.
+            $totalToolCallsThisTurn = count($allTurnToolResults);
+            if (empty($toolCalls) && $totalToolCallsThisTurn === 0 && $loopCount <= 3) {
                 $outOfDomainPhrases = [
                     // Bahasa Indonesia — kalimat penolakan
                     'tidak memiliki kewenangan',
