@@ -452,9 +452,11 @@ class AgenticChatbotController extends Controller
 
                 Log::info("[Agentic] Executing Tool: {$toolName}");
 
-                // ── GUARD: Intersepsi COUNT tanpa WHERE pada query ──────────────
-                // Jika AI mengirim COUNT(*) atau COUNT(kolom) tanpa WHERE,
-                // inject koreksi sebelum eksekusi agar hasilnya akurat.
+                // ── GUARD: COUNT tanpa WHERE — jalankan tapi inject reminder setelah hasil ──
+                // Sebelumnya guard ini memblokir eksekusi dan inject tool result palsu,
+                // menyebabkan model looping tanpa pernah dapat data nyata.
+                // Sekarang: biarkan query jalan, catat flag agar reminder di-inject setelah hasil.
+                $countWithoutWhereWarning = false;
                 if ($toolName === 'execute_query') {
                     $sqlToCheck = strtolower(trim($arguments['sql'] ?? ''));
                     $hasCount   = preg_match('/\bcount\s*\(/i', $sqlToCheck);
@@ -462,29 +464,8 @@ class AgenticChatbotController extends Controller
                     $hasGroup   = preg_match('/\bgroup by\b/i', $sqlToCheck);
 
                     if ($hasCount && !$hasWhere && !$hasGroup) {
-                        Log::warning("[Agentic] COUNT without WHERE detected. Injecting status-filter reminder.");
-                        $messages[] = [
-                            'role'    => 'tool',
-                            'tool_call_id' => $toolCall['id'] ?? ('call_' . uniqid()),
-                            'name'    => $toolName,
-                            'content' => json_encode([
-                                'warning' => 'Query COUNT tanpa filter WHERE ditolak sementara.',
-                                'MANDATORY_AI_ACTION' => implode(' ', [
-                                    'STOP. Query COUNT tanpa WHERE akan menghasilkan angka SALAH karena termasuk data non-aktif/tidak valid.',
-                                    'WAJIB lakukan langkah ini SEKARANG:',
-                                    '(1) Panggil get_column_values untuk kolom status/aktif di tabel ini agar tahu nilai yang benar.',
-                                    '(2) Tambahkan WHERE [kolom_status] = [nilai_aktif] ke query COUNT.',
-                                    '(3) Baru jalankan execute_query lagi dengan filter yang benar.',
-                                    'CONTOH BENAR: SELECT COUNT(*) FROM schema.tabel WHERE status_aktif = \'AKTIF\'',
-                                    'CONTOH SALAH: SELECT COUNT(*) FROM schema.tabel',
-                                ]),
-                            ]),
-                            '_is_live_gemini_response' => true,
-                        ];
-                        // Skip eksekusi, lanjut ke loop berikutnya
-                        echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
-                        if (ob_get_level() > 0) ob_flush(); flush();
-                        continue 2; // lanjut while loop
+                        Log::warning("[Agentic] COUNT without WHERE detected. Will run query and inject reminder after result.");
+                        $countWithoutWhereWarning = true;
                     }
                 }
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments, $isGroq);
@@ -563,6 +544,28 @@ class AgenticChatbotController extends Controller
                     'decoded_data'               => $decodedRes,
                     '_is_live_gemini_response'   => true, // tandai sebagai live agar Gemini kirim functionResponse
                 ];
+
+                // ── Inject reminder STATUS FILTER setelah tool result masuk ke messages ──
+                // PENTING: Harus setelah tool result, bukan sebelum — Mistral/OpenAI tidak
+                // mengizinkan user message di antara assistant tool_calls dan tool results.
+                if (!empty($countWithoutWhereWarning)) {
+                    $actualCount = null;
+                    if (is_array($decodedRes) && !empty($decodedRes['rows'])) {
+                        $firstRow = reset($decodedRes['rows']);
+                        $actualCount = is_array($firstRow) ? reset($firstRow) : $firstRow;
+                    }
+                    $messages[] = [
+                        'role'    => 'user',
+                        'content' => implode("\n", [
+                            '[SYSTEM NOTE — STATUS FILTER CHECK]:',
+                            'Query COUNT baru saja dijalankan tanpa filter WHERE dan menghasilkan: ' . ($actualCount ?? '?') . '.',
+                            'Cek apakah tabel memiliki kolom status aktif (dari hasil describe_table sebelumnya).',
+                            '- Jika ADA kolom status aktif: jalankan ulang COUNT dengan WHERE [kolom_status] = [nilai_aktif].',
+                            '- Jika TIDAK ADA kolom status: angka ' . ($actualCount ?? '?') . ' sudah benar, sajikan langsung kepada user.',
+                            'Putuskan sekarang tanpa perlu tool tambahan jika kolom status sudah terlihat dari describe_table sebelumnya.',
+                        ]),
+                    ];
+                }
             }
             if (ob_get_level() > 0) ob_flush(); flush();
         }
