@@ -26,6 +26,6 @@ class RolePermission extends Model
 
     public function databaseConnection()
     {
-        return $this->belongsTo(DatabaseConnection::class, 'database_code', 'code');
+        return $this->belongsTo(DatabaseConnection::class, 'database_code', 'database');
     }
 }

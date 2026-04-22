@@ -100,12 +100,17 @@ class QueryService extends BaseService
 
         $roleId = $user->role;
         return cache()->remember("agentic_allowed_dbs_role_v2_{$roleId}", 600, function () use ($roleId, $user) {
-            $permissions = RolePermission::where('role_id', $roleId)->get();
+            $permissions = RolePermission::with('databaseConnection')->where('role_id', $roleId)->get();
             $result = [];
             foreach ($permissions as $p) {
+                $conn = $p->databaseConnection;
+                if (!$conn || !$conn->is_active) continue;
+
+                $dbCode = $conn->database;
+
                 // To get description for regular roles, we might need a lookup,
                 // but for now let's at least structure it consistently.
-                $result[$p->database_code][$p->schema_name][] = [
+                $result[$dbCode][$p->schema_name][] = [
                     'name' => $p->table_name,
                     'description' => '' // Roles usually have predefined tables
                 ];

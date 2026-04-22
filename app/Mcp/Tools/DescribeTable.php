@@ -23,7 +23,7 @@ class DescribeTable
         string $table_name
     ): array {
         // Get database connection model
-        $dbModel = \App\Models\DatabaseConnection::where('code', $database_code)->active()->first();
+        $dbModel = \App\Models\DatabaseConnection::where('database', $database_code)->active()->first();
         if (!$dbModel) {
             throw new \InvalidArgumentException("Database '{$database_code}' not found or inactive.");
         }

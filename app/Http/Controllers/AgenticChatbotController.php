@@ -95,7 +95,10 @@ class AgenticChatbotController extends Controller
                 $allowedDatabases = $user->roleModel->getAllowedDatabases();
             } else {
                 foreach ($user->roleModel->permissions ?? [] as $perm) {
-                    $db     = $perm->database_code;
+                    $conn = $perm->databaseConnection;
+                    if (!$conn || !$conn->is_active) continue;
+
+                    $db     = $conn->database;
                     $schema = $perm->schema_name;
                     $tbl    = $perm->table_name;
 

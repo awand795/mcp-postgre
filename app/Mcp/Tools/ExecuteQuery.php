@@ -26,7 +26,7 @@ class ExecuteQuery
 
         // ── LAYER 2: Blokir keyword berbahaya (driver-aware) ─────────────────
         // Get driver type for driver-specific forbidden keywords
-        $dbModel = \App\Models\DatabaseConnection::where('code', $database_code)->active()->first();
+        $dbModel = \App\Models\DatabaseConnection::where('database', $database_code)->active()->first();
         if (!$dbModel) {
             throw new \InvalidArgumentException("Database '{$database_code}' not found or inactive.");
         }
