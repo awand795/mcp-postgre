@@ -274,38 +274,45 @@ class AgenticChatbotController extends Controller
             //      dan memang tidak ada data cuaca/topik luar domain), penolakan AI
             //      adalah VALID — jangan di-intercept.
             $totalToolCallsThisTurn = count($allTurnToolResults);
-            if (empty($toolCalls) && $totalToolCallsThisTurn === 0 && $loopCount <= 3) {
+            if (empty($toolCalls) && $totalToolCallsThisTurn === 0 && $loopCount === 1) {
+                // FIX#3 hanya aktif di loop #1 dan HANYA jika AI menolak
+                // TANPA menyebut bahwa ia sudah mencoba/memeriksa database.
+                // Jika AI menyebut "tidak ada data", "tidak ditemukan", "sudah memeriksa"
+                // dll — berarti AI sudah bernalar dengan benar, jangan di-intercept.
+                $alreadyTriedPhrases = [
+                    'tidak ada data', 'tidak ditemukan', 'sudah memeriksa',
+                    'tidak tersedia di database', 'tidak ada tabel', 'tidak ada informasi',
+                    'no data', 'not found', 'not available', 'no table', 'no information',
+                    'i have checked', 'after checking', 'setelah memeriksa',
+                ];
+                $alreadyTried = false;
+                foreach ($alreadyTriedPhrases as $phrase) {
+                    if (stripos($textContent, $phrase) !== false) {
+                        $alreadyTried = true;
+                        break;
+                    }
+                }
+
+                // Hanya intercept jika AI menolak TANPA argumen "sudah coba"
                 $outOfDomainPhrases = [
-                    // Bahasa Indonesia — kalimat penolakan
-                    'tidak memiliki kewenangan',
-                    'di luar kapasitas',
-                    'tidak dapat membantu',
-                    'bukan dalam kapasitas',
-                    'saya hanya dapat membantu',
-                    'tidak memiliki akses',
-                    'tidak berwenang',
-                    'diluar kemampuan',
-                    'di luar kemampuan',
-                    'tidak memiliki data',
-                    'tidak tersedia dalam kapasitas',
-                    'mohon maaf bapak/ibu, saya hanya',
-                    // English
-                    'not authorized',
-                    'outside my scope',
-                    'outside this scope',
-                    'i am not authorized',
-                    'i cannot help with',
-                    'strictly limited to',
-                    'beyond my capabilities',
-                    'not within my domain',
-                    'i only assist with',
-                    'i am only able to assist',
+                    // Frasa yang menunjukkan AI menolak SEBELUM mencoba tool
+                    // (lebih spesifik — hindari false positive pada penolakan valid)
+                    'saya tidak dapat membantu dengan pertanyaan',
+                    'saya tidak dapat menjawab pertanyaan tentang',
+                    'pertanyaan ini di luar kapasitas saya',
+                    'tidak dalam kapasitas saya untuk',
+                    'i cannot assist with this type',
+                    'this question is outside my scope',
+                    'i am not able to answer questions about',
+                    'i can only assist with business data',
                 ];
                 $isOutOfDomain = false;
-                foreach ($outOfDomainPhrases as $phrase) {
-                    if (stripos($textContent, $phrase) !== false) {
-                        $isOutOfDomain = true;
-                        break;
+                if (!$alreadyTried) {
+                    foreach ($outOfDomainPhrases as $phrase) {
+                        if (stripos($textContent, $phrase) !== false) {
+                            $isOutOfDomain = true;
+                            break;
+                        }
                     }
                 }
 
