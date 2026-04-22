@@ -967,7 +967,15 @@ class AgenticChatbotController extends Controller
             return $claudeMessages;
         }
 
-        return $messages;
+        // Strip internal-only fields before sending to standard OpenAI-compatible providers
+        // (decoded_data and _is_live_gemini_response are for internal use only)
+        $internalFields = ['decoded_data', '_is_live_gemini_response'];
+        return array_map(function ($m) use ($internalFields) {
+            foreach ($internalFields as $field) {
+                unset($m[$field]);
+            }
+            return $m;
+        }, $messages);
     }
 
     private function buildMessages(string $systemPrompt, array $history, string $userMessage, string $lang): array
