@@ -208,6 +208,18 @@ class AgenticChatbotController extends Controller
 
             try {
                 $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+            } catch (\RuntimeException $e) {
+                if ($e->getMessage() === '__RATE_LIMIT__') {
+                    $rateLimitMsg = $lang === 'en'
+                        ? "We apologize, the AI analysis service has reached its usage limit for this period. Please contact your System Administrator to renew the service quota, or try again later."
+                        : "Mohon maaf Bapak/Ibu, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi.";
+                    $this->streamText($rateLimitMsg);
+                    echo "data: [DONE]\n\n";
+                    if (ob_get_level() > 0) ob_flush(); flush();
+                    return;
+                }
+                Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
+                $response = null;
             } catch (\Throwable $e) {
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
                 $response = null;
@@ -712,20 +724,29 @@ class AgenticChatbotController extends Controller
                     $isHistoryTool = empty($m['_is_live_gemini_response'] ?? null);
 
                     if ($isHistoryTool) {
-                        // History tool result: kirim sebagai text biasa supaya Gemini
-                        // tidak bingung dengan functionResponse tanpa matching functionCall
+                        // History tool result: kirim sebagai text ringkasan biasa
+                        // supaya Gemini tidak bingung dengan functionResponse tanpa matching functionCall
                         $toolName    = $m['name'] ?? 'tool';
                         $rawContent  = $m['content'] ?? '';
-                        $decoded     = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : $rawContent;
 
-                        // Buat ringkasan singkat dari hasil tool untuk context
-                        $summary = '';
-                        if (is_array($decoded)) {
-                            $rowCount = $decoded['rows_returned'] ?? count($decoded['rows'] ?? []);
-                            $cols     = implode(', ', array_slice($decoded['columns'] ?? [], 0, 5));
-                            $summary  = "[Hasil {$toolName}: {$rowCount} baris data" . ($cols ? ", kolom: {$cols}" : '') . "]";
+                        // Pastikan rawContent adalah string sebelum di-decode
+                        if (is_array($rawContent)) {
+                            $rawContent = json_encode($rawContent);
+                        }
+                        $decoded = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : [];
+
+                        // Buat ringkasan singkat — pastikan semua nilai adalah string
+                        if (is_array($decoded) && !empty($decoded)) {
+                            $rowCount = (int) ($decoded['rows_returned'] ?? count($decoded['rows'] ?? []));
+                            // Pastikan columns adalah array of strings, bukan nested arrays
+                            $rawCols  = $decoded['columns'] ?? [];
+                            $cols     = implode(', ', array_map(
+                                fn($c) => is_string($c) ? $c : (is_array($c) ? json_encode($c) : (string)$c),
+                                array_slice($rawCols, 0, 5)
+                            ));
+                            $summary = "[Konteks: {$toolName} mengambil {$rowCount} baris" . ($cols ? " ({$cols})" : '') . "]";
                         } else {
-                            $summary = "[Hasil {$toolName}: " . mb_substr((string)$rawContent, 0, 200) . "]";
+                            $summary = "[Konteks: {$toolName} selesai]";
                         }
 
                         $parts = [['text' => $summary]];
@@ -1462,12 +1483,31 @@ PROMPT;
     private function handleProviderResponse($response, string $providerCode): ?array
     {
         if ($response->failed()) {
-            $body = $response->body();
-            Log::error("[Agentic] API Error ({$providerCode}) status=" . $response->status() . " body=" . $body);
+            $body   = $response->body();
+            $status = $response->status();
+            Log::error("[Agentic] API Error ({$providerCode}) status={$status} body=" . $body);
 
-            if ($response->status() === 429) {
+            // ── Rate Limit / Quota Habis ──────────────────────────────────────
+            if ($status === 429) {
                 Log::warning("[Agentic] Rate Limit ({$providerCode}): " . $body);
+                // Lempar exception khusus agar runAgenticLoop bisa tangkap dan
+                // sampaikan pesan yang tepat ke user
+                throw new \RuntimeException('__RATE_LIMIT__');
             }
+
+            // ── Gemini: quota exceeded (bisa status 400 atau 429) ─────────────
+            if ($providerCode === 'gemini') {
+                $bodyLower = strtolower($body);
+                if (
+                    str_contains($bodyLower, 'quota') ||
+                    str_contains($bodyLower, 'resource_exhausted') ||
+                    str_contains($bodyLower, 'rate_limit') ||
+                    str_contains($bodyLower, 'exceeded')
+                ) {
+                    throw new \RuntimeException('__RATE_LIMIT__');
+                }
+            }
+
             return null;
         }
 
