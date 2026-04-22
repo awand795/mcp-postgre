@@ -451,6 +451,42 @@ class AgenticChatbotController extends Controller
                 $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 Log::info("[Agentic] Executing Tool: {$toolName}");
+
+                // ── GUARD: Intersepsi COUNT tanpa WHERE pada query ──────────────
+                // Jika AI mengirim COUNT(*) atau COUNT(kolom) tanpa WHERE,
+                // inject koreksi sebelum eksekusi agar hasilnya akurat.
+                if ($toolName === 'execute_query') {
+                    $sqlToCheck = strtolower(trim($arguments['sql'] ?? ''));
+                    $hasCount   = preg_match('/\bcount\s*\(/i', $sqlToCheck);
+                    $hasWhere   = preg_match('/\bwhere\b/i', $sqlToCheck);
+                    $hasGroup   = preg_match('/\bgroup by\b/i', $sqlToCheck);
+
+                    if ($hasCount && !$hasWhere && !$hasGroup) {
+                        Log::warning("[Agentic] COUNT without WHERE detected. Injecting status-filter reminder.");
+                        $messages[] = [
+                            'role'    => 'tool',
+                            'tool_call_id' => $toolCall['id'] ?? ('call_' . uniqid()),
+                            'name'    => $toolName,
+                            'content' => json_encode([
+                                'warning' => 'Query COUNT tanpa filter WHERE ditolak sementara.',
+                                'MANDATORY_AI_ACTION' => implode(' ', [
+                                    'STOP. Query COUNT tanpa WHERE akan menghasilkan angka SALAH karena termasuk data non-aktif/tidak valid.',
+                                    'WAJIB lakukan langkah ini SEKARANG:',
+                                    '(1) Panggil get_column_values untuk kolom status/aktif di tabel ini agar tahu nilai yang benar.',
+                                    '(2) Tambahkan WHERE [kolom_status] = [nilai_aktif] ke query COUNT.',
+                                    '(3) Baru jalankan execute_query lagi dengan filter yang benar.',
+                                    'CONTOH BENAR: SELECT COUNT(*) FROM schema.tabel WHERE status_aktif = \'AKTIF\'',
+                                    'CONTOH SALAH: SELECT COUNT(*) FROM schema.tabel',
+                                ]),
+                            ]),
+                            '_is_live_gemini_response' => true,
+                        ];
+                        // Skip eksekusi, lanjut ke loop berikutnya
+                        echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
+                        if (ob_get_level() > 0) ob_flush(); flush();
+                        continue 2; // lanjut while loop
+                    }
+                }
                 $toolResult = $this->toolExecutor->execute($toolName, $arguments, $isGroq);
 
                 $decodedRes = json_decode($toolResult, true);
