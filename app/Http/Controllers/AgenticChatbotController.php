@@ -228,8 +228,8 @@ class AgenticChatbotController extends Controller
             $toolCalls    = $assistantMsg['tool_calls'] ?? [];
             $textContent  = $assistantMsg['content'] ?? '';
 
-            // Tandai sebagai live response dari Gemini agar formatMessagesForProvider
-            // tahu bahwa functionCall boleh dikirim (bukan rekonstruksi history).
+            // Tandai sebagai live response Gemini agar formatMessagesForProvider
+            // tahu bahwa functionCall boleh dikirim (bukan rekonstruksi history DB).
             $providerCodeLive = strtolower($apiKey->provider->code ?? '');
             if ($providerCodeLive === 'gemini' && !empty($toolCalls)) {
                 $assistantMsg['_is_live_gemini_response'] = true;
@@ -464,11 +464,12 @@ class AgenticChatbotController extends Controller
                 $allTurnToolResults[] = $frontendResult;
 
                 $messages[] = [
-                    'role'         => 'tool',
-                    'tool_call_id' => $toolCallId,
-                    'name'         => $toolName,
-                    'content'      => $aiContent,
-                    'decoded_data' => $decodedRes, // Pass already decoded data to avoid redundant parsing
+                    'role'                       => 'tool',
+                    'tool_call_id'               => $toolCallId,
+                    'name'                       => $toolName,
+                    'content'                    => $aiContent,
+                    'decoded_data'               => $decodedRes,
+                    '_is_live_gemini_response'   => true, // tandai sebagai live agar Gemini kirim functionResponse
                 ];
             }
             if (ob_get_level() > 0) ob_flush(); flush();
@@ -685,100 +686,100 @@ class AgenticChatbotController extends Controller
     private function formatMessagesForProvider(string $providerCode, array $messages): array
     {
         if ($providerCode === 'gemini') {
-            // Gemini memakai format 'contents' — bukan 'messages'.
-            // Aturan penting Gemini API:
-            //   1. Role hanya boleh 'user' atau 'model' (bukan 'assistant'/'tool'/'system').
-            //   2. functionResponse WAJIB dibungkus dalam role 'user'.
-            //   3. functionCall (dari model) dibungkus dalam role 'model'.
-            //   4. Urutan WAJIB: model(functionCall) → user(functionResponse) → model(text)
-            //   5. DILARANG kirim 'functionCall' kembali di history dari sisi client —
-            //      Gemini hanya menerima 'functionCall' sebagai OUTPUT dari model,
-            //      bukan sebagai INPUT dari client. Kirim 'functionResponse' saja.
-            //   6. Dua pesan berurutan dengan role yang sama AKAN menyebabkan error 400.
-            //      Gemini API mengharuskan role bergantian: user → model → user → model.
+            // Gemini format rules:
+            //  1. Role hanya 'user' atau 'model'
+            //  2. functionResponse WAJIB dalam role 'user'
+            //  3. functionCall HANYA dari model sebagai output — DILARANG client kirim ulang
+            //  4. Dua role sama berturut-turut → error 400
             //
-            // CATATAN PENTING UNTUK HISTORY (pesan ke-2 dst):
-            //   - Jangan pernah kirim ulang functionCall ke Gemini dari sisi client.
-            //   - Untuk assistant message yang punya tool_calls di history,
-            //     HANYA kirim text content-nya saja sebagai role 'model'.
-            //   - functionResponse dari tool results tetap dikirim sebagai role 'user'.
-            //   - Ini memastikan Gemini mengerti konteks percakapan sebelumnya
-            //     tanpa melanggar aturan format Gemini API.
+            // STRATEGI HISTORY:
+            //  - assistant + tool_calls (dari DB/history) → kirim hanya TEXT-nya sebagai 'model'
+            //    Jika text kosong, kirim placeholder "[Mengambil data...]"
+            //  - tool results (dari DB/history) → kirim sebagai 'user' + functionResponse
+            //    Tapi jika toolName tidak dikenal Gemini (fake history), kirim sebagai text biasa
+            //  - assistant + tool_calls (LIVE, _is_live_gemini_response=true) → kirim functionCall
 
             $geminiMessages = [];
-            $prevRole       = null; // Lacak role terakhir untuk cegah duplikat
+            $prevRole       = null;
 
             foreach ($messages as $m) {
                 if ($m['role'] === 'system') continue;
 
                 $role = $m['role'];
 
-                // ── Tool result → kirim sebagai role 'user' + functionResponse ──
+                // ── TOOL RESULT ──────────────────────────────────────────────
                 if ($role === 'tool') {
-                    $parsedContent = null;
+                    $isHistoryTool = empty($m['_is_live_gemini_response'] ?? null);
 
-                    // Optimization: Check if we have pre-decoded data
-                    if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
-                        $parsedContent = $m['decoded_data'];
+                    if ($isHistoryTool) {
+                        // History tool result: kirim sebagai text biasa supaya Gemini
+                        // tidak bingung dengan functionResponse tanpa matching functionCall
+                        $toolName    = $m['name'] ?? 'tool';
+                        $rawContent  = $m['content'] ?? '';
+                        $decoded     = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : $rawContent;
+
+                        // Buat ringkasan singkat dari hasil tool untuk context
+                        $summary = '';
+                        if (is_array($decoded)) {
+                            $rowCount = $decoded['rows_returned'] ?? count($decoded['rows'] ?? []);
+                            $cols     = implode(', ', array_slice($decoded['columns'] ?? [], 0, 5));
+                            $summary  = "[Hasil {$toolName}: {$rowCount} baris data" . ($cols ? ", kolom: {$cols}" : '') . "]";
+                        } else {
+                            $summary = "[Hasil {$toolName}: " . mb_substr((string)$rawContent, 0, 200) . "]";
+                        }
+
+                        $parts = [['text' => $summary]];
+                        if ($prevRole === 'user' && !empty($geminiMessages)) {
+                            $last = &$geminiMessages[count($geminiMessages) - 1];
+                            $last['parts'] = array_merge($last['parts'], $parts);
+                        } else {
+                            $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                            $prevRole         = 'user';
+                        }
                     } else {
+                        // Live tool result: kirim sebagai functionResponse (normal flow)
                         $rawContent = $m['content'] ?? '';
-                        if (is_string($rawContent)) {
+                        if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
+                            $parsedContent = $m['decoded_data'];
+                        } elseif (is_string($rawContent)) {
                             $decoded       = json_decode($rawContent, true);
                             $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
-                        } elseif (is_array($rawContent)) {
-                            $parsedContent = $rawContent;
                         } else {
-                            $parsedContent = ['result' => (string) $rawContent];
+                            $parsedContent = is_array($rawContent) ? $rawContent : ['result' => (string)$rawContent];
                         }
-                    }
 
-                    $parts = [[
-                        'functionResponse' => [
-                            'name'     => $m['name'] ?? 'tool',
-                            'response' => $parsedContent,
-                        ]
-                    ]];
-
-                    // Jika role sebelumnya juga 'user', gabung parts-nya
-                    // agar tidak ada dua pesan 'user' berturut-turut.
-                    if ($prevRole === 'user' && !empty($geminiMessages)) {
-                        $last = &$geminiMessages[count($geminiMessages) - 1];
-                        $last['parts'] = array_merge($last['parts'], $parts);
-                    } else {
-                        $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                        $prevRole         = 'user';
+                        $parts = [[
+                            'functionResponse' => [
+                                'name'     => $m['name'] ?? 'tool',
+                                'response' => $parsedContent,
+                            ]
+                        ]];
+                        if ($prevRole === 'user' && !empty($geminiMessages)) {
+                            $last = &$geminiMessages[count($geminiMessages) - 1];
+                            $last['parts'] = array_merge($last['parts'], $parts);
+                        } else {
+                            $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                            $prevRole         = 'user';
+                        }
                     }
                     continue;
                 }
 
-                // ── Assistant message → kirim sebagai role 'model' ──
+                // ── ASSISTANT MESSAGE ─────────────────────────────────────────
                 if ($role === 'assistant') {
-                    // KRITIS: Untuk history (pesan dari DB), assistant message yang punya
-                    // tool_calls hanya dikirim text content-nya saja sebagai role 'model'.
-                    // Jangan kirim ulang functionCall ke Gemini — ini akan menyebabkan error.
-                    //
-                    // Untuk pesan BARU (loop aktif, bukan history), Gemini akan generate
-                    // functionCall sendiri sebagai output-nya.
-                    $parts = [];
+                    $isLive = !empty($m['_is_live_gemini_response']);
+                    $parts  = [];
 
-                    // Kirim text content jika ada
                     if (!empty($m['content'])) {
                         $parts[] = ['text' => (string) $m['content']];
                     }
 
-                    // HANYA kirim functionCall jika ini adalah respons BARU dari Gemini
-                    // (bukan rekonstruksi dari history DB).
-                    // Cara membedakannya: jika tool_calls ada tapi content kosong
-                    // DAN message ini baru ditambahkan dalam loop ini (bukan dari history),
-                    // maka ini adalah live response. Kita bisa cek dengan flag '_is_live'.
-                    $isLiveResponse = !empty($m['_is_live_gemini_response']);
-                    if ($isLiveResponse && !empty($m['tool_calls'])) {
+                    if ($isLive && !empty($m['tool_calls'])) {
+                        // Live response: kirim functionCall
                         foreach ($m['tool_calls'] as $tc) {
                             $args    = $tc['function']['arguments'] ?? '{}';
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
-                            if ($argsArr === null || $argsArr === [] || $argsArr === false) {
-                                $argsArr = new \stdClass();
-                            }
+                            if (!$argsArr || $argsArr === []) $argsArr = new \stdClass();
                             $parts[] = [
                                 'functionCall' => [
                                     'name' => $tc['function']['name'],
@@ -786,20 +787,13 @@ class AgenticChatbotController extends Controller
                                 ]
                             ];
                         }
+                    } elseif (!$isLive && !empty($m['tool_calls']) && empty($parts)) {
+                        // History tanpa text: kirim placeholder
+                        $toolNames = array_map(fn($tc) => $tc['function']['name'] ?? 'tool', $m['tool_calls']);
+                        $parts[] = ['text' => '[Mengambil data: ' . implode(', ', $toolNames) . ']'];
                     }
 
-                    if (empty($parts)) {
-                        // Jika tidak ada content dan bukan live response,
-                        // kirim placeholder agar history tetap valid
-                        if (!empty($m['tool_calls'])) {
-                            // Ada tool calls di history tapi tidak ada content —
-                            // kirim ringkasan singkat agar Gemini tahu ada tool yang berjalan
-                            $toolNames = array_map(fn($tc) => $tc['function']['name'] ?? 'tool', $m['tool_calls']);
-                            $parts[] = ['text' => '[Tool executed: ' . implode(', ', $toolNames) . ']'];
-                        } else {
-                            continue; // Skip jika benar-benar kosong
-                        }
-                    }
+                    if (empty($parts)) continue;
 
                     if ($prevRole === 'model' && !empty($geminiMessages)) {
                         $last = &$geminiMessages[count($geminiMessages) - 1];
@@ -811,7 +805,7 @@ class AgenticChatbotController extends Controller
                     continue;
                 }
 
-                // ── User message → kirim sebagai role 'user' ──
+                // ── USER MESSAGE ──────────────────────────────────────────────
                 if ($role === 'user') {
                     $parts = [];
                     if (!empty($m['content'])) {
@@ -819,7 +813,6 @@ class AgenticChatbotController extends Controller
                     }
                     if (empty($parts)) continue;
 
-                    // Hindari dua pesan 'user' berturut-turut
                     if ($prevRole === 'user' && !empty($geminiMessages)) {
                         $last = &$geminiMessages[count($geminiMessages) - 1];
                         $last['parts'] = array_merge($last['parts'], $parts);
