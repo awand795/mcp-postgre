@@ -240,6 +240,8 @@ class AgenticChatbotController extends Controller
             $toolCalls    = $assistantMsg['tool_calls'] ?? [];
             $textContent  = $assistantMsg['content'] ?? '';
 
+            Log::info("[Agentic] Loop #{$loopCount} response — finish_reason={$finishReason} tool_calls=" . count($toolCalls) . " text_len=" . strlen($textContent));
+
             // Tandai sebagai live response Gemini agar formatMessagesForProvider
             // tahu bahwa functionCall boleh dikirim (bukan rekonstruksi history DB).
             $providerCodeLive = strtolower($apiKey->provider->code ?? '');
@@ -345,37 +347,79 @@ class AgenticChatbotController extends Controller
                 $baseUrlFmt      = $apiKey->provider->base_url ?? '';
                 $isOpenRouterFmt = $providerCodeFmt === 'openrouter' || str_contains($baseUrlFmt, 'openrouter.ai');
 
-                if ($isOpenRouterFmt && !empty($allTurnToolResults) && strlen(trim($textContent)) < 250 && $loopCount <= $this->maxToolLoops - 2) {
-                    Log::warning('[Agentic] OpenRouter short response (' . strlen(trim($textContent)) . ' chars) — injecting format reminder.');
-
-                    $toolSummary = '';
+                if ($isOpenRouterFmt && !empty($allTurnToolResults) && $loopCount <= $this->maxToolLoops - 2) {
+                    // ── Deteksi apakah hasil query adalah 1 baris 1 kolom (angka tunggal) ──
+                    $isSingleValue = false;
+                    $singleValueNumber = null;
                     foreach ($allTurnToolResults as $tr) {
-                        if (isset($tr['data']['rows_returned'])) {
-                            $count = $tr['data']['rows_returned'];
-                            $toolSummary .= "Data berhasil diambil ({$count} baris). ";
-                        } elseif (!empty($tr['data']['rows'])) {
-                            $toolSummary .= 'Data berhasil diambil. ';
+                        $rows = $tr['data']['rows'] ?? [];
+                        $cols = $tr['data']['columns'] ?? [];
+                        if (count($rows) === 1 && count($cols) === 1) {
+                            $isSingleValue = true;
+                            $firstRow = reset($rows);
+                            $singleValueNumber = is_array($firstRow) ? reset($firstRow) : $firstRow;
+                            break;
                         }
                     }
 
-                    $messages[] = [
-                        'role'    => 'user',
-                        'content' =>
-                            '[SYSTEM FORMAT REMINDER]:' . "\n" .
-                            $toolSummary . "\n" .
-                            'Anda WAJIB menyajikan jawaban LENGKAP dalam format berikut:' . "\n\n" .
-                            '**Ringkasan Eksekutif**' . "\n" .
-                            'Tulis 1-2 kalimat cetak tebal yang menyebutkan angka kunci.' . "\n\n" .
-                            '**Insight Strategis**' . "\n" .
-                            'Tulis 2-3 poin insight bisnis yang relevan.' . "\n\n" .
-                            chr(0xF0) . chr(0x9F) . chr(0x92) . chr(0xA1) . ' **Rekomendasi Prompt Selanjutnya:**' . "\n" .
-                            '1. "[pertanyaan lanjutan spesifik]"' . "\n" .
-                            '2. "[pertanyaan analisis lebih dalam]"' . "\n" .
-                            '3. "[pertanyaan tren atau perbandingan]"' . "\n" .
-                            '4. "[pertanyaan cross-analysis]"' . "\n\n" .
-                            'Gunakan Bahasa Indonesia formal. JANGAN hanya menulis 1 kalimat pendek.',
-                    ];
-                    continue;
+                    // ── CASE 1: Hasil 1 baris 1 kolom → paksa jawab inline, LARANG smart_table ──
+                    if ($isSingleValue) {
+                        // Cek apakah response sudah ada tapi salah pakai smart_table
+                        $hasSmartTable = str_contains($textContent, '```smart_table');
+                        if ($hasSmartTable || strlen(trim($textContent)) < 250) {
+                            Log::warning('[Agentic] OpenRouter single-value result — injecting inline answer reminder. Value: ' . $singleValueNumber);
+                            $messages[] = [
+                                'role'    => 'user',
+                                'content' =>
+                                    '[SYSTEM FORMAT CORRECTION — WAJIB DIIKUTI]:' . "\n" .
+                                    'Hasil query hanya mengandung SATU ANGKA TUNGGAL: ' . $singleValueNumber . "\n" .
+                                    '❌ DILARANG KERAS menggunakan smart_table untuk hasil 1 baris 1 kolom.' . "\n" .
+                                    '✅ WAJIB sebutkan angkanya langsung dalam kalimat naratif.' . "\n\n" .
+                                    'Contoh BENAR: "**Perusahaan memiliki total ' . $singleValueNumber . ' cabang.**"' . "\n" .
+                                    'Contoh SALAH: membuat tabel hanya untuk menampilkan angka ' . $singleValueNumber . "\n\n" .
+                                    'Format respons yang benar:' . "\n" .
+                                    '**Ringkasan Eksekutif**: Sebutkan angka ' . $singleValueNumber . ' secara langsung dalam 1-2 kalimat tebal.' . "\n" .
+                                    '**Insight Strategis**: 2-3 poin insight bisnis.' . "\n" .
+                                    chr(0xF0) . chr(0x9F) . chr(0x92) . chr(0xA1) . ' **Rekomendasi Prompt Selanjutnya**: 3-4 pertanyaan lanjutan.' . "\n\n" .
+                                    'JANGAN gunakan smart_table. Jawab langsung dalam narasi.',
+                            ];
+                            continue;
+                        }
+                    }
+
+                    // ── CASE 2: Respons singkat untuk data multi-kolom/baris → inject format reminder ──
+                    if (!$isSingleValue && strlen(trim($textContent)) < 250) {
+                        Log::warning('[Agentic] OpenRouter short response (' . strlen(trim($textContent)) . ' chars) — injecting format reminder.');
+
+                        $toolSummary = '';
+                        foreach ($allTurnToolResults as $tr) {
+                            if (isset($tr['data']['rows_returned'])) {
+                                $count = $tr['data']['rows_returned'];
+                                $toolSummary .= "Data berhasil diambil ({$count} baris). ";
+                            } elseif (!empty($tr['data']['rows'])) {
+                                $toolSummary .= 'Data berhasil diambil. ';
+                            }
+                        }
+
+                        $messages[] = [
+                            'role'    => 'user',
+                            'content' =>
+                                '[SYSTEM FORMAT REMINDER]:' . "\n" .
+                                $toolSummary . "\n" .
+                                'Anda WAJIB menyajikan jawaban LENGKAP dalam format berikut:' . "\n\n" .
+                                '**Ringkasan Eksekutif**' . "\n" .
+                                'Tulis 1-2 kalimat cetak tebal yang menyebutkan angka kunci.' . "\n\n" .
+                                '**Insight Strategis**' . "\n" .
+                                'Tulis 2-3 poin insight bisnis yang relevan.' . "\n\n" .
+                                chr(0xF0) . chr(0x9F) . chr(0x92) . chr(0xA1) . ' **Rekomendasi Prompt Selanjutnya:**' . "\n" .
+                                '1. "[pertanyaan lanjutan spesifik]"' . "\n" .
+                                '2. "[pertanyaan analisis lebih dalam]"' . "\n" .
+                                '3. "[pertanyaan tren atau perbandingan]"' . "\n" .
+                                '4. "[pertanyaan cross-analysis]"' . "\n\n" .
+                                'Gunakan Bahasa Indonesia formal. JANGAN hanya menulis 1 kalimat pendek.',
+                        ];
+                        continue;
+                    }
                 }
 
                 $finalContent = trim($textContent);
@@ -1005,6 +1049,19 @@ Jika Anda tidak yakin apakah pertanyaan berkaitan dengan bisnis → PANGGIL TOOL
 Jika Anda mendapat error database → JANGAN TOLAK, cari tabel yang benar dengan `search_schema`.
 Jika schema salah → GUNAKAN `get_database_schema_info` untuk mendapat schema yang benar.
 
+## 🔴 ATURAN COUNTING — WAJIB UNTUK SEMUA QUERY COUNT
+
+Saat user bertanya **"berapa", "total", "jumlah"** entitas (cabang, dealer, pelanggan, produk, dll):
+
+1. **WAJIB gunakan `describe_table` dulu** → cek apakah ada kolom status aktif (misal: `status`, `is_active`, `aktif`, `status_aktif`)
+2. **Jika ada kolom status aktif** → WAJIB tanya user atau gunakan filter aktif secara default:
+   ```sql
+   SELECT COUNT(*) FROM schema.tabel WHERE status = 'aktif'  -- atau nilai aktif yang sesuai
+   ```
+3. **Jika tidak ada kolom status** → gunakan `COUNT(*)` tanpa filter
+4. **JANGAN gunakan** `COUNT(nama_kolom)` karena akan melewati baris NULL — selalu `COUNT(*)`
+5. **Konsistensi kritis**: query yang berbeda pada tabel yang sama HARUS menggunakan filter status yang sama agar hasilnya konsisten
+
 ## PERSONA & GAYA BAHASA
 - **Persona**: Data Analyst Ahli, profesional, objektif, dan sangat teliti.
 - **Bahasa**: Bahasa Indonesia Bisnis yang Profesional.
@@ -1118,15 +1175,22 @@ GROUP BY nama_cabang
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
 
-**Kapan WAJIB pakai smart_table:**
+### ⛔ LARANGAN MUTLAK NOMOR 1 (BERLAKU UNTUK SEMUA MODEL):
+**Jika hasil query hanya 1 baris DAN 1 kolom (angka tunggal seperti COUNT, SUM total) → DILARANG KERAS membuat smart_table.**
+Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
+- ❌ SALAH: Membungkus angka 93 dalam tabel dengan 1 baris 1 kolom
+- ✅ BENAR: Tulis langsung dalam kalimat: "**Perusahaan memiliki total 93 cabang.**"
+
+### Kapan WAJIB pakai smart_table:
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
 
-**Kapan TIDAK perlu smart_table (cukup jawab inline):**
-- Hasil query hanya **1 baris 1 kolom** (contoh: `COUNT(*) = 91`, `SUM(total) = 5.000.000`) → JANGAN buat smart_table, cukup sebutkan angkanya langsung di narasi.
-  - Contoh BENAR: "**Perusahaan memiliki total 91 cabang yang aktif.**"
-  - Contoh SALAH: membuat tabel 1 baris 1 kolom hanya untuk angka tunggal.
+### Kapan DILARANG smart_table (WAJIB jawab inline):
+- Hasil query **1 baris, 1 kolom** → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
+  - ✅ BENAR: "**Perusahaan memiliki total 93 cabang yang aktif.**"
+  - ❌ SALAH: Membuat tabel `| 93 |` hanya untuk satu angka
+  - ❌ SALAH: Membuat `smart_table` dengan 1 header dan 1 baris berisi angka tunggal
 
 Format smart_table:
 ```smart_table
@@ -1302,6 +1366,19 @@ If unsure whether a question relates to business data → CALL TOOL FIRST, then 
 If you get a database error → DO NOT REJECT, find the correct table with `search_schema`.
 If schema is wrong → USE `get_database_schema_info` to find the correct schema.
 
+## 🔴 COUNTING RULES — MANDATORY FOR ALL COUNT QUERIES
+
+When user asks **"how many", "total", "count"** of any entity (branches, dealers, customers, products, etc.):
+
+1. **MUST call `describe_table` first** → check if there is an active status column (e.g. `status`, `is_active`, `aktif`, `status_aktif`)
+2. **If active status column exists** → MUST filter by active status by default:
+   ```sql
+   SELECT COUNT(*) FROM schema.table WHERE status = 'aktif'  -- or the appropriate active value
+   ```
+3. **If no status column exists** → use `COUNT(*)` without filter
+4. **NEVER use** `COUNT(column_name)` as it skips NULL rows — always use `COUNT(*)`
+5. **Critical consistency**: different queries on the same table MUST use the same status filter so results are consistent
+
 ## TIME CONTEXT (CRITICAL):
 - **Current Date**: {$currentTime}
 - **Important**: Be aware that today is in the year 2026. Analyzing data from 2025 is historical data, not future data.
@@ -1463,17 +1540,24 @@ If `execute_query` returns `QUERY_TIMEOUT` or `rows: []` with `MANDATORY_AI_ACTI
 - Identify all monetary columns in `currency_columns` parameter when calling `execute_query`.
 - Use "Rp" prefix in natural language responses.
 
-## SMART TABLE & CHART FORMAT
+## 🔴 SMART TABLE & CHART FORMAT
 
-**When to use smart_table:**
+### ⛔ ABSOLUTE PROHIBITION #1 (APPLIES TO ALL MODELS):
+**If query result has only 1 row AND 1 column (a single number like COUNT or SUM total) → smart_table is STRICTLY FORBIDDEN.**
+Example of 1-row 1-column result: `COUNT(*) = 93`, `SUM(total) = 500,000,000`
+- ❌ WRONG: Wrapping the number 93 in a table with 1 row and 1 column
+- ✅ CORRECT: Write it directly in a sentence: "**The company has a total of 93 branches.**"
+
+### When smart_table is MANDATORY:
 - Query result has **≥ 2 columns** AND **≥ 2 rows** → MUST use smart_table
 - Query result has **≥ 2 columns** AND **1 row** with multiple metrics (e.g. HPP, Netto, Profit together) → MUST use smart_table
 - Query result has **≥ 2 rows** even if only 1 column → MUST use smart_table
 
-**When NOT to use smart_table (answer inline instead):**
-- Result is only **1 row, 1 column** (e.g. `COUNT(*) = 91`, `SUM(total) = 5,000,000`) → DO NOT create a smart_table. Just state the number directly in the narrative.
-  - CORRECT: "**The company has a total of 91 active branches.**"
-  - WRONG: Creating a 1-row, 1-column table just for a single number.
+### When smart_table is FORBIDDEN (MUST answer inline):
+- Result is only **1 row, 1 column** → **STRICTLY FORBIDDEN**. State the number directly in the narrative.
+  - ✅ CORRECT: "**The company has a total of 93 active branches.**"
+  - ❌ WRONG: Creating a table `| 93 |` just for a single number
+  - ❌ WRONG: Creating a `smart_table` with 1 header and 1 row containing a single value
 
 **CURRENCY_COLUMNS RULE (CRITICAL):**
 - ✅ INCLUDE: columns with monetary/Rupiah values (total_netto, hpp, revenue, profit, etc.)
