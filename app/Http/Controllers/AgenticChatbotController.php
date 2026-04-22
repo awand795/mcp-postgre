@@ -1052,21 +1052,43 @@ WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
 
 Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
 
-## 🔴 ATURAN TERPENTING #1C — KALKULASI HPP vs TOTAL HPP
+## 🔴 ATURAN TERPENTING #1C — KALKULASI HPP, NETTO, DAN TOTAL NETTO
 
-Dua istilah berbeda yang WAJIB dipahami:
+Empat istilah berbeda yang WAJIB dipahami, WAJIB dibedakan, dan WAJIB dihitung dengan formula yang tepat:
 
-- **HPP** = `SUM(hrg_pokok)` → jumlah harga pokok per baris transaksi (tanpa dikali qty)
-- **Total HPP** = `SUM(hrg_pokok * qty_jual)` → harga pokok dikalikan jumlah qty terjual
+| Istilah Bisnis | Formula SQL (kolom dari describe_table) | Keterangan |
+|---|---|---|
+| **HPP** | `SUM(hrg_pokok)` | Harga pokok per baris transaksi (tanpa dikali qty) |
+| **Total HPP** | `SUM(hrg_pokok * qty_jual)` | Harga pokok × qty terjual = HPP sesungguhnya |
+| **Netto** | `SUM(total_harga - total_disc)` | Nilai setelah diskon, SEBELUM pajak (= DPP / Dasar Pengenaan Pajak) |
+| **Total Netto** | `SUM(total_netto)` | Nilai FINAL setelah PPN (= Netto + Total PPN) |
 
-Jika user meminta **"Total HPP"** atau **"HPP"** dalam konteks ringkasan penjualan, WAJIB gunakan:
-```sql
-ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"
+**HUBUNGAN ANTAR ISTILAH (WAJIB HAFAL):**
+```
+Total Harga (bruto)
+  - Total Diskon
+= Netto (= DPP)                     ← SUM(total_harga - total_disc)
+  + PPN
+= Total Netto                       ← SUM(total_netto)
+
+Total HPP = SUM(hrg_pokok * qty_jual)
+Profit    = Total Netto - Total HPP
 ```
 
-Nama kolom `hrg_pokok` dan `qty_jual` harus diverifikasi dari `describe_table` terlebih dahulu — kolom di database lain mungkin berbeda namanya.
+Jika user meminta **"HPP"**: gunakan `ROUND(SUM(hrg_pokok), 0) AS "HPP"`
+Jika user meminta **"Total HPP"**: gunakan `ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"`
+Jika user meminta **"Netto"**: gunakan `ROUND(SUM(total_harga - total_disc), 0) AS "Netto"`
+Jika user meminta **"Total Netto"**: gunakan `ROUND(SUM(total_netto), 0) AS "Total Netto"`
 
-**Profit yang benar** = `SUM(total_netto) - SUM(hrg_pokok * qty_jual)`
+**CHECKPOINT KRITIS sebelum execute_query — 3 PERTANYAAN WAJIB:**
+1. Apakah query meminta Netto DAN Total Netto sekaligus? → Pastikan formulanya BERBEDA (beda kolom!)
+2. Apakah nama kolom `total_harga`, `total_disc`, `total_netto` sudah diverifikasi dari describe_table?
+3. Apakah Profit sudah dihitung dari `SUM(total_netto) - SUM(hrg_pokok * qty_jual)`?
+
+**LARANGAN KERAS:**
+- ❌ JANGAN gunakan `SUM(total_netto)` untuk kolom "Netto" — itu adalah Total Netto (sudah termasuk PPN)!
+- ❌ JANGAN gunakan kolom yang sama untuk Netto dan Total Netto
+- ❌ JANGAN tebak nama kolom — selalu dari hasil describe_table
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
@@ -1365,21 +1387,43 @@ WHERE branch_col = 'HM. YAMIN'  -- use result from Step 1
 
 If Step 1 returns >1 name, ask user: "Which branch did you mean? [show options]"
 
-## 🔴 MANDATORY — HPP vs TOTAL HPP CALCULATION
+## 🔴 MANDATORY — HPP, NETTO, AND TOTAL NETTO CALCULATION
 
-Two different concepts that MUST be understood:
+Four different concepts that MUST be understood, MUST be differentiated, and MUST be calculated with the correct formula:
 
-- **HPP (COGS)** = `SUM(cost_col)` → sum of unit cost per transaction row (without multiplying by qty)
-- **Total HPP (Total COGS)** = `SUM(cost_col * qty_col)` → unit cost multiplied by quantity sold
+| Business Term | SQL Formula (columns from describe_table) | Description |
+|---|---|---|
+| **HPP (COGS)** | `SUM(hrg_pokok)` | Unit cost per transaction row (without multiplying by qty) |
+| **Total HPP (Total COGS)** | `SUM(hrg_pokok * qty_jual)` | Unit cost × qty sold = true total COGS |
+| **Netto (Net)** | `SUM(total_harga - total_disc)` | After discount, BEFORE tax (= DPP / Tax Base) |
+| **Total Netto** | `SUM(total_netto)` | FINAL value after VAT/PPN (= Netto + Total VAT) |
 
-When user requests **"Total HPP"** or **"COGS"** in a sales summary context, ALWAYS use:
-```sql
-ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"
+**RELATIONSHIP BETWEEN TERMS (MUST MEMORIZE):**
+```
+Gross Price (total_harga)
+  - Total Discount (total_disc)
+= Netto (= DPP)                     ← SUM(total_harga - total_disc)
+  + VAT/PPN
+= Total Netto                       ← SUM(total_netto)
+
+Total HPP = SUM(hrg_pokok * qty_jual)
+Profit    = Total Netto - Total HPP
 ```
 
-Column names `hrg_pokok` and `qty_jual` must be verified from `describe_table` first — other databases may use different column names.
+If user requests **"HPP"**: use `ROUND(SUM(hrg_pokok), 0) AS "HPP"`
+If user requests **"Total HPP"**: use `ROUND(SUM(hrg_pokok * qty_jual), 0) AS "Total HPP"`
+If user requests **"Netto"**: use `ROUND(SUM(total_harga - total_disc), 0) AS "Netto"`
+If user requests **"Total Netto"**: use `ROUND(SUM(total_netto), 0) AS "Total Netto"`
 
-**Correct Profit formula** = `SUM(netto_col) - SUM(cost_col * qty_col)`
+**CRITICAL CHECKPOINT before execute_query — 3 MANDATORY QUESTIONS:**
+1. Does the query request both Netto AND Total Netto? → Ensure formulas are DIFFERENT (different columns!)
+2. Are column names `total_harga`, `total_disc`, `total_netto` verified from describe_table?
+3. Is Profit calculated from `SUM(total_netto) - SUM(hrg_pokok * qty_jual)`?
+
+**STRICT PROHIBITIONS:**
+- ❌ NEVER use `SUM(total_netto)` for the "Netto" column — that is Total Netto (already includes VAT)!
+- ❌ NEVER use the same column for both Netto and Total Netto
+- ❌ NEVER guess column names — always use results from describe_table
 
 - **⛔ GROUP BY CLARIFICATION**:
   - The `GROUP BY` clause is for dimensions, **NOT** for transaction values.
