@@ -699,7 +699,7 @@ class AgenticChatbotController extends Controller
         $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
-        if ($providerCode === 'gemini')  return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'gemini')  return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
         if ($providerCode === 'claude')  return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         if ($providerCode === 'mistral') return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
         if ($providerCode === 'openai')  return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
@@ -2064,20 +2064,39 @@ PROMPT;
         return $this->handleProviderResponse($response, 'claude');
     }
 
-    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
+    private function callGeminiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $currentModelName = $model->model_name ?? 'gemini-1.5-flash';
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
 
         $payload = [
             'contents'         => $messages,
-            'generationConfig' => ['maxOutputTokens' => (int) $maxTokens, 'temperature' => 0.7],
+            'generationConfig' => [
+                'maxOutputTokens' => (int) $maxTokens,
+                'temperature'     => 0.7,
+            ],
         ];
+
+        // Gemini 2.5 Flash/Pro: nonaktifkan thinking mode agar tidak ada empty parts.
+        // thinkingConfig dengan budgetTokens=0 menonaktifkan extended thinking.
+        if (str_contains($currentModelName, '2.5')) {
+            $payload['generationConfig']['thinkingConfig'] = [
+                'thinkingBudget' => 0,
+            ];
+        }
+
         if (!empty($systemPrompt)) {
             $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
+            // Loop 1 & 2: paksa Gemini WAJIB panggil tool (mode ANY).
+            // Loop berikutnya: biarkan AUTO agar bisa balas teks jika sudah punya data.
+            $toolMode = ($loopCount <= 2) ? 'ANY' : 'AUTO';
+            $payload['toolConfig'] = [
+                'functionCallingConfig' => ['mode' => $toolMode],
+            ];
+            Log::info("[Agentic] Gemini toolConfig mode={$toolMode} loop={$loopCount}");
         }
         $payloadJson = json_encode($payload);
         Log::info("[Agentic] Sending request to Gemini. Model={$currentModelName} PayloadSize=" . strlen($payloadJson) . " bytes");
