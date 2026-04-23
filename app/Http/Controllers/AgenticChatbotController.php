@@ -560,11 +560,10 @@ class AgenticChatbotController extends Controller
                         'role'    => 'user',
                         'content' => implode("\n", [
                             '[SYSTEM NOTE — STATUS FILTER CHECK]:',
-                            'Query COUNT baru saja dijalankan tanpa filter WHERE dan menghasilkan: ' . ($actualCount ?? '?') . '.',
-                            'Cek apakah tabel memiliki kolom status aktif (dari hasil describe_table sebelumnya).',
-                            '- Jika ADA kolom status aktif: jalankan ulang COUNT dengan WHERE [kolom_status] = [nilai_aktif].',
-                            '- Jika TIDAK ADA kolom status: angka ' . ($actualCount ?? '?') . ' sudah benar, sajikan langsung kepada user.',
-                            'Putuskan sekarang tanpa perlu tool tambahan jika kolom status sudah terlihat dari describe_table sebelumnya.',
+                            'Query COUNT menghasilkan: ' . ($actualCount ?? '?') . '.',
+                            'Jika describe_table SUDAH dipanggil sebelumnya dan TIDAK ada kolom status aktif → angka ini sudah benar, LANGSUNG sajikan ke user tanpa komentar teknis.',
+                            'Jika ADA kolom status aktif yang terlewat → jalankan ulang COUNT dengan WHERE filter status.',
+                            'DILARANG menulis reasoning teknis di response. Langsung sajikan hasilnya.',
                         ]),
                     ];
                 }

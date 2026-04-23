@@ -427,47 +427,55 @@ class QueryService extends BaseService
         $returned = count($data);
 
         // ── CURRENCY COLUMNS: AI hint + server-side fallback ─────────────────
-        // Prioritas: pakai hint dari AI jika dikirim dan tidak kosong.
-        // Jika AI tidak mengirim currency_columns (atau kirim []),
-        // lakukan auto-detect dari nama alias kolom di hasil query.
-        // Keyword yang dianggap kolom uang: total, netto, harga, hpp, revenue, dll.
         $detectedCurrencyCols = array_unique($currencyColumns);
 
         if (empty($detectedCurrencyCols) && !empty($data)) {
-            $currencyKeywords = [
-                'total', 'netto', 'harga', 'hpp', 'revenue', 'amount',
-                'nominal', 'omset', 'dpp', 'profit', 'laba', 'margin',
-                'bruto', 'diskon', 'disc', 'cost', 'sales', 'value',
-                'penjualan', 'pendapatan', 'biaya', 'piutang', 'hutang',
-            ];
-            $excludeKeywords = ['qty', 'count', 'jumlah_item', 'persentase', 'persen', 'rate', '%'];
-            $columns = array_keys($data[0]);
-            foreach ($columns as $col) {
-                $colLower = strtolower($col);
-                // Skip kolom yang jelas bukan uang
-                $isExcluded = false;
-                foreach ($excludeKeywords as $exc) {
-                    if (str_contains($colLower, $exc)) {
-                        $isExcluded = true;
-                        break;
+            // GUARD: Query COUNT tunggal (1 baris, 1 kolom) TIDAK boleh di-detect sebagai currency.
+            // COUNT(cabang)=93 bukan Rp 93. Cek apakah ini pure COUNT query.
+            $isSingleCountResult = (
+                count($data) === 1 &&
+                count(array_keys($data[0])) === 1 &&
+                preg_match('/^\s*SELECT\s+COUNT\s*\(/i', $cleanSql)
+            );
+
+            if ($isSingleCountResult) {
+                Log::info('[QueryService] currency_columns auto-detect skipped: pure COUNT result, not monetary.');
+            } else {
+                $currencyKeywords = [
+                    'netto', 'harga', 'hpp', 'revenue', 'amount',
+                    'nominal', 'omset', 'dpp', 'profit', 'laba', 'margin',
+                    'bruto', 'diskon', 'disc', 'cost', 'sales', 'value',
+                    'penjualan', 'pendapatan', 'biaya', 'piutang', 'hutang',
+                ];
+                // 'total' TIDAK masuk keyword generik — terlalu ambigu (total_cabang, total_dealer).
+                // AI wajib kirim currency_columns eksplisit jika kolomnya bernama "Total XXX".
+                $excludeKeywords = [
+                    'qty', 'count', 'jumlah_item', 'persentase', 'persen', 'rate', '%',
+                    'cabang', 'dealer', 'pelanggan', 'produk', 'item', 'unit',
+                ];
+                $columns = array_keys($data[0]);
+                foreach ($columns as $col) {
+                    $colLower = strtolower($col);
+                    $isExcluded = false;
+                    foreach ($excludeKeywords as $exc) {
+                        if (str_contains($colLower, $exc)) { $isExcluded = true; break; }
                     }
-                }
-                if ($isExcluded) continue;
-                // Cek apakah nama kolom mengandung keyword uang
-                foreach ($currencyKeywords as $kw) {
-                    if (str_contains($colLower, $kw)) {
-                        // Verifikasi nilai di kolom ini numerik (bukan string/teks)
-                        $sampleVal = $data[0][$col] ?? null;
-                        if (is_numeric($sampleVal)) {
-                            $detectedCurrencyCols[] = $col;
+                    if ($isExcluded) continue;
+                    foreach ($currencyKeywords as $kw) {
+                        if (str_contains($colLower, $kw)) {
+                            $sampleVal = $data[0][$col] ?? null;
+                            // Nilai moneter umumnya >= 1000 (hindari false positive angka kecil)
+                            if (is_numeric($sampleVal) && abs((float)$sampleVal) >= 1000) {
+                                $detectedCurrencyCols[] = $col;
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
-            }
-            $detectedCurrencyCols = array_unique($detectedCurrencyCols);
-            if (!empty($detectedCurrencyCols)) {
-                Log::info('[QueryService] currency_columns auto-detected (AI did not provide): ' . implode(', ', $detectedCurrencyCols));
+                $detectedCurrencyCols = array_unique($detectedCurrencyCols);
+                if (!empty($detectedCurrencyCols)) {
+                    Log::info('[QueryService] currency_columns auto-detected: ' . implode(', ', $detectedCurrencyCols));
+                }
             }
         }
 
