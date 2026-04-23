@@ -21,16 +21,18 @@ class MySqlAdapter extends DriverAdapter
         // NOTE: DATABASE() kadang tidak reliable pada temporary/dynamic connections.
         // Gunakan placeholder '?' yang akan di-bind dengan nama database saat query dijalankan.
         // Method getTables() di DatabaseConnection akan men-supply parameter ini.
+        // PENTING: Alias eksplisit lowercase agar kompatibel dengan semua server MySQL
+        // (beberapa cloud provider seperti Aiven mengembalikan nama kolom UPPERCASE).
         return "
             SELECT 
-                table_name, 
-                table_schema, 
-                table_comment as description, 
-                table_type 
-            FROM information_schema.tables 
-            WHERE table_schema = ?
-            AND table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY table_name
+                TABLE_NAME      AS table_name,
+                TABLE_SCHEMA    AS table_schema,
+                TABLE_COMMENT   AS description,
+                TABLE_TYPE      AS table_type
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = ?
+            AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+            ORDER BY TABLE_NAME
         ";
     }
 
