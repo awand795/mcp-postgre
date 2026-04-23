@@ -19,15 +19,15 @@ class MySqlAdapter extends DriverAdapter
     public function listTablesQuery(): string
     {
         return "
-            SELECT
-                table_name,
-                table_schema,
-                table_comment as description,
-                table_type
+            SELECT 
+                table_name, 
+                table_schema, 
+                table_comment as description, 
+                table_type 
             FROM information_schema.tables 
-            WHERE table_schema = (SELECT DATABASE())
+            WHERE table_schema = DATABASE()
             AND table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY table_type DESC, table_name
+            ORDER BY table_name
         ";
     }
 
