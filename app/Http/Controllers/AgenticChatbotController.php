@@ -1754,26 +1754,28 @@ PROMPT;
      */
     private function stripThinkingLeakage(string $content): string
     {
-        // Frasa yang menandakan teks internal AI (thinking/reasoning) bocor
-        // HANYA hapus baris/kalimat yang persis mengandung frasa ini,
-        // JANGAN hapus seluruh paragraf yang kebetulan mengandung kata teknis.
         $thinkingLinePatterns = [
-            '/^jika ragu[,.]?\s+jalankan/i',
+            '/^jika (tidak ada|ragu)[,.]?/i',
             '/^dari hasil\s+`?describe_table`?/i',
             '/^dari hasil\s+`?get_database/i',
             '/^tidak ada kolom yang secara eksplisit/i',
-            '/^oleh karena itu[,]?\s+kita akan menggunakan/i',
-            '/^oleh karena itu[,]?\s+saya akan menggunakan/i',
+            '/^oleh karena itu[,]?\s+kita akan/i',
+            '/^oleh karena itu[,]?\s+saya akan/i',
             '/^kita akan menggunakan\s+(jumlah|count)/i',
             '/^saya akan menggunakan\s+(jumlah|count)/i',
             '/^menggunakan\s+`?COUNT\(/i',
             '/^tanpa filter status/i',
             '/^tidak.*kolom.*status.*aktif.*cabang/i',
             '/^karena tidak ada kolom/i',
-            '/status aktif\/non-aktif cabang/i',
+            '/^asumsikan semua data adalah aktif/i',
+            '/^kolom dari `?describe_table`?/i',
+            '/^kolom yang tersedia/i',
         ];
 
-        // Split per baris, filter baris yang murni thinking, gabung kembali
+        // Pola untuk mendeteksi baris yang berisi daftar nama kolom teknis
+        // (biasanya berbentuk: `nama_kolom`, `nama_kolom2`, ...)
+        $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
+
         $lines = explode("\n", $content);
         $cleanLines = [];
         $strippedCount = 0;
@@ -1782,30 +1784,36 @@ PROMPT;
             $trimmed = trim($line);
             $isThinkingLine = false;
 
+            // Cek pola thinking eksplisit
             foreach ($thinkingLinePatterns as $pattern) {
                 if (preg_match($pattern, $trimmed)) {
                     $isThinkingLine = true;
-                    $strippedCount++;
-                    Log::info('[ThinkingLeakage] Stripped line: ' . substr($trimmed, 0, 120));
                     break;
                 }
             }
 
-            if (!$isThinkingLine) {
+            // Cek apakah baris ini adalah daftar nama kolom teknis
+            if (!$isThinkingLine && preg_match($columnListPattern, $trimmed)) {
+                $isThinkingLine = true;
+            }
+
+            if ($isThinkingLine) {
+                $strippedCount++;
+                Log::info('[ThinkingLeakage] Stripped line: ' . substr($trimmed, 0, 120));
+            } else {
                 $cleanLines[] = $line;
             }
         }
 
-        // Fallback: jika semua baris terhapus, kembalikan konten asli
         $result = implode("\n", $cleanLines);
+
+        // Fallback: jika semua baris terhapus, kembalikan konten asli
         if ($strippedCount > 0 && empty(trim($result))) {
             Log::warning('[ThinkingLeakage] All lines stripped — returning original content as fallback.');
             return $content;
         }
 
-        // Bersihkan baris kosong berlebihan di awal hasil
         $result = ltrim($result, "\n");
-
         return $result;
     }
 
