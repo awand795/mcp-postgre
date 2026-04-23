@@ -195,15 +195,16 @@ class DatabaseConnection extends Model
             DB::purge($tempConn);
             config(["database.connections.{$tempConn}" => $config]);
 
-            // Untuk MySQL, pastikan kita menggunakan database yang benar di level session
-            if ($this->driver === 'mysql' || $this->driver === 'mariadb') {
-                DB::connection($tempConn)->statement("USE `{$this->database}`");
-            }
-
             $query = $adapter->listTablesQuery();
 
-            // SQLite uses PRAGMA which can't be parameterized
-            $tables = DB::connection($tempConn)->select($query);
+            // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
+            // (lebih reliable daripada DATABASE() pada dynamic connections)
+            if ($this->driver === 'mysql' || $this->driver === 'mariadb') {
+                $tables = DB::connection($tempConn)->select($query, [$this->database]);
+            } else {
+                // SQLite uses PRAGMA which can't be parameterized
+                $tables = DB::connection($tempConn)->select($query);
+            }
 
             \Log::info("DatabaseConnection: Loaded tables for {$this->name} ({$this->driver})", [
                 'count' => count($tables),

@@ -18,6 +18,9 @@ class MySqlAdapter extends DriverAdapter
 
     public function listTablesQuery(): string
     {
+        // NOTE: DATABASE() kadang tidak reliable pada temporary/dynamic connections.
+        // Gunakan placeholder '?' yang akan di-bind dengan nama database saat query dijalankan.
+        // Method getTables() di DatabaseConnection akan men-supply parameter ini.
         return "
             SELECT 
                 table_name, 
@@ -25,7 +28,7 @@ class MySqlAdapter extends DriverAdapter
                 table_comment as description, 
                 table_type 
             FROM information_schema.tables 
-            WHERE table_schema = DATABASE()
+            WHERE table_schema = ?
             AND table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY table_name
         ";
