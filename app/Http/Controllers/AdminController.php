@@ -216,6 +216,9 @@ class AdminController extends Controller
 
     public function roles()
     {
+        // Paksa bersihkan cache agar tabel database yang baru ditambah langsung muncul
+        $this->clearTableCache();
+        
         $roles = Role::with('permissions')->get();
         $allTables = $this->getAllTables();
         $databases = DatabaseConnection::active()->get();
@@ -539,7 +542,7 @@ class AdminController extends Controller
                     
                     foreach ($tables as $table) {
                         $allTables[] = [
-                            // Use actual database name as identifier (consistent with role_permissions.database_code)
+                            // Gunakan nama database asli sebagai identifier (konsisten dengan role_permissions.database_code)
                             'database_code' => $db->database,
                             'database_name' => $db->database,
                             'schema_name'   => $table['schema_name'],
@@ -548,6 +551,13 @@ class AdminController extends Controller
                             'table_type'    => $table['table_type'] ?? 'table',
                         ];
                     }
+                } catch (\Exception $e) {
+                    \Log::error("Failed to load tables for DB {$db->name}: " . $e->getMessage());
+                }
+            }
+            return $allTables;
+        });
+    }
                 } catch (\Exception $e) {
                     \Log::warning("Failed to get tables from database: {$db->name}", [
                         'error' => $e->getMessage()

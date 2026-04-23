@@ -20,14 +20,14 @@ class MySqlAdapter extends DriverAdapter
     {
         return "
             SELECT
-                t.table_name,
-                t.table_schema,
-                t.table_comment as description,
-                t.table_type
-            FROM information_schema.tables t
-            WHERE t.table_schema = DATABASE()
-            AND t.table_type IN ('BASE TABLE', 'VIEW')
-            ORDER BY t.table_type DESC, t.table_name
+                table_name,
+                table_schema,
+                table_comment as description,
+                table_type
+            FROM information_schema.tables 
+            WHERE table_schema = (SELECT DATABASE())
+            AND table_type IN ('BASE TABLE', 'VIEW')
+            ORDER BY table_type DESC, table_name
         ";
     }
 

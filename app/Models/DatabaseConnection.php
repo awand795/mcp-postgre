@@ -198,11 +198,12 @@ class DatabaseConnection extends Model
             $query = $adapter->listTablesQuery();
 
             // SQLite uses PRAGMA which can't be parameterized
-            if ($this->driver === 'sqlite') {
-                $tables = DB::connection($tempConn)->select($query);
-            } else {
-                $tables = DB::connection($tempConn)->select($query);
-            }
+            $tables = DB::connection($tempConn)->select($query);
+
+            \Log::info("DatabaseConnection: Loaded tables for {$this->name} ({$this->driver})", [
+                'count' => count($tables),
+                'database' => $this->database
+            ]);
 
             DB::purge($tempConn);
 
