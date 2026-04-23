@@ -555,15 +555,6 @@ class AdminController extends Controller
                     \Log::error("Failed to load tables for DB {$db->name}: " . $e->getMessage());
                 }
             }
-            return $allTables;
-        });
-    }
-                } catch (\Exception $e) {
-                    \Log::warning("Failed to get tables from database: {$db->name}", [
-                        'error' => $e->getMessage()
-                    ]);
-                }
-            }
 
             // Sort by database_name, schema_name, table_name
             usort($allTables, function($a, $b) {
