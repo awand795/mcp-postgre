@@ -153,9 +153,11 @@ class AgenticChatbotController extends Controller
             $session->update(['title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')]);
         }
 
+        $scopeLimited = (bool) ($user->analysis_scope_limited ?? true);
+
         $systemPrompt = $detectedLang === 'en'
-            ? $this->buildSystemPrompt($allowedDatabases)
-            : $this->buildSystemPromptId($allowedDatabases);
+            ? $this->buildSystemPrompt($allowedDatabases, $scopeLimited)
+            : $this->buildSystemPromptId($allowedDatabases, $scopeLimited);
 
         $messages  = $this->buildMessages($systemPrompt, $history, $message, $detectedLang);
         $maxTokens = $user->max_tokens ?? 32768;
@@ -1040,7 +1042,7 @@ class AgenticChatbotController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — BAHASA INDONESIA
     // ─────────────────────────────────────────────────────────────────────────
-    private function buildSystemPromptId(array $allowedDatabases = []): string
+    private function buildSystemPromptId(array $allowedDatabases = [], bool $scopeLimited = true): string
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
@@ -1059,6 +1061,10 @@ class AgenticChatbotController extends Controller
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
         $currentTime = now()->translatedFormat('l, d F Y H:i');
+
+        $outOfDomainSection = $scopeLimited
+            ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis atau ERP (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis (cabang, dealer, penjualan, keuangan, stok, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool dulu, baru putuskan)"
+            : "## CAKUPAN JAWABAN\n\nAnda bebas membantu user dengan pertanyaan apapun di luar konteks database dan ERP. Tetap utamakan analisis data bisnis jika pertanyaan terkait database, namun Anda BOLEH menjawab pertanyaan umum, pengetahuan umum, dan topik lainnya secara helpful dan informatif.";
 
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
@@ -1386,23 +1392,14 @@ Akhiri SETIAP analisis dengan:
 
 Jawab SEPENUHNYA dalam BAHASA INDONESIA yang FORMAL dan PROFESIONAL.
 
-## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)
-
-HANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis atau ERP (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool tidak menghasilkan data yang relevan, barulah balas dengan:
-
-*"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?"*
-
-**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**
-- User bertanya tentang data bisnis (cabang, dealer, penjualan, keuangan, stok, dll)
-- Terjadi error database (cari tabel yang benar, jangan tolak)
-- Pertanyaan ambigu (coba tool dulu, baru putuskan)
+{$outOfDomainSection}
 PROMPT;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT — ENGLISH
     // ─────────────────────────────────────────────────────────────────────────
-    private function buildSystemPrompt(array $allowedDatabases = []): string
+    private function buildSystemPrompt(array $allowedDatabases = [], bool $scopeLimited = true): string
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
@@ -1420,6 +1417,10 @@ PROMPT;
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
         $currentTime = now()->format('l, F d, Y H:i');
+
+        $outOfDomainSection = $scopeLimited
+            ? "## 🚫 OUT-OF-DOMAIN RESPONSES (LAST RESORT — ONLY AFTER TRYING TOOLS)\n\nONLY if the user's question has been PROVEN unrelated to business data or ERP (e.g. cooking recipes, celebrity gossip, weather forecast) AND tools returned no relevant data, THEN reply with:\n\n*\"I appreciate your inquiry. However, my role is strictly limited to Business Data Analysis and ERP System Guidance for this organization. I am not authorized to provide responses on topics outside this scope. Is there any data analysis or ERP-related matter I can assist you with?\"*\n\n**IMPORTANT: This rejection message is FORBIDDEN if:**\n- User asks about business data (branches, dealers, sales, finance, stock, etc.)\n- A database error occurred (find the correct table, do not reject)\n- The question is ambiguous (try tools first, then decide)"
+            : "## RESPONSE SCOPE\n\nYou are free to assist the user with any question outside the database and ERP context. Continue to prioritize business data analysis for database-related questions, but you MAY answer general questions, general knowledge, and other topics in a helpful and informative manner.";
 
         return <<<PROMPT
 You are DataBot, an expert AI Data Analyst for MBI (Motor Bisnis Indonesia) with **direct access to multiple business databases** via tools.
@@ -1736,16 +1737,7 @@ End EVERY analysis with:
 
 Respond ENTIRELY in ENGLISH.
 
-## 🚫 OUT-OF-DOMAIN RESPONSES (LAST RESORT — ONLY AFTER TRYING TOOLS)
-
-ONLY if the user's question has been PROVEN unrelated to business data or ERP (e.g. cooking recipes, celebrity gossip, weather forecast) AND tools returned no relevant data, THEN reply with:
-
-*"I appreciate your inquiry. However, my role is strictly limited to Business Data Analysis and ERP System Guidance for this organization. I am not authorized to provide responses on topics outside this scope. Is there any data analysis or ERP-related matter I can assist you with?"*
-
-**IMPORTANT: This rejection message is FORBIDDEN if:**
-- User asks about business data (branches, dealers, sales, finance, stock, etc.)
-- A database error occurred (find the correct table, do not reject)
-- The question is ambiguous (try tools first, then decide)
+{$outOfDomainSection}
 PROMPT;
     }
 

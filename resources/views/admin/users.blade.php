@@ -61,6 +61,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Admin?</th>
+                    <th>Cakupan</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -77,6 +78,13 @@
                             <span class="status-yes"><i class="fas fa-check-circle"></i> Yes</span>
                         @else
                             <span class="status-no"><i class="fas fa-times-circle"></i> No</span>
+                        @endif
+                    </td>
+                    <td>
+                        @if($user->analysis_scope_limited)
+                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> DB & ERP</span>
+                        @else
+                            <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
                         @endif
                     </td>
                     <td>
@@ -154,6 +162,14 @@
                 <input type="checkbox" name="is_admin" id="userIsAdmin" value="1">
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
+            <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
+                <input type="checkbox" name="analysis_scope_limited" id="userScopeLimited" value="1" checked>
+                <label for="userScopeLimited">Cakupan Analisis (Database &amp; ERP)</label>
+            </div>
+            <p style="color: #64748b; font-size: 0.78rem; margin: -0.75rem 0 1rem 0; padding-left: 0.25rem;">
+                <i class="fas fa-info-circle" style="color:#6366f1"></i>
+                &#10003; Dicentang = AI hanya analisis database &amp; ERP &nbsp;|&nbsp; &#9744; Tidak dicentang = AI bebas menjawab umum
+            </p>
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
                 <button type="submit" class="btn btn-primary">Simpan</button>
@@ -239,6 +255,9 @@
     .ai-check-label span { font-size: 0.85rem; color: #cbd5e1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ai-check-label.active { border-color: rgba(99, 102, 241, 0.3); background: rgba(99, 102, 241, 0.1); }
 
+    .scope-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+    .scope-limited { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+    .scope-free    { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
     .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .table-card { padding: 0; overflow: hidden; margin-top: 1rem; }
     table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
@@ -287,6 +306,7 @@
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
             document.getElementById('userIsAdmin').checked = user.is_admin;
+            document.getElementById('userScopeLimited').checked = user.analysis_scope_limited ?? true;
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
         }
     }

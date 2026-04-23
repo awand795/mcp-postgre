@@ -69,6 +69,7 @@ class AdminController extends Controller
             'role' => $request->role,
             'is_admin' => $request->has('is_admin'),
             'max_tokens' => $request->input('max_tokens', 32768),
+            'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ]);
 
         if ($request->has('ai_models')) {
@@ -96,6 +97,7 @@ class AdminController extends Controller
             'role' => $request->role,
             'is_admin' => $request->has('is_admin'),
             'max_tokens' => $request->input('max_tokens', 32768),
+            'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ];
 
         if ($request->filled('password')) {

@@ -24,6 +24,7 @@ class User extends Authenticatable
         'role',
         'is_admin',
         'max_tokens',
+        'analysis_scope_limited',
     ];
 
     public function roleModel()
@@ -51,6 +52,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'analysis_scope_limited' => 'boolean',
         ];
     }
 
