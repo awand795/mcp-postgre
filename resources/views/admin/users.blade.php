@@ -62,6 +62,8 @@
                     <th>Role</th>
                     <th>Admin?</th>
                     <th>Cakupan</th>
+                    <th>AI Models</th>
+                    <th>API Keys</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -88,6 +90,50 @@
                         @endif
                     </td>
                     <td>
+                        @php
+                            $enabledModels = $user->aiModels->where('pivot.is_enabled', true)->values();
+                            $visibleModels = $enabledModels->take(2);
+                            $extraModels   = $enabledModels->slice(2);
+                        @endphp
+                        @if($enabledModels->isEmpty())
+                            <span class="ai-none">—</span>
+                        @else
+                            <div class="ai-pill-group">
+                                @foreach($visibleModels as $m)
+                                    <span class="ai-pill ai-pill-model" title="{{ $m->display_name }}">{{ Str::limit($m->display_name, 18) }}</span>
+                                @endforeach
+                                @if($extraModels->count())
+                                    <span class="ai-pill ai-pill-more"
+                                          data-tooltip="{{ $extraModels->pluck('display_name')->implode(', ') }}">
+                                        +{{ $extraModels->count() }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
+                    </td>
+                    <td>
+                        @php
+                            $enabledKeys = $user->aiKeys->where('pivot.is_enabled', true)->values();
+                            $visibleKeys = $enabledKeys->take(2);
+                            $extraKeys   = $enabledKeys->slice(2);
+                        @endphp
+                        @if($enabledKeys->isEmpty())
+                            <span class="ai-none">—</span>
+                        @else
+                            <div class="ai-pill-group">
+                                @foreach($visibleKeys as $k)
+                                    <span class="ai-pill ai-pill-key" title="{{ $k->key_name }}">{{ Str::limit($k->key_name, 18) }}</span>
+                                @endforeach
+                                @if($extraKeys->count())
+                                    <span class="ai-pill ai-pill-more"
+                                          data-tooltip="{{ $extraKeys->pluck('key_name')->implode(', ') }}">
+                                        +{{ $extraKeys->count() }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
+                    </td>
+                    <td>
                         <div class="action-buttons">
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
@@ -103,7 +149,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="empty-state">
+                    <td colspan="8" class="empty-state">
                         <i class="fas fa-user-slash"></i>
                         <p>Tidak ada user yang ditemukan</p>
                     </td>
@@ -228,6 +274,43 @@
     .filter-group select option { background: #1e293b; color: white; }
     .action-buttons { display: flex; gap: 8px; }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
+
+    /* AI Pill Badges in Table */
+    .ai-pill-group { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+    .ai-pill {
+        display: inline-flex; align-items: center;
+        padding: 3px 9px; border-radius: 20px;
+        font-size: 0.72rem; font-weight: 600;
+        white-space: nowrap; max-width: 140px;
+        overflow: hidden; text-overflow: ellipsis;
+        cursor: default;
+    }
+    .ai-pill-model {
+        background: rgba(99,102,241,0.15); color: #a5b4fc;
+        border: 1px solid rgba(99,102,241,0.3);
+    }
+    .ai-pill-key {
+        background: rgba(16,185,129,0.13); color: #6ee7b7;
+        border: 1px solid rgba(16,185,129,0.25);
+    }
+    .ai-pill-more {
+        background: rgba(255,255,255,0.06); color: #94a3b8;
+        border: 1px solid rgba(255,255,255,0.1);
+        cursor: pointer; position: relative;
+    }
+    .ai-pill-more:hover::after {
+        content: attr(data-tooltip);
+        position: absolute; top: calc(100% + 6px); left: 0;
+        background: #1e293b; color: #e2e8f0;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px; padding: 8px 12px;
+        font-size: 0.75rem; font-weight: 500;
+        white-space: pre-wrap; word-break: break-word;
+        max-width: 260px; z-index: 999;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        line-height: 1.6;
+    }
+    .ai-none { color: #475569; font-size: 0.85rem; }
 
     /* AI Config Grouping */
     .section-divider {
