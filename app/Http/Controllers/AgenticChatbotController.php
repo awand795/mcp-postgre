@@ -444,6 +444,7 @@ class AgenticChatbotController extends Controller
                     $finalContent = "Mohon maaf, sistem tidak memberikan respon. Silakan coba pertanyaan lain.";
                 }
 
+                $finalContent = $this->stripThinkingLeakage($finalContent);
                 $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
 
                 if ($chatSessionId) {
@@ -1283,6 +1284,7 @@ Contoh:
 
 ## KEBIJAKAN PRIVASI & TEKNIS
 - DILARANG: Tampilkan query SQL, nama koneksi database, atau detail error teknis.
+- DILARANG: Tulis proses berpikir internal seperti "Dari hasil describe_table...", "Oleh karena itu kita akan menggunakan COUNT...", "Tidak ada kolom status aktif...", atau reasoning teknis apapun di dalam jawaban ke user. Berpikirlah secara internal, sampaikan HANYA jawaban bisnis final ke user.
 - ERROR: Balas dengan bahasa bisnis sopan, jangan sebut "SQL", "Database", "Query", "Tool".
 
 ## TOOLS TERSEDIA
@@ -1451,6 +1453,7 @@ You are a Business Analyst. Mr./Ms. seeks summaries, not raw transaction lines.
 
 ## PRIVACY & TECHNICAL POLICY (STRICT)
 - **STRICTLY FORBIDDEN**: Showing SQL queries, internal database connection names, or technical error details in the final response.
+- **STRICTLY FORBIDDEN**: Writing internal reasoning/thinking text such as "From the describe_table result...", "Therefore we will use COUNT...", "There is no active status column...", or any technical deliberation in the response to the user. Think internally, respond only with the final business answer.
 - **ERROR MASKING**: If technical errors occur, reply with polite business language only.
 - Never mention terms like "Database", "Query", "Tool", or "SQL" to the user.
 
@@ -1682,6 +1685,89 @@ PROMPT;
     private function processContentForCharts(string $content, array $toolResults): string
     {
         return $content;
+    }
+
+    /**
+     * Strip AI "thinking/reasoning" text yang bocor ke response final.
+     *
+     * Gemini (dan beberapa model lain) kadang menulis proses berpikir internal
+     * di awal response sebelum menyajikan jawaban bisnis yang sesungguhnya.
+     * Contoh teks yang harus dihapus:
+     *   - "Jika ragu, jalankan describe_table lagi..."
+     *   - "Dari hasil describe_table sebelumnya..."
+     *   - Paragraf yang menyebut nama tabel/kolom teknis
+     *   - Paragraf yang membahas alasan memilih COUNT/filter SQL
+     *
+     * STRATEGI: Hapus semua paragraf di awal konten yang mengandung
+     * frasa "thinking" khas AI, hingga ditemukan konten bisnis yang valid
+     * (dimulai dengan markdown heading, bullet, angka, atau kalimat bisnis).
+     */
+    private function stripThinkingLeakage(string $content): string
+    {
+        // Frasa yang menandakan teks internal AI (thinking/reasoning) bocor
+        $thinkingPatterns = [
+            '/jika ragu[,.]?\s+jalankan/i',
+            '/dari hasil\s+`?describe_table`?/i',
+            '/dari hasil\s+`?get_database/i',
+            '/tidak ada kolom yang secara eksplisit/i',
+            '/oleh karena itu[,]?\s+kita akan menggunakan/i',
+            '/oleh karena itu[,]?\s+saya akan/i',
+            '/kita akan menggunakan\s+(jumlah|count)/i',
+            '/menggunakan\s+`?COUNT\(/i',
+            '/\bcount\(distinct\b/i',
+            '/tanpa filter status/i',
+            '/tidak.*kolom.*status.*aktif/i',
+            '/status aktif\/non-aktif/i',
+            '/describe_table.*sebelumnya/i',
+            '/view_master_\w+/i',          // nama view teknis
+            '/information_schema/i',
+            '/table_schema\s*=/i',
+        ];
+
+        // Split per paragraf (baris kosong sebagai pemisah)
+        $paragraphs = preg_split('/\n{2,}/', $content);
+        if (count($paragraphs) <= 1) {
+            // Coba split per baris jika tidak ada paragraf kosong
+            $paragraphs = explode("\n", $content);
+        }
+
+        $cleanParagraphs = [];
+        $foundBusinessContent = false;
+
+        foreach ($paragraphs as $para) {
+            $trimmed = trim($para);
+            if (empty($trimmed)) {
+                if ($foundBusinessContent) $cleanParagraphs[] = '';
+                continue;
+            }
+
+            // Cek apakah paragraf ini mengandung frasa thinking
+            $isThinking = false;
+            if (!$foundBusinessContent) {
+                foreach ($thinkingPatterns as $pattern) {
+                    if (preg_match($pattern, $trimmed)) {
+                        $isThinking = true;
+                        Log::info('[ThinkingLeakage] Stripped paragraph: ' . substr($trimmed, 0, 100));
+                        break;
+                    }
+                }
+            }
+
+            if (!$isThinking) {
+                $foundBusinessContent = true;
+                $cleanParagraphs[] = $trimmed;
+            }
+        }
+
+        $result = implode("\n\n", array_filter($cleanParagraphs, fn($p) => $p !== ''));
+
+        // Fallback: jika semuanya dihapus, kembalikan konten asli
+        if (empty(trim($result))) {
+            Log::warning('[ThinkingLeakage] All paragraphs stripped — returning original content as fallback.');
+            return $content;
+        }
+
+        return $result;
     }
 
     private function streamText(string $text): void
