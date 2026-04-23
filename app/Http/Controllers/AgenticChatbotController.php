@@ -243,6 +243,20 @@ class AgenticChatbotController extends Controller
             $toolCalls    = $assistantMsg['tool_calls'] ?? [];
             $textContent  = $assistantMsg['content'] ?? '';
 
+            // ── FIX Gemini 2.5 Thinking: empty response karena model hanya output thought parts ──
+            // Jika text kosong DAN tidak ada tool calls, inject reminder agar model output jawaban
+            $providerCodeCheck = strtolower($apiKey->provider->code ?? '');
+            if ($providerCodeCheck === 'gemini' && empty($textContent) && empty($toolCalls) && $loopCount <= 2) {
+                Log::warning("[Agentic] Gemini empty response at loop #{$loopCount} (likely thinking-only). Injecting output reminder.");
+                // Hapus assistant message kosong yang baru saja ditambahkan
+                array_pop($messages);
+                $messages[] = [
+                    'role'    => 'user',
+                    'content' => '[SYSTEM]: Mohon berikan jawaban atau panggil tool yang sesuai. Jangan hanya berpikir tanpa output.',
+                ];
+                continue;
+            }
+
             Log::info("[Agentic] Loop #{$loopCount} response — finish_reason={$finishReason} tool_calls=" . count($toolCalls) . " text_len=" . strlen($textContent));
 
             // Tandai sebagai live response Gemini agar formatMessagesForProvider
@@ -1869,12 +1883,25 @@ PROMPT;
 
         if ($providerCode === 'gemini') {
             $candidate = $data['candidates'][0] ?? null;
-            if (!$candidate) return null;
+            if (!$candidate) {
+                Log::warning('[Agentic] Gemini: no candidates in response. Raw: ' . substr(json_encode($data), 0, 500));
+                return null;
+            }
 
-            $parts = $candidate['content']['parts'] ?? [];
-            $text  = '';
+            // Gemini 2.5 Flash (thinking mode): finish_reason bisa 'STOP', 'MAX_TOKENS', dll (uppercase)
+            $finishReason = strtolower($candidate['finishReason'] ?? 'stop');
+
+            $parts     = $candidate['content']['parts'] ?? [];
+            $text      = '';
             $toolCalls = [];
+
             foreach ($parts as $p) {
+                // PENTING: skip 'thought' parts (Gemini 2.5 internal thinking)
+                // thought parts punya key 'thought' = true — JANGAN dikirim balik ke user
+                if (!empty($p['thought'])) {
+                    Log::info('[Agentic] Gemini: skipping thought part (' . strlen($p['text'] ?? '') . ' chars)');
+                    continue;
+                }
                 if (isset($p['text'])) $text .= $p['text'];
                 if (isset($p['functionCall'])) {
                     $toolCalls[] = [
@@ -1887,6 +1914,14 @@ PROMPT;
                     ];
                 }
             }
+
+            // Jika text kosong dan tool calls kosong tapi ada parts thought,
+            // kemungkinan model sedang berpikir dan belum generate output.
+            // Log untuk debug.
+            if (empty($text) && empty($toolCalls)) {
+                Log::warning('[Agentic] Gemini: empty text and no tool_calls after parsing parts. finishReason=' . $finishReason . ' parts_count=' . count($parts));
+            }
+
             return [
                 'choices' => [[
                     'message' => [
