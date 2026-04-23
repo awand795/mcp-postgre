@@ -1705,67 +1705,56 @@ PROMPT;
     private function stripThinkingLeakage(string $content): string
     {
         // Frasa yang menandakan teks internal AI (thinking/reasoning) bocor
-        $thinkingPatterns = [
-            '/jika ragu[,.]?\s+jalankan/i',
-            '/dari hasil\s+`?describe_table`?/i',
-            '/dari hasil\s+`?get_database/i',
-            '/tidak ada kolom yang secara eksplisit/i',
-            '/oleh karena itu[,]?\s+kita akan menggunakan/i',
-            '/oleh karena itu[,]?\s+saya akan/i',
-            '/kita akan menggunakan\s+(jumlah|count)/i',
-            '/menggunakan\s+`?COUNT\(/i',
-            '/\bcount\(distinct\b/i',
-            '/tanpa filter status/i',
-            '/tidak.*kolom.*status.*aktif/i',
-            '/status aktif\/non-aktif/i',
-            '/describe_table.*sebelumnya/i',
-            '/view_master_\w+/i',          // nama view teknis
-            '/information_schema/i',
-            '/table_schema\s*=/i',
+        // HANYA hapus baris/kalimat yang persis mengandung frasa ini,
+        // JANGAN hapus seluruh paragraf yang kebetulan mengandung kata teknis.
+        $thinkingLinePatterns = [
+            '/^jika ragu[,.]?\s+jalankan/i',
+            '/^dari hasil\s+`?describe_table`?/i',
+            '/^dari hasil\s+`?get_database/i',
+            '/^tidak ada kolom yang secara eksplisit/i',
+            '/^oleh karena itu[,]?\s+kita akan menggunakan/i',
+            '/^oleh karena itu[,]?\s+saya akan menggunakan/i',
+            '/^kita akan menggunakan\s+(jumlah|count)/i',
+            '/^saya akan menggunakan\s+(jumlah|count)/i',
+            '/^menggunakan\s+`?COUNT\(/i',
+            '/^tanpa filter status/i',
+            '/^tidak.*kolom.*status.*aktif.*cabang/i',
+            '/^karena tidak ada kolom/i',
+            '/status aktif\/non-aktif cabang/i',
         ];
 
-        // Split per paragraf (baris kosong sebagai pemisah)
-        $paragraphs = preg_split('/\n{2,}/', $content);
-        if (count($paragraphs) <= 1) {
-            // Coba split per baris jika tidak ada paragraf kosong
-            $paragraphs = explode("\n", $content);
-        }
+        // Split per baris, filter baris yang murni thinking, gabung kembali
+        $lines = explode("\n", $content);
+        $cleanLines = [];
+        $strippedCount = 0;
 
-        $cleanParagraphs = [];
-        $foundBusinessContent = false;
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            $isThinkingLine = false;
 
-        foreach ($paragraphs as $para) {
-            $trimmed = trim($para);
-            if (empty($trimmed)) {
-                if ($foundBusinessContent) $cleanParagraphs[] = '';
-                continue;
-            }
-
-            // Cek apakah paragraf ini mengandung frasa thinking
-            $isThinking = false;
-            if (!$foundBusinessContent) {
-                foreach ($thinkingPatterns as $pattern) {
-                    if (preg_match($pattern, $trimmed)) {
-                        $isThinking = true;
-                        Log::info('[ThinkingLeakage] Stripped paragraph: ' . substr($trimmed, 0, 100));
-                        break;
-                    }
+            foreach ($thinkingLinePatterns as $pattern) {
+                if (preg_match($pattern, $trimmed)) {
+                    $isThinkingLine = true;
+                    $strippedCount++;
+                    Log::info('[ThinkingLeakage] Stripped line: ' . substr($trimmed, 0, 120));
+                    break;
                 }
             }
 
-            if (!$isThinking) {
-                $foundBusinessContent = true;
-                $cleanParagraphs[] = $trimmed;
+            if (!$isThinkingLine) {
+                $cleanLines[] = $line;
             }
         }
 
-        $result = implode("\n\n", array_filter($cleanParagraphs, fn($p) => $p !== ''));
-
-        // Fallback: jika semuanya dihapus, kembalikan konten asli
-        if (empty(trim($result))) {
-            Log::warning('[ThinkingLeakage] All paragraphs stripped — returning original content as fallback.');
+        // Fallback: jika semua baris terhapus, kembalikan konten asli
+        $result = implode("\n", $cleanLines);
+        if ($strippedCount > 0 && empty(trim($result))) {
+            Log::warning('[ThinkingLeakage] All lines stripped — returning original content as fallback.');
             return $content;
         }
+
+        // Bersihkan baris kosong berlebihan di awal hasil
+        $result = ltrim($result, "\n");
 
         return $result;
     }
