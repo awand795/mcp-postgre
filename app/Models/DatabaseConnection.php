@@ -228,8 +228,11 @@ class DatabaseConnection extends Model
             }, $tables);
         } catch (\Exception $e) {
             \Log::error("Failed to get tables from database: {$this->name}", [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+                'driver'   => $this->driver,
+                'host'     => $this->host,
+                'port'     => $this->port,
+                'database' => $this->database,
+                'error'    => $e->getMessage(),
             ]);
             DB::purge($tempConn);
             return [];
