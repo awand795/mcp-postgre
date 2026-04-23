@@ -61,10 +61,10 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Admin?</th>
-                    <th>Cakupan</th>
                     <th>AI Models</th>
                     <th>API Keys</th>
-                    <th>Aksi</th>
+                    <th>Cakupan</th>
+                    <th class="th-sticky">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -83,20 +83,13 @@
                         @endif
                     </td>
                     <td>
-                        @if($user->analysis_scope_limited)
-                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> DB & ERP</span>
-                        @else
-                            <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
-                        @endif
-                    </td>
-                    <td>
                         @php
                             $enabledModels = $user->aiModels->where('pivot.is_enabled', true)->values();
                             $visibleModels = $enabledModels->take(2);
                             $extraModels   = $enabledModels->slice(2);
                         @endphp
                         @if($enabledModels->isEmpty())
-                            <span class="ai-none">—</span>
+                            <span class="ai-none">&mdash;</span>
                         @else
                             <div class="ai-pill-group">
                                 @foreach($visibleModels as $m)
@@ -104,7 +97,7 @@
                                 @endforeach
                                 @if($extraModels->count())
                                     <span class="ai-pill ai-pill-more"
-                                          data-tooltip="{{ $extraModels->pluck('display_name')->implode(', ') }}">
+                                          data-tooltip="{{ $extraModels->pluck('display_name')->implode('&#10;') }}">
                                         +{{ $extraModels->count() }}
                                     </span>
                                 @endif
@@ -118,7 +111,7 @@
                             $extraKeys   = $enabledKeys->slice(2);
                         @endphp
                         @if($enabledKeys->isEmpty())
-                            <span class="ai-none">—</span>
+                            <span class="ai-none">&mdash;</span>
                         @else
                             <div class="ai-pill-group">
                                 @foreach($visibleKeys as $k)
@@ -126,7 +119,7 @@
                                 @endforeach
                                 @if($extraKeys->count())
                                     <span class="ai-pill ai-pill-more"
-                                          data-tooltip="{{ $extraKeys->pluck('key_name')->implode(', ') }}">
+                                          data-tooltip="{{ $extraKeys->pluck('key_name')->implode('&#10;') }}">
                                         +{{ $extraKeys->count() }}
                                     </span>
                                 @endif
@@ -134,6 +127,13 @@
                         @endif
                     </td>
                     <td>
+                        @if($user->analysis_scope_limited)
+                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> DB &amp; ERP</span>
+                        @else
+                            <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
+                        @endif
+                    </td>
+                    <td class="td-sticky">
                         <div class="action-buttons">
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
@@ -342,12 +342,26 @@
     .scope-limited { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
     .scope-free    { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
     .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-    .table-card { padding: 0; overflow: hidden; margin-top: 1rem; }
-    table { width: 100%; border-collapse: collapse; color: #cbd5e1; }
-    th { padding: 1.25rem 1.5rem; text-align: left; color: #94a3b8; background: rgba(255,255,255,0.03); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-    td { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--glass-border); font-size: 0.95rem; }
+    .table-card { padding: 0; overflow: visible; margin-top: 1rem; }
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; min-width: 900px; border-collapse: collapse; color: #cbd5e1; }
+    th { padding: 1rem 1.25rem; text-align: left; color: #94a3b8; background: rgba(15,23,42,0.95); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+    td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--glass-border); font-size: 0.92rem; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: rgba(255,255,255,0.01); }
+
+    /* Sticky Aksi column */
+    .th-sticky {
+        position: sticky; right: 0; z-index: 3;
+        background: rgba(15,23,42,0.98);
+        box-shadow: -3px 0 8px rgba(0,0,0,0.3);
+    }
+    .td-sticky {
+        position: sticky; right: 0; z-index: 2;
+        background: #0f172a;
+        box-shadow: -3px 0 8px rgba(0,0,0,0.3);
+    }
+    tr:hover .td-sticky { background: #111827; }
 
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem; }
     .modal-content { width: 100%; max-width: 500px; max-height: 95vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
