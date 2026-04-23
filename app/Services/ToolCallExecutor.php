@@ -164,17 +164,17 @@ class ToolCallExecutor
             [
                 'type'        => 'function',
                 'name'        => 'execute_query',
-                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu.',
+                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu. Support multi-database: PostgreSQL (gunakan schema_name.table_name) dan MySQL (cukup table_name atau database_name.table_name).',
                 'parameters'  => [
                     'type'       => 'object',
                     'properties' => [
                         'database_code' => [
                             'type'        => 'string',
-                            'description' => 'Kode database target di mana query akan dieksekusi.',
+                            'description' => 'Kode database target (database name) di mana query akan dieksekusi. Gunakan nilai dari get_database_schema_info.',
                         ],
                         'sql'   => [
                             'type'        => 'string',
-                            'description' => 'Query PostgreSQL SELECT yang valid. Gunakan format schema_name.table_name.',
+                            'description' => 'Query SQL SELECT yang valid. Untuk PostgreSQL gunakan format schema_name.table_name (contoh: sch_mbi.view_penjualan). Untuk MySQL cukup table_name atau gunakan database_name.table_name.',
                         ],
                         'label' => [
                             'type'        => 'string',

@@ -49,71 +49,82 @@ class MySqlAdapter extends DriverAdapter
 
     public function describeTableQuery(): string
     {
+        // PENTING: Gunakan 2 parameter (table_name, table_schema) agar tidak bergantung DATABASE()
+        // yang tidak reliable pada dynamic/temporary connections.
+        // Pemanggil wajib supply: [$tableName, $databaseName]
         return "
-            SELECT column_name, data_type, is_nullable, column_default
-            FROM information_schema.columns
-            WHERE table_name = ? AND table_schema = DATABASE()
-            ORDER BY ordinal_position
+            SELECT
+                COLUMN_NAME     AS column_name,
+                DATA_TYPE       AS data_type,
+                IS_NULLABLE     AS is_nullable,
+                COLUMN_DEFAULT  AS column_default
+            FROM information_schema.COLUMNS
+            WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ?
+            ORDER BY ORDINAL_POSITION
         ";
     }
 
     public function describeTableWithKeysQuery(): string
     {
+        // PENTING: Alias eksplisit lowercase untuk kompatibilitas lintas server MySQL.
+        // Parameter: [$tableName, $tableSchema]
         return "
-            SELECT 
-                c.column_name, 
-                c.data_type, 
-                c.is_nullable, 
-                c.column_default,
-                kcu.referenced_table_name AS foreign_key_table,
-                kcu.referenced_column_name AS foreign_key_column,
-                c.column_comment AS description
-            FROM information_schema.columns c
-            LEFT JOIN information_schema.key_column_usage kcu 
-                ON c.table_name = kcu.table_name 
-                AND c.table_schema = kcu.table_schema 
-                AND c.column_name = kcu.column_name
-                AND kcu.referenced_table_name IS NOT NULL
-            WHERE c.table_name = ? AND c.table_schema = ?
-            ORDER BY c.ordinal_position
+            SELECT
+                c.COLUMN_NAME                       AS column_name,
+                c.DATA_TYPE                         AS data_type,
+                c.IS_NULLABLE                       AS is_nullable,
+                c.COLUMN_DEFAULT                    AS column_default,
+                kcu.REFERENCED_TABLE_NAME           AS foreign_key_table,
+                kcu.REFERENCED_COLUMN_NAME          AS foreign_key_column,
+                c.COLUMN_COMMENT                    AS description
+            FROM information_schema.COLUMNS c
+            LEFT JOIN information_schema.KEY_COLUMN_USAGE kcu
+                ON  c.TABLE_NAME   = kcu.TABLE_NAME
+                AND c.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                AND c.COLUMN_NAME  = kcu.COLUMN_NAME
+                AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+            WHERE c.TABLE_NAME = ? AND c.TABLE_SCHEMA = ?
+            ORDER BY c.ORDINAL_POSITION
         ";
     }
 
     public function getViewDefinitionQuery(): string
     {
         return "
-            SELECT view_definition
-            FROM information_schema.views
-            WHERE table_name = ? AND table_schema = ?
+            SELECT VIEW_DEFINITION AS view_definition
+            FROM information_schema.VIEWS
+            WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ?
         ";
     }
 
     public function getTableIndexesQuery(): string
     {
+        // Alias eksplisit lowercase agar kompatibel dengan semua server MySQL.
         return "
-            SELECT 
-                index_name,
-                column_name,
-                IF(index_name = 'PRIMARY', 1, 0) as is_primary,
-                IF(non_unique = 0, 1, 0) as is_unique
-            FROM information_schema.statistics
-            WHERE table_name = ? AND table_schema = ?
-            ORDER BY index_name, seq_in_index
+            SELECT
+                INDEX_NAME                              AS index_name,
+                COLUMN_NAME                             AS column_name,
+                IF(INDEX_NAME = 'PRIMARY', 1, 0)        AS is_primary,
+                IF(NON_UNIQUE = 0, 1, 0)                AS is_unique
+            FROM information_schema.STATISTICS
+            WHERE TABLE_NAME = ? AND TABLE_SCHEMA = ?
+            ORDER BY INDEX_NAME, SEQ_IN_INDEX
         ";
     }
 
     public function searchSchemaQuery(): string
     {
+        // Alias eksplisit lowercase agar kompatibel dengan semua server MySQL.
         return "
-            SELECT 
-                table_schema, 
-                table_name, 
-                column_name, 
-                column_comment AS description
-            FROM information_schema.columns
-            WHERE (table_name LIKE ? OR column_name LIKE ? OR column_comment LIKE ?)
-            AND table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
-            ORDER BY table_schema, table_name
+            SELECT
+                TABLE_SCHEMA    AS table_schema,
+                TABLE_NAME      AS table_name,
+                COLUMN_NAME     AS column_name,
+                COLUMN_COMMENT  AS description
+            FROM information_schema.COLUMNS
+            WHERE (TABLE_NAME LIKE ? OR COLUMN_NAME LIKE ? OR COLUMN_COMMENT LIKE ?)
+            AND TABLE_SCHEMA NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+            ORDER BY TABLE_SCHEMA, TABLE_NAME
             LIMIT 100
         ";
     }
@@ -167,6 +178,25 @@ class MySqlAdapter extends DriverAdapter
             return 'MySQL ' . $matches[1];
         }
         return $version;
+    }
+
+    /**
+     * Override: MySQL uses backticks for identifiers, not double quotes.
+     * Also MySQL uses database name as schema, not a separate schema namespace.
+     */
+    public function getDistinctValuesQuery(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
+    {
+        // MySQL: tidak ada konsep schema terpisah, tabel cukup disebut dengan nama tabel saja
+        // (koneksi sudah diarahkan ke database yang benar via config).
+        return "SELECT DISTINCT `{$columnName}` FROM `{$tableName}` WHERE `{$columnName}` IS NOT NULL LIMIT {$limit}";
+    }
+
+    /**
+     * Override: MySQL uses backticks for table preview.
+     */
+    public function getTablePreviewQuery(string $schemaName, string $tableName, int $limit = 5): string
+    {
+        return "SELECT * FROM `{$tableName}` LIMIT {$limit}";
     }
 
     /**

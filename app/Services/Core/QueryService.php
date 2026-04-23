@@ -778,7 +778,12 @@ class QueryService extends BaseService
 
             $cols = DB::connection($useConn)->select(
                 $adapter->describeTableQuery(),
-                [$tableName, $schemaName]
+                // MySQL describeTableQuery butuh 2 params: [tableName, schemaName].
+                // PostgreSQL/SQLServer: schemaName = schema (sch_mbi, public).
+                // MySQL/MariaDB: schemaName = database name (karena usesSchema()=false).
+                $adapter->usesSchema()
+                    ? [$tableName, $schemaName]
+                    : [$tableName, $dbModel->database]
             );
 
             // Bersihkan koneksi sementara jika dibuat

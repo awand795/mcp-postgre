@@ -142,6 +142,9 @@ class SchemaService extends BaseService
                     ];
                 }
             } else {
+                // Untuk MySQL/MariaDB: schemaParam adalah nama database (bukan schema name)
+                // karena MySQL tidak punya konsep schema — database name = schema name di information_schema.
+                // Untuk PostgreSQL/SQLServer: schemaParam adalah schema name (sch_mbi, public, dbo, dll).
                 $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
                 $query = $adapter->describeTableWithKeysQuery();
                 $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
@@ -307,7 +310,9 @@ class SchemaService extends BaseService
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
             $query = $adapter->getViewDefinitionQuery();
-            $params = ($dbModel->driver === 'sqlite') ? [$viewName] : [$viewName, $schemaName];
+            // FIX: Untuk MySQL/MariaDB, gunakan database name sebagai schema param
+            $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
+            $params = ($dbModel->driver === 'sqlite') ? [$viewName] : [$viewName, $schemaParam];
             $definition = DB::connection($connName)->select($query, $params);
 
             DB::purge($connName);

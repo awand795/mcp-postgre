@@ -1026,8 +1026,17 @@ class AgenticChatbotController extends Controller
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
-            $schemaList    = implode(', ', array_keys($schemas));
-            $dbSummaries[] = "- Kode Database: {$dbCode} (Schema: {$schemaList})";
+            // Cek driver database untuk berikan hint SQL yang tepat
+            $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
+            $driver  = $dbModel ? strtoupper($dbModel->driver) : 'UNKNOWN';
+            $schemaList = implode(', ', array_filter(array_keys($schemas), fn($s) => $s !== '*'));
+            if (empty($schemaList)) $schemaList = implode(', ', array_keys($schemas));
+
+            if ($dbModel && in_array($dbModel->driver, ['mysql', 'mariadb'])) {
+                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: \`table_name\` (tanpa prefix schema) | Contoh: SELECT * FROM `nama_tabel`";
+            } else {
+                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Schema: {$schemaList} | Format Query: schema_name.table_name | Contoh: SELECT * FROM {$schemaList}.nama_tabel";
+            }
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
@@ -1299,10 +1308,12 @@ Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **verbati
 6. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
 
 ## ATURAN SQL
-- Prefix wajib: `schema_name.table_name`
+- **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
+- **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
+- Cara mengetahui driver database: lihat info di bagian "DATABASE TERSEDIA" di atas — tercantum driver-nya.
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - Filter tanggal: BETWEEN pada kolom DATE/TIMESTAMP dari describe_table
-- Pencarian teks: `kolom ILIKE '%kata1%' AND kolom ILIKE '%kata2%'`
+- Pencarian teks: `kolom ILIKE '%kata1%' AND kolom ILIKE '%kata2%'` (PostgreSQL) atau `kolom LIKE '%kata1%' AND kolom LIKE '%kata2%'` (MySQL)
 - Alias: Title Case `AS "Total Penjualan Bersih"`
 - Pembulatan: `ROUND(SUM(kolom), 0)`
 - Ikuti `MANDATORY_AI_ACTION` dari tool hasil jika ada
@@ -1351,8 +1362,16 @@ PROMPT;
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
-            $schemaList    = implode(', ', array_keys($schemas));
-            $dbSummaries[] = "- Database Code: {$dbCode} (Schemas: {$schemaList})";
+            $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
+            $driver  = $dbModel ? strtoupper($dbModel->driver) : 'UNKNOWN';
+            $schemaList = implode(', ', array_filter(array_keys($schemas), fn($s) => $s !== '*'));
+            if (empty($schemaList)) $schemaList = implode(', ', array_keys($schemas));
+
+            if ($dbModel && in_array($dbModel->driver, ['mysql', 'mariadb'])) {
+                $dbSummaries[] = "- Database Code: {$dbCode} | Driver: {$driver} | Query Format: just \`table_name\` (no schema prefix) | Example: SELECT * FROM `table_name`";
+            } else {
+                $dbSummaries[] = "- Database Code: {$dbCode} | Driver: {$driver} | Schemas: {$schemaList} | Query Format: schema_name.table_name | Example: SELECT * FROM {$schemaList}.table_name";
+            }
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
@@ -1533,12 +1552,14 @@ If user requests **"Total Netto"**: use `ROUND(SUM(total_netto), 0) AS "Total Ne
 - **🚫 TECHNICAL LANGUAGE BAN**: You are strictly forbidden from repeating technical system messages like "Data truncated", "Showing 50 rows", or "Tool results" to Mr./Ms. Use professional analyst language, such as: *"Showing the top 50 sample transactions for you..."* or *"The summary below highlights the key performance indicators..."*.
 
 ## SQL RULES
-- Always prefix: `schema_name.table_name`
+- **PostgreSQL**: always prefix `schema_name.table_name` (e.g. `sch_mbi.view_data_penjualan_rinci_mbi`)
+- **MySQL/MariaDB**: DO NOT use schema prefix — just use `table_name` alone (e.g. `SELECT * FROM table_name`). MySQL has no separate schema concept.
+- To know which driver a database uses: refer to the "AVAILABLE DATABASES" section above — the driver is listed there.
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - **⛔ NEVER GUESS COLUMN NAMES** — only use names from `describe_table` results
 - **PROFIT CALCULATION**: Never SELECT a column named "profit" directly. Always identify Net Sales and HPP columns from describe_table, then compute: SUM(net_col) - SUM(hpp_col)
 - **DATE FILTERS**: Always use BETWEEN on an actual DATE/TIMESTAMP column from describe_table — NEVER use guessed names like `periode_bulan` or `periode_tahun`
-- **TEXT SEARCH**: Split keywords: `column ILIKE '%word1%' AND column ILIKE '%word2%'`
+- **TEXT SEARCH**: PostgreSQL: `column ILIKE '%word1%'`; MySQL: `column LIKE '%word1%'`
 - **ALIASES**: Use Title Case: `AS "Total Net Sales"`
 - **ROUNDING**: `ROUND(SUM(column), 0)`
 - **SELF-CORRECTION**: If any tool returns `MANDATORY_AI_ACTION`, follow it precisely. NEVER give up.
