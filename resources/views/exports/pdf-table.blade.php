@@ -78,7 +78,6 @@
             padding: 6px 8px;
             font-size: {{ $fontSize }}pt;
             border: 1px solid #B71C1C;
-            white-space: nowrap;
         }
 
         td {
@@ -86,7 +85,8 @@
             border: 1px solid #ddd;
             font-size: {{ $fontSize - 0.5 }}pt;
             vertical-align: top;
-            white-space: nowrap; 
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         td.text-col {

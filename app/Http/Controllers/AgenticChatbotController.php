@@ -683,10 +683,14 @@ class AgenticChatbotController extends Controller
             'currencyColumns' => $currencyColumns,
             'generatedAt'     => now()->format('d M Y H:i'),
             'colCount'        => count($headers),
-            'fontSize'        => count($headers) > 10 ? 7 : (count($headers) > 7 ? 8 : 9),
+            'fontSize'        => 10, // Font size 100% (10pt) stabil
             'chartImage'      => $chartImage,
             'columnTypes'     => $columnTypes,
-        ])->setPaper('a4', 'landscape');
+        ]);
+
+        // Hitung lebar kertas dinamis (A4 landscape min 842pt, atau n_kolom * 130pt)
+        $paperWidth = max(842, count($headers) * 130);
+        $pdf->setPaper([0, 0, $paperWidth, 595]); // 595pt adalah tinggi standar A4
 
         return $pdf->download($filename);
     }
