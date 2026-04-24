@@ -259,7 +259,7 @@ class AgenticChatbotController extends Controller
                     // DAN sudah mengirim setiap token via SSE ke browser.
                     Log::info("[Agentic] Loop #{$loopCount} using STREAMING mode (tool results available)");
                     try {
-                        $streamedText = $this->streamFinalResponseFromApi(
+                        $response = $this->streamFinalResponseFromApi(
                             $messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount
                         );
                     } catch (\RuntimeException $e) {
@@ -272,16 +272,22 @@ class AgenticChatbotController extends Controller
                         throw $e;
                     }
 
-                    // Jika stream menghasilkan teks (bukan tool call) → selesai
-                    if (!empty(trim($streamedText))) {
-                        $streamedText = $this->stripThinkingLeakage($streamedText);
-                        $streamedText = $this->processContentForCharts($streamedText, $allTurnToolResults);
+                    // Ambil data dari response stream
+                    $assistantMsg = $response['choices'][0]['message'] ?? [];
+                    $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
+                    $toolCalls    = $assistantMsg['tool_calls'] ?? [];
+                    $textContent  = $assistantMsg['content'] ?? '';
+
+                    // Jika stream menghasilkan teks (bukan tool call) DAN tidak ada tool calls → selesai
+                    if (!empty(trim($textContent)) && empty($toolCalls)) {
+                        $textContent = $this->stripThinkingLeakage($textContent);
+                        $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
 
                         if ($chatSessionId) {
                             ChatMessage::create([
                                 'chat_session_id' => $chatSessionId,
                                 'role'            => 'assistant',
-                                'content'         => $streamedText,
+                                'content'         => $textContent,
                                 'tool_results'    => !empty($allTurnToolResults) ? $allTurnToolResults : null
                             ]);
                         }
@@ -2165,6 +2171,22 @@ PROMPT;
                                     if (isset($tc['id'])) $toolCallsRaw[$idx]['id'] .= $tc['id'];
                                     if (isset($tc['function']['name'])) $toolCallsRaw[$idx]['name'] .= $tc['function']['name'];
                                     if (isset($tc['function']['arguments'])) $toolCallsRaw[$idx]['arguments'] .= $tc['function']['arguments'];
+                                }
+                            }
+                        }
+
+                        // Gemini Format: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"...","args":{...}}}]}}]}
+                        if ($providerCode === 'gemini') {
+                            $parts = $parsed['candidates'][0]['content']['parts'] ?? [];
+                            foreach ($parts as $p) {
+                                if (!empty($p['functionCall'])) {
+                                    $fc = $p['functionCall'];
+                                    // Gemini biasanya mengirim satu call per chunk atau sekaligus
+                                    $toolCallsRaw[] = [
+                                        'id' => 'gemini_call_' . uniqid(),
+                                        'name' => $fc['name'] ?? '',
+                                        'arguments' => json_encode($fc['args'] ?? []),
+                                    ];
                                 }
                             }
                         }
