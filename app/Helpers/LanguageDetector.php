@@ -22,11 +22,19 @@ class LanguageDetector
         // Common adjectives
         'baik', 'bagus', 'besar', 'kecil', 'baru', 'lama', 'tinggi', 'rendah', 'banyak', 'sedikit',
         // Business/ERP specific
-        'laporan', 'data', 'produk', 'penjualan', 'pembelian', 'pelanggan', 'pembeli', 'transaksi',
-        'revenue', 'pendapatan', 'omzet', 'keuntungan', 'profit', 'stok', 'gudang', 'kategori',
+        'laporan', 'produk', 'penjualan', 'pembelian', 'pelanggan', 'pembeli', 'transaksi',
+        'pendapatan', 'omzet', 'keuntungan', 'stok', 'gudang', 'kategori',
         'wilayah', 'provinsi', 'kota', 'daerah', 'cabang', 'toko', 'tampilkan', 'lihat', 'cari',
-        'total', 'jumlah', 'rata-rata', 'rata rata', 'persen', 'persentase', 'grafik', 'tren',
+        'jumlah', 'rata-rata', 'persen', 'persentase', 'grafik', 'tren',
         'terlaris', 'terbaik', 'tertinggi', 'terendah', 'paling', 'sangat', 'sekali',
+        // Additional Indonesian business/domain terms
+        'baterai', 'dealer', 'motor', 'bengkel', 'servis', 'biaya', 'harga', 'diskon',
+        'rekap', 'ringkasan', 'periode', 'berdasarkan', 'tampilan', 'berapa',
+        'semua', 'setiap', 'seluruh', 'nomor',
+        'terbesar', 'terkecil', 'terbanyak',
+        'bandingkan', 'perbandingan', 'naik', 'turun', 'meningkat', 'menurun',
+        'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+        'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
         // Time expressions
         'hari', 'minggu', 'bulan', 'tahun', 'kemarin', 'besok', 'sekarang', 'saat ini', 'sekarang',
         'lalu', 'depan', 'lalu', 'ini',
@@ -61,7 +69,7 @@ class LanguageDetector
         'great', 'important', 'different', 'same', 'other', 'another', 'some', 'any', 'all', 'each',
         'every', 'both', 'either', 'neither', 'enough', 'possible', 'available', 'necessary',
         // Business/ERP specific
-        'report', 'data', 'product', 'sales', 'purchase', 'customer', 'transaction', 'revenue',
+        'report', 'product', 'sales', 'purchase', 'customer', 'transaction', 'revenue',
         'income', 'profit', 'stock', 'inventory', 'warehouse', 'category', 'region', 'province',
         'city', 'area', 'branch', 'store', 'shop', 'show', 'display', 'search', 'find', 'total',
         'amount', 'sum', 'average', 'percent', 'percentage', 'graph', 'chart', 'trend', 'trend',
@@ -97,9 +105,10 @@ class LanguageDetector
         $englishScore = 0;
         
         // Score based on keyword matching
+        // Indonesian keywords have higher weight (2 pts) since this app is primarily Indonesian-facing
         foreach ($words as $word) {
             if (in_array($word, $this->indonesianKeywords)) {
-                $indonesianScore += 1;
+                $indonesianScore += 2;
             }
             if (in_array($word, $this->englishKeywords)) {
                 $englishScore += 1;
@@ -107,16 +116,19 @@ class LanguageDetector
         }
         
         // Check for common Indonesian patterns
+        // Pattern dibuat lebih spesifik agar tidak false-positive ke kata-kata pendek / bahasa lain
         $indonesianPatterns = [
-            '/\bdi\s+\w+/u',        // di mana, di sini, etc.
-            '/\bke\s+\w+/u',        // ke sana, ke mari, etc.
-            '/\bdari\s+\w+/u',      // dari mana, dari sini, etc.
-            '/\bter\w+/u',          // terlaris, tertinggi, etc.
-            '/\bber\w+/u',          // berapa, berikut, etc.
-            '/\bmem\w+/u',          // menampilkan, memberikan, etc.
-            '/\bpe\w+/u',           // pembeli, penjualan, etc.
-            '/\bkan$/u',            // tampilkan, berikan, etc.
-            '/\blah$/u',            // apakah, yang, etc.
+            '/\bdi\s+\w+/u',              // di mana, di sini, di cabang, etc.
+            '/\bke\s+\w+/u',              // ke sana, ke cabang, etc.
+            '/\bdari\s+\w+/u',            // dari mana, dari data, etc.
+            '/\bter[a-z]{3,}\b/u',        // terlaris, tertinggi, terbaik (min 3 char setelah 'ter')
+            '/\bber[a-z]{3,}\b/u',        // berapa, berikut, berbeda (min 3 char setelah 'ber')
+            '/\bme[nm][a-z]{3,}\b/u',     // menampilkan, memberikan, mencari
+            '/\bpe[mn][a-z]{3,}\b/u',     // penjualan, pembelian, pencarian
+            '/\b\w{4,}kan\b/u',           // tampilkan, berikan, sajikan (min 4 char sebelum 'kan')
+            '/\b\w{4,}lah\b/u',           // apakah, buatlah, lihatkan (min 4 char)
+            '/\b\w{3,}nya\b/u',           // datanya, produknya, cabangnya
+            '/\b\w{4,}an\b/u',            // penjualan, pembelian, laporan (min 4 char → hindari 'man','ran',dll)
         ];
         
         foreach ($indonesianPatterns as $pattern) {
@@ -126,14 +138,16 @@ class LanguageDetector
         }
         
         // Check for common English patterns
+        // PENTING: Pattern dibuat lebih spesifik agar tidak false-positive ke kata Indonesia.
+        // Contoh false-positive lama: "paling" cocok /\w+ing/, "laris" cocok /\w+s/
         $englishPatterns = [
-            '/\bthe\s+\w+/u',
-            '/\ba\s+\w+/u',
-            '/\ban\s+\w+/u',
-            '/\b\w+ing\b/u',        // -ing verbs
-            '/\b\w+ed\b/u',         // -ed past tense
-            '/\b\w+ly\b/u',         // -ly adverbs
-            '/\b\w+s\b/u',          // plural -s
+            '/\bthe\s+[a-z]{3,}\b/u',              // "the product", "the sales" (min 3 char)
+            '/\ba\s+[a-z]{4,}\b/u',                // "a report", "a branch" (min 4 char hindari: "a di")
+            '/\ban\s+[a-z]{4,}\b/u',               // "an order", "an item" (min 4 char)
+            '/\b[a-z]{5,}ing\b/u',                 // running, showing, filtering (min 8 char total)
+            '/\b[a-z]{5,}ed\b/u',                  // created, updated, filtered (min 7 char total)
+            '/\b[a-z]{5,}ly\b/u',                  // quickly, actually, currently (min 7 char total)
+            '/\b(show|display|get|list|fetch|compare|filter)\s+[a-z]{3,}\b/u', // English imperative verbs
         ];
         
         foreach ($englishPatterns as $pattern) {
@@ -150,8 +164,8 @@ class LanguageDetector
         }
         
         // If scores are equal, check for specific indicators
-        // Indonesian: typically has "di", "ke", "dari", "yang", "apa"
-        if (preg_match('/\b(yang|di|ke|dari|apa|siapa|bagaimana)\b/u', $text)) {
+        // Indonesian: typically has "di", "ke", "dari", "yang", "apa", "berapa", "tidak"
+        if (preg_match('/\b(yang|di|ke|dari|apa|siapa|bagaimana|berapa|tidak|bisa|untuk|dengan|pada)\b/u', $text)) {
             return 'id';
         }
         
