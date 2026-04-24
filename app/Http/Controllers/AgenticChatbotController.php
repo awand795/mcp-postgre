@@ -1644,15 +1644,15 @@ PROMPT;
 
     private function streamText(string $text): void
     {
-        // Sesuaikan ukuran chunk dengan panjang teks agar efek typing natural tapi tidak terlalu lambat
+        // Karena frontend sudah menggunakan Typewriter Engine (twLoop) yang sangat halus,
+        // backend tidak perlu lagi memberikan jeda buatan (usleep). Kirim secepat mungkin
+        // agar frontend bisa langsung menganimasikan teksnya tanpa jeda ganda.
         $len = mb_strlen($text);
-        $chunkSize = $len > 3000 ? 10 : ($len > 1000 ? 6 : 3);
-        $sleepTime = 15000; // 15ms per chunk
+        $chunkSize = 250; // Kirim dalam potongan besar agar lebih efisien
 
         foreach (mb_str_split($text, $chunkSize) as $chunk) {
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
             if (ob_get_level() > 0) ob_flush(); flush();
-            usleep($sleepTime);
         }
     }
 
