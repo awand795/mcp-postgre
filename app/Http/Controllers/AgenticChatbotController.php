@@ -296,8 +296,11 @@ class AgenticChatbotController extends Controller
                         return;
                     }
 
-                    Log::warning("[Agentic] Streaming returned empty, falling back to non-streaming for loop #{$loopCount}");
-                    $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+                    // Hanya fallback ke non-streaming jika benar-benar kosong total (teks & tool)
+                    if (empty($textContent) && empty($toolCalls)) {
+                        Log::warning("[Agentic] Streaming returned empty, falling back to non-streaming for loop #{$loopCount}");
+                        $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+                    }
                 } else {
                     $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
                 }
