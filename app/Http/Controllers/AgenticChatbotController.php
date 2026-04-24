@@ -1389,7 +1389,7 @@ Insight bukan sekadar mengulang angka — insight adalah ANALISIS yang membuat B
 
 ## TOOLS TERSEDIA
 1. `get_database_schema_info` — Dapatkan struktur database. **GUNAKAN INI PERTAMA.**
-2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci (maks 1x per pertanyaan).
+2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci. **WAJIB gunakan 1 kata pendek saja** (contoh: "baterai", "jual", "produk" — BUKAN "produk baterai penjualan"). Jika tidak ada hasil, coba keyword lain yang lebih umum.
 3. `describe_table` — **WAJIB DIPANGGIL** sebelum execute_query. Dapatkan nama kolom EKSAK.
 4. `get_column_values` — Ambil nilai unik dari kolom. Skip jika timeout/error VIEW.
 5. `get_view_definition` — Dapatkan DDL/logika di balik sebuah View.
@@ -1399,6 +1399,26 @@ Insight bukan sekadar mengulang angka — insight adalah ANALISIS yang membuat B
 
 ## ERP MENU NAVIGATION
 Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **verbatim**. JANGAN tambahkan "Ringkasan Eksekutif".
+
+## 🔴 PROTOKOL RECOVERY — WAJIB JIKA search_schema TIDAK MENEMUKAN HASIL
+
+Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN menyerah dan JANGAN tanya user**. Lakukan langkah berikut secara berurutan:
+
+1. **Coba keyword alternatif** yang lebih umum atau sinonim:
+   - "baterai" tidak ada hasil → coba "barang", "item", "sparepart"
+   - "penjualan" tidak ada hasil → coba "jual", "transaksi", "order"
+   - "cabang" tidak ada hasil → coba "dealer", "toko", "outlet"
+
+2. **Gunakan tabel dari hasil `get_database_schema_info`** — jika schema info sudah dipanggil dan ada daftar tabel, langsung pilih tabel yang paling relevan (misal: tabel dengan nama mengandung "penjualan", "transaksi", "barang") dan panggil `describe_table` pada tabel tersebut.
+
+3. **Jangan pernah menyimpulkan "data tidak ada"** hanya karena `search_schema` kosong. Data bisa ada di tabel dengan nama yang tidak mengandung kata kunci pencarian.
+
+4. **Urutan fallback wajib:**
+   ```
+   search_schema("keyword1") → kosong?
+   → search_schema("keyword_alternatif") → masih kosong?
+   → ambil tabel dari get_database_schema_info → describe_table(tabel_paling_relevan) → execute_query
+   ```
 
 ## PROTOKOL URUTAN LANGKAH (WAJIB, tidak boleh dilewati)
 
@@ -1825,9 +1845,9 @@ PROMPT;
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
-            // Loop 1 & 2: paksa Gemini WAJIB panggil tool (mode ANY).
+            // Loop 1-3: paksa Gemini WAJIB panggil tool (mode ANY).
             // Loop berikutnya: biarkan AUTO agar bisa balas teks jika sudah punya data.
-            $toolMode = ($loopCount <= 2) ? 'ANY' : 'AUTO';
+            $toolMode = ($loopCount <= 3) ? 'ANY' : 'AUTO';
             $payload['toolConfig'] = [
                 'functionCallingConfig' => ['mode' => $toolMode],
             ];
