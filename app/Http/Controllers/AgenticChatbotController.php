@@ -1431,24 +1431,42 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 
 ## 🔴 ATURAN PENCARIAN PRODUK — WAJIB UNTUK QUERY FILTER PRODUK/BARANG
 
-Saat user menyebut kategori produk ("baterai", "oli", "ban", "spare part", dll), **JANGAN hanya filter di kolom nama produk saja**. Produk sering dikategorikan di kolom terpisah, sehingga nama produknya berbeda dari kata yang user sebut.
+Saat user menyebut kategori produk ("baterai", "oli", "ban", "spare part", dll), **JANGAN langsung filter hanya di satu kolom nama produk**. Produk sering dikategorikan di kolom terpisah, sehingga nama produknya bisa berbeda dari kata yang user sebut.
 
-**Contoh nyata:** Produk "BATTERY FASTER 5L" tidak mengandung kata "baterai" di namanya, tapi ada di kolom `nama_kategori_barang = 'BATTERY'` atau `nama_golongan_barang = 'BATTERY'`.
+**Contoh nyata:** Produk "BATTERY FASTER 5L" tidak mengandung kata "baterai" di namanya, tapi tercatat di kolom kategori dengan nilai "BATTERY".
 
-**WAJIB gunakan filter OR yang mencakup semua kolom relevan:**
-```sql
-WHERE nama_barang ILIKE '%baterai%'
-   OR nama_barang ILIKE '%battery%'
-   OR nama_kategori_barang ILIKE '%baterai%'
-   OR nama_kategori_barang ILIKE '%battery%'
-   OR nama_golongan_barang ILIKE '%baterai%'
-   OR nama_golongan_barang ILIKE '%battery%'
+**WAJIB ikuti langkah ini sebelum membuat filter produk:**
+
+**Langkah 1 — Panggil `describe_table` terlebih dahulu**
+Lihat semua kolom yang tersedia. Identifikasi sendiri kolom-kolom yang secara semantik berkaitan dengan:
+- Nama produk/barang (biasanya mengandung kata: `nama`, `barang`, `produk`, `item`)
+- Kategori/tipe/golongan produk (biasanya mengandung kata: `kategori`, `golongan`, `tipe`, `jenis`, `group`, `type`)
+- Merek/brand produk (biasanya mengandung kata: `merek`, `brand`, `merk`)
+
+**Langkah 2 — Buat filter OR dari semua kolom yang Anda temukan di Langkah 1**
+Gunakan semua kolom yang relevan, bukan hanya satu. Prinsipnya:
 ```
+WHERE [kolom_nama_produk] ILIKE '%[keyword1]%'
+   OR [kolom_nama_produk] ILIKE '%[keyword2]%'
+   OR [kolom_kategori_yg_ditemukan] ILIKE '%[keyword1]%'
+   OR [kolom_kategori_yg_ditemukan] ILIKE '%[keyword2]%'
+   OR [kolom_golongan_yg_ditemukan] ILIKE '%[keyword1]%'
+   OR [kolom_golongan_yg_ditemukan] ILIKE '%[keyword2]%'
+```
+Ganti `[kolom_...]` dengan nama kolom EKSAK dari hasil `describe_table` — bukan tebakan.
 
-**Langkah wajib sebelum membuat filter produk:**
-1. Panggil `describe_table` → identifikasi kolom yang berkaitan dengan nama/kategori/golongan produk
-2. Gunakan semua kolom relevan dalam filter OR
-3. Sertakan sinonim Bahasa Indonesia DAN Bahasa Inggris ("baterai" + "battery", "oli" + "oil", "ban" + "tire")
+**Langkah 3 — Sertakan sinonim bahasa Indonesia dan Inggris**
+AI wajib generate sendiri sinonim dari kata yang user sebut:
+- "baterai" → juga cari "battery"
+- "oli" → juga cari "oil"
+- "ban" → juga cari "tire", "tyre"
+- "rem" → juga cari "brake"
+- dst — gunakan pengetahuan umum untuk generate pasangan sinonim
+
+**Yang DILARANG:**
+- ❌ Langsung tulis nama kolom tanpa cek `describe_table` dulu
+- ❌ Hanya filter di satu kolom nama produk saja
+- ❌ Hanya pakai kata bahasa Indonesia tanpa sinonimnya dalam bahasa Inggris (atau sebaliknya)
 
 ## ATURAN SQL
 - **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
