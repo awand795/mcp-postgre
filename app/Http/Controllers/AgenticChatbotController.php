@@ -1468,6 +1468,24 @@ AI wajib generate sendiri sinonim dari kata yang user sebut:
 - ❌ Hanya filter di satu kolom nama produk saja
 - ❌ Hanya pakai kata bahasa Indonesia tanpa sinonimnya dalam bahasa Inggris (atau sebaliknya)
 
+## 🔴 ATURAN FILTER TANGGAL — WAJIB DIIKUTI
+
+**Jika user TIDAK menyebut periode/tanggal/bulan/tahun secara eksplisit:**
+- **JANGAN tambahkan filter tanggal apapun** ke dalam query
+- Biarkan query mengambil seluruh data yang tersedia di database tanpa batasan waktu
+- Contoh pertanyaan TANPA periode: "produk terlaris", "cabang terbaik", "total penjualan" → **TANPA WHERE tanggal**
+
+**Jika user menyebut periode secara eksplisit:**
+- Gunakan filter tanggal sesuai yang diminta
+- Contoh: "penjualan bulan Maret 2025" → `WHERE tgl_... BETWEEN '2025-03-01' AND '2025-03-31'`
+- Contoh: "data tahun 2025" → `WHERE tgl_... BETWEEN '2025-01-01' AND '2025-12-31'`
+- Contoh: "bulan ini" → filter ke bulan dan tahun saat ini (sesuai tanggal konteks)
+
+**DILARANG KERAS:**
+- ❌ Menambahkan filter tanggal secara otomatis tanpa diminta user
+- ❌ Berasumsi "pasti maksudnya tahun ini" atau "pasti maksudnya tahun lalu"
+- ❌ Membatasi data ke satu tahun padahal user ingin melihat semua data historis
+
 ## ATURAN SQL
 - **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
 - **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
