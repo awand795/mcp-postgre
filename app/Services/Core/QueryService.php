@@ -25,9 +25,12 @@ class QueryService extends BaseService
 
     /**
      * Query result cache TTL in seconds.
-     * Short TTL to avoid stale data but reduce duplicate queries.
+     * Probe query (SELECT DISTINCT) di-cache lebih lama karena nilai enum
+     * seperti nama propinsi/kabupaten sangat jarang berubah.
+     * Agregasi (SUM, GROUP BY) di-cache 5 menit — cukup untuk session normal.
      */
-    private int $queryCacheTtl = 60;
+    private int $queryCacheTtl        = 300;  // default: 5 menit
+    private int $probeQueryCacheTtl   = 3600; // probe SELECT DISTINCT: 1 jam
 
     /**
      * Query execution timeout: 0 = UNLIMITED.
@@ -264,11 +267,18 @@ class QueryService extends BaseService
         Log::info("[ToolCallExecutor] Executing SQL on DB {$databaseCode}: " . substr($cleanSql, 0, 300));
 
         // ── QUERY RESULT CACHING ──────────────────────────────────────────────
-        $cacheKey = 'query_result_' . md5($cleanSql . '_' . $databaseCode . '_' . Auth::id());
+        // Cache key: probe query (SELECT DISTINCT) di-share antar user karena hasilnya
+        // sama untuk semua user — nilai propinsi/kabupaten tidak bergantung pada siapa yang tanya.
+        // Query agregasi (SUM, GROUP BY) tetap per-user untuk keamanan RBAC.
+        $isProbeForKey = stripos($cleanSql, 'SELECT DISTINCT') !== false
+                      && stripos($cleanSql, 'GROUP BY') === false;
+        $cacheKey = $isProbeForKey
+            ? 'query_probe_'  . md5($cleanSql . '_' . $databaseCode)
+            : 'query_result_' . md5($cleanSql . '_' . $databaseCode . '_' . Auth::id());
 
         $cachedResult = Cache::get($cacheKey);
         if ($cachedResult !== null) {
-            Log::info("[ToolCallExecutor] Using cached query result (saved DB call)");
+            Log::info("[QueryService] Cache HIT for query (saved ~57s DB call): " . substr($cleanSql, 0, 100));
             return $cachedResult;
         }
 
@@ -506,8 +516,14 @@ class QueryService extends BaseService
 
         $resultJson = $this->safeJsonEncode($result);
 
-        // Cache the result for future identical queries
-        Cache::put($cacheKey, $resultJson, $this->queryCacheTtl);
+        // Cache dengan TTL berbeda: probe query (SELECT DISTINCT tanpa GROUP BY) di-cache
+        // lebih lama karena nilai enum propinsi/kabupaten sangat jarang berubah.
+        $isProbeQuery = stripos($cleanSql, 'SELECT DISTINCT') !== false
+                     && stripos($cleanSql, 'GROUP BY') === false;
+        $ttl = $isProbeQuery ? $this->probeQueryCacheTtl : $this->queryCacheTtl;
+
+        Cache::put($cacheKey, $resultJson, $ttl);
+        Log::info("[QueryService] Query result cached (TTL={$ttl}s, isProbe=" . ($isProbeQuery ? 'true' : 'false') . ")");
 
         return $resultJson;
     }
