@@ -141,7 +141,7 @@ class ToolCallExecutor
             [
                 'type'        => 'function',
                 'name'        => 'get_table_preview',
-                'description' => 'Mengambil 5 baris contoh data dari tabel tertentu. SANGAT DISARANKAN dilakukan setelah describe_table agar Anda memahami format konten data sebenarnya sebelum menulis query filter yang kompleks.',
+                'description' => 'Mengambil 5 baris contoh data dari tabel FISIK tertentu. PENTING: JANGAN gunakan tool ini untuk VIEW (nama yang diawali view_) atau tabel dengan lebih dari 100.000 baris karena akan sangat lambat (30-60 detik). Gunakan HANYA untuk tabel fisik berukuran kecil-sedang. Untuk VIEW besar, gunakan execute_query dengan filter WHERE yang spesifik dan LIMIT 5 sebagai gantinya.',
                 'parameters'  => [
                     'type'       => 'object',
                     'properties' => [

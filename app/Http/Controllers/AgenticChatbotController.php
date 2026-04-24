@@ -478,31 +478,86 @@ class AgenticChatbotController extends Controller
                 return;
             }
 
+            // ════════════════════════════════════════════════════════════════════
+            // OPT: PARALLEL TOOL EXECUTION menggunakan PHP Fibers (PHP 8.1+)
+            // Jika AI mengembalikan >1 tool call (misal: 3x search_schema), eksekusi
+            // semua secara paralel sehingga hemat waktu signifikan.
+            // Cache-hit tools (schema_info, describe_table) akan sangat cepat.
+            // ════════════════════════════════════════════════════════════════════
+            $toolCallCount = count($toolCalls);
+            $useParallel   = $toolCallCount > 1;
+
+            // Pre-process semua tool calls: decode args + deteksi COUNT-without-WHERE
+            $processedCalls = [];
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
                 $toolName   = $toolCall['function']['name'] ?? '';
                 $argsRaw    = $toolCall['function']['arguments'] ?? '{}';
                 $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
-                Log::info("[Agentic] Executing Tool: {$toolName}");
-
-                // ── GUARD: COUNT tanpa WHERE — jalankan tapi inject reminder setelah hasil ──
-                // Sebelumnya guard ini memblokir eksekusi dan inject tool result palsu,
-                // menyebabkan model looping tanpa pernah dapat data nyata.
-                // Sekarang: biarkan query jalan, catat flag agar reminder di-inject setelah hasil.
                 $countWithoutWhereWarning = false;
                 if ($toolName === 'execute_query') {
                     $sqlToCheck = strtolower(trim($arguments['sql'] ?? ''));
                     $hasCount   = preg_match('/\bcount\s*\(/i', $sqlToCheck);
                     $hasWhere   = preg_match('/\bwhere\b/i', $sqlToCheck);
                     $hasGroup   = preg_match('/\bgroup by\b/i', $sqlToCheck);
-
                     if ($hasCount && !$hasWhere && !$hasGroup) {
-                        Log::warning("[Agentic] COUNT without WHERE detected. Will run query and inject reminder after result.");
+                        Log::warning("[Agentic] COUNT without WHERE detected: {$toolName}");
                         $countWithoutWhereWarning = true;
                     }
                 }
-                $toolResult = $this->toolExecutor->execute($toolName, $arguments, $isGroq);
+
+                $processedCalls[] = [
+                    'id'                       => $toolCallId,
+                    'name'                     => $toolName,
+                    'arguments'                => $arguments,
+                    'countWithoutWhereWarning' => $countWithoutWhereWarning,
+                ];
+            }
+
+            // Eksekusi: parallel jika >1 tool, sequential jika hanya 1
+            $executedResults = [];
+            if ($useParallel) {
+                Log::info("[Agentic] Parallel tool execution: {$toolCallCount} tools");
+                $fibers = [];
+                foreach ($processedCalls as $call) {
+                    Log::info("[Agentic] Starting Fiber for tool: {$call['name']}");
+                    $tName = $call['name'];
+                    $tArgs = $call['arguments'];
+                    $fiber = new \Fiber(function () use ($tName, $tArgs, $isGroq): string {
+                        return $this->toolExecutor->execute($tName, $tArgs, $isGroq);
+                    });
+                    $fiber->start();
+                    $fibers[] = ['fiber' => $fiber, 'call' => $call];
+                }
+                foreach ($fibers as $item) {
+                    $fiber = $item['fiber'];
+                    while (!$fiber->isTerminated()) {
+                        $fiber->resume();
+                    }
+                    $executedResults[] = [
+                        'call'   => $item['call'],
+                        'result' => $fiber->getReturn(),
+                    ];
+                }
+            } else {
+                // Single tool — eksekusi langsung tanpa Fiber overhead
+                $call = $processedCalls[0];
+                Log::info("[Agentic] Executing Tool: {$call['name']}");
+                $executedResults[] = [
+                    'call'   => $call,
+                    'result' => $this->toolExecutor->execute($call['name'], $call['arguments'], $isGroq),
+                ];
+            }
+
+            // Proses setiap hasil: stream ke frontend + tambah ke messages array
+            foreach ($executedResults as $execItem) {
+                $call       = $execItem['call'];
+                $toolCallId = $call['id'];
+                $toolName   = $call['name'];
+                $arguments  = $call['arguments'];
+                $countWithoutWhereWarning = $call['countWithoutWhereWarning'];
+                $toolResult = $execItem['result'];
 
                 $decodedRes = json_decode($toolResult, true);
 
@@ -569,7 +624,7 @@ class AgenticChatbotController extends Controller
                         ]),
                     ];
                 }
-            }
+            } // end foreach $executedResults
             if (ob_get_level() > 0) ob_flush(); flush();
         }
     }

@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use App\Services\BaseService;
 use App\Services\Database\DriverFactory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -215,10 +216,10 @@ class SchemaService extends BaseService
     /**
      * Get distinct values for a specific column.
      *
-     * FIX: Fallback SELECT DISTINCT dihapus karena menyebabkan timeout pada VIEW besar.
-     * Sekarang jika TABLESAMPLE gagal (misal: karena target adalah VIEW, bukan table fisik),
-     * langsung kembalikan instruksi MANDATORY_AI_ACTION agar AI melanjutkan ke describe_table
-     * + execute_query dengan filter ILIKE, tanpa membuang waktu 48 detik untuk SELECT DISTINCT.
+     * OPT: Cache hasil selama 1 jam agar AI tidak perlu query ulang untuk kolom
+     * yang sama (misal: nama_kategori_barang, status_aktif_barang).
+     * Jika target adalah VIEW (TABLESAMPLE error), langsung return MANDATORY_AI_ACTION
+     * tanpa fallback SELECT DISTINCT yang menyebabkan full scan + timeout.
      */
     public function getColumnValues(string $databaseCode, string $schemaName, string $tableName, string $columnName): string
     {
@@ -234,6 +235,14 @@ class SchemaService extends BaseService
             return $this->errorResponse("Access denied.");
         }
 
+        // OPT: Cek cache dulu — nilai kolom kategori/status jarang berubah
+        $cacheKey = 'col_values_' . md5("{$databaseCode}_{$schemaName}_{$tableName}_{$columnName}");
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            Log::info("[SchemaService] getColumnValues cache HIT: {$schemaName}.{$tableName}.{$columnName}");
+            return $cached;
+        }
+
         $connName = "temp_conn_{$databaseCode}";
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
@@ -247,17 +256,23 @@ class SchemaService extends BaseService
                 $values = DB::connection($connName)->select($query);
                 $flatValues = array_map(fn($v) => current((array)$v), $values);
                 DB::purge($connName);
-                return $this->safeJsonEncode([
+                $result = $this->safeJsonEncode([
                     'database'        => $databaseCode,
                     'column'          => "{$schemaName}.{$tableName}.{$columnName}",
                     'distinct_values' => $flatValues,
                     'note'            => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
+                    'cached'          => false,
                 ]);
+                // Cache 1 jam — nilai kolom seperti kategori/status sangat jarang berubah
+                Cache::put($cacheKey, $result, 3600);
+                Log::info("[SchemaService] getColumnValues cached: {$schemaName}.{$tableName}.{$columnName} (" . count($flatValues) . " values)");
+                return $result;
             } catch (\Exception $tablesampleErr) {
-                // FIX: JANGAN coba fallback SELECT DISTINCT — ini akan timeout pada VIEW besar.
+                // VIEW tidak support TABLESAMPLE — langsung return instruksi, jangan fallback SELECT DISTINCT
                 DB::purge($connName);
                 Log::warning("[SchemaService] get_column_values skipped for {$tableName}.{$columnName} (likely a VIEW): " . $tablesampleErr->getMessage());
-                return $this->safeJsonEncode([
+                // Cache response "VIEW tidak supported" selama 10 menit agar AI tidak retry terus
+                $viewResult = $this->safeJsonEncode([
                     'warning' => "get_column_values tidak didukung untuk '{$tableName}' (kemungkinan VIEW atau tabel besar tanpa index pada kolom ini).",
                     'MANDATORY_AI_ACTION' => implode(' ', [
                         "JANGAN tunggu atau retry get_column_values.",
@@ -268,6 +283,8 @@ class SchemaService extends BaseService
                         "(4) Jalankan execute_query dengan nama kolom yang sudah diverifikasi dari describe_table.",
                     ]),
                 ]);
+                Cache::put($cacheKey, $viewResult, 600);
+                return $viewResult;
             }
         } catch (\Exception $e) {
             DB::purge($connName);
@@ -390,6 +407,10 @@ class SchemaService extends BaseService
 
     /**
      * Get a small preview of data from a table.
+     *
+     * OPT: Guard VIEW — jika target adalah VIEW PostgreSQL, langsung kembalikan
+     * instruksi MANDATORY_AI_ACTION tanpa eksekusi query yang lambat.
+     * VIEW besar bisa memakan 30-60 detik hanya untuk LIMIT 5.
      */
     public function getTablePreview(string $databaseCode, string $schemaName, string $tableName): string
     {
@@ -408,7 +429,45 @@ class SchemaService extends BaseService
         $connName = "temp_conn_{$databaseCode}";
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            if (!$dbModel) {
+                return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
+            }
             $adapter = $dbModel->getAdapter();
+
+            // OPT: Cek apakah target adalah VIEW sebelum eksekusi preview
+            // VIEW besar bisa memakan 30-60 detik hanya untuk LIMIT 5 — langsung skip
+            if ($dbModel->driver === 'pgsql') {
+                $cacheKeyView = 'is_view_' . md5("{$databaseCode}_{$schemaName}_{$tableName}");
+                $isView = Cache::remember($cacheKeyView, 3600, function () use ($connName, $dbModel, $schemaName, $tableName) {
+                    try {
+                        DB::purge($connName);
+                        config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+                        $check = DB::connection($connName)->select(
+                            "SELECT table_type FROM information_schema.tables 
+                             WHERE table_schema = ? AND table_name = ? LIMIT 1",
+                            [$schemaName, $tableName]
+                        );
+                        DB::purge($connName);
+                        return !empty($check) && ($check[0]->table_type === 'VIEW');
+                    } catch (\Throwable $e) {
+                        return false;
+                    }
+                });
+
+                if ($isView) {
+                    Log::info("[SchemaService] getTablePreview skipped — '{$schemaName}.{$tableName}' is a VIEW. Returning fast instruction.");
+                    return $this->safeJsonEncode([
+                        'warning' => "'{$tableName}' adalah VIEW — get_table_preview tidak didukung karena akan sangat lambat.",
+                        'MANDATORY_AI_ACTION' => implode(' ', [
+                            "JANGAN panggil get_table_preview lagi untuk '{$tableName}'.",
+                            "LANGKAH WAJIB:",
+                            "(1) Gunakan describe_table untuk mendapatkan nama kolom yang TEPAT.",
+                            "(2) Langsung jalankan execute_query dengan filter WHERE yang spesifik dan LIMIT 5 jika butuh sample data.",
+                            "(3) Jangan coba preview VIEW besar — gunakan query langsung dengan filter yang tepat.",
+                        ]),
+                    ]);
+                }
+            }
 
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
@@ -431,10 +490,22 @@ class SchemaService extends BaseService
 
     /**
      * Get complete schema overview for all accessible databases.
+     * OPT: Cache hasil schema info per user/role selama 10 menit agar tidak
+     * query information_schema berulang kali di setiap percakapan baru.
      * Optimization: If total tables < 50, eagerly include column names to save AI loops.
      */
     public function getSchemaInfo(bool $isGroq = false): string
     {
+        // OPT: Cache schema info — structure database tidak berubah setiap menit
+        $userId = \Illuminate\Support\Facades\Auth::id() ?? 'guest';
+        $cacheKey = 'schema_info_' . md5("{$userId}_{$isGroq}");
+        // CATATAN: Cache schema info di-skip jika ada perubahan DB connection
+        // TTL 10 menit — cukup untuk session normal, tidak terlalu lama
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            Log::info("[SchemaService] getSchemaInfo cache HIT for user {$userId}");
+            return $cached;
+        }
         $allowedDbs = $this->queryService->getAllowedTables();
 
         if (empty($allowedDbs)) {
@@ -487,7 +558,7 @@ class SchemaService extends BaseService
             }
         }
 
-        return $this->safeJsonEncode([
+        $result = $this->safeJsonEncode([
             'total_databases' => count($allowedDbs),
             'total_tables'    => $totalTables,
             'is_eager_loaded' => $isSmallSchema,
@@ -497,13 +568,26 @@ class SchemaService extends BaseService
                 ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*" as schema_name.'
                 : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*".',
         ]);
+
+        // Cache schema info 10 menit
+        Cache::put($cacheKey, $result, 600);
+        Log::info("[SchemaService] getSchemaInfo cached for user {$userId} ({$totalTables} tables)");
+        return $result;
     }
 
     /**
      * Get columns for a table (Internal helper for eager loading).
+     * OPT: Cache hasil kolom tabel selama 30 menit — struktur kolom sangat jarang berubah.
      */
     private function getCachedTableColumns(string $databaseCode, string $schemaName, string $tableName): array
     {
+        // OPT: Cache struktur kolom tabel — tidak berubah kecuali ada migration
+        $cacheKey = 'table_columns_' . md5("{$databaseCode}_{$schemaName}_{$tableName}");
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
         $connName = "temp_conn_{$databaseCode}_eager";
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
@@ -520,6 +604,8 @@ class SchemaService extends BaseService
             $result = array_map(fn($col) => $col->column_name, $columns);
             
             DB::purge($connName);
+
+            Cache::put($cacheKey, $result, 1800);
             return $result;
         } catch (\Exception $e) {
             DB::purge($connName);
