@@ -216,6 +216,14 @@ class AgenticChatbotController extends Controller
             'fetch_erp_guidance_from_web',
         ];
 
+        // Track berapa kali execute_query dipanggil di turn ini.
+        // Streaming hanya boleh aktif jika execute_query sudah dipanggil >= 2x
+        // (artinya ada query exploratory sebelumnya dan ini kemungkinan query final),
+        // ATAU jika execute_query dipanggil 1x dan tidak ada SELECT DISTINCT di SQL-nya
+        // (query langsung ke data akhir, bukan query probe nilai kolom).
+        $executeQueryCount  = 0;
+        $lastExecutedSql    = '';
+
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
             $providerCode = strtolower($apiKey->provider->code ?? '');
@@ -223,20 +231,22 @@ class AgenticChatbotController extends Controller
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
             // ── STRATEGI TRUE SSE STREAMING ──────────────────────────────────
-            // Kita tidak bisa tahu di awal apakah loop ini akan menghasilkan
-            // tool_call atau final text. Oleh karena itu:
+            // Streaming HANYA aktif jika loop ini kemungkinan besar adalah FINAL ANSWER.
             //
-            // OPSI A (jika sudah ada tool results di turn ini):
-            //   Kemungkinan besar loop ini adalah FINAL ANSWER.
-            //   Gunakan streaming langsung ke browser.
-            //   Jika ternyata masih ada tool_call, treat sebagai fallback.
-            //
-            // OPSI B (loop pertama atau belum ada tool results):
-            //   Gunakan non-streaming biasa untuk deteksi tool_call.
+            // Untuk execute_query: streaming aktif hanya jika:
+            //   - Ini bukan query probe (SELECT DISTINCT ... LIMIT x tanpa GROUP BY)
+            //   - execute_query sudah pernah dipanggil sebelumnya di turn ini
+            // Ini mencegah streaming aktif di loop SELECT DISTINCT yang hasilnya
+            // masih akan dipakai sebagai input untuk query berikutnya.
             // ────────────────────────────────────────────────────────────────────
+            $isProbeQuery = $executeQueryCount > 0
+                && stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
+                && stripos($lastExecutedSql, 'GROUP BY') === false;
+
             $useStreaming = !empty($allTurnToolResults)
                 && $lastExecutedToolName !== null
-                && in_array($lastExecutedToolName, $terminalTools, true);
+                && in_array($lastExecutedToolName, $terminalTools, true)
+                && !$isProbeQuery;
 
             try {
                 if ($useStreaming) {
@@ -664,6 +674,15 @@ class AgenticChatbotController extends Controller
 
                 $allTurnToolResults[] = $frontendResult;
                 $lastExecutedToolName = $toolName; // Fix #1: track tool terakhir
+
+                // Track SQL terakhir untuk deteksi probe query (SELECT DISTINCT tanpa GROUP BY)
+                if ($toolName === 'execute_query') {
+                    $executeQueryCount++;
+                    $lastExecutedSql = $call['arguments']['sql'] ?? '';
+                    Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery="
+                        . (stripos($lastExecutedSql, 'SELECT DISTINCT') !== false && stripos($lastExecutedSql, 'GROUP BY') === false ? 'true' : 'false')
+                    );
+                }
 
                 $messages[] = [
                     'role'                       => 'tool',
@@ -1522,20 +1541,21 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 Jika Anda perlu mengetahui nilai unik dari sebuah kolom di VIEW (misalnya `nama_propinsi_cabang`, `nama_cabang`, `status`, dll):
 
 **DILARANG**: Memanggil `get_column_values` — PASTI ERROR pada VIEW.
-**DILARANG**: Menebak nilai kolom (misal: langsung pakai '%medan%', '%sumut%' tanpa konfirmasi).
+**DILARANG**: Menebak nilai kolom (misal: langsung pakai `ILIKE '%medan%'` pada query probe).
+**DILARANG**: Menambahkan filter `WHERE` pada query probe — query probe HARUS tanpa filter agar mengembalikan semua nilai yang ada.
 
-**WAJIB LAKUKAN**: Eksekusi query khusus dulu untuk mendapatkan nilai valid:
+**WAJIB LAKUKAN**: Eksekusi query probe TANPA FILTER untuk mendapatkan semua nilai valid:
 ```sql
 SELECT DISTINCT nama_kolom_yang_dibutuhkan
 FROM schema_name.nama_view
 LIMIT 20
 ```
-Kemudian gunakan nilai EKSAK dari hasil query tersebut di query utama berikutnya.
+Kemudian cocokkan nilai EKSAK dari hasil dengan kata kunci user, lalu gunakan di query utama dengan `=` (bukan ILIKE).
 
-Contoh nyata:
-- User tanya "cabang di Medan" → JANGAN langsung filter `ILIKE '%medan%'` pada kolom propinsi
-- Langkah benar: `SELECT DISTINCT nama_propinsi_cabang FROM sch_mbi.view_... LIMIT 20`
-- Dari hasilnya terlihat nilainya `'SUMATERA UTARA'` → gunakan `WHERE nama_propinsi_cabang = 'SUMATERA UTARA'`
+Contoh nyata — user tanya "cabang di Medan":
+- ❌ SALAH: `SELECT DISTINCT nama_propinsi_cabang WHERE ILIKE '%medan%'` → hasilnya KOSONG karena nilai aslinya `'SUMATERA UTARA'`
+- ✅ BENAR: `SELECT DISTINCT nama_propinsi_cabang FROM sch_mbi.view_... LIMIT 20` → tampil semua propinsi
+- ✅ BENAR: Dari hasil terlihat `'SUMATERA UTARA'` → query utama: `WHERE nama_propinsi_cabang = 'SUMATERA UTARA'`
 
 ## 🔴 ATURAN PENCARIAN PRODUK — WAJIB UNTUK QUERY FILTER PRODUK/BARANG
 
