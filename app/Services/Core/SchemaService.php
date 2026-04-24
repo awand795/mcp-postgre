@@ -125,8 +125,28 @@ class SchemaService extends BaseService
 
             $adapter = $dbModel->getAdapter();
 
-            DB::purge($connName);
-            config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+            // OPT: Cache describe_table — struktur kolom sangat jarang berubah
+            $cacheKey = 'describe_table_' . md5("{$databaseCode}_{$schemaName}_{$tableName}");
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                Log::info("[SchemaService] describeTable cache HIT: {$schemaName}.{$tableName}");
+                return $cached;
+            }
+
+            // OPT: Reuse koneksi persistent dari QueryService jika sudah ada
+            // agar tidak overhead membuat koneksi baru hanya untuk describe_table
+            $persistentConn = "persistent_conn_{$databaseCode}";
+            $useConn = null;
+            try {
+                DB::connection($persistentConn)->getPdo();
+                $useConn = $persistentConn;
+                Log::info("[SchemaService] describeTable reusing persistent connection for {$databaseCode}");
+            } catch (\Throwable $e) {
+                // Koneksi persistent belum ada, buat koneksi sementara
+                DB::purge($connName);
+                config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
+                $useConn = $connName;
+            }
 
             // Get columns and FKs
             $result = [];
@@ -134,7 +154,7 @@ class SchemaService extends BaseService
 
             // SQLite uses PRAGMA table_info which can't be parameterized
             if ($dbModel->driver === 'sqlite') {
-                $columns = DB::connection($connName)->select("PRAGMA table_info({$tableName})");
+                $columns = DB::connection($useConn)->select("PRAGMA table_info({$tableName})");
                 foreach ($columns as $col) {
                     $result[] = [
                         'column'   => $col->name,
@@ -143,12 +163,9 @@ class SchemaService extends BaseService
                     ];
                 }
             } else {
-                // Untuk MySQL/MariaDB: schemaParam adalah nama database (bukan schema name)
-                // karena MySQL tidak punya konsep schema — database name = schema name di information_schema.
-                // Untuk PostgreSQL/SQLServer: schemaParam adalah schema name (sch_mbi, public, dbo, dll).
                 $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
                 $query = $adapter->describeTableWithKeysQuery();
-                $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
+                $columns = DB::connection($useConn)->select($query, [$tableName, $schemaParam]);
 
                 foreach ($columns as $col) {
                     $item = [
@@ -165,7 +182,7 @@ class SchemaService extends BaseService
 
                 // Get Index Info
                 $idxQuery = $adapter->getTableIndexesQuery();
-                $idxData = DB::connection($connName)->select($idxQuery, [$tableName, $schemaParam]);
+                $idxData = DB::connection($useConn)->select($idxQuery, [$tableName, $schemaParam]);
                 foreach ($idxData as $idx) {
                     $indexes[] = [
                         'name'   => $idx->index_name,
@@ -175,7 +192,10 @@ class SchemaService extends BaseService
                 }
             }
 
-            DB::purge($connName);
+            // Hanya purge koneksi sementara, jangan purge persistent
+            if ($useConn === $connName) {
+                DB::purge($connName);
+            }
 
             if (empty($result)) {
                 // FIX: Jika tabel tidak ditemukan di schema itu, coba search schema lain
@@ -206,7 +226,11 @@ class SchemaService extends BaseService
                 'usage_tip' => 'Gunakan get_column_values untuk melihat variasi isi data pada kolom kategori/status.'
             ];
 
-            return $this->safeJsonEncode($response);
+            $encoded = $this->safeJsonEncode($response);
+            // Cache 30 menit — struktur kolom sangat jarang berubah
+            Cache::put($cacheKey, $encoded, 1800);
+            Log::info("[SchemaService] describeTable cached: {$schemaName}.{$tableName} (TTL=1800s)");
+            return $encoded;
         } catch (\Exception $e) {
             DB::purge($connName);
             return $this->errorResponse('Failed to describe table: ' . $e->getMessage());
