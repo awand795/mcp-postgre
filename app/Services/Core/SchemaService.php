@@ -227,6 +227,22 @@ class SchemaService extends BaseService
             return $this->errorResponse('Please provide an exact schema_name and table_name. Wildcard "*" is not allowed.');
         }
 
+        // GUARD: Tolak langsung jika target adalah VIEW (nama mengandung "view_")
+        // VIEW tidak support TABLESAMPLE — ini 100% akan error, skip sejak awal.
+        if (stripos($tableName, 'view_') === 0 || stripos($tableName, 'view') === 0) {
+            Log::info("[SchemaService] getColumnValues blocked for VIEW '{$tableName}' — returning fast instruction.");
+            return $this->safeJsonEncode([
+                'warning' => "get_column_values TIDAK DIDUKUNG untuk '{$tableName}' karena ini adalah VIEW PostgreSQL.",
+                'MANDATORY_AI_ACTION' => implode(' ', [
+                    "JANGAN panggil get_column_values lagi untuk tabel ini.",
+                    "LANGKAH WAJIB BERIKUTNYA:",
+                    "(1) Gunakan execute_query dengan query: SELECT DISTINCT {$columnName} FROM {$schemaName}.{$tableName} LIMIT 20",
+                    "(2) Gunakan hasil tersebut sebagai nilai filter WHERE pada query utama berikutnya.",
+                    "(3) JANGAN menebak nilai kolom — eksekusi SELECT DISTINCT terlebih dahulu.",
+                ]),
+            ]);
+        }
+
         $allowedDbs = $this->queryService->getAllowedTables();
         $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
         $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
@@ -564,6 +580,14 @@ class SchemaService extends BaseService
             'is_eager_loaded' => $isSmallSchema,
             'databases'       => $overview,
             'MANDATORY_SCHEMA_USAGE' => implode('; ', $schemaHints),
+            'MANDATORY_NEXT_STEP' => implode(' ', [
+                'Setelah membaca response ini, LANGKAH BERIKUTNYA YANG WAJIB:',
+                '(1) Identifikasi tabel yang paling relevan dari daftar di atas.',
+                '(2) Langsung panggil describe_table pada tabel tersebut.',
+                '(3) DILARANG memanggil search_schema jika tabel sudah terlihat jelas dari daftar di atas.',
+                '(4) DILARANG memanggil search_schema lebih dari 1 kali untuk topik yang sama.',
+                '(5) Jika tabel adalah VIEW (nama mengandung view_), DILARANG panggil get_column_values — gunakan execute_query SELECT DISTINCT sebagai gantinya.',
+            ]),
             'usage_note'      => $isSmallSchema
                 ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*" as schema_name.'
                 : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*".',

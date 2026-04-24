@@ -97,13 +97,16 @@ class ToolCallExecutor
             [
                 'type'        => 'function',
                 'name'        => 'get_column_values',
-                'description' => 'Mengambil variasi nilai unik (DISTINCT) dari sebuah kolom (maks 20 nilai). Gunakan ini jika Anda ingin tahu isi data pada kolom status, kategori, atau tipe sebelum menulis query filter WHERE agar tidak salah tebak.',
+                'description' => 'Mengambil nilai unik (DISTINCT) dari sebuah kolom tabel FISIK (maks 20 nilai). PERINGATAN KERAS: DILARANG MUTLAK menggunakan tool ini pada tabel/view yang namanya mengandung prefix "view_" atau apapun yang merupakan VIEW — tool ini PASTI ERROR pada VIEW karena PostgreSQL tidak support TABLESAMPLE pada VIEW. Sebagai gantinya, gunakan execute_query dengan SELECT DISTINCT kolom FROM schema.tabel LIMIT 20. Gunakan tool ini HANYA untuk tabel fisik kecil (bukan VIEW) saat Anda butuh nilai enum/kategori sebelum query utama.',
                 'parameters'  => [
                     'type'       => 'object',
                     'properties' => [
                         'database_code' => [ 'type' => 'string' ],
                         'schema_name' => [ 'type' => 'string' ],
-                        'table_name' => [ 'type' => 'string' ],
+                        'table_name' => [
+                            'type'        => 'string',
+                            'description' => 'Nama tabel FISIK saja — DILARANG memasukkan nama yang mengandung "view_" atau yang merupakan VIEW.',
+                        ],
                         'column_name' => [ 'type' => 'string' ],
                     ],
                     'required' => ['database_code', 'schema_name', 'table_name', 'column_name'],
@@ -126,13 +129,13 @@ class ToolCallExecutor
             [
                 'type'        => 'function',
                 'name'        => 'search_schema',
-                'description' => 'Mencari tabel atau kolom yang relevan berdasarkan kata kunci di seluruh database yang tersedia. Gunakan ini jika Anda bingung mencari letak data tertentu (misal: mencari di mana data "diskon" disimpan).',
+                'description' => 'Mencari tabel atau kolom berdasarkan kata kunci. ATURAN PENGGUNAAN KETAT: (1) Panggil HANYA SEKALI per topik pencarian — jika sudah menemukan tabel yang relevan, LANGSUNG ke describe_table, jangan search lagi dengan sinonim. (2) Gunakan 1 kata pendek saja sebagai keyword ("jual" bukan "data penjualan cabang"). (3) JANGAN panggil search_schema jika get_database_schema_info sudah mengembalikan daftar tabel yang cukup jelas — langsung gunakan describe_table pada tabel yang paling relevan. (4) Jika hasil pertama sudah mengandung tabel yang relevan → STOP, jangan search lagi.',
                 'parameters'  => [
                     'type'       => 'object',
                     'properties' => [
                         'keyword' => [
                             'type'        => 'string',
-                            'description' => 'Kata kunci pencarian (misal: "sales", "customer", "price").',
+                            'description' => 'SATU kata pendek saja (contoh: "jual", "cabang", "stok"). DILARANG lebih dari satu kata atau frasa panjang.',
                         ],
                     ],
                     'required' => ['keyword'],

@@ -1475,9 +1475,9 @@ Insight bukan sekadar mengulang angka — insight adalah ANALISIS yang membuat B
 
 ## TOOLS TERSEDIA
 1. `get_database_schema_info` — Dapatkan struktur database. **GUNAKAN INI PERTAMA.**
-2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci. **WAJIB gunakan 1 kata pendek saja** (contoh: "baterai", "jual", "produk" — BUKAN "produk baterai penjualan"). Jika tidak ada hasil, coba keyword lain yang lebih umum.
+2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci. **ATURAN KETAT: GUNAKAN HANYA JIKA tabel tidak ditemukan dari get_database_schema_info. Panggil MAKSIMAL 1 KALI per topik. Jika sudah ada hasil yang relevan → STOP, langsung ke describe_table. DILARANG keras memanggil search_schema berulang kali untuk sinonim yang sama.**
 3. `describe_table` — **WAJIB DIPANGGIL** sebelum execute_query. Dapatkan nama kolom EKSAK.
-4. `get_column_values` — Ambil nilai unik dari kolom. Skip jika timeout/error VIEW.
+4. `get_column_values` — **DILARANG untuk tabel/VIEW dengan nama mengandung "view_"**. Untuk VIEW, gunakan execute_query SELECT DISTINCT sebagai gantinya. Untuk tabel fisik kecil: ambil nilai unik dari kolom sebelum query utama.
 5. `get_view_definition` — Dapatkan DDL/logika di balik sebuah View.
 6. `get_table_preview` — Ambil 5 baris contoh data untuk memahami format.
 7. `execute_query` — Eksekusi SQL SELECT. Wajib prefix schema!
@@ -1509,11 +1509,33 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 ## PROTOKOL URUTAN LANGKAH (WAJIB, tidak boleh dilewati)
 
 1. `get_database_schema_info` → identifikasi tabel relevan
-2. `describe_table` → dapatkan nama kolom EKSAK (WAJIB, max 3x)
-3. `get_column_values` jika perlu → skip jika error/timeout VIEW
-4. Bangun query **hanya dari kolom hasil describe_table**
-5. `execute_query` → eksekusi
-6. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
+2. Jika tabel sudah jelas dari langkah 1 → **LANGSUNG ke `describe_table`** (SKIP `search_schema`)
+3. Jika tabel tidak ditemukan dari langkah 1 → `search_schema` MAKSIMAL 1x, lalu `describe_table`
+4. `describe_table` → dapatkan nama kolom EKSAK (WAJIB, max 3x)
+5. **JIKA butuh nilai kolom dari VIEW**: Gunakan `execute_query` dengan `SELECT DISTINCT nama_kolom FROM schema.tabel LIMIT 20` — BUKAN `get_column_values`
+6. Bangun query **hanya dari kolom hasil describe_table**
+7. `execute_query` → eksekusi
+8. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
+
+## 🔴 PROTOKOL KHUSUS: FILTER NILAI KOLOM PADA VIEW
+
+Jika Anda perlu mengetahui nilai unik dari sebuah kolom di VIEW (misalnya `nama_propinsi_cabang`, `nama_cabang`, `status`, dll):
+
+**DILARANG**: Memanggil `get_column_values` — PASTI ERROR pada VIEW.
+**DILARANG**: Menebak nilai kolom (misal: langsung pakai '%medan%', '%sumut%' tanpa konfirmasi).
+
+**WAJIB LAKUKAN**: Eksekusi query khusus dulu untuk mendapatkan nilai valid:
+```sql
+SELECT DISTINCT nama_kolom_yang_dibutuhkan
+FROM schema_name.nama_view
+LIMIT 20
+```
+Kemudian gunakan nilai EKSAK dari hasil query tersebut di query utama berikutnya.
+
+Contoh nyata:
+- User tanya "cabang di Medan" → JANGAN langsung filter `ILIKE '%medan%'` pada kolom propinsi
+- Langkah benar: `SELECT DISTINCT nama_propinsi_cabang FROM sch_mbi.view_... LIMIT 20`
+- Dari hasilnya terlihat nilainya `'SUMATERA UTARA'` → gunakan `WHERE nama_propinsi_cabang = 'SUMATERA UTARA'`
 
 ## 🔴 ATURAN PENCARIAN PRODUK — WAJIB UNTUK QUERY FILTER PRODUK/BARANG
 
