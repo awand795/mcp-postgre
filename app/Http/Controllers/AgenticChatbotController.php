@@ -1644,10 +1644,15 @@ PROMPT;
 
     private function streamText(string $text): void
     {
-        foreach (mb_str_split($text, 50) as $chunk) {
+        // Sesuaikan ukuran chunk dengan panjang teks agar efek typing natural tapi tidak terlalu lambat
+        $len = mb_strlen($text);
+        $chunkSize = $len > 3000 ? 10 : ($len > 1000 ? 6 : 3);
+        $sleepTime = 15000; // 15ms per chunk
+
+        foreach (mb_str_split($text, $chunkSize) as $chunk) {
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
             if (ob_get_level() > 0) ob_flush(); flush();
-            usleep(10000);
+            usleep($sleepTime);
         }
     }
 

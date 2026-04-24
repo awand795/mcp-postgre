@@ -1046,7 +1046,14 @@
                 return { bubble, toolArea, wrapper: wrap };
             }
 
-            function renderStreamToBubble(bubble, text, toolResultsForRender) {
+            function updateStreamBubbleText(bubble, text) {
+                bubble.innerHTML = renderMarkdown(text);
+                bubble.querySelectorAll('pre code').forEach(b => {
+                    try { hljs.highlightElement(b); } catch(e) {}
+                });
+            }
+
+            function finalizeStreamBubble(bubble, text, toolResultsForRender) {
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => {
                     try { hljs.highlightElement(b); } catch(e) {}
@@ -2940,7 +2947,7 @@
                                 }
 
                                 if (!bubble._loadInterval) {
-                                    renderStreamToBubble(bubble, aiResponseText, currentToolResults);
+                                    updateStreamBubbleText(bubble, aiResponseText);
                                 }
 
                                 // Scroll smoothly as content arrives
@@ -2976,7 +2983,7 @@
                                 } else if (tc.status === 'success') {
                                     if (tc.result) {
                                         currentToolResults.push(tc.result);
-                                        renderStreamToBubble(bubble, aiResponseText, currentToolResults);
+                                        updateStreamBubbleText(bubble, aiResponseText);
                                     }
 
                                     const runningBadge = toolArea.querySelector('.tool-call-badge.running');
@@ -3010,6 +3017,10 @@
                         } catch (e) { /* Ignore individual parse errors */ }
                     }
                 }
+
+                // --- STREAM SELESAI ---
+                // Inisialisasi smart tables dan charts setelah stream selesai untuk mencegah re-render berulang
+                finalizeStreamBubble(bubble, aiResponseText, currentToolResults);
 
                 if (toolArea.children.length === 0 && aiResponseText.trim().length === 0) {
                     bubble.innerHTML = renderMarkdown('Maaf, saya tidak dapat memproses permintaan Anda.');
