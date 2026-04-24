@@ -224,6 +224,12 @@ class AgenticChatbotController extends Controller
         $executeQueryCount  = 0;
         $lastExecutedSql    = '';
 
+        // Hard limit probe query: jika model sudah melakukan >= 2 SELECT DISTINCT
+        // berturut-turut tanpa GROUP BY, inject reminder paksa agar langsung ke query utama.
+        // Ini mencegah model terus eksplor tanpa batas.
+        $probeQueryCount    = 0;
+        $maxProbeQueries    = 2; // maksimal 2 probe query sebelum dipaksa ke query utama
+
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
             $providerCode = strtolower($apiKey->provider->code ?? '');
@@ -679,9 +685,52 @@ class AgenticChatbotController extends Controller
                 if ($toolName === 'execute_query') {
                     $executeQueryCount++;
                     $lastExecutedSql = $call['arguments']['sql'] ?? '';
-                    Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery="
-                        . (stripos($lastExecutedSql, 'SELECT DISTINCT') !== false && stripos($lastExecutedSql, 'GROUP BY') === false ? 'true' : 'false')
-                    );
+                    $currentIsProbe  = stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
+                                    && stripos($lastExecutedSql, 'GROUP BY') === false;
+
+                    if ($currentIsProbe) {
+                        $probeQueryCount++;
+                        Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery=true (probe #{$probeQueryCount})");
+                    } else {
+                        Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery=false");
+                    }
+
+                    // ── HARD LIMIT: paksa model ke query utama setelah 2 probe query ──
+                    // Jika model sudah 2x SELECT DISTINCT tanpa GROUP BY, ia sudah punya
+                    // cukup informasi untuk menulis query final. Inject reminder paksa.
+                    if ($currentIsProbe && $probeQueryCount >= $maxProbeQueries) {
+                        // Ekstrak nilai unik yang sudah didapat dari tool results sejauh ini
+                        $collectedValues = [];
+                        foreach ($allTurnToolResults as $tr) {
+                            $rows = $tr['data']['rows'] ?? [];
+                            foreach (array_slice($rows, 0, 30) as $row) {
+                                $vals = is_array($row) ? array_values($row) : [(string)$row];
+                                foreach ($vals as $v) {
+                                    if ($v !== null && $v !== '') $collectedValues[] = (string)$v;
+                                }
+                            }
+                        }
+                        $valuesText = !empty($collectedValues)
+                            ? '"' . implode('", "', array_unique(array_slice($collectedValues, 0, 20))) . '"'
+                            : '(lihat hasil tool sebelumnya)';
+
+                        Log::warning("[Agentic] PROBE LIMIT reached ({$probeQueryCount}/{$maxProbeQueries}). Injecting force-execute reminder.");
+                        $messages[] = [
+                            'role'    => 'user',
+                            'content' => implode("\n", [
+                                '[SYSTEM — BATAS EKSPLORASI TERCAPAI]:',
+                                "Anda sudah melakukan {$probeQueryCount} query eksplorasi (SELECT DISTINCT).",
+                                'Nilai yang sudah Anda dapatkan: ' . $valuesText,
+                                '',
+                                'INSTRUKSI WAJIB — LANGSUNG EKSEKUSI QUERY UTAMA SEKARANG:',
+                                '1. Pilih nilai filter yang PALING RELEVAN dari daftar di atas berdasarkan konteks pertanyaan user.',
+                                '2. Tulis dan jalankan execute_query untuk query FINAL dengan GROUP BY dan SUM/agregasi.',
+                                '3. DILARANG KERAS melakukan SELECT DISTINCT lagi.',
+                                '4. DILARANG bertanya ke user atau meminta konfirmasi.',
+                                '5. Jika ada beberapa nilai yang relevan, gunakan semuanya dengan WHERE kolom IN (...) atau OR.',
+                            ]),
+                        ];
+                    }
                 }
 
                 $messages[] = [
@@ -1299,9 +1348,9 @@ Nama kolom yang DILARANG ditebak (harus dari describe_table):
 
 User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis ("hm yamin", "HM Yamin", "yamin", dll). Nama yang tersimpan di database bisa berbeda ("HM. YAMIN", "HM YAMIN BC", dll).
 
-**WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas:**
+**WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas SPESIFIK (bukan wilayah/propinsi/kota):**
 
-**Langkah 1 — Resolve nama eksak dulu:**
+**Langkah 1 — Resolve nama eksak dulu (hanya untuk nama entitas spesifik):**
 ```sql
 SELECT DISTINCT nama_cabang
 FROM schema.tabel
@@ -1315,7 +1364,13 @@ LIMIT 10
 WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
 ```
 
-**DILARANG** langsung pakai keyword user sebagai filter tanpa Langkah 1.
+**PENGECUALIAN PENTING — DILARANG pakai Langkah 1 jika user menyebut wilayah/kota/propinsi:**
+- User tanya "cabang di Medan" / "cabang di Sumatera Utara" / "cabang di Jakarta" → **JANGAN resolve nama cabang**
+- Untuk pertanyaan berbasis wilayah: langsung gunakan kolom propinsi/kabupaten/kota dengan filter `= 'NAMA_WILAYAH_EKSAK'`
+- Nilai eksak wilayah didapat dari **1 query probe** `SELECT DISTINCT nama_propinsi_cabang ... LIMIT 20` **TANPA filter WHERE**
+- Setelah dapat nilai propinsi eksak → **LANGSUNG query utama**, JANGAN probe lagi
+
+**DILARANG** langsung pakai keyword user sebagai filter tanpa Langkah 1 (hanya berlaku untuk nama entitas spesifik).
 **DILARANG** pakai `ILIKE` di query utama jika sudah mendapat nama eksak dari Langkah 1.
 
 Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
@@ -1531,10 +1586,16 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 2. Jika tabel sudah jelas dari langkah 1 → **LANGSUNG ke `describe_table`** (SKIP `search_schema`)
 3. Jika tabel tidak ditemukan dari langkah 1 → `search_schema` MAKSIMAL 1x, lalu `describe_table`
 4. `describe_table` → dapatkan nama kolom EKSAK (WAJIB, max 3x)
-5. **JIKA butuh nilai kolom dari VIEW**: Gunakan `execute_query` dengan `SELECT DISTINCT nama_kolom FROM schema.tabel LIMIT 20` — BUKAN `get_column_values`
-6. Bangun query **hanya dari kolom hasil describe_table**
-7. `execute_query` → eksekusi
+5. **JIKA butuh nilai kolom dari VIEW**: Gunakan `execute_query` dengan `SELECT DISTINCT nama_kolom FROM schema.tabel LIMIT 20` **TANPA filter WHERE** — BUKAN `get_column_values`. **MAKSIMAL 1 kali probe per kolom.**
+6. Bangun query **hanya dari kolom hasil describe_table** dan nilai eksak dari probe
+7. `execute_query` → eksekusi query FINAL
 8. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
+
+**ATURAN PROBE QUERY — KRITIS:**
+- **Maksimal 1 probe** per kolom yang ingin diketahui nilainya
+- Setelah 1 probe mendapat nilai → **LANGSUNG ke query final**, tidak ada probe lagi
+- DILARANG probe `nama_cabang` jika user bertanya tentang wilayah (gunakan kolom propinsi/kabupaten)
+- DILARANG probe untuk memverifikasi hasil probe sebelumnya
 
 ## 🔴 PROTOKOL KHUSUS: FILTER NILAI KOLOM PADA VIEW
 
