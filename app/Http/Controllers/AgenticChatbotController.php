@@ -1429,6 +1429,27 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 5. `execute_query` → eksekusi
 6. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
 
+## 🔴 ATURAN PENCARIAN PRODUK — WAJIB UNTUK QUERY FILTER PRODUK/BARANG
+
+Saat user menyebut kategori produk ("baterai", "oli", "ban", "spare part", dll), **JANGAN hanya filter di kolom nama produk saja**. Produk sering dikategorikan di kolom terpisah, sehingga nama produknya berbeda dari kata yang user sebut.
+
+**Contoh nyata:** Produk "BATTERY FASTER 5L" tidak mengandung kata "baterai" di namanya, tapi ada di kolom `nama_kategori_barang = 'BATTERY'` atau `nama_golongan_barang = 'BATTERY'`.
+
+**WAJIB gunakan filter OR yang mencakup semua kolom relevan:**
+```sql
+WHERE nama_barang ILIKE '%baterai%'
+   OR nama_barang ILIKE '%battery%'
+   OR nama_kategori_barang ILIKE '%baterai%'
+   OR nama_kategori_barang ILIKE '%battery%'
+   OR nama_golongan_barang ILIKE '%baterai%'
+   OR nama_golongan_barang ILIKE '%battery%'
+```
+
+**Langkah wajib sebelum membuat filter produk:**
+1. Panggil `describe_table` → identifikasi kolom yang berkaitan dengan nama/kategori/golongan produk
+2. Gunakan semua kolom relevan dalam filter OR
+3. Sertakan sinonim Bahasa Indonesia DAN Bahasa Inggris ("baterai" + "battery", "oli" + "oil", "ban" + "tire")
+
 ## ATURAN SQL
 - **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
 - **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
