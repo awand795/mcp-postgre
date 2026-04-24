@@ -201,6 +201,21 @@ class AgenticChatbotController extends Controller
         $loopCount   = 0;
         $allTurnToolResults = [];
 
+        // ── Fix #1: Track tool terakhir yang dieksekusi ──────────────────────
+        // Digunakan untuk heuristik streaming: hanya stream jika tool terakhir
+        // adalah "terminal tool" (execute_query / get_erp_guidance) yang hampir
+        // pasti menghasilkan final answer, bukan tool intermediate seperti
+        // get_database_schema_info / search_schema / describe_table.
+        $lastExecutedToolName = null;
+
+        // Tool-tool yang hampir pasti menghasilkan final answer setelah dieksekusi.
+        $terminalTools = [
+            'execute_query',
+            'get_erp_guidance',
+            'get_erp_menu_navigation',
+            'fetch_erp_guidance_from_web',
+        ];
+
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
             $providerCode = strtolower($apiKey->provider->code ?? '');
@@ -219,7 +234,9 @@ class AgenticChatbotController extends Controller
             // OPSI B (loop pertama atau belum ada tool results):
             //   Gunakan non-streaming biasa untuk deteksi tool_call.
             // ────────────────────────────────────────────────────────────────────
-            $useStreaming = !empty($allTurnToolResults);
+            $useStreaming = !empty($allTurnToolResults)
+                && $lastExecutedToolName !== null
+                && in_array($lastExecutedToolName, $terminalTools, true);
 
             try {
                 if ($useStreaming) {
@@ -646,6 +663,7 @@ class AgenticChatbotController extends Controller
                 if (ob_get_level() > 0) ob_flush(); flush();
 
                 $allTurnToolResults[] = $frontendResult;
+                $lastExecutedToolName = $toolName; // Fix #1: track tool terakhir
 
                 $messages[] = [
                     'role'                       => 'tool',
