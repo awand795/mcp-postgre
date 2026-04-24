@@ -1051,12 +1051,7 @@
                 // ── Typewriter Engine ────────────────────────────────────
                 // Hanya update teks di bubble — smart table dan grafik TIDAK
                 // dirender di sini, hanya setelah stream selesai (finalizeStreamBubble).
-                if (!text || text.trim() === '') {
-                    bubble.style.display = 'none';
-                    return;
-                }
-                
-                bubble.style.display = 'block';
+                if (!text || text.trim() === '') return;
 
                 // Inisialisasi state typewriter jika belum ada
                 if (!bubble._twState) {
@@ -1076,9 +1071,9 @@
 
                 function stripSpecialBlocks(t) {
                     return t
-                        .replace(/```smart_table[\s\S]*?```/g, '')
-                        .replace(/```chart[\s\S]*?```/g, '')
-                        .replace(/```dashboard[\s\S]*?```/g, '');
+                        .replace(/```smart_table[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">📊 Menyiapkan Tabel Data...</div>')
+                        .replace(/```chart[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">📈 Menyiapkan Grafik...</div>')
+                        .replace(/```dashboard[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">🗂️ Menyiapkan Dashboard...</div>');
                 }
 
                 function twLoop() {
@@ -1128,9 +1123,7 @@
 
                 if (!text || text.trim() === '') {
                     bubble.innerHTML = '';
-                    bubble.style.display = 'none';
                 } else {
-                    bubble.style.display = 'block';
                     bubble.innerHTML = renderMarkdown(text);
                     bubble.querySelectorAll('pre code').forEach(b => {
                         try { hljs.highlightElement(b); } catch(e) {}
@@ -1145,10 +1138,6 @@
                     initSmartTablesInBubble(bubble, activeResults);
                     autoInjectSmartTableFromToolResults(bubble, activeResults);
                     
-                    // Pastikan bubble tampil jika ada komponen (seperti tabel auto-inject) meskipun teks kosong
-                    if (bubble.innerHTML.trim() !== '') {
-                        bubble.style.display = 'block';
-                    }
                 }, 60);
             }
 
