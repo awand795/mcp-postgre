@@ -472,6 +472,29 @@
                 max-width: 100% !important;
             }
         }
+
+        /* ── Typewriter Cursor ── */
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: #f53003;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            border-radius: 1px;
+            animation: cursor-blink 0.8s steps(1) infinite;
+        }
+        @keyframes cursor-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .typing-cursor.done {
+            animation: cursor-fade 0.4s ease forwards;
+        }
+        @keyframes cursor-fade {
+            from { opacity: 1; }
+            to   { opacity: 0; width: 0; margin: 0; }
+        }
     </style>
 </head>
 
@@ -916,7 +939,7 @@
                                 // ── Streaming text chunk ──────────────────────────
                                 if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                     aiResponseText += parsed.chunk;
-                                    renderStreamToBubble(bubble, aiResponseText);
+                                    updateStreamBubbleText(bubble, aiResponseText);
                                 }
 
                                 // ── Notifikasi proses (label bisnis) ──────────────
@@ -991,6 +1014,9 @@
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                     }
 
+                    // --- STREAM SELESAI ---
+                    finalizeStreamBubble(bubble, aiResponseText, currentToolResults);
+
                     if (toolArea.children.length === 0) {
                         toolArea.style.display = 'none';
                     }
@@ -1021,32 +1047,8 @@
                 }
             }
 
-            // ── Buat bubble AI ────────────────────────────────────────────────────
-            function createStreamBubble() {
-                const time = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-                const wrap = document.createElement('div');
-                wrap.className = 'flex flex-col gap-1.5 items-start max-w-[95%]';
-
-                const toolArea = document.createElement('div');
-                toolArea.className = 'flex flex-col gap-1 pl-1 mb-1';
-
-                const bubble = document.createElement('div');
-                bubble.className = 'chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body';
-                bubble.innerHTML = '<span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses...</span>';
-
-                const timeEl = document.createElement('span');
-                timeEl.className = 'text-[10px] text-[#706f6c] ml-1';
-                timeEl.textContent = time;
-
-                wrap.appendChild(toolArea);
-                wrap.appendChild(bubble);
-                wrap.appendChild(timeEl);
-
-                return { bubble, toolArea, wrapper: wrap };
-            }
-
             function updateStreamBubbleText(bubble, text) {
+                if (!text || text.trim() === '') return;
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => {
                     try { hljs.highlightElement(b); } catch(e) {}
