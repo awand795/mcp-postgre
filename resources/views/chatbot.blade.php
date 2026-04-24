@@ -2996,18 +2996,35 @@
                                 loadSessions();
                             }
 
+                            if (parsed.status === 'thinking') {
+                                // Update loading card segera saat AI mulai berpikir
+                                const labelEl = bubble.querySelector('#ai-load-label');
+                                const subEl   = bubble.querySelector('#ai-load-sub');
+                                if (labelEl && subEl) {
+                                    labelEl.textContent = 'AI sedang merancang jawaban';
+                                    subEl.textContent = 'Menganalisis permintaan...';
+                                }
+                            }
+
                             if (parsed.chunk !== undefined && parsed.chunk !== '') {
                                 aiResponseText += parsed.chunk;
 
                                 // Update loading state to show progress
-                                if (bubble._loadInterval && aiResponseText.trim().length > 50) {
-                                    clearInterval(bubble._loadInterval);
-                                    bubble._loadInterval = null;
+                                // Hapus loading card jika teks sudah mulai banyak atau jika ini adalah chunk pertama
+                                if (aiResponseText.trim().length > 0) {
+                                    if (bubble._loadInterval) {
+                                        clearInterval(bubble._loadInterval);
+                                        bubble._loadInterval = null;
+                                    }
+                                    
+                                    // Sembunyikan loading card jika ada teks nyata yang mengalir
+                                    const loadingCard = bubble.querySelector('.ai-loading-card');
+                                    if (loadingCard && aiResponseText.trim().length > 5) {
+                                        loadingCard.style.display = 'none';
+                                    }
                                 }
 
-                                if (!bubble._loadInterval) {
-                                    updateStreamBubbleText(bubble, aiResponseText);
-                                }
+                                updateStreamBubbleText(bubble, aiResponseText);
 
                                 // Scroll smoothly as content arrives
                                 if (Date.now() - lastUpdateTime > 200) {

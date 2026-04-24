@@ -200,6 +200,7 @@ class AgenticChatbotController extends Controller
         $tools       = ToolCallExecutor::getToolDefinitions();
         $loopCount   = 0;
         $allTurnToolResults = [];
+        $textContent = '';
 
         // ── Fix #1: Track tool terakhir yang dieksekusi ──────────────────────
         // Digunakan untuk heuristik streaming: hanya stream jika tool terakhir
@@ -249,10 +250,7 @@ class AgenticChatbotController extends Controller
                 && stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
                 && stripos($lastExecutedSql, 'GROUP BY') === false;
 
-            $useStreaming = !empty($allTurnToolResults)
-                && $lastExecutedToolName !== null
-                && in_array($lastExecutedToolName, $terminalTools, true)
-                && !$isProbeQuery;
+            $useStreaming = !empty($textContent) || ($loopCount > 1 && !empty($allTurnToolResults));
 
             try {
                 if ($useStreaming) {
@@ -641,6 +639,17 @@ class AgenticChatbotController extends Controller
                 $toolCallId = $call['id'];
                 $toolName   = $call['name'];
                 $arguments  = $call['arguments'];
+
+                // Kirim status 'running' segera agar user tahu tool apa yang sedang bekerja
+                echo "data: " . json_encode([
+                    'tool_call' => [
+                        'name'      => $toolName,
+                        'arguments' => $arguments,
+                        'status'    => 'running',
+                    ]
+                ]) . "\n\n";
+                if (ob_get_level() > 0) ob_flush(); flush();
+
                 $countWithoutWhereWarning = $call['countWithoutWhereWarning'];
                 $toolResult = $execItem['result'];
 
@@ -1248,12 +1257,37 @@ class AgenticChatbotController extends Controller
             if (empty($schemaList)) $schemaList = implode(', ', array_keys($schemas));
 
             if ($dbModel && in_array($dbModel->driver, ['mysql', 'mariadb'])) {
-                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: \`table_name\` (tanpa prefix schema) | Contoh: SELECT * FROM `nama_tabel`";
+                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: \`table_name\` (tanpa prefix schema)";
             } else {
-                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Schema: {$schemaList} | Format Query: schema_name.table_name | Contoh: SELECT * FROM {$schemaList}.nama_tabel";
+                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Schema: {$schemaList} | Format Query: schema_name.table_name";
             }
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
+
+        // ── OPTIMASI: SUNTIKKAN TABEL UTAMA (Skipping 1-2 discovery loops) ──
+        $mainTablesHint = [];
+        try {
+            $conns = \App\Models\DatabaseConnection::active()->get();
+            foreach ($conns as $conn) {
+                // Ambil daftar tabel yang diizinkan (limit 20 untuk efisiensi prompt)
+                $db = $conn->database;
+                // Heuristik: ambil tabel yang sering digunakan atau view_
+                $tables = \Illuminate\Support\Facades\DB::connection($conn->database)
+                    ->table('information_schema.tables')
+                    ->where('table_schema', 'not in', ['information_schema', 'pg_catalog'])
+                    ->where('table_name', 'not like', 'pg_%')
+                    ->limit(15)
+                    ->pluck('table_name')
+                    ->toArray();
+                
+                if (!empty($tables)) {
+                    $mainTablesHint[] = "Database [{$db}]: " . implode(', ', $tables);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("[Agentic] Failed to fetch table hints for prompt: " . $e->getMessage());
+        }
+        $tableHintText = !empty($mainTablesHint) ? implode("\n", $mainTablesHint) : "Panggil get_database_schema_info untuk melihat daftar tabel.";
 
         $currentTime = now()->translatedFormat('l, d F Y H:i');
 
@@ -1288,9 +1322,13 @@ Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:
 ## DATABASE TERSEDIA UNTUK ANDA:
 {$dbSummaryText}
 
-## 🔴 INSTRUKSI PERTAMA YANG WAJIB DIEKSEKUSI (SEBELUM APAPUN)
+## 🔴 INSTRUKSI PERTAMA (EFEKTIF & INSTAN)
 
-**SETIAP PERTANYAAN** dari user — tanpa kecuali — harus direspons dengan memanggil tool `get_database_schema_info` TERLEBIH DAHULU.
+**Daftar Tabel Utama (Gunakan Jika Relevan):**
+{$tableHintText}
+
+Jika pertanyaan user sudah jelas berkaitan dengan tabel di atas, **LANGSUNG panggil `describe_table`** (Lewati `get_database_schema_info`).
+HANYA panggil `get_database_schema_info` jika tabel yang Anda butuhkan tidak ada di daftar atas.
 
 **DAFTAR PERTANYAAN BISNIS YANG PASTI VALID (WAJIB DIJAWAB DENGAN TOOL):**
 - "total cabang", "jumlah cabang", "berapa cabang", "cabang"
