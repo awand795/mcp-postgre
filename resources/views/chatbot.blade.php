@@ -1048,23 +1048,108 @@
             }
 
             function updateStreamBubbleText(bubble, text) {
-                if (!text || text.trim() === '') return;
-                bubble.innerHTML = renderMarkdown(text);
-                bubble.querySelectorAll('pre code').forEach(b => {
-                    try { hljs.highlightElement(b); } catch(e) {}
-                });
+                // ── Typewriter Engine ────────────────────────────────────
+                // Hanya update teks di bubble — smart table dan grafik TIDAK
+                // dirender di sini, hanya setelah stream selesai (finalizeStreamBubble).
+                if (!text || text.trim() === '') {
+                    bubble.style.display = 'none';
+                    return;
+                }
+                
+                bubble.style.display = 'block';
+
+                // Inisialisasi state typewriter jika belum ada
+                if (!bubble._twState) {
+                    bubble._twState = {
+                        displayedLen: 0,
+                        rafId: null,
+                        lastRenderedText: '',
+                    };
+                }
+                const st = bubble._twState;
+
+                // Simpan teks penuh terbaru
+                st.fullText = text;
+
+                // Jika animasi sudah berjalan, biarkan loop yang handle
+                if (st.rafId) return;
+
+                function stripSpecialBlocks(t) {
+                    return t
+                        .replace(/```smart_table[\s\S]*?```/g, '')
+                        .replace(/```chart[\s\S]*?```/g, '')
+                        .replace(/```dashboard[\s\S]*?```/g, '');
+                }
+
+                function twLoop() {
+                    if (!st.fullText) { st.rafId = null; return; }
+
+                    const lag = st.fullText.length - st.displayedLen;
+                    let speed = lag > 200 ? 18 : lag > 80 ? 10 : lag > 30 ? 5 : 3;
+
+                    if (st.displayedLen < st.fullText.length) {
+                        st.displayedLen = Math.min(st.displayedLen + speed, st.fullText.length);
+                        const partial = st.fullText.slice(0, st.displayedLen);
+
+                        if (partial !== st.lastRenderedText) {
+                            st.lastRenderedText = partial;
+                            const displayText = stripSpecialBlocks(partial);
+                            bubble.innerHTML = renderMarkdown(displayText);
+                            // Cursor berkedip merah
+                            const cur = document.createElement('span');
+                            cur.className = 'typing-cursor';
+                            bubble.appendChild(cur);
+                            // Highlight code blocks
+                            bubble.querySelectorAll('pre code').forEach(b => {
+                                try { if (!b.dataset.highlighted) hljs.highlightElement(b); } catch(e) {}
+                            });
+                        }
+                        st.rafId = requestAnimationFrame(twLoop);
+                    } else {
+                        // Semua karakter sudah ditampilkan — hapus cursor
+                        const cur = bubble.querySelector('.typing-cursor');
+                        if (cur) { cur.classList.add('done'); setTimeout(() => cur.remove(), 400); }
+                        st.rafId = null;
+                    }
+                }
+
+                st.rafId = requestAnimationFrame(twLoop);
             }
 
             function finalizeStreamBubble(bubble, text, toolResultsForRender) {
-                bubble.innerHTML = renderMarkdown(text);
-                bubble.querySelectorAll('pre code').forEach(b => {
-                    try { hljs.highlightElement(b); } catch(e) {}
-                });
-                initChartsInBubble(bubble);
-                initSmartTablesInBubble(bubble);
-                // Auto-inject smart table jika AI tidak mengirim blok smart_table
+                // Stop typewriter jika masih berjalan
+                if (bubble._twState && bubble._twState.rafId) {
+                    cancelAnimationFrame(bubble._twState.rafId);
+                    bubble._twState.rafId = null;
+                }
+                // Hapus cursor berkedip jika ada
+                const cur = bubble.querySelector('.typing-cursor');
+                if (cur) cur.remove();
+
+                if (!text || text.trim() === '') {
+                    bubble.innerHTML = '';
+                    bubble.style.display = 'none';
+                } else {
+                    bubble.style.display = 'block';
+                    bubble.innerHTML = renderMarkdown(text);
+                    bubble.querySelectorAll('pre code').forEach(b => {
+                        try { hljs.highlightElement(b); } catch(e) {}
+                    });
+                }
+
                 const activeResults = toolResultsForRender !== undefined ? toolResultsForRender : currentToolResults;
-                autoInjectSmartTableFromToolResults(bubble, activeResults);
+                // Defer inisialisasi chart/table agar DOM siap
+                setTimeout(() => {
+                    initChartsInBubble(bubble, activeResults);
+                    initDashboardsInBubble(bubble);
+                    initSmartTablesInBubble(bubble, activeResults);
+                    autoInjectSmartTableFromToolResults(bubble, activeResults);
+                    
+                    // Pastikan bubble tampil jika ada komponen (seperti tabel auto-inject) meskipun teks kosong
+                    if (bubble.innerHTML.trim() !== '') {
+                        bubble.style.display = 'block';
+                    }
+                }, 60);
             }
 
             // ── Render pesan biasa (legacy stub - panggil addMessage utama) ──────────────────────────────────────
