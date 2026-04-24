@@ -698,11 +698,12 @@ class QueryService extends BaseService
 
         // Hapus kondisi periode_bulan dan periode_tahun dari SQL secara aman
         // Pattern mencakup opsional alias dan whitespace di sekelilingnya
+        // PENTING: Gunakan \b untuk AND/OR agar tidak memotong kata lain seperti ORDER.
         $patterns = [
-            '/\s+(?:AND|OR)\s+[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?/i',
-            '/\b[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?(\s+(?:AND|OR))?/i',
-            '/\s+(?:AND|OR)\s+[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?/i',
-            '/\b[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?(\s+(?:AND|OR))?/i',
+            '/\s+\b(?:AND|OR)\b\s+[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?/i',
+            '/\b[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?(\s+\b(?:AND|OR)\b)?/i',
+            '/\s+\b(?:AND|OR)\b\s+[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?/i',
+            '/\b[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?(\s+\b(?:AND|OR)\b)?/i',
         ];
 
         $cleanSql = $sql;

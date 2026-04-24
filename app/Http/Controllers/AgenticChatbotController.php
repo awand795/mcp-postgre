@@ -659,49 +659,14 @@ class AgenticChatbotController extends Controller
 
                     if ($currentIsProbe) {
                         $probeQueryCount++;
-                        Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery=true (probe #{$probeQueryCount})");
-                    } else {
-                        Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery=false");
-                    }
-
-                    $isProbeLimitReached = ($currentIsProbe && $probeQueryCount >= $maxProbeQueries);
-                    if ($isProbeLimitReached) {
-                        Log::warning("[Agentic] PROBE LIMIT reached (2/2). Injecting force-execute reminder.");
-                        if (!empty($executedResults)) {
-                            $lastIdx = count($executedResults) - 1;
-                            $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai (2/2). Anda dilarang melakukan probe lagi. Segera eksekusi query utama berdasarkan nilai yang sudah ditemukan.";
-                        }
-                        
-                        $collectedValues = [];
-                        foreach ($allTurnToolResults as $tr) {
-                            $rows = $tr['data']['rows'] ?? [];
-                            foreach (array_slice($rows, 0, 30) as $row) {
-                                $vals = is_array($row) ? array_values($row) : [(string)$row];
-                                foreach ($vals as $v) {
-                                    if ($v !== null && $v !== '') $collectedValues[] = (string)$v;
-                                }
+                        $isProbeLimitReached = ($currentIsProbe && $probeQueryCount >= $maxProbeQueries);
+                        if ($isProbeLimitReached) {
+                            Log::warning("[Agentic] PROBE LIMIT reached (2/2). Injecting force-execute reminder.");
+                            if (!empty($executedResults)) {
+                                $lastIdx = count($executedResults) - 1;
+                                $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai (2/2). Anda dilarang melakukan probe lagi. Segera eksekusi query utama berdasarkan nilai yang sudah ditemukan.";
                             }
                         }
-                        $valuesText = !empty($collectedValues)
-                            ? '"' . implode('", "', array_unique(array_slice($collectedValues, 0, 20))) . '"'
-                            : '(lihat hasil tool sebelumnya)';
-
-                        Log::warning("[Agentic] PROBE LIMIT reached ({$probeQueryCount}/{$maxProbeQueries}). Injecting force-execute reminder.");
-                        $messages[] = [
-                            'role'    => 'user',
-                            'content' => implode("\n", [
-                                '[SYSTEM — BATAS EKSPLORASI TERCAPAI]:',
-                                "Anda sudah melakukan {$probeQueryCount} query eksplorasi (SELECT DISTINCT).",
-                                'Nilai yang sudah Anda dapatkan: ' . $valuesText,
-                                '',
-                                'INSTRUKSI WAJIB — LANGSUNG EKSEKUSI QUERY UTAMA SEKARANG:',
-                                '1. Pilih nilai filter yang PALING RELEVAN dari daftar di atas berdasarkan konteks pertanyaan user.',
-                                '2. Tulis dan jalankan execute_query untuk query FINAL dengan GROUP BY dan SUM/agregasi.',
-                                '3. DILARANG KERAS melakukan SELECT DISTINCT lagi.',
-                                '4. DILARANG bertanya ke user atau meminta konfirmasi.',
-                                '5. Jika ada beberapa nilai yang relevan, gunakan semuanya dengan WHERE kolom IN (...) atau OR.',
-                            ]),
-                        ];
                     }
                 }
 
