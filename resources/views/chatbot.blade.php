@@ -1048,71 +1048,51 @@
             }
 
             function updateStreamBubbleText(bubble, text) {
-                // ── Typewriter Engine ────────────────────────────────────
-                // Hanya update teks di bubble — smart table dan grafik TIDAK
-                // dirender di sini, hanya setelah stream selesai (finalizeStreamBubble).
+                // ── Fast Stream Renderer ─────────────────────────────────
+                // Strategi baru: Tampilkan teks mentah LANGSUNG tanpa renderMarkdown()
+                // agar terasa real-time. Markdown hanya dirender SEKALI di finalizeStreamBubble.
+                // Ini menghilangkan bottleneck utama: renderMarkdown() berat tiap chunk.
                 if (!text || text.trim() === '') return;
 
-                // Inisialisasi state typewriter jika belum ada
-                if (!bubble._twState) {
-                    bubble._twState = {
-                        displayedLen: 0,
-                        rafId: null,
-                        lastRenderedText: '',
-                    };
+                // Inisialisasi raw-text container jika belum ada
+                if (!bubble._streamInited) {
+                    bubble._streamInited = true;
+                    bubble.innerHTML = '';
+                    // Buat container teks mentah dengan style mirip chat
+                    const rawDiv = document.createElement('div');
+                    rawDiv.id = '_stream_raw';
+                    rawDiv.style.cssText = 'white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: inherit; line-height: 1.7; color: inherit;';
+                    bubble.appendChild(rawDiv);
+                    // Cursor berkedip
+                    const cur = document.createElement('span');
+                    cur.className = 'typing-cursor';
+                    cur.id = '_stream_cur';
+                    bubble.appendChild(cur);
                 }
-                const st = bubble._twState;
 
-                // Simpan teks penuh terbaru
-                st.fullText = text;
-
-                // Jika animasi sudah berjalan, biarkan loop yang handle
-                if (st.rafId) return;
-
-                function stripSpecialBlocks(t) {
+                // Strip blok khusus dari tampilan mentah agar tidak menampilkan raw JSON
+                function stripSpecialBlocksRaw(t) {
                     return t
-                        .replace(/```smart_table[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">📊 Menyiapkan Tabel Data...</div>')
-                        .replace(/```chart[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">📈 Menyiapkan Grafik...</div>')
-                        .replace(/```dashboard[\s\S]*?(```|$)/g, '<div class="p-3 my-2 border border-dashed border-white/20 rounded-lg text-center opacity-50 text-xs">🗂️ Menyiapkan Dashboard...</div>');
+                        .replace(/```smart_table[\s\S]*?(```|$)/gm, '\n📊 [Tabel data sedang disiapkan...]\n')
+                        .replace(/```chart[\s\S]*?(```|$)/gm, '\n📈 [Grafik sedang disiapkan...]\n')
+                        .replace(/```dashboard[\s\S]*?(```|$)/gm, '\n🗂️ [Dashboard sedang disiapkan...]\n');
                 }
 
-                function twLoop() {
-                    if (!st.fullText) { st.rafId = null; return; }
-
-                    const lag = st.fullText.length - st.displayedLen;
-                    let speed = lag > 200 ? 18 : lag > 80 ? 10 : lag > 30 ? 5 : 3;
-
-                    if (st.displayedLen < st.fullText.length) {
-                        st.displayedLen = Math.min(st.displayedLen + speed, st.fullText.length);
-                        const partial = st.fullText.slice(0, st.displayedLen);
-
-                        if (partial !== st.lastRenderedText) {
-                            st.lastRenderedText = partial;
-                            const displayText = stripSpecialBlocks(partial);
-                            bubble.innerHTML = renderMarkdown(displayText);
-                            // Cursor berkedip merah
-                            const cur = document.createElement('span');
-                            cur.className = 'typing-cursor';
-                            bubble.appendChild(cur);
-                            // Highlight code blocks
-                            bubble.querySelectorAll('pre code').forEach(b => {
-                                try { if (!b.dataset.highlighted) hljs.highlightElement(b); } catch(e) {}
-                            });
-                        }
-                        st.rafId = requestAnimationFrame(twLoop);
-                    } else {
-                        // Semua karakter sudah ditampilkan — hapus cursor
-                        const cur = bubble.querySelector('.typing-cursor');
-                        if (cur) { cur.classList.add('done'); setTimeout(() => cur.remove(), 400); }
-                        st.rafId = null;
-                    }
+                const rawDiv = bubble.querySelector('#_stream_raw');
+                if (rawDiv) {
+                    rawDiv.textContent = stripSpecialBlocksRaw(text);
                 }
 
-                st.rafId = requestAnimationFrame(twLoop);
+                // Auto-scroll saat konten baru tiba (throttled 100ms)
+                const now = Date.now();
+                if (!bubble._lastScroll || now - bubble._lastScroll > 100) {
+                    bubble._lastScroll = now;
+                    chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+                }
             }
 
             function finalizeStreamBubble(bubble, text, toolResultsForRender) {
-                // Stop typewriter jika masih berjalan
+                // Stop typewriter jika masih berjalan (backward compat)
                 if (bubble._twState && bubble._twState.rafId) {
                     cancelAnimationFrame(bubble._twState.rafId);
                     bubble._twState.rafId = null;
@@ -1120,6 +1100,9 @@
                 // Hapus cursor berkedip jika ada
                 const cur = bubble.querySelector('.typing-cursor');
                 if (cur) cur.remove();
+
+                // Bersihkan raw streaming container
+                bubble._streamInited = false;
 
                 if (!text || text.trim() === '') {
                     bubble.innerHTML = '';

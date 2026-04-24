@@ -154,6 +154,12 @@ class AgenticChatbotController extends Controller
 
         session_write_close();
 
+        // Paksa PHP flush buffer secara implicit agar SSE tidak menunggu buffer penuh
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        ob_implicit_flush(true);
+
         return response()->stream(
             function () use ($messages, $apiKey, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens) {
                 try {
@@ -201,8 +207,66 @@ class AgenticChatbotController extends Controller
             $isGroq = $providerCode === 'groq' || str_contains($apiKey->provider->base_url ?? '', 'groq.com');
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
+            // ── STRATEGI TRUE SSE STREAMING ──────────────────────────────────
+            // Kita tidak bisa tahu di awal apakah loop ini akan menghasilkan
+            // tool_call atau final text. Oleh karena itu:
+            //
+            // OPSI A (jika sudah ada tool results di turn ini):
+            //   Kemungkinan besar loop ini adalah FINAL ANSWER.
+            //   Gunakan streaming langsung ke browser.
+            //   Jika ternyata masih ada tool_call, treat sebagai fallback.
+            //
+            // OPSI B (loop pertama atau belum ada tool results):
+            //   Gunakan non-streaming biasa untuk deteksi tool_call.
+            // ────────────────────────────────────────────────────────────────────
+            $useStreaming = !empty($allTurnToolResults);
+
             try {
-                $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+                if ($useStreaming) {
+                    // ── STREAMING MODE: langsung kirim token ke browser ──
+                    // streamFinalResponseFromApi() mengembalikan teks lengkap
+                    // DAN sudah mengirim setiap token via SSE ke browser.
+                    Log::info("[Agentic] Loop #{$loopCount} using STREAMING mode (tool results available)");
+                    try {
+                        $streamedText = $this->streamFinalResponseFromApi(
+                            $messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount
+                        );
+                    } catch (\RuntimeException $e) {
+                        if ($e->getMessage() === '__RATE_LIMIT__') {
+                            $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi.");
+                            echo "data: [DONE]\n\n";
+                            if (ob_get_level() > 0) ob_flush(); flush();
+                            return;
+                        }
+                        throw $e;
+                    }
+
+                    // Jika stream menghasilkan teks (bukan tool call) → selesai
+                    if (!empty(trim($streamedText))) {
+                        $streamedText = $this->stripThinkingLeakage($streamedText);
+                        $streamedText = $this->processContentForCharts($streamedText, $allTurnToolResults);
+
+                        if ($chatSessionId) {
+                            ChatMessage::create([
+                                'chat_session_id' => $chatSessionId,
+                                'role'            => 'assistant',
+                                'content'         => $streamedText,
+                                'tool_results'    => !empty($allTurnToolResults) ? $allTurnToolResults : null
+                            ]);
+                        }
+                        echo "data: [DONE]\n\n";
+                        if (ob_get_level() > 0) ob_flush(); flush();
+                        return;
+                    }
+
+                    // Jika stream kosong (provider tidak support streaming / error)
+                    // fallback ke non-streaming
+                    Log::warning("[Agentic] Streaming returned empty, falling back to non-streaming for loop #{$loopCount}");
+                    $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+                } else {
+                    // ── NON-STREAMING MODE: untuk loop tool call awal ──
+                    $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+                }
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === '__RATE_LIMIT__') {
                     $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi. / We apologize, the AI analysis service has reached its usage limit. Please contact your System Administrator or try again later.");
@@ -456,6 +520,10 @@ class AgenticChatbotController extends Controller
                     ]);
                 }
 
+                // ── TRUE SSE STREAMING: stream token per token langsung ke browser ──
+                // Hapus pesan assistant terakhir dari messages (sudah dimasukkan di atas,
+                // tapi kita akan streaming ulang dari provider dengan stream=true).
+                // Cukup stream processedContent yang sudah kita punya via streamText.
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
                 if (ob_get_level() > 0) ob_flush(); flush();
@@ -1644,11 +1712,10 @@ PROMPT;
 
     private function streamText(string $text): void
     {
-        // Karena frontend sudah menggunakan Typewriter Engine (twLoop) yang sangat halus,
-        // backend tidak perlu lagi memberikan jeda buatan (usleep). Kirim secepat mungkin
-        // agar frontend bisa langsung menganimasikan teksnya tanpa jeda ganda.
-        $len = mb_strlen($text);
-        $chunkSize = 250; // Kirim dalam potongan besar agar lebih efisien
+        // Kirim dalam potongan per kata (split by space) agar teks muncul alami
+        // dan overhead SSE tidak terlalu tinggi (4 char = terlalu banyak event).
+        // Chunk per 32 karakter atau per batas kata untuk keseimbangan optimal.
+        $chunkSize = 32;
 
         foreach (mb_str_split($text, $chunkSize) as $chunk) {
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
@@ -1815,6 +1882,221 @@ PROMPT;
 
         return $data;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TRUE SSE STREAMING — kirim token per token ke browser saat model generate
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Stream final text response langsung dari provider ke browser via SSE.
+     * Hanya dipanggil pada loop terakhir (saat model akan jawab teks, bukan tool call).
+     * Return: teks lengkap yang sudah di-stream (untuk disimpan ke DB).
+     */
+    private function streamFinalResponseFromApi(
+        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
+    ): string {
+        $providerCode      = strtolower($apiKey->provider->code ?? '');
+        $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
+        $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
+
+        // Pilih metode streaming sesuai provider
+        return match (true) {
+            $providerCode === 'claude'  => $this->streamClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt),
+            $providerCode === 'gemini'  => $this->streamGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount),
+            default                    => $this->streamOpenAiCompatibleApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $providerCode, $loopCount),
+        };
+    }
+
+    /**
+     * Streaming universal untuk semua provider OpenAI-compatible
+     * (OpenAI, Mistral, Groq, OpenRouter, custom).
+     */
+    private function streamOpenAiCompatibleApi(
+        array $messages, array $tools, $apiKey, $model, int $maxTokens,
+        string $providerCode, int $loopCount
+    ): string {
+        $baseUrl = match ($providerCode) {
+            'openai'  => 'https://api.openai.com/v1',
+            'mistral' => 'https://api.mistral.ai/v1',
+            default   => rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/'),
+        };
+        $url = $baseUrl . '/chat/completions';
+
+        $payload = [
+            'model'       => $model->model_name,
+            'messages'    => $messages,
+            'max_tokens'  => $maxTokens,
+            'temperature' => 0.3,
+            'stream'      => true,   // ← Kunci: aktifkan streaming
+        ];
+        if (!empty($tools)) {
+            $payload['tools']       = $tools;
+            $payload['tool_choice'] = 'auto';
+        }
+        if ($providerCode === 'groq') {
+            $payload['parallel_tool_calls'] = false;
+        }
+
+        $headers = ['Authorization: Bearer ' . $apiKey->api_key, 'Content-Type: application/json'];
+        if ($providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai')) {
+            $headers[] = 'HTTP-Referer: ' . config('app.url', 'http://localhost');
+            $headers[] = 'X-Title: MBI Agentic DataBot';
+        }
+
+        return $this->curlStreamSse($url, $headers, $payload, 'openai');
+    }
+
+    /**
+     * Streaming untuk Anthropic Claude.
+     */
+    private function streamClaudeApi(
+        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt
+    ): string {
+        $url = 'https://api.anthropic.com/v1/messages';
+        $payload = [
+            'model'      => $model->model_name,
+            'max_tokens' => $maxTokens,
+            'messages'   => $messages,
+            'stream'     => true,
+        ];
+        if (!empty($systemPrompt)) $payload['system'] = $systemPrompt;
+        if (!empty($tools))        $payload['tools']  = $tools;
+
+        $headers = [
+            'x-api-key: ' . $apiKey->api_key,
+            'anthropic-version: 2023-06-01',
+            'Content-Type: application/json',
+        ];
+        return $this->curlStreamSse($url, $headers, $payload, 'claude');
+    }
+
+    /**
+     * Streaming untuk Google Gemini (streamGenerateContent endpoint).
+     */
+    private function streamGeminiApi(
+        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
+    ): string {
+        $modelName = $model->model_name ?? 'gemini-1.5-flash';
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $modelName
+             . ':streamGenerateContent?alt=sse&key=' . $apiKey->api_key;
+
+        $payload = [
+            'contents'         => $messages,
+            'generationConfig' => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.7],
+        ];
+        if (str_contains($modelName, '2.5')) {
+            $payload['generationConfig']['thinkingConfig'] = ['thinkingBudget' => 0];
+        }
+        if (!empty($systemPrompt)) {
+            $payload['systemInstruction'] = ['parts' => [['text' => $systemPrompt]]];
+        }
+        if (!empty($tools)) {
+            $payload['tools'] = $tools;
+            $payload['toolConfig'] = ['functionCallingConfig' => ['mode' => 'AUTO']];
+        }
+        $headers = ['Content-Type: application/json'];
+        return $this->curlStreamSse($url, $headers, $payload, 'gemini');
+    }
+
+    /**
+     * Core curl streaming engine.
+     * Baca SSE dari provider token per token, langsung forward ke browser.
+     * Return teks lengkap yang diterima.
+     */
+    private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): string
+    {
+        $fullText  = '';
+        $sseBuffer = '';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => 600,
+            CURLOPT_CONNECTTIMEOUT => 30,
+            CURLOPT_RETURNTRANSFER => false,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_WRITEFUNCTION  => function ($ch, $data) use (&$fullText, &$sseBuffer, $providerCode) {
+                $sseBuffer .= $data;
+                // Proses baris-baris SSE yang lengkap (diakhiri \n)
+                while (($pos = strpos($sseBuffer, "\n")) !== false) {
+                    $line      = substr($sseBuffer, 0, $pos);
+                    $sseBuffer = substr($sseBuffer, $pos + 1);
+                    $line      = rtrim($line, "\r");
+
+                    if (!str_starts_with($line, 'data:')) continue;
+                    $dataStr = ltrim(substr($line, 5));
+                    if ($dataStr === '[DONE]') continue;
+
+                    try {
+                        $parsed = json_decode($dataStr, true);
+                        if (!$parsed) continue;
+
+                        $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
+                        if ($token !== '') {
+                            $fullText .= $token;
+                            echo "data: " . json_encode(['chunk' => $token]) . "\n\n";
+                            if (ob_get_level() > 0) ob_flush();
+                            flush();
+                        }
+                    } catch (\Throwable $e) {
+                        // Abaikan chunk yang tidak valid
+                    }
+                }
+                return strlen($data);
+            },
+        ]);
+
+        $execResult = curl_exec($ch);
+        $httpCode   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError  = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            Log::error("[StreamSSE] curl error ({$providerCode}): {$curlError}");
+        }
+        if ($httpCode === 429) {
+            throw new \RuntimeException('__RATE_LIMIT__');
+        }
+
+        Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText));
+        return $fullText;
+    }
+
+    /**
+     * Ekstrak token teks dari satu SSE chunk sesuai format provider.
+     */
+    private function extractTokenFromSseChunk(array $parsed, string $providerCode): string
+    {
+        if ($providerCode === 'claude') {
+            // Claude: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
+            if (($parsed['type'] ?? '') === 'content_block_delta') {
+                return $parsed['delta']['text'] ?? '';
+            }
+            return '';
+        }
+
+        if ($providerCode === 'gemini') {
+            // Gemini: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
+            $parts = $parsed['candidates'][0]['content']['parts'] ?? [];
+            $text  = '';
+            foreach ($parts as $p) {
+                if (!empty($p['thought'])) continue; // skip thinking parts
+                $text .= $p['text'] ?? '';
+            }
+            return $text;
+        }
+
+        // OpenAI-compatible (OpenAI, Mistral, Groq, OpenRouter, custom)
+        // Format: {"choices":[{"delta":{"content":"..."},"finish_reason":null}]}
+        return $parsed['choices'][0]['delta']['content'] ?? '';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PROVIDER API IMPLEMENTATIONS (non-streaming, untuk tool call loops)
+    // ─────────────────────────────────────────────────────────────────────────
 
     private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
     {
