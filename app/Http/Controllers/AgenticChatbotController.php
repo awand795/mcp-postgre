@@ -290,12 +290,9 @@ class AgenticChatbotController extends Controller
                         return;
                     }
 
-                    // Jika stream kosong (provider tidak support streaming / error)
-                    // fallback ke non-streaming
                     Log::warning("[Agentic] Streaming returned empty, falling back to non-streaming for loop #{$loopCount}");
                     $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
                 } else {
-                    // ── NON-STREAMING MODE: untuk loop tool call awal ──
                     $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
                 }
             } catch (\RuntimeException $e) {
@@ -324,12 +321,9 @@ class AgenticChatbotController extends Controller
             $toolCalls    = $assistantMsg['tool_calls'] ?? [];
             $textContent  = $assistantMsg['content'] ?? '';
 
-            // ── FIX Gemini 2.5 Thinking: empty response karena model hanya output thought parts ──
-            // Jika text kosong DAN tidak ada tool calls, inject reminder agar model output jawaban
             $providerCodeCheck = strtolower($apiKey->provider->code ?? '');
             if ($providerCodeCheck === 'gemini' && empty($textContent) && empty($toolCalls) && $loopCount <= 2) {
                 Log::warning("[Agentic] Gemini empty response at loop #{$loopCount} (likely thinking-only). Injecting output reminder.");
-                // Hapus assistant message kosong yang baru saja ditambahkan
                 array_pop($messages);
                 $messages[] = [
                     'role'    => 'user',
@@ -340,8 +334,6 @@ class AgenticChatbotController extends Controller
 
             Log::info("[Agentic] Loop #{$loopCount} response — finish_reason={$finishReason} tool_calls=" . count($toolCalls) . " text_len=" . strlen($textContent));
 
-            // Tandai sebagai live response Gemini agar formatMessagesForProvider
-            // tahu bahwa functionCall boleh dikirim (bukan rekonstruksi history DB).
             $providerCodeLive = strtolower($apiKey->provider->code ?? '');
             if ($providerCodeLive === 'gemini' && !empty($toolCalls)) {
                 $assistantMsg['_is_live_gemini_response'] = true;
@@ -349,8 +341,6 @@ class AgenticChatbotController extends Controller
 
             $messages[] = $assistantMsg;
 
-            // ── PROTEKSI 1: Intersepsi Raw SQL di Teks ────────────────────────
-            // Jika AI mengirim SQL mentah di teks tanpa tool call, jangan stream ke user.
             if (empty($toolCalls) && preg_match('/SELECT\s+.*\s+FROM\s+/i', $textContent)) {
                 Log::warning("[Agentic] Detected raw SQL in text content. Intercepting and retrying...");
                 $messages[] = [
@@ -360,23 +350,8 @@ class AgenticChatbotController extends Controller
                 continue;
             }
 
-            // ── FIX #3: Intersepsi "Di Luar Domain" False-Positive ───────────
-            // Llama/OpenRouter kadang menyimpulkan "pertanyaan di luar domain" padahal
-            // sebenarnya hanya gagal menemukan tabel karena schema salah.
-            //
-            // KONDISI INTERCEPT (semua harus terpenuhi):
-            // 1. Tidak ada tool call di response ini
-            // 2. Loop masih awal (belum banyak tool dipanggil)
-            // 3. Belum ada tool apapun yang pernah dipanggil di turn ini
-            //    → Jika sudah ada tool call sebelumnya (misal AI sudah search schema
-            //      dan memang tidak ada data cuaca/topik luar domain), penolakan AI
-            //      adalah VALID — jangan di-intercept.
             $totalToolCallsThisTurn = count($allTurnToolResults);
             if (empty($toolCalls) && $totalToolCallsThisTurn === 0 && $loopCount === 1) {
-                // FIX#3 hanya aktif di loop #1 dan HANYA jika AI menolak
-                // TANPA menyebut bahwa ia sudah mencoba/memeriksa database.
-                // Jika AI menyebut "tidak ada data", "tidak ditemukan", "sudah memeriksa"
-                // dll — berarti AI sudah bernalar dengan benar, jangan di-intercept.
                 $alreadyTriedPhrases = [
                     'tidak ada data', 'tidak ditemukan', 'sudah memeriksa',
                     'tidak tersedia di database', 'tidak ada tabel', 'tidak ada informasi',
@@ -391,10 +366,7 @@ class AgenticChatbotController extends Controller
                     }
                 }
 
-                // Hanya intercept jika AI menolak TANPA argumen "sudah coba"
                 $outOfDomainPhrases = [
-                    // Frasa yang menunjukkan AI menolak SEBELUM mencoba tool
-                    // (lebih spesifik — hindari false positive pada penolakan valid)
                     'saya tidak dapat membantu dengan pertanyaan',
                     'saya tidak dapat menjawab pertanyaan tentang',
                     'pertanyaan ini di luar kapasitas saya',
@@ -417,7 +389,6 @@ class AgenticChatbotController extends Controller
                 if ($isOutOfDomain) {
                     Log::warning("[Agentic] FIX#3 — False 'out-of-domain' detected at loop #{$loopCount} before any successful tool call. Injecting schema recovery.");
 
-                    // Buat hint schema eksak dari allowedDatabases agar model tahu persis
                     $schemaHints = [];
                     foreach ($allowedDatabases as $dbCode => $schemas) {
                         $realSchemas = array_filter(array_keys($schemas), fn($s) => $s !== '*');
@@ -453,14 +424,11 @@ class AgenticChatbotController extends Controller
             }
 
             if (empty($toolCalls) || in_array($finishReason, ['stop', 'end_turn'])) {
-                // ── FIX OpenRouter: jika respons singkat padahal sudah ada data,
-                // inject format reminder SEKALI dan retry (tanpa mengubah callCustomApi)
                 $providerCodeFmt = strtolower($apiKey->provider->code ?? '');
                 $baseUrlFmt      = $apiKey->provider->base_url ?? '';
                 $isOpenRouterFmt = $providerCodeFmt === 'openrouter' || str_contains($baseUrlFmt, 'openrouter.ai');
 
                 if ($isOpenRouterFmt && !empty($allTurnToolResults) && $loopCount <= $this->maxToolLoops - 2) {
-                    // ── Deteksi apakah hasil query adalah 1 baris 1 kolom (angka tunggal) ──
                     $isSingleValue = false;
                     $singleValueNumber = null;
                     foreach ($allTurnToolResults as $tr) {
@@ -474,9 +442,7 @@ class AgenticChatbotController extends Controller
                         }
                     }
 
-                    // ── CASE 1: Hasil 1 baris 1 kolom → paksa jawab inline, LARANG smart_table ──
                     if ($isSingleValue) {
-                        // Cek apakah response sudah ada tapi salah pakai smart_table
                         $hasSmartTable = str_contains($textContent, '```smart_table');
                         if ($hasSmartTable || strlen(trim($textContent)) < 250) {
                             Log::warning('[Agentic] OpenRouter single-value result — injecting inline answer reminder. Value: ' . $singleValueNumber);
@@ -499,7 +465,6 @@ class AgenticChatbotController extends Controller
                         }
                     }
 
-                    // ── CASE 2: Respons singkat untuk data multi-kolom/baris → inject format reminder ──
                     if (!$isSingleValue && strlen(trim($textContent)) < 250) {
                         Log::warning('[Agentic] OpenRouter short response (' . strlen(trim($textContent)) . ' chars) — injecting format reminder.');
 
@@ -551,26 +516,15 @@ class AgenticChatbotController extends Controller
                     ]);
                 }
 
-                // ── TRUE SSE STREAMING: stream token per token langsung ke browser ──
-                // Hapus pesan assistant terakhir dari messages (sudah dimasukkan di atas,
-                // tapi kita akan streaming ulang dari provider dengan stream=true).
-                // Cukup stream processedContent yang sudah kita punya via streamText.
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
                 if (ob_get_level() > 0) ob_flush(); flush();
                 return;
             }
 
-            // ════════════════════════════════════════════════════════════════════
-            // OPT: PARALLEL TOOL EXECUTION menggunakan PHP Fibers (PHP 8.1+)
-            // Jika AI mengembalikan >1 tool call (misal: 3x search_schema), eksekusi
-            // semua secara paralel sehingga hemat waktu signifikan.
-            // Cache-hit tools (schema_info, describe_table) akan sangat cepat.
-            // ════════════════════════════════════════════════════════════════════
             $toolCallCount = count($toolCalls);
             $useParallel   = $toolCallCount > 1;
 
-            // Pre-process semua tool calls: decode args + deteksi COUNT-without-WHERE
             $processedCalls = [];
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
@@ -598,7 +552,6 @@ class AgenticChatbotController extends Controller
                 ];
             }
 
-            // Eksekusi: parallel jika >1 tool, sequential jika hanya 1
             $executedResults = [];
             if ($useParallel) {
                 Log::info("[Agentic] Parallel tool execution: {$toolCallCount} tools");
@@ -624,7 +577,6 @@ class AgenticChatbotController extends Controller
                     ];
                 }
             } else {
-                // Single tool — eksekusi langsung tanpa Fiber overhead
                 $call = $processedCalls[0];
                 Log::info("[Agentic] Executing Tool: {$call['name']}");
                 $executedResults[] = [
@@ -633,16 +585,15 @@ class AgenticChatbotController extends Controller
                 ];
             }
 
-            // Proses setiap hasil: stream ke frontend + tambah ke messages array
             foreach ($executedResults as $execItem) {
                 $call       = $execItem['call'];
                 $toolCallId = $call['id'];
                 $toolName   = $call['name'];
                 $arguments  = $call['arguments'];
 
-                // Kirim status 'running' segera agar user tahu tool apa yang sedang bekerja
                 echo "data: " . json_encode([
                     'tool_call' => [
+                        'id'        => $toolCallId,
                         'name'      => $toolName,
                         'arguments' => $arguments,
                         'status'    => 'running',
@@ -679,6 +630,7 @@ class AgenticChatbotController extends Controller
 
                 echo "data: " . json_encode([
                     'tool_call' => [
+                        'id'        => $toolCallId,
                         'name'      => $toolName,
                         'arguments' => $arguments,
                         'status'    => 'success',
@@ -688,9 +640,8 @@ class AgenticChatbotController extends Controller
                 if (ob_get_level() > 0) ob_flush(); flush();
 
                 $allTurnToolResults[] = $frontendResult;
-                $lastExecutedToolName = $toolName; // Fix #1: track tool terakhir
+                $lastExecutedToolName = $toolName; 
 
-                // Track SQL terakhir untuk deteksi probe query (SELECT DISTINCT tanpa GROUP BY)
                 if ($toolName === 'execute_query') {
                     $executeQueryCount++;
                     $lastExecutedSql = $call['arguments']['sql'] ?? '';
@@ -704,11 +655,14 @@ class AgenticChatbotController extends Controller
                         Log::info("[Agentic] execute_query #{$executeQueryCount} this turn. isProbeQuery=false");
                     }
 
-                    // ── HARD LIMIT: paksa model ke query utama setelah 2 probe query ──
-                    // Jika model sudah 2x SELECT DISTINCT tanpa GROUP BY, ia sudah punya
-                    // cukup informasi untuk menulis query final. Inject reminder paksa.
-                    if ($currentIsProbe && $probeQueryCount >= $maxProbeQueries) {
-                        // Ekstrak nilai unik yang sudah didapat dari tool results sejauh ini
+                    $isProbeLimitReached = ($currentIsProbe && $probeQueryCount >= $maxProbeQueries);
+                    if ($isProbeLimitReached) {
+                        Log::warning("[Agentic] PROBE LIMIT reached (2/2). Injecting force-execute reminder.");
+                        if (!empty($executedResults)) {
+                            $lastIdx = count($executedResults) - 1;
+                            $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai (2/2). Anda dilarang melakukan probe lagi. Segera eksekusi query utama berdasarkan nilai yang sudah ditemukan.";
+                        }
+                        
                         $collectedValues = [];
                         foreach ($allTurnToolResults as $tr) {
                             $rows = $tr['data']['rows'] ?? [];
@@ -1269,19 +1223,12 @@ class AgenticChatbotController extends Controller
         try {
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $conn) {
-                // Ambil daftar tabel yang diizinkan (limit 20 untuk efisiensi prompt)
-                $db = $conn->database;
-                // Heuristik: ambil tabel yang sering digunakan atau view_
-                $tables = \Illuminate\Support\Facades\DB::connection($conn->database)
-                    ->table('information_schema.tables')
-                    ->where('table_schema', 'not in', ['information_schema', 'pg_catalog'])
-                    ->where('table_name', 'not like', 'pg_%')
-                    ->limit(15)
-                    ->pluck('table_name')
-                    ->toArray();
+                // Gunakan method getTables() bawaan model yang sudah menangani koneksi dengan benar
+                $tables = $conn->getTables();
+                $tableNames = array_slice(array_column($tables, 'table_name'), 0, 15);
                 
-                if (!empty($tables)) {
-                    $mainTablesHint[] = "Database [{$db}]: " . implode(', ', $tables);
+                if (!empty($tableNames)) {
+                    $mainTablesHint[] = "Database [{$conn->database}]: " . implode(', ', $tableNames);
                 }
             }
         } catch (\Exception $e) {
@@ -2053,7 +2000,7 @@ PROMPT;
      */
     private function streamFinalResponseFromApi(
         array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
-    ): string {
+    ): array {
         $providerCode      = strtolower($apiKey->provider->code ?? '');
         $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
@@ -2073,7 +2020,7 @@ PROMPT;
     private function streamOpenAiCompatibleApi(
         array $messages, array $tools, $apiKey, $model, int $maxTokens,
         string $providerCode, int $loopCount
-    ): string {
+    ): array {
         $baseUrl = match ($providerCode) {
             'openai'  => 'https://api.openai.com/v1',
             'mistral' => 'https://api.mistral.ai/v1',
@@ -2102,7 +2049,7 @@ PROMPT;
             $headers[] = 'X-Title: MBI Agentic DataBot';
         }
 
-        return $this->curlStreamSse($url, $headers, $payload, 'openai');
+        return $this->curlStreamSse($url, $headers, $payload, $providerCode);
     }
 
     /**
@@ -2110,7 +2057,7 @@ PROMPT;
      */
     private function streamClaudeApi(
         array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt
-    ): string {
+    ): array {
         $url = 'https://api.anthropic.com/v1/messages';
         $payload = [
             'model'      => $model->model_name,
@@ -2134,7 +2081,7 @@ PROMPT;
      */
     private function streamGeminiApi(
         array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
-    ): string {
+    ): array {
         $modelName = $model->model_name ?? 'gemini-1.5-flash';
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $modelName
              . ':streamGenerateContent?alt=sse&key=' . $apiKey->api_key;
@@ -2162,10 +2109,11 @@ PROMPT;
      * Baca SSE dari provider token per token, langsung forward ke browser.
      * Return teks lengkap yang diterima.
      */
-    private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): string
+    private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): array
     {
         $fullText  = '';
         $sseBuffer = '';
+        $toolCallsRaw = [];
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -2177,7 +2125,7 @@ PROMPT;
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_WRITEFUNCTION  => function ($ch, $data) use (&$fullText, &$sseBuffer, $providerCode) {
+            CURLOPT_WRITEFUNCTION  => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
                 $sseBuffer .= $data;
                 // Proses baris-baris SSE yang lengkap (diakhiri \n)
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
@@ -2193,12 +2141,32 @@ PROMPT;
                         $parsed = json_decode($dataStr, true);
                         if (!$parsed) continue;
 
+                        // Ekstrak teks
                         $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
                         if ($token !== '') {
                             $fullText .= $token;
                             echo "data: " . json_encode(['chunk' => $token]) . "\n\n";
                             if (ob_get_level() > 0) ob_flush();
                             flush();
+                        }
+
+                        // Ekstrak tool_calls (Format OpenAI/Mistral/Groq/OpenRouter)
+                        $delta = $parsed['choices'][0]['delta'] ?? [];
+                        if (!empty($delta['tool_calls'])) {
+                            foreach ($delta['tool_calls'] as $tc) {
+                                $idx = $tc['index'] ?? 0;
+                                if (!isset($toolCallsRaw[$idx])) {
+                                    $toolCallsRaw[$idx] = [
+                                        'id' => $tc['id'] ?? '',
+                                        'name' => $tc['function']['name'] ?? '',
+                                        'arguments' => $tc['function']['arguments'] ?? '',
+                                    ];
+                                } else {
+                                    if (isset($tc['id'])) $toolCallsRaw[$idx]['id'] .= $tc['id'];
+                                    if (isset($tc['function']['name'])) $toolCallsRaw[$idx]['name'] .= $tc['function']['name'];
+                                    if (isset($tc['function']['arguments'])) $toolCallsRaw[$idx]['arguments'] .= $tc['function']['arguments'];
+                                }
+                            }
                         }
                     } catch (\Throwable $e) {
                         // Abaikan chunk yang tidak valid
@@ -2220,8 +2188,31 @@ PROMPT;
             throw new \RuntimeException('__RATE_LIMIT__');
         }
 
-        Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText));
-        return $fullText;
+        // Transform toolCallsRaw ke format yang dimengerti runAgenticLoop
+        $toolCalls = [];
+        foreach ($toolCallsRaw as $tc) {
+            $toolCalls[] = [
+                'id' => $tc['id'],
+                'type' => 'function',
+                'function' => [
+                    'name' => $tc['name'],
+                    'arguments' => $tc['arguments'],
+                ]
+            ];
+        }
+
+        Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText) . " tool_calls=" . count($toolCalls));
+        
+        return [
+            'choices' => [[
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => $fullText,
+                    'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                ],
+                'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
+            ]]
+        ];
     }
 
     /**
