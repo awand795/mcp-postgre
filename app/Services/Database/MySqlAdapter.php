@@ -148,32 +148,25 @@ class MySqlAdapter extends DriverAdapter
         // MySQL doesn't use schema, use database directly
         unset($connection['schema'], $connection['search_path']);
 
-        // Build PDO options array
-        $pdoOptions = [];
+        $pdoOptions = is_array($connection['options'] ?? null) ? $connection['options'] : [];
 
         // Add connection timeout
         if (!empty($connection['connection_timeout'])) {
             $pdoOptions[\PDO::ATTR_TIMEOUT] = (int) $connection['connection_timeout'];
-            unset($connection['connection_timeout']);
         }
+        unset($connection['connection_timeout']);
 
-        // Add SSL options
+        // SSL handling untuk cloud providers (Aiven, PlanetScale, Railway, dll)
+        // Aiven MySQL wajib SSL tapi tidak perlu verify CA cert
         $sslMode = $connection['ssl_mode'] ?? '';
         if (!empty($sslMode)) {
-            // MYSQL_ATTR_SSL_VERIFY_SERVER_CERT = false allows connecting without CA cert file
-            // This is required for cloud providers like Aiven, PlanetScale, Railway, etc.
+            // Matikan verifikasi server cert — Aiven pakai self-signed CA
+            // yang tidak ada di system trust store server
             $pdoOptions[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
-            $pdoOptions[\PDO::MYSQL_ATTR_SSL_CA] = true;
         }
-
         unset($connection['ssl_mode']);
 
-        if (!empty($pdoOptions)) {
-            $connection['options'] = array_merge(
-                is_array($connection['options'] ?? null) ? $connection['options'] : [],
-                $pdoOptions
-            );
-        }
+        $connection['options'] = $pdoOptions;
 
         return $connection;
     }
