@@ -501,39 +501,50 @@ class AdminController extends Controller
      */
     public function loadSchemasFromParams(Request $request)
     {
-        $validated = $request->validate([
-            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
-            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-            'port' => 'required|integer',
-            'database' => 'required',
-            'username' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-            'password' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-            'schema' => 'nullable',
-            'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
-            'connection_timeout' => 'nullable|integer|min:5|max:300',
-            'test_only' => 'nullable|boolean',
-        ]);
+        try {
+            $validated = $request->validate([
+                'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+                'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+                'port' => 'required|integer',
+                'database' => 'required',
+                'username' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+                'password' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+                'schema' => 'nullable',
+                'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
+                'connection_timeout' => 'nullable|integer|min:5|max:300',
+                'test_only' => 'nullable', // allow boolean or string
+            ]);
 
-        // Create temporary model instance
-        $tempDb = new DatabaseConnection([
-            'driver' => $validated['driver'],
-            'host' => $validated['host'],
-            'port' => $validated['port'],
-            'database' => $validated['database'],
-            'username' => $validated['username'],
-            'password' => $validated['password'],
-            'schema' => $validated['schema'] ?? 'public',
-            'ssl_mode' => $validated['ssl_mode'] ?? '',
-            'connection_timeout' => $validated['connection_timeout'] ?? 30,
-        ]);
+            // Create temporary model instance
+            $tempDb = new DatabaseConnection([
+                'driver' => $validated['driver'],
+                'host' => $validated['host'],
+                'port' => $validated['port'],
+                'database' => $validated['database'],
+                'username' => $validated['username'],
+                'password' => $validated['password'],
+                'schema' => $validated['schema'] ?? 'public',
+                'ssl_mode' => $validated['ssl_mode'] ?? '',
+                'connection_timeout' => $validated['connection_timeout'] ?? 30,
+            ]);
 
-        if ($request->boolean('test_only')) {
-            $result = $tempDb->testConnection();
-            return response()->json($result);
+            if ($request->boolean('test_only')) {
+                $result = $tempDb->testConnection();
+                return response()->json($result);
+            }
+
+            $schemas = $tempDb->getSchemas();
+            return response()->json(['schemas' => $schemas]);
+        } catch (\Exception $e) {
+            \Log::error("Error in loadSchemasFromParams: " . $e->getMessage(), [
+                'exception' => $e,
+                'request' => $request->except(['password'])
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Internal Server Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        $schemas = $tempDb->getSchemas();
-        return response()->json(['schemas' => $schemas]);
     }
 
     // ── Helper Methods ──────────────────────────────────────────────────────────

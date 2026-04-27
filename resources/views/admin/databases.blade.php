@@ -1314,7 +1314,11 @@ window.loadSchemas = async function() {
     try {
         const r = await fetch('/admin/databases/load-schemas', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf() 
+            },
             body: JSON.stringify({ 
                 driver, host, port: parseInt(port), database: dbName, 
                 username, password, ssl_mode, connection_timeout: parseInt(connection_timeout) 
@@ -1367,7 +1371,10 @@ window.testConnection = async function(dbId) {
     try {
         const r = await fetch(`/admin/databases/${dbId}/test`, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': csrf() }
+            headers: { 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf() 
+            }
         });
         const data = await r.json();
 
@@ -1414,7 +1421,11 @@ window.testConnectionPreview = async function() {
     try {
         const r = await fetch('/admin/databases/load-schemas', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf() 
+            },
             body: JSON.stringify({ 
                 driver, host, port: parseInt(port), database: dbName, 
                 username: user, password: pass, test_only: true,

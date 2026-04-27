@@ -124,12 +124,14 @@ class DatabaseConnection extends Model
             // Laravel connector memanggil array_diff_key() pada nilai ini —
             // jika berupa string atau null akan crash dengan TypeError.
             'options' => (function () {
-                $raw = $this->options; // sudah di-cast 'array' oleh Eloquent
-                if (is_array($raw)) return $raw;
-                if (is_string($raw) && !empty($raw)) {
-                    $decoded = json_decode($raw, true);
-                    return is_array($decoded) ? $decoded : [];
-                }
+                try {
+                    $raw = $this->getAttribute('options');
+                    if (is_array($raw)) return $raw;
+                    if (is_string($raw) && !empty($raw)) {
+                        $decoded = json_decode($raw, true);
+                        return is_array($decoded) ? $decoded : [];
+                    }
+                } catch (\Exception $e) {}
                 return []; // null, false, 0, dsb → array kosong
             })(),
         ];
