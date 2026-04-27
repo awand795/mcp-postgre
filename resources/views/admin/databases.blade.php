@@ -408,6 +408,25 @@
                     </div>
                 </div>
 
+                <div class="form-row two-col">
+                    <div class="form-group">
+                        <label>SSL Mode</label>
+                        <select name="ssl_mode" id="dbSslModeInput">
+                            <option value="">None</option>
+                            <option value="prefer">Prefer</option>
+                            <option value="require">Require</option>
+                            <option value="verify-ca">Verify CA</option>
+                            <option value="verify-full">Verify Full</option>
+                        </select>
+                        <small>Keamanan koneksi SSL/TLS</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Connection Timeout (detik)</label>
+                        <input type="number" name="connection_timeout" id="dbTimeoutInput" value="30" min="5" max="300">
+                        <small>Default: 30 detik</small>
+                    </div>
+                </div>
+
                 <div class="form-group" id="schemaGroup">
                     <label id="schemaLabel">Schema <span class="req">*</span></label>
                     <div class="schema-input-row">
@@ -432,25 +451,6 @@
 
             {{-- ── STEP 3: Advanced ── --}}
             <div class="wizard-panel" id="panel3" style="display:none;">
-                <div class="form-row two-col">
-                    <div class="form-group">
-                        <label>SSL Mode</label>
-                        <select name="ssl_mode" id="dbSslModeInput">
-                            <option value="">None</option>
-                            <option value="prefer">Prefer</option>
-                            <option value="require">Require</option>
-                            <option value="verify-ca">Verify CA</option>
-                            <option value="verify-full">Verify Full</option>
-                        </select>
-                        <small>Keamanan koneksi SSL/TLS</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Connection Timeout (detik)</label>
-                        <input type="number" name="connection_timeout" id="dbTimeoutInput" value="30" min="5" max="300">
-                        <small>Default: 30 detik</small>
-                    </div>
-                </div>
-
                 {{-- Test Connection Preview --}}
                 <div class="test-preview-box" id="testPreviewBox">
                     <div class="test-preview-header">
@@ -1299,6 +1299,8 @@ window.loadSchemas = async function() {
     const dbName   = document.getElementById('dbDatabaseInput').value;
     const username = document.getElementById('dbUsernameInput').value;
     const password = document.getElementById('dbPasswordInput').value;
+    const ssl_mode = document.getElementById('dbSslModeInput').value;
+    const connection_timeout = document.getElementById('dbTimeoutInput').value;
 
     if (!host || !dbName || !username || !password) {
         showToast('Isi host, database, username & password dulu', 'error');
@@ -1310,18 +1312,15 @@ window.loadSchemas = async function() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        let data;
-        if (editingDatabaseId) {
-            const r = await fetch(`/admin/databases/${editingDatabaseId}/schemas`);
-            data = await r.json();
-        } else {
-            const r = await fetch('/admin/databases/load-schemas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-                body: JSON.stringify({ driver, host, port: parseInt(port), database: dbName, username, password })
-            });
-            data = await r.json();
-        }
+        const r = await fetch('/admin/databases/load-schemas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+            body: JSON.stringify({ 
+                driver, host, port: parseInt(port), database: dbName, 
+                username, password, ssl_mode, connection_timeout: parseInt(connection_timeout) 
+            })
+        });
+        const data = await r.json();
 
         if (data.schemas && data.schemas.length > 0) {
             showSchemaSelect(data.schemas);
@@ -1398,6 +1397,8 @@ window.testConnectionPreview = async function() {
     const dbName = document.getElementById('dbDatabaseInput').value;
     const user   = document.getElementById('dbUsernameInput').value;
     const pass   = document.getElementById('dbPasswordInput').value;
+    const ssl    = document.getElementById('dbSslModeInput').value;
+    const timeout = document.getElementById('dbTimeoutInput').value;
 
     if (!host || !dbName || !user) {
         result.className = 'test-preview-result error';
@@ -1411,20 +1412,16 @@ window.testConnectionPreview = async function() {
     result.style.display = 'none';
 
     try {
-        let data;
-        if (editingDatabaseId) {
-            const r = await fetch(`/admin/databases/${editingDatabaseId}/test`, {
-                method: 'POST', headers: { 'X-CSRF-TOKEN': csrf() }
-            });
-            data = await r.json();
-        } else {
-            const r = await fetch('/admin/databases/load-schemas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-                body: JSON.stringify({ driver, host, port: parseInt(port), database: dbName, username: user, password: pass, test_only: true })
-            });
-            data = await r.json();
-        }
+        const r = await fetch('/admin/databases/load-schemas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+            body: JSON.stringify({ 
+                driver, host, port: parseInt(port), database: dbName, 
+                username: user, password: pass, test_only: true,
+                ssl_mode: ssl, connection_timeout: parseInt(timeout)
+            })
+        });
+        const data = await r.json();
 
         if (data.success) {
             result.className = 'test-preview-result success';

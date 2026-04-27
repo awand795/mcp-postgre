@@ -509,6 +509,9 @@ class AdminController extends Controller
             'username' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
             'password' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
             'schema' => 'nullable',
+            'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
+            'connection_timeout' => 'nullable|integer|min:5|max:300',
+            'test_only' => 'nullable|boolean',
         ]);
 
         // Create temporary model instance
@@ -520,7 +523,14 @@ class AdminController extends Controller
             'username' => $validated['username'],
             'password' => $validated['password'],
             'schema' => $validated['schema'] ?? 'public',
+            'ssl_mode' => $validated['ssl_mode'] ?? '',
+            'connection_timeout' => $validated['connection_timeout'] ?? 30,
         ]);
+
+        if ($request->boolean('test_only')) {
+            $result = $tempDb->testConnection();
+            return response()->json($result);
+        }
 
         $schemas = $tempDb->getSchemas();
         return response()->json(['schemas' => $schemas]);

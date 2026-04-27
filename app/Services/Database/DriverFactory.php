@@ -82,10 +82,10 @@ class DriverFactory
     public static function getVersionQuery(string $driver): string
     {
         return match ($driver) {
-            'pgsql', 'mysql', 'mariadb' => 'SELECT version()',
+            'pgsql', 'mysql', 'mariadb' => 'SELECT version() AS version',
             'sqlsrv' => 'SELECT @@version AS version',
             'sqlite' => 'SELECT sqlite_version() AS version',
-            default => 'SELECT version()',
+            default => 'SELECT version() AS version',
         };
     }
 }

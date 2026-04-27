@@ -160,9 +160,21 @@ class MySqlAdapter extends DriverAdapter
         // Aiven MySQL wajib SSL tapi tidak perlu verify CA cert
         $sslMode = $connection['ssl_mode'] ?? '';
         if (!empty($sslMode)) {
-            // Matikan verifikasi server cert — Aiven pakai self-signed CA
-            // yang tidak ada di system trust store server
-            $pdoOptions[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            // PENTING: Untuk memicu SSL handshake pada PDO MySQL, 
+            // setidaknya satu atribut SSL harus diset.
+            if ($sslMode === 'verify-ca' || $sslMode === 'verify-full') {
+                $pdoOptions[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+            } else {
+                // Mode 'require' atau 'prefer' di Aiven seringkali gagal jika verifikasi aktif
+                // karena certificate-nya self-signed atau issued by internal CA.
+                $pdoOptions[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
+
+            // Set SSL CA ke empty string untuk men-trigger SSL tanpa file CA spesifik
+            // (Client akan menerima certificate apa pun dari server)
+            if (!isset($pdoOptions[\PDO::MYSQL_ATTR_SSL_CA])) {
+                $pdoOptions[\PDO::MYSQL_ATTR_SSL_CA] = '';
+            }
         }
         unset($connection['ssl_mode']);
 
