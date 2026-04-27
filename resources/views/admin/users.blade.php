@@ -401,89 +401,80 @@
     .pagination-info { color: #64748b; font-size: 0.9rem; }
 
     /* ═══════════════════════════════════════════════════════════
-       AI CONFIG MODAL — NEW STYLES
+       AI CONFIG MODAL — STYLES
        ═══════════════════════════════════════════════════════════ */
+
+    /* Modal wrapper: fixed height, flex column, no overflow */
     .aic-modal {
         width: 100%;
         max-width: 780px;
-        max-height: 92vh;
+        height: 90vh;           /* fixed tinggi — kunci utama agar scroll bisa kerja */
+        max-height: 90vh;
         display: flex;
         flex-direction: column;
         padding: 0;
-        overflow: hidden;
+        overflow: hidden;       /* modal sendiri tidak scroll — child yang scroll */
         border-radius: 20px;
         box-shadow: 0 32px 64px rgba(0,0,0,0.6);
     }
 
-    /* Header */
+    /* Header — tidak scroll */
     .aic-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1.5rem 1.75rem 1.25rem;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 1.25rem 1.75rem 1rem;
         border-bottom: 1px solid rgba(255,255,255,0.06);
         flex-shrink: 0;
     }
     .aic-header-left { display: flex; align-items: center; gap: 1rem; }
     .aic-avatar {
-        width: 44px; height: 44px; border-radius: 12px;
+        width: 42px; height: 42px; border-radius: 12px;
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
         display: flex; align-items: center; justify-content: center;
-        font-size: 1.1rem; font-weight: 800; color: white;
-        flex-shrink: 0; letter-spacing: -0.5px;
+        font-size: 1rem; font-weight: 800; color: white; flex-shrink: 0;
     }
-    .aic-label { margin: 0; font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-    .aic-username { margin: 0.15rem 0 0; font-size: 1.1rem; font-weight: 700; color: #e2e8f0; }
+    .aic-label { margin: 0; font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+    .aic-username { margin: 0.1rem 0 0; font-size: 1.05rem; font-weight: 700; color: #e2e8f0; }
     .aic-close-btn {
-        width: 36px; height: 36px; border-radius: 10px;
+        width: 34px; height: 34px; border-radius: 10px;
         background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
         color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
         font-size: 0.9rem; transition: all 0.2s; flex-shrink: 0;
     }
     .aic-close-btn:hover { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.3); }
 
-    /* Stats bar */
+    /* Stats bar — tidak scroll */
     .aic-stats-bar {
         display: flex; align-items: center;
-        padding: 0.9rem 1.75rem;
+        padding: 0.75rem 1.75rem;
         background: rgba(0,0,0,0.15);
         border-bottom: 1px solid rgba(255,255,255,0.04);
-        gap: 0; flex-shrink: 0;
+        flex-shrink: 0;
     }
     .aic-stat { display: flex; align-items: center; gap: 0.6rem; flex: 1; }
     .aic-stat-num {
-        font-size: 1.5rem; font-weight: 800;
+        font-size: 1.4rem; font-weight: 800; line-height: 1;
         background: linear-gradient(135deg, #818cf8, #a5b4fc);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        background-clip: text; line-height: 1;
-    }
-    .aic-stat-num.aic-stat-key {
-        background: linear-gradient(135deg, #10b981, #34d399);
         -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
-    .aic-stat-num.aic-stat-prov {
-        background: linear-gradient(135deg, #f59e0b, #fbbf24);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .aic-stat-lbl { font-size: 0.72rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.2; }
-    .aic-stat-divider { width: 1px; height: 32px; background: rgba(255,255,255,0.06); margin: 0 1.5rem; flex-shrink: 0; }
+    .aic-stat-num.aic-stat-key { background: linear-gradient(135deg, #10b981, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .aic-stat-num.aic-stat-prov { background: linear-gradient(135deg, #f59e0b, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .aic-stat-lbl { font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; line-height: 1.2; }
+    .aic-stat-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.06); margin: 0 1.25rem; flex-shrink: 0; }
 
-    /* Tabs */
+    /* Tabs — tidak scroll */
     .aic-tabs {
-        display: flex; gap: 0;
+        display: flex;
         padding: 0 1.75rem;
         border-bottom: 1px solid rgba(255,255,255,0.06);
         flex-shrink: 0;
     }
     .aic-tab {
         display: flex; align-items: center; gap: 0.6rem;
-        padding: 0.9rem 1.25rem;
+        padding: 0.85rem 1.25rem;
         background: transparent; border: none;
         color: #64748b; cursor: pointer; font-size: 0.88rem; font-weight: 600;
         border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
-        transition: all 0.2s;
-        position: relative;
+        margin-bottom: -1px; transition: all 0.2s;
     }
     .aic-tab:hover { color: #94a3b8; }
     .aic-tab.active { color: #818cf8; border-bottom-color: #6366f1; }
@@ -493,45 +484,66 @@
         background: rgba(99,102,241,0.2); color: #818cf8;
         font-size: 0.7rem; font-weight: 800;
         display: inline-flex; align-items: center; justify-content: center;
-        padding: 0 5px; transition: all 0.2s;
+        padding: 0 5px;
     }
     .aic-badge.aic-badge-key { background: rgba(16,185,129,0.2); color: #34d399; }
 
-    /* Search bar */
+    /* form harus ikut flex chain agar panel bisa flex: 1 */
+    #aiConfigForm {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;          /* KUNCI: tanpa ini flex: 1 tidak bisa shrink di Firefox/Chrome */
+        overflow: hidden;
+    }
+
+    /* Search bar — tidak scroll, flex-shrink: 0 */
     .aic-search-wrap {
         display: flex; align-items: center; gap: 0.5rem;
-        padding: 1rem 1.75rem 0.75rem;
+        padding: 0.85rem 1.75rem 0.65rem;
         flex-shrink: 0;
     }
     .aic-search-icon { color: #475569; font-size: 0.85rem; flex-shrink: 0; }
     .aic-search-input {
-        flex: 1; background: rgba(255,255,255,0.04);
+        flex: 1;
+        background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.08);
-        padding: 0.55rem 0.9rem; border-radius: 10px;
+        padding: 0.5rem 0.85rem; border-radius: 10px;
         color: #e2e8f0; font-size: 0.85rem;
         transition: all 0.2s; outline: none;
-        width: auto !important;
+        width: auto !important; min-width: 0;
     }
     .aic-search-input:focus { border-color: rgba(99,102,241,0.4); background: rgba(99,102,241,0.05); }
     .aic-select-all-btn, .aic-clear-btn {
-        padding: 0.5rem 0.8rem; border-radius: 8px; border: none;
-        font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
-        white-space: nowrap; display: flex; align-items: center; gap: 4px;
+        padding: 0.45rem 0.75rem; border-radius: 8px; border: none;
+        font-size: 0.73rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        white-space: nowrap; display: flex; align-items: center; gap: 4px; flex-shrink: 0;
     }
     .aic-select-all-btn { background: rgba(99,102,241,0.15); color: #818cf8; }
     .aic-select-all-btn:hover { background: rgba(99,102,241,0.28); }
     .aic-clear-btn { background: rgba(255,255,255,0.05); color: #64748b; }
     .aic-clear-btn:hover { background: rgba(239,68,68,0.15); color: #f87171; }
 
-    /* Scroll area */
-    .aic-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+    /* Panel — flex column, mengisi sisa ruang */
+    .aic-panel {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;          /* KUNCI scroll */
+    }
+
+    /* Scroll area — ini yang actual scroll */
     .aic-scroll-area {
-        flex: 1; overflow-y: auto;
+        flex: 1;
+        overflow-y: auto;
         padding: 0.5rem 1.75rem 1rem;
-        scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+        min-height: 0;          /* KUNCI scroll di semua browser */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.15) transparent;
     }
     .aic-scroll-area::-webkit-scrollbar { width: 5px; }
-    .aic-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    .aic-scroll-area::-webkit-scrollbar-track { background: transparent; }
+    .aic-scroll-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
 
     /* Provider group */
     .aic-provider-block { margin-bottom: 1.25rem; }
@@ -540,104 +552,81 @@
         margin-bottom: 0.6rem; padding: 0 0.25rem;
     }
     .aic-provider-icon {
-        width: 26px; height: 26px; border-radius: 7px;
+        width: 24px; height: 24px; border-radius: 6px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 0.7rem; font-weight: 700; color: white; flex-shrink: 0;
+        font-size: 0.65rem; font-weight: 700; color: white; flex-shrink: 0;
     }
     .aic-provider-name {
         font-size: 0.72rem; font-weight: 800; color: #64748b;
         text-transform: uppercase; letter-spacing: 0.1em; flex: 1;
     }
-    .aic-provider-count {
-        font-size: 0.68rem; color: #475569; font-weight: 600;
-    }
+    .aic-provider-count { font-size: 0.68rem; color: #475569; font-weight: 600; }
     .aic-provider-toggle {
         font-size: 0.68rem; font-weight: 700; cursor: pointer;
-        color: #6366f1; text-decoration: none; padding: 2px 8px;
-        border-radius: 5px; background: rgba(99,102,241,0.1);
-        transition: all 0.2s; border: none; white-space: nowrap;
+        color: #6366f1; padding: 2px 8px; border-radius: 5px;
+        background: rgba(99,102,241,0.1); transition: all 0.2s;
+        border: none; white-space: nowrap;
     }
     .aic-provider-toggle:hover { background: rgba(99,102,241,0.2); }
 
     /* Item grid */
     .aic-items-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-        gap: 0.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+        gap: 0.45rem;
     }
     .aic-item {
         display: flex; align-items: center; gap: 0.6rem;
-        padding: 0.65rem 0.85rem; border-radius: 10px;
-        cursor: pointer; transition: all 0.18s;
+        padding: 0.6rem 0.8rem; border-radius: 10px;
+        cursor: pointer; transition: all 0.15s;
         border: 1px solid rgba(255,255,255,0.05);
         background: rgba(255,255,255,0.02);
         user-select: none;
     }
-    .aic-item:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); transform: translateY(-1px); }
-    .aic-item.aic-item-checked {
-        background: rgba(99,102,241,0.1);
-        border-color: rgba(99,102,241,0.35);
-    }
-    .aic-item.aic-item-checked.aic-item-key {
-        background: rgba(16,185,129,0.1);
-        border-color: rgba(16,185,129,0.35);
-    }
-    .aic-item input[type="checkbox"] {
-        width: 15px !important; height: 15px !important;
-        margin: 0; flex-shrink: 0; cursor: pointer;
-        accent-color: #6366f1;
-    }
+    .aic-item:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+    .aic-item.aic-item-checked { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.35); }
+    .aic-item.aic-item-checked.aic-item-key { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.35); }
+    .aic-item input[type="checkbox"] { width: 14px !important; height: 14px !important; margin: 0; flex-shrink: 0; cursor: pointer; accent-color: #6366f1; }
     .aic-item.aic-item-key input[type="checkbox"] { accent-color: #10b981; }
-    .aic-item-name {
-        font-size: 0.82rem; color: #94a3b8;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        transition: color 0.18s;
-    }
+    .aic-item-name { font-size: 0.81rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 0.15s; }
     .aic-item-checked .aic-item-name { color: #c7d2fe; font-weight: 600; }
     .aic-item-checked.aic-item-key .aic-item-name { color: #6ee7b7; }
-    .aic-item-check-icon {
-        margin-left: auto; font-size: 0.7rem; color: #6366f1;
-        opacity: 0; transition: opacity 0.18s; flex-shrink: 0;
-    }
+    .aic-item-check-icon { margin-left: auto; font-size: 0.68rem; color: #6366f1; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
     .aic-item-checked .aic-item-check-icon { opacity: 1; }
     .aic-item-checked.aic-item-key .aic-item-check-icon { color: #10b981; }
-
-    /* Hidden item (search filtered out) */
     .aic-item-hidden { display: none !important; }
     .aic-block-hidden { display: none !important; }
 
     /* Empty state */
-    .aic-empty {
-        text-align: center; padding: 2.5rem 1rem; color: #475569;
-    }
+    .aic-empty { text-align: center; padding: 2.5rem 1rem; color: #475569; }
     .aic-empty i { font-size: 2rem; margin-bottom: 0.75rem; display: block; }
     .aic-empty p { font-size: 0.85rem; margin: 0; }
 
-    /* Footer */
+    /* Footer — tidak scroll, flex-shrink: 0 */
     .aic-footer {
         display: flex; align-items: center; justify-content: space-between;
-        padding: 1rem 1.75rem 1.25rem;
+        padding: 0.9rem 1.75rem 1.1rem;
         border-top: 1px solid rgba(255,255,255,0.06);
         flex-shrink: 0; gap: 1rem; flex-wrap: wrap;
     }
-    .aic-footer-hint { margin: 0; font-size: 0.75rem; color: #475569; display: flex; align-items: center; gap: 0.4rem; }
+    .aic-footer-hint { margin: 0; font-size: 0.73rem; color: #475569; display: flex; align-items: center; gap: 0.4rem; }
     .aic-footer-actions { display: flex; gap: 0.75rem; }
 
-    /* Provider color codes */
-    .aic-prov-openai  { background: #10a37f; }
-    .aic-prov-gemini  { background: #4285f4; }
-    .aic-prov-claude  { background: #d97757; }
-    .aic-prov-mistral { background: #ff7000; }
-    .aic-prov-groq    { background: #f55036; }
+    /* Provider colors */
+    .aic-prov-openai     { background: #10a37f; }
+    .aic-prov-gemini     { background: #4285f4; }
+    .aic-prov-claude     { background: #d97757; }
+    .aic-prov-mistral    { background: #ff7000; }
+    .aic-prov-groq       { background: #f55036; }
     .aic-prov-openrouter { background: #7c3aed; }
     .aic-prov-deepseek   { background: #0ea5e9; }
     .aic-prov-default    { background: #6366f1; }
 
     @media (max-width: 600px) {
-        .aic-modal { max-width: 100%; border-radius: 16px 16px 0 0; max-height: 96vh; }
+        .aic-modal { max-width: 100%; border-radius: 16px 16px 0 0; height: 96vh; max-height: 96vh; }
         .aic-items-grid { grid-template-columns: 1fr 1fr; }
         .aic-search-wrap { flex-wrap: wrap; }
-        .aic-stats-bar { padding: 0.75rem 1.25rem; }
+        .aic-stats-bar { padding: 0.65rem 1.25rem; }
         .aic-stat-divider { margin: 0 0.75rem; }
     }
 </style>
@@ -646,14 +635,12 @@
     let currentEditingUserId = null;
     let _aicActiveTab = 'models';
 
-    /* ── Provider color helper ─────────────────────────── */
     function providerColorClass(name) {
         const map = { openai:'openai', gemini:'gemini', claude:'claude', mistral:'mistral', groq:'groq', openrouter:'openrouter', deepseek:'deepseek' };
         const key = name.toLowerCase().replace(/[^a-z]/g,'');
         return 'aic-prov-' + (map[key] || 'default');
     }
 
-    /* ── Render helpers ────────────────────────────────── */
     function renderAicGroup(container, groupedData, checkedIds, nameField, inputName, isKey) {
         container.innerHTML = '';
         const providers = Object.keys(groupedData);
@@ -712,7 +699,6 @@
         });
     }
 
-    /* ── Stats update ──────────────────────────────────── */
     function updateAicStats() {
         const modelCount = document.querySelectorAll('#aiModelsGrouped input[type=checkbox]:checked').length;
         const keyCount   = document.querySelectorAll('#aiKeysGrouped input[type=checkbox]:checked').length;
@@ -722,7 +708,6 @@
         document.getElementById('badgeModels').textContent = modelCount;
         document.getElementById('badgeKeys').textContent   = keyCount;
 
-        // Count unique providers selected
         const providerSet = new Set();
         document.querySelectorAll('#aiModelsGrouped .aic-item-checked, #aiKeysGrouped .aic-item-checked').forEach(el => {
             const block = el.closest('.aic-provider-block');
@@ -731,7 +716,6 @@
         document.getElementById('statProviders').textContent = providerSet.size;
     }
 
-    /* ── Tab switch ────────────────────────────────────── */
     function switchAicTab(tab) {
         _aicActiveTab = tab;
         document.getElementById('aicPanelModels').style.display = tab === 'models' ? 'flex' : 'none';
@@ -742,7 +726,6 @@
         document.getElementById('tabBtnKeys').classList.toggle('key-tab', tab === 'keys');
     }
 
-    /* ── Search / filter ───────────────────────────────── */
     function filterAicItems(type) {
         const query = document.getElementById(type === 'models' ? 'searchModels' : 'searchKeys').value.toLowerCase().trim();
         const container = document.getElementById(type === 'models' ? 'aiModelsGrouped' : 'aiKeysGrouped');
@@ -757,7 +740,6 @@
         });
     }
 
-    /* ── Select all visible ────────────────────────────── */
     function selectAllVisible(type, checked) {
         const container = document.getElementById(type === 'models' ? 'aiModelsGrouped' : 'aiKeysGrouped');
         container.querySelectorAll('.aic-item:not(.aic-item-hidden)').forEach(item => {
@@ -770,7 +752,6 @@
         updateAicStats();
     }
 
-    /* ── Toggle all in one provider block ──────────────── */
     function toggleProviderAll(btn, inputName) {
         const block = btn.closest('.aic-provider-block');
         const checkboxes = block.querySelectorAll(`input[name="${inputName}"]`);
@@ -783,11 +764,9 @@
         updateAicStats();
     }
 
-    /* ── Open modal ────────────────────────────────────── */
     function showAiConfig(user) {
         currentEditingUserId = user.id;
 
-        // Avatar & name
         const name = user.name || '?';
         document.getElementById('aiConfigUserName').innerText = name;
         document.getElementById('aiConfigAvatar').innerText = name.charAt(0).toUpperCase();
@@ -797,7 +776,6 @@
         const userModels = user.ai_models ? user.ai_models.map(m => m.id) : [];
         const userKeys   = user.ai_keys   ? user.ai_keys.map(k => k.id)   : [];
 
-        // Group by provider
         const groupedModels = {};
         allModels.forEach(m => {
             const p = m.provider.name;
@@ -815,8 +793,6 @@
         renderAicGroup(document.getElementById('aiKeysGrouped'),   groupedKeys,   userKeys,   'key_name',     'ai_keys[]',   true);
 
         updateAicStats();
-
-        // Reset to models tab & clear search
         switchAicTab('models');
         document.getElementById('searchModels').value = '';
         document.getElementById('searchKeys').value   = '';
@@ -824,7 +800,6 @@
         document.getElementById('aiConfigModal').style.display = 'flex';
     }
 
-    /* ── Save ──────────────────────────────────────────── */
     function saveAiConfig() {
         const btn = document.getElementById('btnSaveAiConfig');
         const originalHtml = btn.innerHTML;
@@ -862,7 +837,6 @@
     function hideAiConfig() { document.getElementById('aiConfigModal').style.display = 'none'; }
     document.getElementById('btnSaveAiConfig').onclick = saveAiConfig;
 
-    /* ── Existing modal helpers ────────────────────────── */
     function showModal(type, user = null) {
         if (type === 'import') {
             document.getElementById('importModal').style.display = 'flex';
