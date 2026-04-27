@@ -198,12 +198,19 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 4.5: AUTO-FIX — Deteksi & ganti filter periode_bulan/periode_tahun ──
-        // Jika AI masih menggunakan kolom periode_bulan/periode_tahun yang menyebabkan
-        // full scan atau hasil kosong, otomatis konversi ke filter DATE BETWEEN.
-        // FIX: hanya jalankan autofix jika query benar-benar mengandung periode_bulan/periode_tahun
-        // agar tidak mengacak-acak query yang sudah benar.
-        $lowerCheck = strtolower($trimmedSql);
-        if (str_contains($lowerCheck, 'periode_bulan') || str_contains($lowerCheck, 'periode_tahun')) {
+        // KRITIS: Hanya aktifkan autoFix jika periode_bulan/periode_tahun ada di dalam
+        // WHERE clause — BUKAN di CASE WHEN, SELECT, atau subquery.
+        // Ini mencegah regex penghapus merusak CASE WHEN periode_tahun = '2025' THEN ...
+        $hasPeriodeInWhere = false;
+        if (stripos($trimmedSql, 'periode_bulan') !== false || stripos($trimmedSql, 'periode_tahun') !== false) {
+            // Ekstrak isi WHERE clause saja (hentikan di GROUP BY / ORDER BY / HAVING / LIMIT)
+            if (preg_match('/\bWHERE\b(.*?)(?:\b(?:GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT)\b|$)/is', $trimmedSql, $whereMatch)) {
+                $whereClause = strtolower($whereMatch[1]);
+                $hasPeriodeInWhere = str_contains($whereClause, 'periode_bulan')
+                    || str_contains($whereClause, 'periode_tahun');
+            }
+        }
+        if ($hasPeriodeInWhere) {
             $trimmedSql = $this->autoFixPeriodFilter($trimmedSql, $databaseCode);
         }
 
@@ -710,6 +717,11 @@ class QueryService extends BaseService
      *   WHERE tgl_faktur BETWEEN '2025-03-01' AND '2025-03-31'
      *
      * Jika kolom tanggal aktual tidak diketahui, coba deteksi dari schema.
+     *
+     * KRITIS: Fungsi ini hanya dipanggil jika periode_* terbukti ada di WHERE
+     * clause (dicek di executeQuery sebelum memanggil fungsi ini).
+     * Penghapusan juga dilakukan HANYA pada WHERE clause, bukan seluruh SQL,
+     * agar CASE WHEN periode_tahun = '2025' THEN ... tidak ikut terhapus.
      */
     private function autoFixPeriodFilter(string $sql, string $databaseCode): string
     {
@@ -806,16 +818,16 @@ class QueryService extends BaseService
             . "-> BETWEEN '{$dateStart}' AND '{$dateEnd}' "
             . "using column: {$dateColumn}");
 
-        // Hapus kondisi periode_bulan dan periode_tahun dari SQL secara aman.
-        // Support equality (=) DAN IN (...) — keduanya harus dibersihkan agar
-        // tidak menimbulkan WHERE clause yang rusak setelah BETWEEN disisipkan.
-        // PENTING: Gunakan \b untuk AND/OR agar tidak memotong kata lain seperti ORDER.
+        // ── HAPUS periode_bulan/periode_tahun HANYA dari WHERE clause ────────
+        // KRITIS: Jangan hapus dari CASE WHEN, FILTER (WHERE ...), atau SELECT.
+        // Strategi: pisahkan SQL → beforeWhere + whereBody + afterWhere,
+        // terapkan regex hanya pada whereBody, lalu gabungkan kembali.
         $inValPattern = '\s*\([^)]+\)'; // cocokkan nilai IN: ('2025','2026') atau (2025,2026)
         $eqBulan = '=\s*[\'"]?\d{1,2}[\'"]?';
         $eqTahun = '=\s*[\'"]?\d{4}[\'"]?';
         $inBulan = "IN{$inValPattern}";
         $inTahun = "IN{$inValPattern}";
-        $patterns = [
+        $removePatterns = [
             // Hapus AND/OR sebelum kondisi (kondisi di tengah/akhir WHERE)
             "/\s+\b(?:AND|OR)\b\s+[\w\"'`]*\.*periode_bulan\s*(?:{$eqBulan}|{$inBulan})/i",
             // Hapus kondisi di awal WHERE (diikuti AND/OR)
@@ -825,15 +837,29 @@ class QueryService extends BaseService
         ];
 
         $cleanSql = $sql;
-        foreach ($patterns as $pattern) {
-            $cleanSql = preg_replace($pattern, ' ', $cleanSql);
+
+        // Pisahkan SQL menjadi 3 bagian: sebelum WHERE, isi WHERE, sesudah WHERE.
+        // Regex: tangkap (sebelum+WHERE) + (isi WHERE) + (GROUP BY/ORDER BY/HAVING/LIMIT/akhir)
+        if (preg_match('/^(.*?\bWHERE\b)(.*?)((?:\b(?:GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT)\b.*)?)$/is', $sql, $sqlParts)) {
+            $beforeWhere = $sqlParts[1]; // "SELECT ... FROM ... WHERE"
+            $whereBody   = $sqlParts[2]; // isi kondisi WHERE saja — INI yang dibersihkan
+            $afterWhere  = $sqlParts[3]; // "GROUP BY ..." — JANGAN disentuh
+
+            // Terapkan regex hanya pada $whereBody
+            foreach ($removePatterns as $pattern) {
+                $whereBody = preg_replace($pattern, ' ', $whereBody);
+            }
+
+            $cleanSql = $beforeWhere . $whereBody . $afterWhere;
         }
+        // Jika tidak ada WHERE clause: tidak ada yang perlu dihapus,
+        // BETWEEN akan ditambahkan sebagai WHERE baru di bawah.
 
         // Tambahkan filter BETWEEN yang benar (sertakan alias jika ditemukan)
         $qualifiedCol = $alias ? "{$alias}.{$dateColumn}" : $dateColumn;
         $betweenFilter = "{$qualifiedCol} BETWEEN '{$dateStart}' AND '{$dateEnd}'";
 
-        // Cek apakah masih ada WHERE clause
+        // Cek apakah masih ada WHERE clause setelah pembersihan
         if (preg_match('/\bWHERE\b/i', $cleanSql)) {
             if (preg_match('/\b(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\b/i', $cleanSql, $gm, PREG_OFFSET_CAPTURE)) {
                 $insertPos = $gm[0][1];
