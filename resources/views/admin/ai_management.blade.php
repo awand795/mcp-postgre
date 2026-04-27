@@ -369,11 +369,15 @@
 .form-grp label { display:block; margin-bottom:.45rem; color:#94a3b8; font-size:0.82rem; font-weight:600; }
 .form-grp input, .form-grp select {
     width: 100%;
-    background: rgba(255,255,255,.04);
+    background: #1e293b;
     border: 1px solid rgba(255,255,255,.1);
     padding: .65rem .9rem; border-radius: 10px;
     color: white; font-family: inherit; font-size: 0.88rem;
     transition: all .15s;
+}
+.form-grp select option, #hcModelSelect option {
+    background-color: #111827;
+    color: white;
 }
 .form-grp input:focus, .form-grp select:focus {
     outline: none; border-color: var(--aim-indigo);
@@ -823,7 +827,7 @@
             </label>
             <div style="display:flex;gap:8px;">
                 <select id="hcModelSelect"
-                        style="flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);padding:7px 10px;border-radius:9px;color:white;font-family:inherit;font-size:0.82rem;">
+                        style="flex:1;background:#1e293b;border:1px solid rgba(255,255,255,.1);padding:7px 10px;border-radius:9px;color:white;font-family:inherit;font-size:0.82rem;">
                     {{-- diisi JS saat buka modal --}}
                 </select>
                 <button type="button" id="hcRunBtn"
@@ -841,7 +845,7 @@
                 <label for="hcCustomModelToggle" style="font-size:0.72rem;color:#64748b;cursor:pointer;">Ketik model manual</label>
             </div>
             <input type="text" id="hcCustomModelInput" placeholder="Contoh: gemini-2.0-flash-exp"
-                   style="display:none;margin-top:6px;width:100%;background:rgba(255,255,255,.04);
+                   style="display:none;margin-top:6px;width:100%;background:#1e293b;
                           border:1px solid rgba(99,102,241,.3);padding:7px 10px;border-radius:9px;
                           color:white;font-family:inherit;font-size:0.82rem;">
         </div>
