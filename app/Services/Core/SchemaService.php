@@ -88,7 +88,7 @@ class SchemaService extends BaseService
         }
 
         $allowedDbs = $this->queryService->getAllowedTables();
-        
+
         if (!isset($allowedDbs[$databaseCode])) {
             return $this->errorResponse("Access denied: You don't have access to database '{$databaseCode}'.");
         }
@@ -120,7 +120,7 @@ class SchemaService extends BaseService
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
             if (!$dbModel) {
-                 return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
+                return $this->errorResponse("Database configuration for '{$databaseCode}' not found or inactive.");
             }
 
             $adapter = $dbModel->getAdapter();
@@ -157,8 +157,8 @@ class SchemaService extends BaseService
                 $columns = DB::connection($useConn)->select("PRAGMA table_info({$tableName})");
                 foreach ($columns as $col) {
                     $result[] = [
-                        'column'   => $col->name,
-                        'type'     => $col->type,
+                        'column' => $col->name,
+                        'type' => $col->type,
                         'nullable' => $col->notnull ? 'NO' : 'YES',
                     ];
                 }
@@ -169,10 +169,10 @@ class SchemaService extends BaseService
 
                 foreach ($columns as $col) {
                     $item = [
-                        'column'   => $col->column_name,
-                        'type'     => $col->data_type,
+                        'column' => $col->column_name,
+                        'type' => $col->data_type,
                         'nullable' => $col->is_nullable,
-                        'notes'    => $col->description ?? ''
+                        'notes' => $col->description ?? ''
                     ];
                     if (!empty($col->foreign_key_table)) {
                         $item['references'] = "{$col->foreign_key_table}.{$col->foreign_key_column}";
@@ -185,9 +185,9 @@ class SchemaService extends BaseService
                 $idxData = DB::connection($useConn)->select($idxQuery, [$tableName, $schemaParam]);
                 foreach ($idxData as $idx) {
                     $indexes[] = [
-                        'name'   => $idx->index_name,
+                        'name' => $idx->index_name,
                         'column' => $idx->column_name,
-                        'type'   => $idx->is_primary ? 'PRIMARY KEY' : ($idx->is_unique ? 'UNIQUE INDEX' : 'INDEX')
+                        'type' => $idx->is_primary ? 'PRIMARY KEY' : ($idx->is_unique ? 'UNIQUE INDEX' : 'INDEX')
                     ];
                 }
             }
@@ -213,16 +213,16 @@ class SchemaService extends BaseService
                     : "MANDATORY_AI_ACTION: Panggil search_schema dengan keyword='{$tableName}' untuk menemukan di schema mana tabel ini berada.";
 
                 return $this->safeJsonEncode([
-                    'error'               => "Table '{$schemaName}.{$tableName}' not found or has no columns.",
+                    'error' => "Table '{$schemaName}.{$tableName}' not found or has no columns.",
                     'MANDATORY_AI_ACTION' => $hint,
                 ]);
             }
 
             $response = [
                 'database' => $databaseCode,
-                'table'    => "{$schemaName}.{$tableName}",
-                'columns'  => $result,
-                'indexes'  => $indexes,
+                'table' => "{$schemaName}.{$tableName}",
+                'columns' => $result,
+                'indexes' => $indexes,
                 'usage_tip' => 'Gunakan get_column_values untuk melihat variasi isi data pada kolom kategori/status.'
             ];
 
@@ -269,7 +269,7 @@ class SchemaService extends BaseService
 
         $allowedDbs = $this->queryService->getAllowedTables();
         $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
         if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
             return $this->errorResponse("Access denied.");
@@ -294,14 +294,14 @@ class SchemaService extends BaseService
             $query = $adapter->getDistinctValuesQuery($schemaName, $tableName, $columnName, 20);
             try {
                 $values = DB::connection($connName)->select($query);
-                $flatValues = array_map(fn($v) => current((array)$v), $values);
+                $flatValues = array_map(fn($v) => current((array) $v), $values);
                 DB::purge($connName);
                 $result = $this->safeJsonEncode([
-                    'database'        => $databaseCode,
-                    'column'          => "{$schemaName}.{$tableName}.{$columnName}",
+                    'database' => $databaseCode,
+                    'column' => "{$schemaName}.{$tableName}.{$columnName}",
                     'distinct_values' => $flatValues,
-                    'note'            => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
-                    'cached'          => false,
+                    'note' => count($flatValues) < 20 ? 'Full result' : 'Sampled (top 20)',
+                    'cached' => false,
                 ]);
                 // Cache 1 jam — nilai kolom seperti kategori/status sangat jarang berubah
                 Cache::put($cacheKey, $result, 3600);
@@ -350,9 +350,9 @@ class SchemaService extends BaseService
             return $this->errorResponse('Please provide an exact schema_name and view_name. Wildcard "*" is not allowed.');
         }
 
-        $allowedDbs    = $this->queryService->getAllowedTables();
+        $allowedDbs = $this->queryService->getAllowedTables();
         $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
         if (!$schemaAllowed || !$this->isTableAllowed($viewName, $tableEntries)) {
             return $this->errorResponse("Access denied.");
@@ -374,8 +374,8 @@ class SchemaService extends BaseService
 
             DB::purge($connName);
             return $this->safeJsonEncode([
-                'database'   => $databaseCode,
-                'view'       => "{$schemaName}.{$viewName}",
+                'database' => $databaseCode,
+                'view' => "{$schemaName}.{$viewName}",
                 'definition' => $definition[0]->view_definition ?? $definition[0]->definition ?? $definition[0]->sql ?? 'Not found'
             ]);
         } catch (\Exception $e) {
@@ -400,7 +400,8 @@ class SchemaService extends BaseService
             $connName = "temp_conn_{$dbCode}";
             try {
                 $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
-                if (!$dbModel) continue;
+                if (!$dbModel)
+                    continue;
 
                 $adapter = $dbModel->getAdapter();
                 DB::purge($connName);
@@ -408,26 +409,26 @@ class SchemaService extends BaseService
 
                 $query = $adapter->searchSchemaQuery();
                 $searchTerm = "%{$keyword}%";
-                
+
                 $placeholderCount = substr_count($query, '?');
                 $params = array_fill(0, $placeholderCount, $searchTerm);
-                
+
                 $matches = DB::connection($connName)->select($query, $params);
 
                 foreach ($matches as $match) {
                     $matchSchema = $match->table_schema;
-                    $matchTable  = $match->table_name;
+                    $matchTable = $match->table_name;
 
                     $schemaAllowed = isset($schemas[$matchSchema]) || isset($schemas['*']);
-                    $tableEntries  = $schemas[$matchSchema] ?? $schemas['*'] ?? [];
+                    $tableEntries = $schemas[$matchSchema] ?? $schemas['*'] ?? [];
 
                     if ($schemaAllowed && $this->isTableAllowed($matchTable, $tableEntries)) {
                         $results[] = [
                             'database' => $dbCode,
-                            'schema'   => $matchSchema,
-                            'table'    => $matchTable,
-                            'column'   => $match->column_name,
-                            'notes'    => $match->description ?? ''
+                            'schema' => $matchSchema,
+                            'table' => $matchTable,
+                            'column' => $match->column_name,
+                            'notes' => $match->description ?? ''
                         ];
                     }
                 }
@@ -440,7 +441,7 @@ class SchemaService extends BaseService
         return $this->safeJsonEncode([
             'keyword' => $keyword,
             'matches' => $results,
-            'count'   => count($results),
+            'count' => count($results),
             'instruction' => 'IMPORTANT: Use the exact "schema" and "database" values from each match above when calling describe_table or execute_query. Never use "*" as schema_name.',
         ]);
     }
@@ -458,9 +459,9 @@ class SchemaService extends BaseService
             return $this->errorResponse('Please provide an exact schema_name and table_name. Wildcard "*" is not allowed.');
         }
 
-        $allowedDbs    = $this->queryService->getAllowedTables();
+        $allowedDbs = $this->queryService->getAllowedTables();
         $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries  = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
+        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
         if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
             return $this->errorResponse("Access denied or table not found.");
@@ -519,7 +520,7 @@ class SchemaService extends BaseService
 
             return $this->safeJsonEncode([
                 'database' => $databaseCode,
-                'table'    => "{$schemaName}.{$tableName}",
+                'table' => "{$schemaName}.{$tableName}",
                 'sample_rows' => $rows
             ]);
         } catch (\Exception $e) {
@@ -565,10 +566,10 @@ class SchemaService extends BaseService
 
         foreach ($allowedDbs as $dbCode => $schemas) {
             $overview[$dbCode] = [];
-            
+
             foreach ($schemas as $schema => $tables) {
                 $formattedTables = [];
-                
+
                 foreach ($tables as $t) {
                     $tableName = is_array($t) ? ($t['name'] ?? '') : $t;
                     $tableObj = ['table_name' => $tableName];
@@ -581,29 +582,40 @@ class SchemaService extends BaseService
                             $tableObj['columns_error'] = 'Failed to load';
                         }
                     }
-                    
+
                     $formattedTables[] = $tableObj;
                 }
                 $overview[$dbCode][$schema] = $formattedTables;
             }
         }
 
-        // FIX: Tambahkan MANDATORY hint di response getSchemaInfo agar model Llama
-        // langsung tahu nama schema eksak yang harus dipakai (bukan menebak '*')
+        // Bangun schema hints dari allowedDbs.
+        // Jika schema key adalah '*' (wildcard), AI tidak tahu harus pakai schema apa.
+        // Dalam kondisi itu, sertakan nama schema dari overview yang sudah dibangun di atas
+        // agar AI tetap mendapat nama eksak yang bisa langsung dipakai.
         $schemaHints = [];
         foreach ($allowedDbs as $dbCode => $schemas) {
             $realSchemas = array_filter(array_keys($schemas), fn($s) => $s !== '*');
+            // Jika tidak ada schema nyata (semua wildcard), ambil dari overview yang sudah built
+            if (empty($realSchemas) && isset($overview[$dbCode])) {
+                $realSchemas = array_filter(array_keys($overview[$dbCode]), fn($s) => $s !== '*');
+            }
             foreach ($realSchemas as $s) {
                 $schemaHints[] = "database_code='{$dbCode}' gunakan schema_name='{$s}'";
             }
         }
 
+        // Jika masih kosong (edge case semua wildcard dan overview kosong), beri instruksi fallback
+        $mandatorySchemaUsage = !empty($schemaHints)
+            ? implode('; ', $schemaHints)
+            : 'Panggil search_schema dengan keyword nama tabel untuk menemukan schema_name yang eksak. JANGAN gunakan "*" sebagai schema_name.';
+
         $result = $this->safeJsonEncode([
             'total_databases' => count($allowedDbs),
-            'total_tables'    => $totalTables,
+            'total_tables' => $totalTables,
             'is_eager_loaded' => $isSmallSchema,
-            'databases'       => $overview,
-            'MANDATORY_SCHEMA_USAGE' => implode('; ', $schemaHints),
+            'databases' => $overview,
+            'MANDATORY_SCHEMA_USAGE' => $mandatorySchemaUsage,
             'MANDATORY_NEXT_STEP' => implode(' ', [
                 'Setelah membaca response ini, LANGKAH BERIKUTNYA YANG WAJIB:',
                 '(1) Identifikasi tabel yang paling relevan dari daftar di atas.',
@@ -612,7 +624,7 @@ class SchemaService extends BaseService
                 '(4) DILARANG memanggil search_schema lebih dari 1 kali untuk topik yang sama.',
                 '(5) Jika tabel adalah VIEW (nama mengandung view_), DILARANG panggil get_column_values — gunakan execute_query SELECT DISTINCT sebagai gantinya.',
             ]),
-            'usage_note'      => $isSmallSchema
+            'usage_note' => $isSmallSchema
                 ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*" as schema_name.'
                 : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*".',
         ]);
@@ -639,7 +651,8 @@ class SchemaService extends BaseService
         $connName = "temp_conn_{$databaseCode}_eager";
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
-            if (!$dbModel) return [];
+            if (!$dbModel)
+                return [];
 
             $adapter = $dbModel->getAdapter();
             DB::purge($connName);
@@ -650,7 +663,7 @@ class SchemaService extends BaseService
             $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
 
             $result = array_map(fn($col) => $col->column_name, $columns);
-            
+
             DB::purge($connName);
 
             Cache::put($cacheKey, $result, 1800);

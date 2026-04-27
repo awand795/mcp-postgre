@@ -46,7 +46,7 @@ class AgenticChatbotController extends Controller
         set_time_limit(0); // Prevent PHP script timeout
 
         $request->validate([
-            'message'  => 'required|string',
+            'message' => 'required|string',
             'model_id' => 'nullable|exists:ai_models,id'
         ]);
 
@@ -78,9 +78,25 @@ class AgenticChatbotController extends Controller
 
         $allowedDatabases = [];
         if ($user->is_admin) {
+            // FIX: Admin mendapat schema NYATA dari setiap database agar AI tidak
+            // menebak schema_name='*' saat memanggil describe_table / execute_query.
+            // Tanpa ini, MANDATORY_SCHEMA_USAGE di getSchemaInfo kosong karena
+            // array_filter membuang semua key '*', sehingga AI looping dengan
+            // wildcard schema dan memerlukan 3-4 loop ekstra sebelum eksekusi query.
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
-                $allowedDatabases[$c->database] = ['*' => ['*']];
+                $tables = $c->getTables(); // [{schema_name, table_name, description}]
+                if (empty($tables)) {
+                    // Fallback ke wildcard jika DB tidak mengembalikan tabel apapun
+                    $allowedDatabases[$c->database] = ['*' => [['name' => '*', 'description' => '']]];
+                    continue;
+                }
+                foreach ($tables as $t) {
+                    $sch = $t['schema_name'];
+                    $tbl = $t['table_name'];
+                    $desc = $t['description'] ?? '';
+                    $allowedDatabases[$c->database][$sch][] = ['name' => $tbl, 'description' => $desc];
+                }
             }
         } elseif ($user->roleModel) {
             if (method_exists($user->roleModel, 'getAllowedDatabases')) {
@@ -88,25 +104,36 @@ class AgenticChatbotController extends Controller
             } else {
                 foreach ($user->roleModel->permissions ?? [] as $perm) {
                     $conn = $perm->databaseConnection;
-                    if (!$conn || !$conn->is_active) continue;
+                    if (!$conn || !$conn->is_active)
+                        continue;
 
-                    $db     = $conn->database;
+                    $db = $conn->database;
                     $schema = $perm->schema_name;
-                    $tbl    = $perm->table_name;
+                    $tbl = $perm->table_name;
 
                     if ($db === '*') {
-                        $conns = \App\Models\DatabaseConnection::active()->get();
-                        foreach ($conns as $c) {
-                            $allowedDatabases[$c->database] = ['*' => ['*']];
+                        $conns2 = \App\Models\DatabaseConnection::active()->get();
+                        foreach ($conns2 as $c) {
+                            $tables2 = $c->getTables();
+                            if (empty($tables2)) {
+                                $allowedDatabases[$c->database] = ['*' => [['name' => '*', 'description' => '']]];
+                                continue;
+                            }
+                            foreach ($tables2 as $t2) {
+                                $allowedDatabases[$c->database][$t2['schema_name']][] = ['name' => $t2['table_name'], 'description' => $t2['description'] ?? ''];
+                            }
                         }
                         continue;
                     }
-                    if (!$db) continue;
+                    if (!$db)
+                        continue;
 
-                    if (!isset($allowedDatabases[$db])) $allowedDatabases[$db] = [];
+                    if (!isset($allowedDatabases[$db]))
+                        $allowedDatabases[$db] = [];
                     $schemaKey = ($schema && $schema !== '*') ? $schema : '*';
 
-                    if (!isset($allowedDatabases[$db][$schemaKey])) $allowedDatabases[$db][$schemaKey] = [];
+                    if (!isset($allowedDatabases[$db][$schemaKey]))
+                        $allowedDatabases[$db][$schemaKey] = [];
 
                     if ($tbl && $tbl !== '*') {
                         $allowedDatabases[$db][$schemaKey][] = $tbl;
@@ -128,7 +155,7 @@ class AgenticChatbotController extends Controller
         } else {
             $session = ChatSession::create([
                 'user_id' => $user->id,
-                'title'   => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')
+                'title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')
             ]);
             $chatSessionId = $session->id;
             $history = [];
@@ -136,9 +163,9 @@ class AgenticChatbotController extends Controller
 
         ChatMessage::create([
             'chat_session_id' => $session->id,
-            'role'            => 'user',
-            'content'         => $message,
-            'tool_results'    => null,
+            'role' => 'user',
+            'content' => $message,
+            'tool_results' => null,
         ]);
 
         if (!empty($history) && $session->title === 'New Chat') {
@@ -149,7 +176,7 @@ class AgenticChatbotController extends Controller
 
         $systemPrompt = $this->buildSystemPrompt($allowedDatabases, $scopeLimited);
 
-        $messages  = $this->buildMessages($systemPrompt, $history, $message);
+        $messages = $this->buildMessages($systemPrompt, $history, $message);
         $maxTokens = $user->max_tokens ?? 32768;
 
         session_write_close();
@@ -168,15 +195,17 @@ class AgenticChatbotController extends Controller
                     Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
                     $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
                     echo "data: [DONE]\n\n";
-                    if (ob_get_level() > 0) ob_flush(); flush();
+                    if (ob_get_level() > 0)
+                        ob_flush();
+                    flush();
                 }
             },
             200,
             [
-                'Content-Type'      => 'text/event-stream',
-                'Cache-Control'     => 'no-cache',
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache',
                 'X-Accel-Buffering' => 'no',
-                'Connection'        => 'keep-alive',
+                'Connection' => 'keep-alive',
             ]
         );
     }
@@ -194,11 +223,13 @@ class AgenticChatbotController extends Controller
             echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
         }
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
-        if (ob_get_level() > 0) ob_flush(); flush();
+        if (ob_get_level() > 0)
+            ob_flush();
+        flush();
 
         $this->toolExecutor->setAllowedTables($allowedDatabases);
-        $tools       = ToolCallExecutor::getToolDefinitions();
-        $loopCount   = 0;
+        $tools = ToolCallExecutor::getToolDefinitions();
+        $loopCount = 0;
         $allTurnToolResults = [];
         $textContent = '';
 
@@ -222,14 +253,14 @@ class AgenticChatbotController extends Controller
         // (artinya ada query exploratory sebelumnya dan ini kemungkinan query final),
         // ATAU jika execute_query dipanggil 1x dan tidak ada SELECT DISTINCT di SQL-nya
         // (query langsung ke data akhir, bukan query probe nilai kolom).
-        $executeQueryCount  = 0;
-        $lastExecutedSql    = '';
+        $executeQueryCount = 0;
+        $lastExecutedSql = '';
 
         // Hard limit probe query: jika model sudah melakukan >= 2 SELECT DISTINCT
         // berturut-turut tanpa GROUP BY, inject reminder paksa agar langsung ke query utama.
         // Ini mencegah model terus eksplor tanpa batas.
-        $probeQueryCount    = 0;
-        $maxProbeQueries    = 2; // maksimal 2 probe query sebelum dipaksa ke query utama
+        $probeQueryCount = 0;
+        $maxProbeQueries = 2; // maksimal 2 probe query sebelum dipaksa ke query utama
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -260,13 +291,21 @@ class AgenticChatbotController extends Controller
                     Log::info("[Agentic] Loop #{$loopCount} using STREAMING mode (tool results available)");
                     try {
                         $response = $this->streamFinalResponseFromApi(
-                            $messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount
+                            $messages,
+                            $tools,
+                            $apiKey,
+                            $model,
+                            $maxTokens,
+                            $systemPrompt,
+                            $loopCount
                         );
                     } catch (\RuntimeException $e) {
                         if ($e->getMessage() === '__RATE_LIMIT__') {
                             $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi.");
                             echo "data: [DONE]\n\n";
-                            if (ob_get_level() > 0) ob_flush(); flush();
+                            if (ob_get_level() > 0)
+                                ob_flush();
+                            flush();
                             return;
                         }
                         throw $e;
@@ -275,8 +314,8 @@ class AgenticChatbotController extends Controller
                     // Ambil data dari response stream
                     $assistantMsg = $response['choices'][0]['message'] ?? [];
                     $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
-                    $toolCalls    = $assistantMsg['tool_calls'] ?? [];
-                    $textContent  = $assistantMsg['content'] ?? '';
+                    $toolCalls = $assistantMsg['tool_calls'] ?? [];
+                    $textContent = $assistantMsg['content'] ?? '';
 
                     // Jika stream menghasilkan teks (bukan tool call) DAN tidak ada tool calls → selesai
                     if (!empty(trim($textContent)) && empty($toolCalls)) {
@@ -286,13 +325,15 @@ class AgenticChatbotController extends Controller
                         if ($chatSessionId) {
                             ChatMessage::create([
                                 'chat_session_id' => $chatSessionId,
-                                'role'            => 'assistant',
-                                'content'         => $textContent,
-                                'tool_results'    => !empty($allTurnToolResults) ? $allTurnToolResults : null
+                                'role' => 'assistant',
+                                'content' => $textContent,
+                                'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
                             ]);
                         }
                         echo "data: [DONE]\n\n";
-                        if (ob_get_level() > 0) ob_flush(); flush();
+                        if (ob_get_level() > 0)
+                            ob_flush();
+                        flush();
                         return;
                     }
 
@@ -308,7 +349,9 @@ class AgenticChatbotController extends Controller
                 if ($e->getMessage() === '__RATE_LIMIT__') {
                     $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi. / We apologize, the AI analysis service has reached its usage limit. Please contact your System Administrator or try again later.");
                     echo "data: [DONE]\n\n";
-                    if (ob_get_level() > 0) ob_flush(); flush();
+                    if (ob_get_level() > 0)
+                        ob_flush();
+                    flush();
                     return;
                 }
                 Log::error("[Agentic] Critical Exception in callAiApi: " . $e->getMessage());
@@ -321,21 +364,23 @@ class AgenticChatbotController extends Controller
             if (!$response || !isset($response['choices'][0]['message'])) {
                 $this->streamText("Infrastruktur analisis sedang mengalami gangguan. Harap hubungi Administrator. / Analytical infrastructure is experiencing issues. Please contact Administrator.");
                 echo "data: [DONE]\n\n";
-                if (ob_get_level() > 0) ob_flush(); flush();
+                if (ob_get_level() > 0)
+                    ob_flush();
+                flush();
                 return;
             }
 
             $assistantMsg = $response['choices'][0]['message'];
             $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
-            $toolCalls    = $assistantMsg['tool_calls'] ?? [];
-            $textContent  = $assistantMsg['content'] ?? '';
+            $toolCalls = $assistantMsg['tool_calls'] ?? [];
+            $textContent = $assistantMsg['content'] ?? '';
 
             $providerCodeCheck = strtolower($apiKey->provider->code ?? '');
             if ($providerCodeCheck === 'gemini' && empty($textContent) && empty($toolCalls) && $loopCount <= 2) {
                 Log::warning("[Agentic] Gemini empty response at loop #{$loopCount} (likely thinking-only). Injecting output reminder.");
                 array_pop($messages);
                 $messages[] = [
-                    'role'    => 'user',
+                    'role' => 'user',
                     'content' => '[SYSTEM]: Mohon berikan jawaban atau panggil tool yang sesuai. Jangan hanya berpikir tanpa output.',
                 ];
                 continue;
@@ -353,7 +398,7 @@ class AgenticChatbotController extends Controller
             if (empty($toolCalls) && preg_match('/SELECT\s+.*\s+FROM\s+/i', $textContent)) {
                 Log::warning("[Agentic] Detected raw SQL in text content. Intercepting and retrying...");
                 $messages[] = [
-                    'role'    => 'user',
+                    'role' => 'user',
                     'content' => "[SYSTEM REMINDER]: Anda baru saja mengirimkan query SQL mentah ke dalam teks jawaban. Ini DILARANG. Jangan pernah tunjukkan query SQL kepada Bapak/Ibu user. Gunakan tool 'execute_query' jika Anda ingin mengambil data, lalu sajikan hasilnya dalam Bahasa Indonesia bisnis yang sopan menggunakan 'smart_table'. Silakan perbaiki respon Anda sekarang."
                 ];
                 continue;
@@ -362,10 +407,20 @@ class AgenticChatbotController extends Controller
             $totalToolCallsThisTurn = count($allTurnToolResults);
             if (empty($toolCalls) && $totalToolCallsThisTurn === 0 && $loopCount === 1) {
                 $alreadyTriedPhrases = [
-                    'tidak ada data', 'tidak ditemukan', 'sudah memeriksa',
-                    'tidak tersedia di database', 'tidak ada tabel', 'tidak ada informasi',
-                    'no data', 'not found', 'not available', 'no table', 'no information',
-                    'i have checked', 'after checking', 'setelah memeriksa',
+                    'tidak ada data',
+                    'tidak ditemukan',
+                    'sudah memeriksa',
+                    'tidak tersedia di database',
+                    'tidak ada tabel',
+                    'tidak ada informasi',
+                    'no data',
+                    'not found',
+                    'not available',
+                    'no table',
+                    'no information',
+                    'i have checked',
+                    'after checking',
+                    'setelah memeriksa',
                 ];
                 $alreadyTried = false;
                 foreach ($alreadyTriedPhrases as $phrase) {
@@ -410,7 +465,7 @@ class AgenticChatbotController extends Controller
                         : 'Panggil get_database_schema_info untuk melihat daftar schema';
 
                     $messages[] = [
-                        'role'    => 'user',
+                        'role' => 'user',
                         'content' => implode("\n", [
                             "[SYSTEM CORRECTION — WAJIB DIBACA]:",
                             "Pertanyaan user adalah pertanyaan DATA BISNIS yang VALID. Jangan tolak.",
@@ -434,7 +489,7 @@ class AgenticChatbotController extends Controller
 
             if (empty($toolCalls) || in_array($finishReason, ['stop', 'end_turn'])) {
                 $providerCodeFmt = strtolower($apiKey->provider->code ?? '');
-                $baseUrlFmt      = $apiKey->provider->base_url ?? '';
+                $baseUrlFmt = $apiKey->provider->base_url ?? '';
                 $isOpenRouterFmt = $providerCodeFmt === 'openrouter' || str_contains($baseUrlFmt, 'openrouter.ai');
 
                 if ($isOpenRouterFmt && !empty($allTurnToolResults) && $loopCount <= $this->maxToolLoops - 2) {
@@ -456,7 +511,7 @@ class AgenticChatbotController extends Controller
                         if ($hasSmartTable || strlen(trim($textContent)) < 250) {
                             Log::warning('[Agentic] OpenRouter single-value result — injecting inline answer reminder. Value: ' . $singleValueNumber);
                             $messages[] = [
-                                'role'    => 'user',
+                                'role' => 'user',
                                 'content' =>
                                     '[SYSTEM FORMAT CORRECTION — WAJIB DIIKUTI]:' . "\n" .
                                     'Hasil query hanya mengandung SATU ANGKA TUNGGAL: ' . $singleValueNumber . "\n" .
@@ -488,7 +543,7 @@ class AgenticChatbotController extends Controller
                         }
 
                         $messages[] = [
-                            'role'    => 'user',
+                            'role' => 'user',
                             'content' =>
                                 '[SYSTEM FORMAT REMINDER]:' . "\n" .
                                 $toolSummary . "\n" .
@@ -519,34 +574,36 @@ class AgenticChatbotController extends Controller
                 if ($chatSessionId) {
                     ChatMessage::create([
                         'chat_session_id' => $chatSessionId,
-                        'role'            => 'assistant',
-                        'content'         => $processedContent,
-                        'tool_results'    => !empty($allTurnToolResults) ? $allTurnToolResults : null
+                        'role' => 'assistant',
+                        'content' => $processedContent,
+                        'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
                     ]);
                 }
 
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
-                if (ob_get_level() > 0) ob_flush(); flush();
+                if (ob_get_level() > 0)
+                    ob_flush();
+                flush();
                 return;
             }
 
             $toolCallCount = count($toolCalls);
-            $useParallel   = $toolCallCount > 1;
+            $useParallel = $toolCallCount > 1;
 
             $processedCalls = [];
             foreach ($toolCalls as $toolCall) {
                 $toolCallId = $toolCall['id'] ?? ('call_' . uniqid());
-                $toolName   = $toolCall['function']['name'] ?? '';
-                $argsRaw    = $toolCall['function']['arguments'] ?? '{}';
-                $arguments  = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
+                $toolName = $toolCall['function']['name'] ?? '';
+                $argsRaw = $toolCall['function']['arguments'] ?? '{}';
+                $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
 
                 $countWithoutWhereWarning = false;
                 if ($toolName === 'execute_query') {
                     $sqlToCheck = strtolower(trim($arguments['sql'] ?? ''));
-                    $hasCount   = preg_match('/\bcount\s*\(/i', $sqlToCheck);
-                    $hasWhere   = preg_match('/\bwhere\b/i', $sqlToCheck);
-                    $hasGroup   = preg_match('/\bgroup by\b/i', $sqlToCheck);
+                    $hasCount = preg_match('/\bcount\s*\(/i', $sqlToCheck);
+                    $hasWhere = preg_match('/\bwhere\b/i', $sqlToCheck);
+                    $hasGroup = preg_match('/\bgroup by\b/i', $sqlToCheck);
                     if ($hasCount && !$hasWhere && !$hasGroup) {
                         Log::warning("[Agentic] COUNT without WHERE detected: {$toolName}");
                         $countWithoutWhereWarning = true;
@@ -554,9 +611,9 @@ class AgenticChatbotController extends Controller
                 }
 
                 $processedCalls[] = [
-                    'id'                       => $toolCallId,
-                    'name'                     => $toolName,
-                    'arguments'                => $arguments,
+                    'id' => $toolCallId,
+                    'name' => $toolName,
+                    'arguments' => $arguments,
                     'countWithoutWhereWarning' => $countWithoutWhereWarning,
                 ];
             }
@@ -581,7 +638,7 @@ class AgenticChatbotController extends Controller
                         $fiber->resume();
                     }
                     $executedResults[] = [
-                        'call'   => $item['call'],
+                        'call' => $item['call'],
                         'result' => $fiber->getReturn(),
                     ];
                 }
@@ -589,26 +646,28 @@ class AgenticChatbotController extends Controller
                 $call = $processedCalls[0];
                 Log::info("[Agentic] Executing Tool: {$call['name']}");
                 $executedResults[] = [
-                    'call'   => $call,
+                    'call' => $call,
                     'result' => $this->toolExecutor->execute($call['name'], $call['arguments'], $isGroq),
                 ];
             }
 
             foreach ($executedResults as $execItem) {
-                $call       = $execItem['call'];
+                $call = $execItem['call'];
                 $toolCallId = $call['id'];
-                $toolName   = $call['name'];
-                $arguments  = $call['arguments'];
+                $toolName = $call['name'];
+                $arguments = $call['arguments'];
 
                 echo "data: " . json_encode([
                     'tool_call' => [
-                        'id'        => $toolCallId,
-                        'name'      => $toolName,
+                        'id' => $toolCallId,
+                        'name' => $toolName,
                         'arguments' => $arguments,
-                        'status'    => 'running',
+                        'status' => 'running',
                     ]
                 ]) . "\n\n";
-                if (ob_get_level() > 0) ob_flush(); flush();
+                if (ob_get_level() > 0)
+                    ob_flush();
+                flush();
 
                 $countWithoutWhereWarning = $call['countWithoutWhereWarning'];
                 $toolResult = $execItem['result'];
@@ -622,40 +681,42 @@ class AgenticChatbotController extends Controller
                 $aiContent = $toolResult;
                 if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 50) {
                     $aiContent = json_encode([
-                        'rows_returned'    => count($decodedRes['rows']),
-                        'columns'          => $decodedRes['columns'] ?? [],
+                        'rows_returned' => count($decodedRes['rows']),
+                        'columns' => $decodedRes['columns'] ?? [],
                         'currency_columns' => $decodedRes['currency_columns'] ?? [],
-                        'rows'             => array_slice($decodedRes['rows'], 0, 50),
-                        'instruction'      => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
+                        'rows' => array_slice($decodedRes['rows'], 0, 50),
+                        'instruction' => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
                     ]);
                 }
 
                 $frontendResult = [
-                    'tool_name'        => $toolName,
-                    'data'             => $decodedRes ?: $toolResult,
+                    'tool_name' => $toolName,
+                    'data' => $decodedRes ?: $toolResult,
                     'currency_columns' => is_array($decodedRes) ? ($decodedRes['currency_columns'] ?? []) : [],
-                    'label'            => is_array($decodedRes) ? ($decodedRes['label'] ?? '') : '',
+                    'label' => is_array($decodedRes) ? ($decodedRes['label'] ?? '') : '',
                 ];
 
                 echo "data: " . json_encode([
                     'tool_call' => [
-                        'id'        => $toolCallId,
-                        'name'      => $toolName,
+                        'id' => $toolCallId,
+                        'name' => $toolName,
                         'arguments' => $arguments,
-                        'status'    => 'success',
-                        'result'    => $frontendResult,
+                        'status' => 'success',
+                        'result' => $frontendResult,
                     ]
                 ]) . "\n\n";
-                if (ob_get_level() > 0) ob_flush(); flush();
+                if (ob_get_level() > 0)
+                    ob_flush();
+                flush();
 
                 $allTurnToolResults[] = $frontendResult;
-                $lastExecutedToolName = $toolName; 
+                $lastExecutedToolName = $toolName;
 
                 if ($toolName === 'execute_query') {
                     $executeQueryCount++;
                     $lastExecutedSql = $call['arguments']['sql'] ?? '';
-                    $currentIsProbe  = stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
-                                    && stripos($lastExecutedSql, 'GROUP BY') === false;
+                    $currentIsProbe = stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
+                        && stripos($lastExecutedSql, 'GROUP BY') === false;
 
                     if ($currentIsProbe) {
                         $probeQueryCount++;
@@ -671,12 +732,12 @@ class AgenticChatbotController extends Controller
                 }
 
                 $messages[] = [
-                    'role'                       => 'tool',
-                    'tool_call_id'               => $toolCallId,
-                    'name'                       => $toolName,
-                    'content'                    => $aiContent,
-                    'decoded_data'               => $decodedRes,
-                    '_is_live_gemini_response'   => true, // tandai sebagai live agar Gemini kirim functionResponse
+                    'role' => 'tool',
+                    'tool_call_id' => $toolCallId,
+                    'name' => $toolName,
+                    'content' => $aiContent,
+                    'decoded_data' => $decodedRes,
+                    '_is_live_gemini_response' => true, // tandai sebagai live agar Gemini kirim functionResponse
                 ];
 
                 // ── Inject reminder STATUS FILTER setelah tool result masuk ke messages ──
@@ -689,7 +750,7 @@ class AgenticChatbotController extends Controller
                         $actualCount = is_array($firstRow) ? reset($firstRow) : $firstRow;
                     }
                     $messages[] = [
-                        'role'    => 'user',
+                        'role' => 'user',
                         'content' => implode("\n", [
                             '[SYSTEM NOTE — STATUS FILTER CHECK]:',
                             'Query COUNT menghasilkan: ' . ($actualCount ?? '?') . '.',
@@ -700,7 +761,9 @@ class AgenticChatbotController extends Controller
                     ];
                 }
             } // end foreach $executedResults
-            if (ob_get_level() > 0) ob_flush(); flush();
+            if (ob_get_level() > 0)
+                ob_flush();
+            flush();
         }
     }
 
@@ -713,7 +776,7 @@ class AgenticChatbotController extends Controller
     {
         $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
 
-        $limit  = (int) request('limit', 50);
+        $limit = (int) request('limit', 50);
         $before = request('before');
 
         $query = ChatMessage::where('chat_session_id', $session->id)
@@ -724,17 +787,17 @@ class AgenticChatbotController extends Controller
             $query->where('created_at', '<', $before);
         }
 
-        $messages     = $query->get();
-        $hasMore      = $messages->count() > $limit;
-        $messages     = $messages->take($limit)->sortBy('created_at')->values();
+        $messages = $query->get();
+        $hasMore = $messages->count() > $limit;
+        $messages = $messages->take($limit)->sortBy('created_at')->values();
         $oldestCursor = $hasMore ? ($messages->first()?->created_at?->toISOString() ?? null) : null;
 
         return response()->json([
-            'session'    => $session,
-            'history'    => $messages,
+            'session' => $session,
+            'history' => $messages,
             'pagination' => [
-                'has_more'       => $hasMore,
-                'oldest_cursor'  => $oldestCursor,
+                'has_more' => $hasMore,
+                'oldest_cursor' => $oldestCursor,
             ]
         ]);
     }
@@ -755,17 +818,17 @@ class AgenticChatbotController extends Controller
     public function exportExcel(Request $request)
     {
         $request->validate([
-            'headers'         => 'required|array',
-            'rows'            => 'required|array',
-            'title'           => 'nullable|string|max:100',
+            'headers' => 'required|array',
+            'rows' => 'required|array',
+            'title' => 'nullable|string|max:100',
             'currencyColumns' => 'nullable|array',
         ]);
 
-        $headers         = $request->input('headers', []);
-        $rows            = $request->input('rows', []);
-        $title           = $request->input('title', 'Data Export');
+        $headers = $request->input('headers', []);
+        $rows = $request->input('rows', []);
+        $title = $request->input('title', 'Data Export');
         $currencyColumns = $request->input('currencyColumns', []);
-        $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
+        $filename = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
 
         $normalizedRows = array_map(function ($row) {
             return is_array($row) ? array_values($row) : (array) $row;
@@ -779,45 +842,47 @@ class AgenticChatbotController extends Controller
     public function exportPdf(Request $request)
     {
         $request->validate([
-            'headers'         => 'required|array',
-            'rows'            => 'required|array',
-            'title'           => 'nullable|string|max:100',
+            'headers' => 'required|array',
+            'rows' => 'required|array',
+            'title' => 'nullable|string|max:100',
             'currencyColumns' => 'nullable|array',
         ]);
 
-        $headers         = $request->input('headers', []);
-        $rows            = $request->input('rows', []);
-        $title           = $request->input('title', 'Data Export');
+        $headers = $request->input('headers', []);
+        $rows = $request->input('rows', []);
+        $title = $request->input('title', 'Data Export');
         $currencyColumns = $request->input('currencyColumns', []);
-        $filename        = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.pdf');
+        $filename = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.pdf');
 
         $normalizedRows = array_map(function ($row) {
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
         // AI sepenuhnya menentukan currency — langsung pakai currencyColumns dari request
-        $isCurrencyHeader = function(string $header) use ($currencyColumns): bool {
+        $isCurrencyHeader = function (string $header) use ($currencyColumns): bool {
             return in_array($header, $currencyColumns);
         };
 
-        $columnTypes = array_map(function($header) use ($isCurrencyHeader) {
-            if ($isCurrencyHeader($header)) return 'currency';
-            if (preg_match('/(^qty$|^jumlah$|^count$|^no$|^no\.$)/i', $header)) return 'number';
+        $columnTypes = array_map(function ($header) use ($isCurrencyHeader) {
+            if ($isCurrencyHeader($header))
+                return 'currency';
+            if (preg_match('/(^qty$|^jumlah$|^count$|^no$|^no\.$)/i', $header))
+                return 'number';
             return 'text';
         }, $headers);
 
         $chartImage = $request->input('chartImage', null);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.pdf-table', [
-            'title'           => $title,
-            'headers'         => $headers,
-            'rows'            => $normalizedRows,
+            'title' => $title,
+            'headers' => $headers,
+            'rows' => $normalizedRows,
             'currencyColumns' => $currencyColumns,
-            'generatedAt'     => now()->format('d M Y H:i'),
-            'colCount'        => count($headers),
-            'fontSize'        => 10, // Font size 100% (10pt) stabil
-            'chartImage'      => $chartImage,
-            'columnTypes'     => $columnTypes,
+            'generatedAt' => now()->format('d M Y H:i'),
+            'colCount' => count($headers),
+            'fontSize' => 10, // Font size 100% (10pt) stabil
+            'chartImage' => $chartImage,
+            'columnTypes' => $columnTypes,
         ]);
 
         // Hitung lebar kertas dinamis (A4 landscape min 842pt, atau n_kolom * 130pt)
@@ -830,36 +895,41 @@ class AgenticChatbotController extends Controller
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $providerCode = $apiKey->provider->code;
-        $maxTokens    = $maxTokens ?? 32768;
+        $maxTokens = $maxTokens ?? 32768;
 
-        $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
+        $formattedTools = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
-        if ($providerCode === 'gemini')  return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
-        if ($providerCode === 'claude')  return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        if ($providerCode === 'mistral') return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
-        if ($providerCode === 'openai')  return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'gemini')
+            return $this->callGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
+        if ($providerCode === 'claude')
+            return $this->callClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'mistral')
+            return $this->callMistralApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
+        if ($providerCode === 'openai')
+            return $this->callOpenAiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt);
 
         return $this->callCustomApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
     }
 
     private function formatToolsForProvider(string $providerCode, array $tools): array
     {
-        if (empty($tools)) return [];
+        if (empty($tools))
+            return [];
 
         $normalized = [];
         foreach ($tools as $t) {
             if (isset($t['function'])) {
                 $normalized[] = [
-                    'name'        => $t['function']['name'],
+                    'name' => $t['function']['name'],
                     'description' => $t['function']['description'] ?? '',
-                    'parameters'  => $t['function']['parameters'] ?? (object)[],
+                    'parameters' => $t['function']['parameters'] ?? (object) [],
                 ];
             } else {
                 $normalized[] = [
-                    'name'        => $t['name'],
+                    'name' => $t['name'],
                     'description' => $t['description'] ?? '',
-                    'parameters'  => $t['parameters'] ?? (object)[],
+                    'parameters' => $t['parameters'] ?? (object) [],
                 ];
             }
         }
@@ -868,9 +938,9 @@ class AgenticChatbotController extends Controller
             $geminiTools = [];
             foreach ($normalized as $f) {
                 $geminiTools[] = [
-                    'name'        => $f['name'],
+                    'name' => $f['name'],
                     'description' => $f['description'],
-                    'parameters'  => $f['parameters'],
+                    'parameters' => $f['parameters'],
                 ];
             }
             return [['function_declarations' => $geminiTools]];
@@ -880,8 +950,8 @@ class AgenticChatbotController extends Controller
             $claudeTools = [];
             foreach ($normalized as $f) {
                 $claudeTools[] = [
-                    'name'         => $f['name'],
-                    'description'  => $f['description'],
+                    'name' => $f['name'],
+                    'description' => $f['description'],
                     'input_schema' => $f['parameters'],
                 ];
             }
@@ -891,11 +961,11 @@ class AgenticChatbotController extends Controller
         $standardTools = [];
         foreach ($normalized as $f) {
             $standardTools[] = [
-                'type'     => 'function',
+                'type' => 'function',
                 'function' => [
-                    'name'        => $f['name'],
+                    'name' => $f['name'],
                     'description' => $f['description'],
-                    'parameters'  => $f['parameters'],
+                    'parameters' => $f['parameters'],
                 ],
             ];
         }
@@ -919,10 +989,11 @@ class AgenticChatbotController extends Controller
             //  - assistant + tool_calls (LIVE, _is_live_gemini_response=true) → kirim functionCall
 
             $geminiMessages = [];
-            $prevRole       = null;
+            $prevRole = null;
 
             foreach ($messages as $m) {
-                if ($m['role'] === 'system') continue;
+                if ($m['role'] === 'system')
+                    continue;
 
                 $role = $m['role'];
 
@@ -933,8 +1004,8 @@ class AgenticChatbotController extends Controller
                     if ($isHistoryTool) {
                         // History tool result: kirim sebagai text ringkasan biasa
                         // supaya Gemini tidak bingung dengan functionResponse tanpa matching functionCall
-                        $toolName    = $m['name'] ?? 'tool';
-                        $rawContent  = $m['content'] ?? '';
+                        $toolName = $m['name'] ?? 'tool';
+                        $rawContent = $m['content'] ?? '';
 
                         // Pastikan rawContent adalah string sebelum di-decode
                         if (is_array($rawContent)) {
@@ -946,9 +1017,9 @@ class AgenticChatbotController extends Controller
                         if (is_array($decoded) && !empty($decoded)) {
                             $rowCount = (int) ($decoded['rows_returned'] ?? count($decoded['rows'] ?? []));
                             // Pastikan columns adalah array of strings, bukan nested arrays
-                            $rawCols  = $decoded['columns'] ?? [];
-                            $cols     = implode(', ', array_map(
-                                fn($c) => is_string($c) ? $c : (is_array($c) ? json_encode($c) : (string)$c),
+                            $rawCols = $decoded['columns'] ?? [];
+                            $cols = implode(', ', array_map(
+                                fn($c) => is_string($c) ? $c : (is_array($c) ? json_encode($c) : (string) $c),
                                 array_slice($rawCols, 0, 5)
                             ));
                             $summary = "[Konteks: {$toolName} mengambil {$rowCount} baris" . ($cols ? " ({$cols})" : '') . "]";
@@ -962,7 +1033,7 @@ class AgenticChatbotController extends Controller
                             $last['parts'] = array_merge($last['parts'], $parts);
                         } else {
                             $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                            $prevRole         = 'user';
+                            $prevRole = 'user';
                         }
                     } else {
                         // Live tool result: kirim sebagai functionResponse (normal flow)
@@ -970,24 +1041,26 @@ class AgenticChatbotController extends Controller
                         if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
                             $parsedContent = $m['decoded_data'];
                         } elseif (is_string($rawContent)) {
-                            $decoded       = json_decode($rawContent, true);
+                            $decoded = json_decode($rawContent, true);
                             $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
                         } else {
-                            $parsedContent = is_array($rawContent) ? $rawContent : ['result' => (string)$rawContent];
+                            $parsedContent = is_array($rawContent) ? $rawContent : ['result' => (string) $rawContent];
                         }
 
-                        $parts = [[
-                            'functionResponse' => [
-                                'name'     => $m['name'] ?? 'tool',
-                                'response' => $parsedContent,
+                        $parts = [
+                            [
+                                'functionResponse' => [
+                                    'name' => $m['name'] ?? 'tool',
+                                    'response' => $parsedContent,
+                                ]
                             ]
-                        ]];
+                        ];
                         if ($prevRole === 'user' && !empty($geminiMessages)) {
                             $last = &$geminiMessages[count($geminiMessages) - 1];
                             $last['parts'] = array_merge($last['parts'], $parts);
                         } else {
                             $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                            $prevRole         = 'user';
+                            $prevRole = 'user';
                         }
                     }
                     continue;
@@ -996,7 +1069,7 @@ class AgenticChatbotController extends Controller
                 // ── ASSISTANT MESSAGE ─────────────────────────────────────────
                 if ($role === 'assistant') {
                     $isLive = !empty($m['_is_live_gemini_response']);
-                    $parts  = [];
+                    $parts = [];
 
                     if (!empty($m['content'])) {
                         $parts[] = ['text' => (string) $m['content']];
@@ -1005,9 +1078,10 @@ class AgenticChatbotController extends Controller
                     if ($isLive && !empty($m['tool_calls'])) {
                         // Live response: kirim functionCall
                         foreach ($m['tool_calls'] as $tc) {
-                            $args    = $tc['function']['arguments'] ?? '{}';
+                            $args = $tc['function']['arguments'] ?? '{}';
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
-                            if (!$argsArr || $argsArr === []) $argsArr = new \stdClass();
+                            if (!$argsArr || $argsArr === [])
+                                $argsArr = new \stdClass();
                             $parts[] = [
                                 'functionCall' => [
                                     'name' => $tc['function']['name'],
@@ -1021,14 +1095,15 @@ class AgenticChatbotController extends Controller
                         $parts[] = ['text' => '[Mengambil data: ' . implode(', ', $toolNames) . ']'];
                     }
 
-                    if (empty($parts)) continue;
+                    if (empty($parts))
+                        continue;
 
                     if ($prevRole === 'model' && !empty($geminiMessages)) {
                         $last = &$geminiMessages[count($geminiMessages) - 1];
                         $last['parts'] = array_merge($last['parts'], $parts);
                     } else {
                         $geminiMessages[] = ['role' => 'model', 'parts' => $parts];
-                        $prevRole         = 'model';
+                        $prevRole = 'model';
                     }
                     continue;
                 }
@@ -1039,14 +1114,15 @@ class AgenticChatbotController extends Controller
                     if (!empty($m['content'])) {
                         $parts[] = ['text' => (string) $m['content']];
                     }
-                    if (empty($parts)) continue;
+                    if (empty($parts))
+                        continue;
 
                     if ($prevRole === 'user' && !empty($geminiMessages)) {
                         $last = &$geminiMessages[count($geminiMessages) - 1];
                         $last['parts'] = array_merge($last['parts'], $parts);
                     } else {
                         $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                        $prevRole         = 'user';
+                        $prevRole = 'user';
                     }
                 }
             }
@@ -1057,16 +1133,19 @@ class AgenticChatbotController extends Controller
         if ($providerCode === 'claude') {
             $claudeMessages = [];
             foreach ($messages as $m) {
-                if ($m['role'] === 'system') continue;
+                if ($m['role'] === 'system')
+                    continue;
 
                 if ($m['role'] === 'tool') {
                     $claudeMessages[] = [
-                        'role'    => 'user',
-                        'content' => [[
-                            'type'        => 'tool_result',
-                            'tool_use_id' => $m['tool_call_id'] ?? ('hist_' . uniqid()),
-                            'content'     => $m['content'] ?? ''
-                        ]]
+                        'role' => 'user',
+                        'content' => [
+                            [
+                                'type' => 'tool_result',
+                                'tool_use_id' => $m['tool_call_id'] ?? ('hist_' . uniqid()),
+                                'content' => $m['content'] ?? ''
+                            ]
+                        ]
                     ];
                     continue;
                 }
@@ -1079,10 +1158,10 @@ class AgenticChatbotController extends Controller
                     foreach ($m['tool_calls'] as $tc) {
                         $args = $tc['function']['arguments'] ?? '{}';
                         $content[] = [
-                            'type'  => 'tool_use',
-                            'id'    => $tc['id'] ?? ('hist_' . uniqid()),
-                            'name'  => $tc['function']['name'],
-                            'input' => is_string($args) ? (json_decode($args, true) ?? (object)[]) : $args
+                            'type' => 'tool_use',
+                            'id' => $tc['id'] ?? ('hist_' . uniqid()),
+                            'name' => $tc['function']['name'],
+                            'input' => is_string($args) ? (json_decode($args, true) ?? (object) []) : $args
                         ];
                     }
                     $claudeMessages[] = ['role' => 'assistant', 'content' => $content];
@@ -1125,38 +1204,38 @@ class AgenticChatbotController extends Controller
                 $fakeToolCalls = [];
                 foreach ($toolResults as $res) {
                     $fakeToolCalls[] = [
-                        'id'       => 'hist_' . md5($res['tool_name'] . json_encode($res['data'] ?? '')),
-                        'type'     => 'function',
+                        'id' => 'hist_' . md5($res['tool_name'] . json_encode($res['data'] ?? '')),
+                        'type' => 'function',
                         'function' => [
-                            'name'      => $res['tool_name'] ?? 'query',
+                            'name' => $res['tool_name'] ?? 'query',
                             'arguments' => '{}', // stdClass setelah decode, bukan array
                         ],
                     ];
                 }
                 $messages[] = [
-                    'role'        => 'assistant',
-                    'content'     => $msg['content'] ?? '',
-                    'tool_calls'  => $fakeToolCalls,
+                    'role' => 'assistant',
+                    'content' => $msg['content'] ?? '',
+                    'tool_calls' => $fakeToolCalls,
                 ];
                 foreach ($toolResults as $index => $res) {
-                    $toolData    = $res['data'] ?? '';
+                    $toolData = $res['data'] ?? '';
                     $toolContent = is_string($toolData) ? $toolData : json_encode($toolData);
                     if (strlen($toolContent) > 2000) {
                         $decoded = is_array($toolData) ? $toolData : (json_decode($toolContent, true) ?? []);
                         $truncated = [
                             'rows_returned' => $decoded['rows_returned'] ?? '?',
-                            'columns'       => $decoded['columns'] ?? [],
-                            'rows'          => array_slice($decoded['rows'] ?? [], 0, 5),
-                            '_truncated'    => true,
-                            '_message'      => 'History truncated. Re-query if needed.',
+                            'columns' => $decoded['columns'] ?? [],
+                            'rows' => array_slice($decoded['rows'] ?? [], 0, 5),
+                            '_truncated' => true,
+                            '_message' => 'History truncated. Re-query if needed.',
                         ];
                         $toolContent = json_encode($truncated);
                     }
                     $messages[] = [
-                        'role'         => 'tool',
+                        'role' => 'tool',
                         'tool_call_id' => $fakeToolCalls[$index]['id'] ?? ('hist_' . uniqid()),
-                        'name'         => $res['tool_name'] ?? 'query',
-                        'content'      => $toolContent,
+                        'name' => $res['tool_name'] ?? 'query',
+                        'content' => $toolContent,
                         'decoded_data' => isset($truncated) ? $truncated : $toolData,
                     ];
                     unset($truncated); // Clear for next iteration
@@ -1180,9 +1259,10 @@ class AgenticChatbotController extends Controller
         foreach ($allowedDatabases as $dbCode => $schemas) {
             // Cek driver database untuk berikan hint SQL yang tepat
             $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
-            $driver  = $dbModel ? strtoupper($dbModel->driver) : 'UNKNOWN';
+            $driver = $dbModel ? strtoupper($dbModel->driver) : 'UNKNOWN';
             $schemaList = implode(', ', array_filter(array_keys($schemas), fn($s) => $s !== '*'));
-            if (empty($schemaList)) $schemaList = implode(', ', array_keys($schemas));
+            if (empty($schemaList))
+                $schemaList = implode(', ', array_keys($schemas));
 
             if ($dbModel && in_array($dbModel->driver, ['mysql', 'mariadb'])) {
                 $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: \`table_name\` (tanpa prefix schema)";
@@ -1200,7 +1280,7 @@ class AgenticChatbotController extends Controller
                 // Gunakan method getTables() bawaan model yang sudah menangani koneksi dengan benar
                 $tables = $conn->getTables();
                 $tableNames = array_slice(array_column($tables, 'table_name'), 0, 15);
-                
+
                 if (!empty($tableNames)) {
                     $mainTablesHint[] = "Database [{$conn->database}]: " . implode(', ', $tableNames);
                 }
@@ -1807,7 +1887,9 @@ PROMPT;
 
         foreach (mb_str_split($text, $chunkSize) as $chunk) {
             echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
-            if (ob_get_level() > 0) ob_flush(); flush();
+            if (ob_get_level() > 0)
+                ob_flush();
+            flush();
         }
     }
 
@@ -1818,7 +1900,7 @@ PROMPT;
     private function handleProviderResponse($response, string $providerCode): ?array
     {
         if ($response->failed()) {
-            $body   = $response->body();
+            $body = $response->body();
             $status = $response->status();
             Log::error("[Agentic] API Error ({$providerCode}) status={$status} body=" . $body);
 
@@ -1862,8 +1944,8 @@ PROMPT;
             // Gemini 2.5 Flash (thinking mode): finish_reason bisa 'STOP', 'MAX_TOKENS', dll (uppercase)
             $finishReason = strtolower($candidate['finishReason'] ?? 'stop');
 
-            $parts     = $candidate['content']['parts'] ?? [];
-            $text      = '';
+            $parts = $candidate['content']['parts'] ?? [];
+            $text = '';
             $toolCalls = [];
 
             foreach ($parts as $p) {
@@ -1873,14 +1955,15 @@ PROMPT;
                     Log::info('[Agentic] Gemini: skipping thought part (' . strlen($p['text'] ?? '') . ' chars)');
                     continue;
                 }
-                if (isset($p['text'])) $text .= $p['text'];
+                if (isset($p['text']))
+                    $text .= $p['text'];
                 if (isset($p['functionCall'])) {
                     $toolCalls[] = [
-                        'id'   => 'call_' . uniqid(),
+                        'id' => 'call_' . uniqid(),
                         'type' => 'function',
                         'function' => [
-                            'name'      => $p['functionCall']['name'],
-                            'arguments' => json_encode($p['functionCall']['args'] ?? (object)[])
+                            'name' => $p['functionCall']['name'],
+                            'arguments' => json_encode($p['functionCall']['args'] ?? (object) [])
                         ]
                     ];
                 }
@@ -1894,22 +1977,24 @@ PROMPT;
             }
 
             return [
-                'choices' => [[
-                    'message' => [
-                        'role'       => 'assistant',
-                        'content'    => $text,
-                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
-                    ],
-                    'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
-                ]]
+                'choices' => [
+                    [
+                        'message' => [
+                            'role' => 'assistant',
+                            'content' => $text,
+                            'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                        ],
+                        'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
+                    ]
+                ]
             ];
         }
 
         if ($providerCode === 'claude') {
             $contentBlocks = $data['content'] ?? [];
-            $stopReason    = $data['stop_reason'] ?? 'end_turn';
-            $text          = '';
-            $toolCalls     = [];
+            $stopReason = $data['stop_reason'] ?? 'end_turn';
+            $text = '';
+            $toolCalls = [];
 
             foreach ($contentBlocks as $block) {
                 $type = $block['type'] ?? '';
@@ -1917,25 +2002,27 @@ PROMPT;
                     $text .= $block['text'] ?? '';
                 } elseif ($type === 'tool_use') {
                     $toolCalls[] = [
-                        'id'   => $block['id'] ?? ('call_' . uniqid()),
+                        'id' => $block['id'] ?? ('call_' . uniqid()),
                         'type' => 'function',
                         'function' => [
-                            'name'      => $block['name'],
-                            'arguments' => json_encode($block['input'] ?? (object)[])
+                            'name' => $block['name'],
+                            'arguments' => json_encode($block['input'] ?? (object) [])
                         ]
                     ];
                 }
             }
 
             return [
-                'choices' => [[
-                    'message' => [
-                        'role'       => 'assistant',
-                        'content'    => $text,
-                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
-                    ],
-                    'finish_reason' => ($stopReason === 'tool_use') ? 'tool_calls' : 'stop'
-                ]]
+                'choices' => [
+                    [
+                        'message' => [
+                            'role' => 'assistant',
+                            'content' => $text,
+                            'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                        ],
+                        'finish_reason' => ($stopReason === 'tool_use') ? 'tool_calls' : 'stop'
+                    ]
+                ]
             ];
         }
 
@@ -1943,21 +2030,23 @@ PROMPT;
         if (isset($data['choices'][0]['message'])) {
             $msg = &$data['choices'][0]['message'];
             $content = $msg['content'] ?? '';
-            
+
             if (!empty($content) && empty($msg['tool_calls'] ?? [])) {
                 if (preg_match('/\{\s*"type"\s*:\s*"function"\s*,\s*"name"\s*:\s*"([^"]+)"/i', $content, $matches)) {
                     try {
                         $json = json_decode($content, true);
                         if ($json && isset($json['name']) && isset($json['parameters'])) {
                             Log::info("[Agentic] Salvaged text-based tool call from content: " . $json['name']);
-                            $msg['tool_calls'] = [[
-                                'id'       => 'call_' . uniqid(),
-                                'type'     => 'function',
-                                'function' => [
-                                    'name'      => $json['name'],
-                                    'arguments' => is_string($json['parameters']) ? $json['parameters'] : json_encode($json['parameters'])
+                            $msg['tool_calls'] = [
+                                [
+                                    'id' => 'call_' . uniqid(),
+                                    'type' => 'function',
+                                    'function' => [
+                                        'name' => $json['name'],
+                                        'arguments' => is_string($json['parameters']) ? $json['parameters'] : json_encode($json['parameters'])
+                                    ]
                                 ]
-                            ]];
+                            ];
                             $msg['content'] = null;
                             $data['choices'][0]['finish_reason'] = 'tool_calls';
                         }
@@ -1981,17 +2070,23 @@ PROMPT;
      * Return: teks lengkap yang sudah di-stream (untuk disimpan ke DB).
      */
     private function streamFinalResponseFromApi(
-        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
+        array $messages,
+        array $tools,
+        $apiKey,
+        $model,
+        int $maxTokens,
+        string $systemPrompt,
+        int $loopCount
     ): array {
-        $providerCode      = strtolower($apiKey->provider->code ?? '');
-        $formattedTools    = $this->formatToolsForProvider($providerCode, $tools);
+        $providerCode = strtolower($apiKey->provider->code ?? '');
+        $formattedTools = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
         // Pilih metode streaming sesuai provider
         return match (true) {
-            $providerCode === 'claude'  => $this->streamClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt),
-            $providerCode === 'gemini'  => $this->streamGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount),
-            default                    => $this->streamOpenAiCompatibleApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $providerCode, $loopCount),
+            $providerCode === 'claude' => $this->streamClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt),
+            $providerCode === 'gemini' => $this->streamGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount),
+            default => $this->streamOpenAiCompatibleApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $providerCode, $loopCount),
         };
     }
 
@@ -2000,25 +2095,30 @@ PROMPT;
      * (OpenAI, Mistral, Groq, OpenRouter, custom).
      */
     private function streamOpenAiCompatibleApi(
-        array $messages, array $tools, $apiKey, $model, int $maxTokens,
-        string $providerCode, int $loopCount
+        array $messages,
+        array $tools,
+        $apiKey,
+        $model,
+        int $maxTokens,
+        string $providerCode,
+        int $loopCount
     ): array {
         $baseUrl = match ($providerCode) {
-            'openai'  => 'https://api.openai.com/v1',
+            'openai' => 'https://api.openai.com/v1',
             'mistral' => 'https://api.mistral.ai/v1',
-            default   => rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/'),
+            default => rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/'),
         };
         $url = $baseUrl . '/chat/completions';
 
         $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => $maxTokens,
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => $maxTokens,
             'temperature' => 0.3,
-            'stream'      => true,   // ← Kunci: aktifkan streaming
+            'stream' => true,   // ← Kunci: aktifkan streaming
         ];
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
+            $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
         if ($providerCode === 'groq') {
@@ -2038,17 +2138,24 @@ PROMPT;
      * Streaming untuk Anthropic Claude.
      */
     private function streamClaudeApi(
-        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt
+        array $messages,
+        array $tools,
+        $apiKey,
+        $model,
+        int $maxTokens,
+        string $systemPrompt
     ): array {
         $url = 'https://api.anthropic.com/v1/messages';
         $payload = [
-            'model'      => $model->model_name,
+            'model' => $model->model_name,
             'max_tokens' => $maxTokens,
-            'messages'   => $messages,
-            'stream'     => true,
+            'messages' => $messages,
+            'stream' => true,
         ];
-        if (!empty($systemPrompt)) $payload['system'] = $systemPrompt;
-        if (!empty($tools))        $payload['tools']  = $tools;
+        if (!empty($systemPrompt))
+            $payload['system'] = $systemPrompt;
+        if (!empty($tools))
+            $payload['tools'] = $tools;
 
         $headers = [
             'x-api-key: ' . $apiKey->api_key,
@@ -2062,14 +2169,20 @@ PROMPT;
      * Streaming untuk Google Gemini (streamGenerateContent endpoint).
      */
     private function streamGeminiApi(
-        array $messages, array $tools, $apiKey, $model, int $maxTokens, string $systemPrompt, int $loopCount
+        array $messages,
+        array $tools,
+        $apiKey,
+        $model,
+        int $maxTokens,
+        string $systemPrompt,
+        int $loopCount
     ): array {
         $modelName = $model->model_name ?? 'gemini-1.5-flash';
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $modelName
-             . ':streamGenerateContent?alt=sse&key=' . $apiKey->api_key;
+            . ':streamGenerateContent?alt=sse&key=' . $apiKey->api_key;
 
         $payload = [
-            'contents'         => $messages,
+            'contents' => $messages,
             'generationConfig' => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.7],
         ];
         if (str_contains($modelName, '2.5')) {
@@ -2093,42 +2206,46 @@ PROMPT;
      */
     private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): array
     {
-        $fullText  = '';
+        $fullText = '';
         $sseBuffer = '';
         $toolCallsRaw = [];
 
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => json_encode($payload),
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_TIMEOUT        => 600,
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 600,
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_WRITEFUNCTION  => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
                 $sseBuffer .= $data;
                 // Proses baris-baris SSE yang lengkap (diakhiri \n)
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
-                    $line      = substr($sseBuffer, 0, $pos);
+                    $line = substr($sseBuffer, 0, $pos);
                     $sseBuffer = substr($sseBuffer, $pos + 1);
-                    $line      = rtrim($line, "\r");
+                    $line = rtrim($line, "\r");
 
-                    if (!str_starts_with($line, 'data:')) continue;
+                    if (!str_starts_with($line, 'data:'))
+                        continue;
                     $dataStr = ltrim(substr($line, 5));
-                    if ($dataStr === '[DONE]') continue;
+                    if ($dataStr === '[DONE]')
+                        continue;
 
                     try {
                         $parsed = json_decode($dataStr, true);
-                        if (!$parsed) continue;
+                        if (!$parsed)
+                            continue;
 
                         // Ekstrak teks
                         $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
                         if ($token !== '') {
                             $fullText .= $token;
                             echo "data: " . json_encode(['chunk' => $token]) . "\n\n";
-                            if (ob_get_level() > 0) ob_flush();
+                            if (ob_get_level() > 0)
+                                ob_flush();
                             flush();
                         }
 
@@ -2144,9 +2261,12 @@ PROMPT;
                                         'arguments' => $tc['function']['arguments'] ?? '',
                                     ];
                                 } else {
-                                    if (isset($tc['id'])) $toolCallsRaw[$idx]['id'] .= $tc['id'];
-                                    if (isset($tc['function']['name'])) $toolCallsRaw[$idx]['name'] .= $tc['function']['name'];
-                                    if (isset($tc['function']['arguments'])) $toolCallsRaw[$idx]['arguments'] .= $tc['function']['arguments'];
+                                    if (isset($tc['id']))
+                                        $toolCallsRaw[$idx]['id'] .= $tc['id'];
+                                    if (isset($tc['function']['name']))
+                                        $toolCallsRaw[$idx]['name'] .= $tc['function']['name'];
+                                    if (isset($tc['function']['arguments']))
+                                        $toolCallsRaw[$idx]['arguments'] .= $tc['function']['arguments'];
                                 }
                             }
                         }
@@ -2175,8 +2295,8 @@ PROMPT;
         ]);
 
         $execResult = curl_exec($ch);
-        $httpCode   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError  = curl_error($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($curlError) {
@@ -2200,16 +2320,18 @@ PROMPT;
         }
 
         Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText) . " tool_calls=" . count($toolCalls));
-        
+
         return [
-            'choices' => [[
-                'message' => [
-                    'role' => 'assistant',
-                    'content' => $fullText,
-                    'tool_calls' => !empty($toolCalls) ? $toolCalls : null
-                ],
-                'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
-            ]]
+            'choices' => [
+                [
+                    'message' => [
+                        'role' => 'assistant',
+                        'content' => $fullText,
+                        'tool_calls' => !empty($toolCalls) ? $toolCalls : null
+                    ],
+                    'finish_reason' => !empty($toolCalls) ? 'tool_calls' : 'stop'
+                ]
+            ]
         ];
     }
 
@@ -2229,9 +2351,10 @@ PROMPT;
         if ($providerCode === 'gemini') {
             // Gemini: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
             $parts = $parsed['candidates'][0]['content']['parts'] ?? [];
-            $text  = '';
+            $text = '';
             foreach ($parts as $p) {
-                if (!empty($p['thought'])) continue; // skip thinking parts
+                if (!empty($p['thought']))
+                    continue; // skip thinking parts
                 $text .= $p['text'] ?? '';
             }
             return $text;
@@ -2250,13 +2373,13 @@ PROMPT;
     {
         $url = 'https://api.openai.com/v1/chat/completions';
         $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int) $maxTokens,
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int) $maxTokens,
             'temperature' => 0.3,
         ];
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
+            $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
@@ -2270,13 +2393,13 @@ PROMPT;
     {
         $url = 'https://api.mistral.ai/v1/chat/completions';
         $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int) $maxTokens,
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int) $maxTokens,
             'temperature' => 0.3,
         ];
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
+            $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
         $response = Http::timeout(600)
@@ -2290,9 +2413,9 @@ PROMPT;
     {
         $url = 'https://api.anthropic.com/v1/messages';
         $payload = [
-            'model'      => $model->model_name,
+            'model' => $model->model_name,
             'max_tokens' => (int) $maxTokens,
-            'messages'   => $messages,
+            'messages' => $messages,
         ];
         if (!empty($systemPrompt)) {
             $payload['system'] = $systemPrompt;
@@ -2303,9 +2426,9 @@ PROMPT;
         $response = Http::timeout(600)
             ->retry(3, 2000)
             ->withHeaders([
-                'x-api-key'         => $apiKey->api_key,
+                'x-api-key' => $apiKey->api_key,
                 'anthropic-version' => '2023-06-01',
-                'Content-Type'      => 'application/json',
+                'Content-Type' => 'application/json',
             ])
             ->post($url, $payload);
         return $this->handleProviderResponse($response, 'claude');
@@ -2317,10 +2440,10 @@ PROMPT;
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $currentModelName . ':generateContent?key=' . $apiKey->api_key;
 
         $payload = [
-            'contents'         => $messages,
+            'contents' => $messages,
             'generationConfig' => [
                 'maxOutputTokens' => (int) $maxTokens,
-                'temperature'     => 0.7,
+                'temperature' => 0.7,
             ],
         ];
 
@@ -2361,10 +2484,10 @@ PROMPT;
     private function callCustomApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = '', int $loopCount = 1): ?array
     {
         $baseUrl = rtrim($apiKey->provider->base_url ?? 'https://api.openai.com', '/');
-        $url     = $baseUrl . '/chat/completions';
+        $url = $baseUrl . '/chat/completions';
 
         $providerCode = strtolower($apiKey->provider->code ?? '');
-        $isGroq       = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
+        $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
         $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
 
         // ════════════════════════════════════════════════════════════
@@ -2409,11 +2532,12 @@ PROMPT;
         // ════════════════════════════════════════════════════════════
         if (!empty($tools)) {
             $tools = array_map(function ($tool) {
-                if (!isset($tool['function']['parameters'])) return $tool;
-                $params  = &$tool['function']['parameters'];
-                $props   = $params['properties'] ?? null;
+                if (!isset($tool['function']['parameters']))
+                    return $tool;
+                $params = &$tool['function']['parameters'];
+                $props = $params['properties'] ?? null;
                 $isEmpty = $props === null || $props === [] ||
-                           ($props instanceof \stdClass && (array) $props === []);
+                    ($props instanceof \stdClass && (array) $props === []);
                 if ($isEmpty) {
                     $params['properties'] = new \stdClass();
                     unset($params['required']);
@@ -2429,13 +2553,13 @@ PROMPT;
         // ════════════════════════════════════════════════════════════
         if ($isGroq && $loopCount >= 3) {
             $totalMessages = count($messages);
-            $guardZone     = 4; // jaga 4 pesan terakhir tetap utuh
-            $prunedCount   = 0;
+            $guardZone = 4; // jaga 4 pesan terakhir tetap utuh
+            $prunedCount = 0;
             for ($i = 0; $i < $totalMessages - $guardZone; $i++) {
                 if (($messages[$i]['role'] ?? '') === 'tool' && strlen($messages[$i]['content'] ?? '') > 500) {
                     $toolName = $messages[$i]['name'] ?? 'unknown';
                     $messages[$i]['content'] = json_encode([
-                        'status'  => 'success',
+                        'status' => 'success',
                         'message' => "Previous result from '{$toolName}' pruned for token efficiency.",
                     ]);
                     $prunedCount++;
@@ -2450,14 +2574,14 @@ PROMPT;
         // BUILD PAYLOAD — standar OpenAI-compatible
         // ════════════════════════════════════════════════════════════
         $payload = [
-            'model'       => $model->model_name,
-            'messages'    => $messages,
-            'max_tokens'  => (int) $maxTokens,
+            'model' => $model->model_name,
+            'messages' => $messages,
+            'max_tokens' => (int) $maxTokens,
             'temperature' => 0.3,
         ];
 
         if (!empty($tools)) {
-            $payload['tools']       = $tools;
+            $payload['tools'] = $tools;
             $payload['tool_choice'] = 'auto';
         }
 
@@ -2474,7 +2598,7 @@ PROMPT;
         if ($isOpenRouter) {
             $httpRequest = $httpRequest->withHeaders([
                 'HTTP-Referer' => config('app.url', 'http://localhost'),
-                'X-Title'      => 'MBI Agentic DataBot',
+                'X-Title' => 'MBI Agentic DataBot',
             ]);
         }
 
