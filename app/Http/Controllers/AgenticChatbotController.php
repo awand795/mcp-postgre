@@ -1469,6 +1469,7 @@ Jika user meminta perbandingan antar tahun (contoh: "penjualan 2025 vs 2026" ata
 - **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan saja ("Jan", "Feb", ..., "Des").
 - **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun).
 - Contoh dataset label: `{"label": "Penjualan 2025", "data": [...]}`, `{"label": "Penjualan 2026", "data": [...]}`.
+- **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan (sesuai tanggal konteks saat ini), data untuk bulan-bulan yang belum dilalui **WAJIB** diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya dan tidak drop ke angka nol di bulan mendatang.
 
 **URUTAN WAJIB jika user minta grafik:**
 1. Ringkasan Eksekutif
