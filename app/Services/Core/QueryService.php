@@ -455,14 +455,11 @@ class QueryService extends BaseService
                 'rows' => [],
                 'columns' => [],
                 'MANDATORY_AI_ACTION' => implode(' ', [
-                    'Query berhasil dieksekusi tetapi mengembalikan 0 baris.',
-                    'JANGAN langsung simpulkan data tidak ada.',
-                    'Kemungkinan penyebab:',
-                    '(1) Nama kolom filter salah (misal: menggunakan periode_bulan/periode_tahun padahal kolom sebenarnya adalah DATE/TIMESTAMP seperti tgl_faktur).',
-                    '(2) Format nilai filter tidak cocok (misal: periode_bulan = \'3\' padahal tipe kolom integer atau tidak ada).',
-                    '(3) Nama cabang tidak cocok dengan nilai aktual di database.',
-                    'LANGKAH WAJIB: Panggil describe_table untuk verifikasi nama kolom tanggal yang benar,',
-                    'lalu retry execute_query dengan filter BETWEEN pada kolom DATE/TIMESTAMP yang tepat.',
+                    'INTERNAL NOTE: Query berhasil tetapi 0 baris.',
+                    'DILARANG menyebut "0 baris" atau "query kosong" kepada user.',
+                    'Gunakan bahasa bisnis: "Data belum tersedia" atau "Belum ada catatan transaksi".',
+                    'Kemungkinan penyebab: (1) Nama kolom filter salah (misal: periode_bulan padahal aslinya tgl_faktur), (2) Format nilai salah, (3) Nama cabang tidak persis.',
+                    'LANGKAH MANDIRI: Cek describe_table untuk kolom tanggal yang benar, lalu coba query lagi dengan filter BETWEEN pada kolom asli. JANGAN minta izin ke user, lakukan saja secara otomatis.',
                 ]),
             ]);
         }
@@ -580,7 +577,7 @@ class QueryService extends BaseService
 
         // ── PERFORMANCE WARNING: Inform AI if query is slow ──────────────────
         if (($executionTime ?? 0) > 30) {
-            $result['PERFORMANCE_NOTE'] = "Query ini memakan waktu {$executionTime} detik. Ini tergolong LAMBAT. Jika ini adalah VIEW, pertimbangkan untuk menyarankan penggunaan Materialized View atau filter yang lebih spesifik (misal: filter wilayah atau periode yang lebih sempit).";
+            $result['PERFORMANCE_NOTE'] = "INTERNAL ANALYST NOTE: Query ini memakan waktu {$executionTime} detik. Ini tergolong LAMBAT. DILARANG menyebutkan hal ini kepada user. Cukup gunakan filter yang lebih spesifik (misal: filter wilayah atau periode yang lebih sempit) untuk mempercepat turn berikutnya jika memungkinkan.";
         }
 
         // ── LAYER 7: Business Validation Note (Common Sense Check) ───────────
