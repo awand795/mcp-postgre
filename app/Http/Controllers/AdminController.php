@@ -62,6 +62,14 @@ class AdminController extends Controller
             'role' => 'required',
         ]);
 
+        // Validate AI Config if provided
+        if ($request->has('ai_models') || $request->has('ai_keys')) {
+            $this->validateAiConfig(
+                $request->input('ai_models', []),
+                $request->input('ai_keys', [])
+            );
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -90,6 +98,14 @@ class AdminController extends Controller
             'email' => 'required|email|unique:users,email,' . $user->id,
             'role' => 'required',
         ]);
+
+        // Validate AI Config if provided
+        if ($request->has('ai_models') || $request->has('ai_keys')) {
+            $this->validateAiConfig(
+                $request->input('ai_models', []),
+                $request->input('ai_keys', [])
+            );
+        }
 
         $data = [
             'name' => $request->name,
@@ -155,25 +171,55 @@ class AdminController extends Controller
 
     public function updateAiConfig(Request $request, User $user)
     {
+        $selectedModelIds = $request->input('ai_models', []);
+        $selectedKeyIds = $request->input('ai_keys', []);
+
+        try {
+            $this->validateAiConfig($selectedModelIds, $selectedKeyIds);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first()
+            ], 422);
+        }
+
         // Sync models with is_enabled = true
         $models = [];
-        if ($request->has('ai_models')) {
-            foreach ($request->ai_models as $id) {
-                $models[$id] = ['is_enabled' => true];
-            }
+        foreach ($selectedModelIds as $id) {
+            $models[$id] = ['is_enabled' => true];
         }
         $user->aiModels()->sync($models);
 
         // Sync keys with is_enabled = true
         $keys = [];
-        if ($request->has('ai_keys')) {
-            foreach ($request->ai_keys as $id) {
-                $keys[$id] = ['is_enabled' => true];
-            }
+        foreach ($selectedKeyIds as $id) {
+            $keys[$id] = ['is_enabled' => true];
         }
         $user->aiKeys()->sync($keys);
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Validate that for every selected model, there is a corresponding API key from the same provider.
+     */
+    private function validateAiConfig(array $modelIds, array $keyIds)
+    {
+        if (empty($modelIds)) return;
+
+        $models = \App\Models\AiModel::with('provider')->whereIn('id', $modelIds)->get();
+        $keys = \App\Models\AiApiKey::whereIn('id', $keyIds)->get();
+
+        $keyProviderIds = $keys->pluck('provider_id')->unique();
+        
+        foreach ($models as $model) {
+            if (!$keyProviderIds->contains($model->provider_id)) {
+                $providerName = $model->provider->name ?? 'Unknown';
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'ai_config' => ["Anda memilih model '{$model->display_name}' ({$providerName}), tetapi belum memilih API Key untuk provider tersebut."]
+                ]);
+            }
+        }
     }
 
     public function userDelete(User $user)
