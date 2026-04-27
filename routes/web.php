@@ -92,9 +92,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'updateKey'])->name('ai_management.update_key');
         Route::delete('/ai-management/keys/{key}', [App\Http\Controllers\Admin\AiController::class, 'deleteKey'])->name('ai_management.delete_key');
         Route::post('/ai-management/keys/{key}/reset-limit', [App\Http\Controllers\Admin\AiController::class, 'resetLimit'])->name('ai_management.reset_limit');
+        Route::post('/ai-management/keys/{key}/health-check', [App\Http\Controllers\Admin\AiController::class, 'healthCheck'])->name('ai_management.health_check');
         Route::post('/ai-management/models', [App\Http\Controllers\Admin\AiController::class, 'storeModel'])->name('ai_management.store_model');
         Route::delete('/ai-management/models/{model}', [App\Http\Controllers\Admin\AiController::class, 'deleteModel'])->name('ai_management.delete_model');
-        Route::post('/ai-management/models/{model}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleModel'])->name('ai_management.toggle_model');        Route::post('/ai-management/providers/{provider}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleProvider'])->name('ai_management.toggle_provider');
+        Route::post('/ai-management/models/{model}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleModel'])->name('ai_management.toggle_model');
+        Route::post('/ai-management/providers/{provider}/toggle', [App\Http\Controllers\Admin\AiController::class, 'toggleProvider'])->name('ai_management.toggle_provider');
         Route::post('/ai-management/providers', [App\Http\Controllers\Admin\AiController::class, 'storeProvider'])->name('ai_management.store_provider');
         Route::delete('/ai-management/providers/{provider}', [App\Http\Controllers\Admin\AiController::class, 'deleteProvider'])->name('ai_management.delete_provider');
     });

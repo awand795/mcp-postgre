@@ -3,8 +3,7 @@
 @section('content')
 
 {{-- ══════════════════════════════════════════════════════════════
-     AI MANAGEMENT — Full Redesign v2
-     Darko AI Admin Panel
+     AI MANAGEMENT — Full Redesign v2 + Health Check
 ══════════════════════════════════════════════════════════════ --}}
 
 <style>
@@ -184,10 +183,10 @@
     font-size: 0.62rem; font-weight: 700; letter-spacing: .04em;
     padding: 2px 8px; border-radius: 20px; white-space: nowrap;
 }
-.pill-on    { background: rgba(16,185,129,.12); color: #34d399; }
-.pill-off   { background: rgba(100,116,139,.12); color: #64748b; }
-.pill-limit { background: rgba(239,68,68,.12);  color: #f87171; }
-.pill-warn  { background: rgba(245,158,11,.12); color: #fbbf24; }
+.pill-on     { background: rgba(16,185,129,.12); color: #34d399; }
+.pill-off    { background: rgba(100,116,139,.12); color: #64748b; }
+.pill-limit  { background: rgba(239,68,68,.12);  color: #f87171; }
+.pill-warn   { background: rgba(245,158,11,.12); color: #fbbf24; }
 
 /* Toggle switch */
 .sw {
@@ -248,6 +247,18 @@
 .key-name { font-size: 0.8rem; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .key-when { font-size: 0.67rem; color: var(--aim-dim); white-space: nowrap; }
 
+/* Health check dot — kecil di sebelah key-name */
+.health-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    background: #334155; /* abu = belum dicek */
+    transition: background .3s;
+}
+.health-dot.hd-ok      { background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,.5); }
+.health-dot.hd-warn    { background: #f59e0b; box-shadow: 0 0 5px rgba(245,158,11,.5); }
+.health-dot.hd-bad     { background: #ef4444; box-shadow: 0 0 5px rgba(239,68,68,.5); }
+.health-dot.hd-spin    { background: #6366f1; animation: hdPulse .8s infinite; }
+@keyframes hdPulse { 0%,100% { opacity:.4; } 50% { opacity:1; } }
+
 /* Mini action buttons */
 .mb {
     width: 26px; height: 26px; border-radius: 7px;
@@ -261,6 +272,7 @@
 .mb.mb-warn:hover  { background: rgba(245,158,11,.12); } .mb.mb-warn:hover svg  { stroke: #fbbf24; }
 .mb.mb-del:hover   { background: rgba(239,68,68,.1);  } .mb.mb-del:hover svg   { stroke: #f87171; }
 .mb.mb-edit:hover  { background: rgba(99,102,241,.12); } .mb.mb-edit:hover svg  { stroke: #818cf8; }
+.mb.mb-hc:hover    { background: rgba(6,182,212,.12);  } .mb.mb-hc:hover svg    { stroke: #22d3ee; }
 
 /* Models panel */
 .models-wrap { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 0; }
@@ -346,6 +358,7 @@
     box-shadow: 0 25px 60px rgba(0,0,0,.6);
     animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
 }
+.modal-box.modal-hc { max-width: 520px; }
 @keyframes popIn {
     from { opacity:0; transform:scale(.92); }
     to   { opacity:1; transform:scale(1); }
@@ -385,6 +398,65 @@
 .btn-modal-save:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(99,102,241,.35); }
 
 .prov-emoji { font-size: 1.2rem; }
+
+/* ══════════════════════════════════════════
+   HEALTH CHECK MODAL STYLES
+══════════════════════════════════════════ */
+.hc-status-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; border-radius: 12px;
+    margin-bottom: 1.2rem; font-size: 0.9rem; font-weight: 600;
+}
+.hc-status-banner.hc-ok     { background: rgba(16,185,129,.1);  border: 1px solid rgba(16,185,129,.25); color: #34d399; }
+.hc-status-banner.hc-warn   { background: rgba(245,158,11,.1);  border: 1px solid rgba(245,158,11,.25); color: #fbbf24; }
+.hc-status-banner.hc-bad    { background: rgba(239,68,68,.1);   border: 1px solid rgba(239,68,68,.25);  color: #f87171; }
+.hc-status-banner.hc-loading{ background: rgba(99,102,241,.07); border: 1px solid rgba(99,102,241,.2);  color: #818cf8; }
+
+.hc-meta { display: flex; gap: 16px; margin-bottom: 1rem; flex-wrap: wrap; }
+.hc-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.hc-meta-label { font-size: 0.65rem; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.hc-meta-value { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; }
+
+.hc-info-table {
+    width: 100%; border-collapse: collapse; font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+.hc-info-table tr { border-bottom: 1px solid rgba(255,255,255,.04); }
+.hc-info-table tr:last-child { border-bottom: none; }
+.hc-info-table td { padding: 6px 4px; vertical-align: top; }
+.hc-info-table td:first-child {
+    color: #475569; font-weight: 600; white-space: nowrap;
+    padding-right: 12px; width: 45%;
+}
+.hc-info-table td:last-child { color: #94a3b8; word-break: break-all; }
+
+.hc-error-box {
+    background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.15);
+    border-radius: 8px; padding: 10px 12px; margin-top: 10px;
+    font-size: 0.78rem; color: #f87171; line-height: 1.5;
+}
+
+.hc-note {
+    font-size: 0.72rem; color: #334155; text-align: center;
+    margin-top: 12px; font-style: italic;
+}
+
+.hc-auto-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; padding: 3px 8px; border-radius: 20px;
+    margin-top: 8px;
+}
+.hc-auto-badge.reset  { background: rgba(16,185,129,.1); color: #34d399; border: 1px solid rgba(16,185,129,.2); }
+.hc-auto-badge.flagged{ background: rgba(239,68,68,.1);  color: #f87171; border: 1px solid rgba(239,68,68,.2); }
+
+/* Spinner */
+.hc-spinner {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid rgba(99,102,241,.2);
+    border-top-color: #818cf8;
+    animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ══════════════════════════════════════════
    RESPONSIVE
@@ -535,31 +607,47 @@
         {{-- Keys panel --}}
         <div class="pcard-body" id="keys-{{ $provider->id }}">
             @forelse($providerKeys as $key)
-            <div class="key-row">
+            <div class="key-row" id="krow-{{ $key->id }}">
                 <div class="key-ico">
                     <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                 </div>
+
+                {{-- Health dot (status terakhir dicek) --}}
+                <span class="health-dot" id="hdot-{{ $key->id }}"
+                      title="Belum dicek — klik ikon health check untuk cek kesehatan key ini"></span>
+
                 <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
+
                 @if($key->limit_reached)
-                    <span class="pill pill-limit">LIMIT</span>
+                    <span class="pill pill-limit" id="kpill-{{ $key->id }}">LIMIT</span>
                 @elseif(!$key->is_active)
-                    <span class="pill pill-off">OFF</span>
+                    <span class="pill pill-off" id="kpill-{{ $key->id }}">OFF</span>
                 @else
-                    <span class="pill pill-on">Active</span>
+                    <span class="pill pill-on" id="kpill-{{ $key->id }}">Active</span>
                 @endif
+
                 <span class="key-when">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
+
+                {{-- Health Check Button --}}
+                <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
+                        onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}')">
+                    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </button>
+
                 @if($key->limit_reached)
                 <form action="{{ route('admin.ai_management.reset_limit', $key->id) }}" method="POST" style="display:inline">
                     @csrf
-                    <button type="submit" class="mb mb-warn" title="Reset limit">
+                    <button type="submit" class="mb mb-warn" title="Reset limit flag">
                         <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                     </button>
                 </form>
                 @endif
+
                 <button type="button" class="mb mb-edit" title="Edit key"
                         onclick="openEditKey({{ json_encode(['id'=>$key->id,'key_name'=>$key->key_name,'is_active'=>$key->is_active]) }})">
                     <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
+
                 <form action="{{ route('admin.ai_management.delete_key', $key->id) }}" method="POST" style="display:inline"
                       onsubmit="return confirm('Hapus key ini?')">
                     @csrf @method('DELETE')
@@ -716,6 +804,64 @@
     </div>
 </div>
 
+{{-- ══ HEALTH CHECK MODAL ═══════════════════════════════════════════════════ --}}
+<div id="hcModal" class="modal-overlay">
+    <div class="modal-box modal-hc">
+        {{-- Header --}}
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:.3rem;">
+            <div style="width:30px;height:30px;border-radius:8px;background:rgba(6,182,212,.12);display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <h3 style="margin:0;font-size:1rem;">API Key Health Check</h3>
+        </div>
+        <p class="modal-sub" id="hcModalSub" style="margin-bottom:1rem;"></p>
+
+        {{-- Status Banner --}}
+        <div id="hcBanner" class="hc-status-banner hc-loading">
+            <div class="hc-spinner" id="hcSpinner"></div>
+            <span id="hcBannerText">Menghubungi provider...</span>
+        </div>
+
+        {{-- Meta row: HTTP status & latency --}}
+        <div class="hc-meta" id="hcMeta" style="display:none;">
+            <div class="hc-meta-item">
+                <span class="hc-meta-label">HTTP Status</span>
+                <span class="hc-meta-value" id="hcHttpStatus">—</span>
+            </div>
+            <div class="hc-meta-item">
+                <span class="hc-meta-label">Latency</span>
+                <span class="hc-meta-value" id="hcLatency">—</span>
+            </div>
+            <div class="hc-meta-item" id="hcAutoFlagWrap" style="display:none;">
+                <span class="hc-meta-label">Auto Action</span>
+                <span class="hc-meta-value" id="hcAutoFlag">—</span>
+            </div>
+        </div>
+
+        {{-- Info table (rate limit, quota, credits, dll) --}}
+        <div id="hcInfoWrap" style="display:none;">
+            <div style="font-size:0.7rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
+                Info dari Provider
+            </div>
+            <table class="hc-info-table" id="hcInfoTable"></table>
+        </div>
+
+        {{-- Error detail --}}
+        <div id="hcErrorBox" class="hc-error-box" style="display:none;"></div>
+
+        {{-- Note --}}
+        <p class="hc-note" id="hcNote"></p>
+
+        <div class="modal-actions" style="margin-top:1.2rem;">
+            <button type="button" class="btn-modal-cancel" onclick="closeModal('hcModal')">Tutup</button>
+            <button type="button" class="btn-modal-save" id="hcRetryBtn" style="display:none;"
+                    onclick="retryLastHealthCheck()">
+                <i class="fas fa-sync-alt" style="font-size:.75rem"></i> Cek Ulang
+            </button>
+        </div>
+    </div>
+</div>
+
 
 <script>
 /* ── Tab switching ───────────────────────────────────────── */
@@ -772,7 +918,7 @@ function closeModal(id) {
     document.getElementById(id).style.display = 'none';
 }
 window.addEventListener('click', e => {
-    ['keyModal','modelModal','providerModal'].forEach(id => {
+    ['keyModal','modelModal','providerModal','hcModal'].forEach(id => {
         if (e.target === document.getElementById(id)) closeModal(id);
     });
 });
@@ -817,6 +963,157 @@ function openAddModel(providerId, providerName) {
     document.getElementById('modelProviderId').value     = providerId;
     document.getElementById('modelModalSub').textContent = providerName;
     document.getElementById('modelModal').style.display  = 'flex';
+}
+
+/* ══════════════════════════════════════════════════════════
+   HEALTH CHECK LOGIC
+══════════════════════════════════════════════════════════ */
+let _lastHcKeyId   = null;
+let _lastHcKeyName = null;
+let _lastHcProv    = null;
+
+function runHealthCheck(keyId, keyName, providerName) {
+    _lastHcKeyId   = keyId;
+    _lastHcKeyName = keyName;
+    _lastHcProv    = providerName;
+
+    /* Reset modal ke loading state */
+    document.getElementById('hcModalSub').textContent   = providerName + ' — ' + keyName;
+    document.getElementById('hcBanner').className       = 'hc-status-banner hc-loading';
+    document.getElementById('hcSpinner').style.display  = 'block';
+    document.getElementById('hcBannerText').textContent = 'Menghubungi provider, harap tunggu...';
+    document.getElementById('hcMeta').style.display     = 'none';
+    document.getElementById('hcInfoWrap').style.display = 'none';
+    document.getElementById('hcErrorBox').style.display = 'none';
+    document.getElementById('hcNote').textContent       = '';
+    document.getElementById('hcRetryBtn').style.display = 'none';
+    document.getElementById('hcAutoFlagWrap').style.display = 'none';
+
+    /* Set health dot ke spinning */
+    const dot = document.getElementById('hdot-' + keyId);
+    if (dot) { dot.className = 'health-dot hd-spin'; dot.title = 'Sedang mengecek...'; }
+
+    document.getElementById('hcModal').style.display = 'flex';
+
+    fetch(`/admin/ai-management/keys/${keyId}/health-check`, {
+        method:  'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept':       'application/json',
+        },
+    })
+    .then(r => r.json())
+    .then(data => renderHealthResult(keyId, data))
+    .catch(err  => renderHealthResult(keyId, {
+        status:     'error',
+        message:    '❌ Gagal terhubung ke server: ' + err.message,
+        latency_ms: null,
+        info:       {},
+    }));
+}
+
+function retryLastHealthCheck() {
+    if (_lastHcKeyId) runHealthCheck(_lastHcKeyId, _lastHcKeyName, _lastHcProv);
+}
+
+function renderHealthResult(keyId, data) {
+    const banner    = document.getElementById('hcBanner');
+    const spinner   = document.getElementById('hcSpinner');
+    const bannerTxt = document.getElementById('hcBannerText');
+    const meta      = document.getElementById('hcMeta');
+    const infoWrap  = document.getElementById('hcInfoWrap');
+    const infoTable = document.getElementById('hcInfoTable');
+    const errorBox  = document.getElementById('hcErrorBox');
+    const noteEl    = document.getElementById('hcNote');
+    const retryBtn  = document.getElementById('hcRetryBtn');
+    const dot       = document.getElementById('hdot-' + keyId);
+
+    /* -- Determine banner class & dot class -- */
+    let bannerClass = 'hc-status-banner ';
+    let dotClass    = 'health-dot ';
+
+    switch (data.status) {
+        case 'ok':
+            bannerClass += 'hc-ok';  dotClass += 'hd-ok';  break;
+        case 'warning':
+        case 'server_error':
+            bannerClass += 'hc-warn'; dotClass += 'hd-warn'; break;
+        case 'rate_limited':
+        case 'invalid':
+        case 'forbidden':
+        case 'error':
+        default:
+            bannerClass += 'hc-bad'; dotClass += 'hd-bad';  break;
+    }
+
+    banner.className = bannerClass;
+    spinner.style.display = 'none';
+    bannerTxt.textContent = data.message || 'Selesai';
+
+    if (dot) {
+        dot.className = dotClass;
+        dot.title = data.message || '';
+    }
+
+    /* -- Meta row -- */
+    if (data.http_status || data.latency_ms !== null) {
+        meta.style.display = 'flex';
+        document.getElementById('hcHttpStatus').textContent = data.http_status ? data.http_status : '—';
+        document.getElementById('hcLatency').textContent    = data.latency_ms  ? data.latency_ms + ' ms' : '—';
+    }
+
+    /* -- Auto action badge -- */
+    if (data.auto_reset || data.auto_flagged) {
+        const autoWrap  = document.getElementById('hcAutoFlagWrap');
+        const autoFlag  = document.getElementById('hcAutoFlag');
+        autoWrap.style.display = 'flex';
+        if (data.auto_reset) {
+            autoFlag.innerHTML = '<span class="hc-auto-badge reset">✅ Limit flag otomatis di-reset</span>';
+            /* Update pill di key row */
+            const pill = document.getElementById('kpill-' + keyId);
+            if (pill) { pill.className = 'pill pill-on'; pill.textContent = 'Active'; }
+        } else {
+            autoFlag.innerHTML = '<span class="hc-auto-badge flagged">⚠️ Key otomatis ditandai LIMIT</span>';
+            const pill = document.getElementById('kpill-' + keyId);
+            if (pill) { pill.className = 'pill pill-limit'; pill.textContent = 'LIMIT'; }
+        }
+    }
+
+    /* -- Info table -- */
+    const info = data.info || {};
+    const infoEntries = Object.entries(info);
+    if (infoEntries.length > 0) {
+        infoWrap.style.display = 'block';
+        infoTable.innerHTML = infoEntries.map(([k, v]) =>
+            `<tr><td>${escHtml(k)}</td><td>${escHtml(String(v))}</td></tr>`
+        ).join('');
+    }
+
+    /* -- Error detail -- */
+    if (data.error_detail) {
+        errorBox.style.display = 'block';
+        errorBox.textContent = 'Detail error: ' + data.error_detail;
+    }
+
+    /* -- Note -- */
+    const notes = {
+        'ok':           'Key valid. Info rate limit di atas diambil langsung dari header response provider.',
+        'rate_limited': 'Key sedang terkena rate limit atau quota habis. Tunggu reset atau isi ulang kredit.',
+        'invalid':      'Pastikan API Key sudah benar dan tidak expired.',
+        'forbidden':    'Periksa billing dan permission akun di dashboard provider.',
+        'server_error': 'Provider sedang bermasalah. Coba beberapa saat lagi.',
+        'error':        'Koneksi ke provider gagal. Periksa koneksi internet dan Base URL.',
+    };
+    noteEl.textContent = notes[data.status] || '';
+
+    retryBtn.style.display = 'inline-flex';
+    meta.style.display = 'flex';
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 
