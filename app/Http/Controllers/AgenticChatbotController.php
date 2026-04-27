@@ -700,7 +700,7 @@ class AgenticChatbotController extends Controller
                         'columns' => $decodedRes['columns'] ?? [],
                         'currency_columns' => $decodedRes['currency_columns'] ?? [],
                         'rows' => array_slice($decodedRes['rows'], 0, 50),
-                        'instruction' => "ANALYST NOTE: Results are truncated for display. If the user asked for a 'total' or 'summary', you MUST ensure your SQL uses SUM() and GROUP BY only on identity columns (like branch name) to avoid seeing individual rows. NEVER repeat technical 'truncated' strings to the user."
+                        'instruction' => "ANALYST NOTE: Results are truncated to 50 rows for prompt efficiency, but the UI will show the full list of " . count($decodedRes['rows']) . " rows to the user. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
                     ]);
                 }
 
@@ -1386,6 +1386,13 @@ Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau
 4. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan. User ingin melihat data, bukan grafik.
 5. **PEMILIHAN KOLOM**: Jika user tidak menyebutkan kolom, pilih 5-7 kolom paling relevan (ID/Kode, Nama, Alamat, Kota, Status, dll).
 6. **FORMAT OUTPUT**: Langsung sajikan tabel setelah Ringkasan Eksekutif. Jangan tambahkan teks pengantar teknis seperti "Grafik sedang disiapkan" atau sejenisnya.
+
+## 🔴 ATURAN PEMILIHAN DATA UNTUK TABEL (PENTING)
+
+Jika Anda memanggil beberapa tool dan mendapatkan beberapa hasil (misal: satu hasil LIST detail dan satu hasil COUNT total):
+1. **WAJIB** gunakan data dari query LIST detail untuk membuat blok `smart_table`.
+2. **DILARANG** menggunakan hasil query `COUNT(*)` untuk membuat `smart_table`. Angka total dari COUNT wajib ditulis langsung dalam narasi (Ringkasan Eksekutif atau penutup).
+3. **KONSISTENSI**: Jika data detail sudah diambil, jangan buat tabel lain yang isinya hanya ringkasan dari data yang sama.
 
 ## PERSONA & GAYA BAHASA (WAJIB DIIKUTI)
 - **Persona**: Data Analyst Ahli, profesional, objektif, dan sangat teliti. Anda adalah "Executive Assistant" yang memberikan hasil akhir, bukan kronologi kerja.
