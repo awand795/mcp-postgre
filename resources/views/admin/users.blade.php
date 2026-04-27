@@ -681,17 +681,14 @@
                     <span class="aic-item-name" title="${item[nameField]}">${item[nameField]}</span>
                     <i class="fas fa-check aic-item-check-icon"></i>
                 `;
+                
+                // Cukup gunakan event change pada input. 
+                // Karena dibungkus <label>, klik pada teks otomatis trigger input ini.
                 itemEl.querySelector('input').addEventListener('change', function() {
                     itemEl.classList.toggle('aic-item-checked', this.checked);
                     updateAicStats();
                 });
-                itemEl.addEventListener('click', function(e) {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = this.querySelector('input');
-                        cb.checked = !cb.checked;
-                        cb.dispatchEvent(new Event('change'));
-                    }
-                });
+
                 grid.appendChild(itemEl);
             });
 
