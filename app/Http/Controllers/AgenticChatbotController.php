@@ -301,6 +301,9 @@ class AgenticChatbotController extends Controller
                         );
                     } catch (\RuntimeException $e) {
                         if ($e->getMessage() === '__RATE_LIMIT__') {
+                            // Otomatis tandai key ini limit_reached di database
+                            $apiKey->update(['limit_reached' => true]);
+                            Log::warning("[Agentic] Rate limit hit — marked api_key_id={$apiKey->id} as limit_reached.");
                             $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi.");
                             echo "data: [DONE]\n\n";
                             if (ob_get_level() > 0)
@@ -347,6 +350,9 @@ class AgenticChatbotController extends Controller
                 }
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === '__RATE_LIMIT__') {
+                    // Otomatis tandai key ini limit_reached di database
+                    $apiKey->update(['limit_reached' => true]);
+                    Log::warning("[Agentic] Rate limit hit — marked api_key_id={$apiKey->id} as limit_reached.");
                     $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi. / We apologize, the AI analysis service has reached its usage limit. Please contact your System Administrator or try again later.");
                     echo "data: [DONE]\n\n";
                     if (ob_get_level() > 0)
