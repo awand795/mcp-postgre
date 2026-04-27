@@ -162,7 +162,7 @@ class AiController extends Controller
 
                 // ── OpenAI ────────────────────────────────────────────────────
                 case 'openai':
-                    $model    = $this->pickModel($key, 'gpt-4o-mini');
+                    $model    = request()->input('model') ?: $this->pickModel($key, 'gpt-4o-mini');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
                         ->post('https://api.openai.com/v1/chat/completions', [
@@ -189,7 +189,7 @@ class AiController extends Controller
 
                 // ── Anthropic Claude ─────────────────────────────────────────
                 case 'claude':
-                    $model    = $this->pickModel($key, 'claude-haiku-4-5-20251001');
+                    $model    = request()->input('model') ?: $this->pickModel($key, 'claude-haiku-4-5-20251001');
                     $response = Http::timeout(15)
                         ->withHeaders([
                             'x-api-key'         => $key->api_key,
@@ -220,8 +220,34 @@ class AiController extends Controller
 
                 // ── Google Gemini ─────────────────────────────────────────────
                 case 'gemini':
-                    // Pakai model aktif dari DB, fallback ke gemini-2.0-flash
-                    $model    = $this->pickModel($key, 'gemini-2.0-flash');
+                    // Prioritas model: 1) request param, 2) DB aktif, 3) auto-detect dari API
+                    $requestedModel = request()->input('model');
+
+                    if ($requestedModel) {
+                        $model = $requestedModel;
+                    } else {
+                        $model = $this->pickModel($key, '');
+                    }
+
+                    // Kalau model kosong atau perlu verifikasi, ambil list dari Gemini API
+                    if (empty($model)) {
+                        $listResp   = Http::timeout(10)->get(
+                            'https://generativelanguage.googleapis.com/v1beta/models?key=' . $key->api_key
+                        );
+                        $allModels  = collect($listResp->json('models') ?? []);
+                        // Filter hanya yang support generateContent
+                        $supported  = $allModels
+                            ->filter(fn($m) => in_array('generateContent', $m['supportedGenerationMethods'] ?? []))
+                            ->pluck('name') // format: "models/gemini-2.0-flash"
+                            ->map(fn($n) => str_replace('models/', '', $n))
+                            ->values();
+
+                        // Prefer flash (lebih murah & cepat untuk ping)
+                        $model = $supported->first(fn($n) => str_contains($n, 'flash'))
+                              ?? $supported->first()
+                              ?? 'gemini-2.0-flash';
+                    }
+
                     $response = Http::timeout(15)
                         ->withBody(json_encode([
                             'contents'         => [['parts' => [['text' => 'hi']], 'role' => 'user']],
@@ -233,7 +259,6 @@ class AiController extends Controller
                     $status  = $response->status();
                     $body    = $response->json();
 
-                    // Cek quota exhausted dari body
                     $bodyLower    = strtolower(json_encode($body));
                     $isQuotaError = str_contains($bodyLower, 'quota') ||
                                    str_contains($bodyLower, 'resource_exhausted') ||
@@ -242,7 +267,7 @@ class AiController extends Controller
                     $info = [
                         'Model diuji'   => $model,
                         'Quota Status'  => $isQuotaError ? '⚠️ Quota/Rate limit terdeteksi' : '✅ Normal',
-                        'Note'          => 'Gemini tidak menyediakan endpoint sisa kuota via API — pantau di Google AI Studio',
+                        'Note'          => 'Gemini tidak menyediakan sisa kuota via API — pantau di Google AI Studio',
                         'AI Studio URL' => 'https://aistudio.google.com/',
                     ];
 
@@ -255,7 +280,7 @@ class AiController extends Controller
 
                 // ── Mistral ───────────────────────────────────────────────────
                 case 'mistral':
-                    $model    = $this->pickModel($key, 'mistral-small-latest');
+                    $model    = request()->input('model') ?: $this->pickModel($key, 'mistral-small-latest');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
                         ->post('https://api.mistral.ai/v1/chat/completions', [
@@ -280,7 +305,7 @@ class AiController extends Controller
                 // ── Groq ─────────────────────────────────────────────────────
                 case 'groq':
                     $groqBase = str_contains($baseUrl, 'groq') ? $baseUrl : 'https://api.groq.com/openai/v1';
-                    $model    = $this->pickModel($key, 'llama3-8b-8192');
+                    $model    = request()->input('model') ?: $this->pickModel($key, 'llama3-8b-8192');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
                         ->post($groqBase . '/chat/completions', [
@@ -350,36 +375,106 @@ class AiController extends Controller
                     ], $body);
                     break;
 
-                // ── Generic / Custom OpenAI-compatible ────────────────────────
+                // ── Generic / Custom Provider ─────────────────────────────
                 default:
                     if (empty($baseUrl)) {
                         return response()->json([
-                            'status'  => 'error',
-                            'message' => 'Base URL tidak dikonfigurasi untuk provider ini.',
+                            'status'      => 'error',
+                            'message'     => '❌ Base URL belum dikonfigurasi untuk provider ini.',
+                            'latency_ms'  => 0,
+                            'info'        => ['Tip' => 'Tambahkan Base URL di halaman provider, contoh: https://api.example.com/v1'],
+                            'error_detail'=> null,
                         ]);
                     }
 
-                    $response = Http::timeout(15)
-                        ->withToken($key->api_key)
-                        ->post($baseUrl . '/chat/completions', [
-                            'model'      => $key->provider->models()->where('is_active', true)->first()?->model_name ?? 'gpt-3.5-turbo',
-                            'max_tokens' => 1,
-                            'messages'   => [['role' => 'user', 'content' => 'hi']],
-                        ]);
+                    // Ambil semua model aktif dari DB untuk provider ini
+                    $activeModels = $key->provider
+                        ->models()
+                        ->where('is_active', true)
+                        ->orderBy('id')
+                        ->pluck('model_name')
+                        ->toArray();
+
+                    // Jika tidak ada model di DB, coba deteksi dari /models endpoint dulu
+                    if (empty($activeModels)) {
+                        $modelsResp = Http::timeout(10)
+                            ->withToken($key->api_key)
+                            ->get($baseUrl . '/models');
+
+                        if ($modelsResp->successful()) {
+                            $modelsBody = $modelsResp->json();
+                            // Format OpenAI: {data: [{id: ...}]}
+                            // Format lain: [{id: ...}] atau [{name: ...}]
+                            $modelsList = $modelsBody['data'] ?? $modelsBody['models'] ?? $modelsBody;
+                            if (is_array($modelsList) && count($modelsList) > 0) {
+                                $firstModel = $modelsList[0];
+                                $detectedModel = $firstModel['id'] ?? $firstModel['name'] ?? $firstModel['model'] ?? null;
+                                if ($detectedModel) {
+                                    $activeModels = [$detectedModel];
+                                }
+                            }
+                        }
+                    }
+
+                    // Fallback jika masih kosong
+                    if (empty($activeModels)) {
+                        $activeModels = ['gpt-3.5-turbo'];
+                    }
+
+                    // Coba tiap model sampai ada yang berhasil (200)
+                    $response      = null;
+                    $usedModel     = null;
+                    $triedModels   = [];
+
+                    foreach ($activeModels as $tryModel) {
+                        $triedModels[] = $tryModel;
+                        $tryResp = Http::timeout(15)
+                            ->withToken($key->api_key)
+                            ->post($baseUrl . '/chat/completions', [
+                                'model'      => $tryModel,
+                                'max_tokens' => 1,
+                                'messages'   => [['role' => 'user', 'content' => 'hi']],
+                            ]);
+
+                        if ($tryResp->status() !== 404) {
+                            // Bukan 404 = model ditemukan (bisa 200, 429, 401, dll)
+                            $response  = $tryResp;
+                            $usedModel = $tryModel;
+                            break;
+                        }
+                        // 404 = model tidak ada di provider ini, coba model berikutnya
+                    }
+
+                    // Kalau semua 404, pakai response terakhir
+                    if ($response === null) {
+                        $response  = $tryResp ?? null;
+                        $usedModel = end($triedModels);
+                    }
 
                     $latency = round((microtime(true) - $startTime) * 1000);
                     $headers = $response->headers();
                     $status  = $response->status();
 
-                    // Ambil semua header x-ratelimit-* yang ada
+                    // Kumpulkan semua header rate-limit yang ada
                     $rateLimitHeaders = [];
                     foreach ($headers as $name => $vals) {
-                        if (str_starts_with(strtolower($name), 'x-ratelimit') || str_starts_with(strtolower($name), 'retry-after')) {
+                        $nameLower = strtolower($name);
+                        if (str_starts_with($nameLower, 'x-ratelimit') ||
+                            str_starts_with($nameLower, 'ratelimit') ||
+                            str_starts_with($nameLower, 'retry-after')) {
                             $rateLimitHeaders[$name] = $vals[0] ?? null;
                         }
                     }
 
-                    $result = $this->buildResult($status, $latency, $rateLimitHeaders ?: ['Note' => 'Provider tidak mengembalikan header rate-limit'], $response->json());
+                    $infoCustom = array_merge(
+                        [
+                            'Model diuji' => $usedModel,
+                            'Model dicoba'=> count($triedModels) > 1 ? implode(', ', $triedModels) : null,
+                        ],
+                        $rateLimitHeaders ?: ['Rate Limit Info' => 'Provider tidak mengembalikan header rate-limit']
+                    );
+
+                    $result = $this->buildResult($status, $latency, $infoCustom, $response->json());
                     break;
             }
 

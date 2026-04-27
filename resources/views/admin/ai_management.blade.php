@@ -630,7 +630,7 @@
 
                 {{-- Health Check Button --}}
                 <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
-                        onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}')">
+                        onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}', {{ json_encode($provider->models->where('is_active', true)->pluck('model_name')->values()) }})">  
                     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 </button>
 
@@ -814,12 +814,42 @@
             </div>
             <h3 style="margin:0;font-size:1rem;">API Key Health Check</h3>
         </div>
-        <p class="modal-sub" id="hcModalSub" style="margin-bottom:1rem;"></p>
+        <p class="modal-sub" id="hcModalSub" style="margin-bottom:.75rem;"></p>
+
+        {{-- Model Selector --}}
+        <div id="hcModelSelector" style="margin-bottom:1rem;">
+            <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#475569;margin-bottom:6px;">
+                Model untuk diuji
+            </label>
+            <div style="display:flex;gap:8px;">
+                <select id="hcModelSelect"
+                        style="flex:1;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);padding:7px 10px;border-radius:9px;color:white;font-family:inherit;font-size:0.82rem;">
+                    {{-- diisi JS saat buka modal --}}
+                </select>
+                <button type="button" id="hcRunBtn"
+                        onclick="executeHealthCheck()"
+                        style="padding:7px 16px;border-radius:9px;border:none;cursor:pointer;
+                               background:linear-gradient(135deg,#06b6d4,#0891b2);color:white;
+                               font-family:inherit;font-size:0.82rem;font-weight:600;
+                               white-space:nowrap;">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Cek Sekarang
+                </button>
+            </div>
+            <div style="margin-top:5px;display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="hcCustomModelToggle" onchange="toggleCustomModel(this)">
+                <label for="hcCustomModelToggle" style="font-size:0.72rem;color:#64748b;cursor:pointer;">Ketik model manual</label>
+            </div>
+            <input type="text" id="hcCustomModelInput" placeholder="Contoh: gemini-2.0-flash-exp"
+                   style="display:none;margin-top:6px;width:100%;background:rgba(255,255,255,.04);
+                          border:1px solid rgba(99,102,241,.3);padding:7px 10px;border-radius:9px;
+                          color:white;font-family:inherit;font-size:0.82rem;">
+        </div>
 
         {{-- Status Banner --}}
-        <div id="hcBanner" class="hc-status-banner hc-loading">
-            <div class="hc-spinner" id="hcSpinner"></div>
-            <span id="hcBannerText">Menghubungi provider...</span>
+        <div id="hcBanner" class="hc-status-banner" style="display:none;">
+            <div class="hc-spinner" id="hcSpinner" style="display:none;"></div>
+            <span id="hcBannerText"></span>
         </div>
 
         {{-- Meta row: HTTP status & latency --}}
@@ -838,7 +868,7 @@
             </div>
         </div>
 
-        {{-- Info table (rate limit, quota, credits, dll) --}}
+        {{-- Info table --}}
         <div id="hcInfoWrap" style="display:none;">
             <div style="font-size:0.7rem;color:#475569;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
                 Info dari Provider
@@ -855,7 +885,7 @@
         <div class="modal-actions" style="margin-top:1.2rem;">
             <button type="button" class="btn-modal-cancel" onclick="closeModal('hcModal')">Tutup</button>
             <button type="button" class="btn-modal-save" id="hcRetryBtn" style="display:none;"
-                    onclick="retryLastHealthCheck()">
+                    onclick="executeHealthCheck()">
                 <i class="fas fa-sync-alt" style="font-size:.75rem"></i> Cek Ulang
             </button>
         </div>
@@ -971,17 +1001,47 @@ function openAddModel(providerId, providerName) {
 let _lastHcKeyId   = null;
 let _lastHcKeyName = null;
 let _lastHcProv    = null;
+let _lastHcModels  = [];
 
-function runHealthCheck(keyId, keyName, providerName) {
+function runHealthCheck(keyId, keyName, providerName, providerModels) {
     _lastHcKeyId   = keyId;
     _lastHcKeyName = keyName;
     _lastHcProv    = providerName;
+    _lastHcModels  = providerModels || [];
 
-    /* Reset modal ke loading state */
+    /* Isi dropdown model */
+    const sel = document.getElementById('hcModelSelect');
+    sel.innerHTML = '';
+
+    // Option auto-detect (biarkan server yang pilih)
+    const autoOpt = document.createElement('option');
+    autoOpt.value = '';
+    autoOpt.textContent = '🔄 Auto-detect (pilih model terbaik otomatis)';
+    sel.appendChild(autoOpt);
+
+    // Option dari model aktif provider
+    if (_lastHcModels.length > 0) {
+        const sep = document.createElement('option');
+        sep.disabled = true;
+        sep.textContent = '── Model dari database ──';
+        sel.appendChild(sep);
+
+        _lastHcModels.forEach(function(m) {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            sel.appendChild(opt);
+        });
+    }
+
+    // Reset custom model input
+    document.getElementById('hcCustomModelToggle').checked = false;
+    document.getElementById('hcCustomModelInput').style.display = 'none';
+    document.getElementById('hcCustomModelInput').value = '';
+
+    /* Reset result area */
     document.getElementById('hcModalSub').textContent   = providerName + ' — ' + keyName;
-    document.getElementById('hcBanner').className       = 'hc-status-banner hc-loading';
-    document.getElementById('hcSpinner').style.display  = 'block';
-    document.getElementById('hcBannerText').textContent = 'Menghubungi provider, harap tunggu...';
+    document.getElementById('hcBanner').style.display   = 'none';
     document.getElementById('hcMeta').style.display     = 'none';
     document.getElementById('hcInfoWrap').style.display = 'none';
     document.getElementById('hcErrorBox').style.display = 'none';
@@ -989,31 +1049,82 @@ function runHealthCheck(keyId, keyName, providerName) {
     document.getElementById('hcRetryBtn').style.display = 'none';
     document.getElementById('hcAutoFlagWrap').style.display = 'none';
 
+    document.getElementById('hcModal').style.display = 'flex';
+}
+
+function toggleCustomModel(checkbox) {
+    const input = document.getElementById('hcCustomModelInput');
+    const sel   = document.getElementById('hcModelSelect');
+    if (checkbox.checked) {
+        input.style.display = 'block';
+        sel.disabled = true;
+        input.focus();
+    } else {
+        input.style.display = 'none';
+        sel.disabled = false;
+        input.value = '';
+    }
+}
+
+function executeHealthCheck() {
+    const keyId = _lastHcKeyId;
+    if (!keyId) return;
+
+    /* Tentukan model yang akan dipakai */
+    const useCustom = document.getElementById('hcCustomModelToggle').checked;
+    let selectedModel = '';
+    if (useCustom) {
+        selectedModel = document.getElementById('hcCustomModelInput').value.trim();
+    } else {
+        selectedModel = document.getElementById('hcModelSelect').value;
+    }
+
+    /* Tampilkan loading */
+    const banner = document.getElementById('hcBanner');
+    banner.className = 'hc-status-banner hc-loading';
+    banner.style.display = 'flex';
+    document.getElementById('hcSpinner').style.display  = 'block';
+    document.getElementById('hcBannerText').textContent = 'Menghubungi provider' + (selectedModel ? ' dengan model ' + selectedModel : '') + '...';
+    document.getElementById('hcMeta').style.display     = 'none';
+    document.getElementById('hcInfoWrap').style.display = 'none';
+    document.getElementById('hcErrorBox').style.display = 'none';
+    document.getElementById('hcNote').textContent       = '';
+    document.getElementById('hcRetryBtn').style.display = 'none';
+    document.getElementById('hcAutoFlagWrap').style.display = 'none';
+    document.getElementById('hcRunBtn').disabled        = true;
+
     /* Set health dot ke spinning */
     const dot = document.getElementById('hdot-' + keyId);
     if (dot) { dot.className = 'health-dot hd-spin'; dot.title = 'Sedang mengecek...'; }
 
-    document.getElementById('hcModal').style.display = 'flex';
+    /* Build form body */
+    const formData = new FormData();
+    formData.append('_token', '{{ csrf_token() }}');
+    if (selectedModel) formData.append('model', selectedModel);
 
     fetch(`/admin/ai-management/keys/${keyId}/health-check`, {
         method:  'POST',
-        headers: {
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-            'Accept':       'application/json',
-        },
+        headers: { 'Accept': 'application/json' },
+        body:    formData,
     })
     .then(r => r.json())
-    .then(data => renderHealthResult(keyId, data))
-    .catch(err  => renderHealthResult(keyId, {
-        status:     'error',
-        message:    '❌ Gagal terhubung ke server: ' + err.message,
-        latency_ms: null,
-        info:       {},
-    }));
+    .then(data => {
+        document.getElementById('hcRunBtn').disabled = false;
+        renderHealthResult(keyId, data);
+    })
+    .catch(err  => {
+        document.getElementById('hcRunBtn').disabled = false;
+        renderHealthResult(keyId, {
+            status:     'error',
+            message:    '❌ Gagal terhubung ke server: ' + err.message,
+            latency_ms: null,
+            info:       {},
+        });
+    });
 }
 
 function retryLastHealthCheck() {
-    if (_lastHcKeyId) runHealthCheck(_lastHcKeyId, _lastHcKeyName, _lastHcProv);
+    if (_lastHcKeyId) executeHealthCheck();
 }
 
 function renderHealthResult(keyId, data) {
