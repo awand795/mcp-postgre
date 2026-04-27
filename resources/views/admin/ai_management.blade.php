@@ -185,8 +185,17 @@
 }
 .pill-on     { background: rgba(16,185,129,.12); color: #34d399; }
 .pill-off    { background: rgba(100,116,139,.12); color: #64748b; }
-.pill-limit  { background: rgba(239,68,68,.12);  color: #f87171; }
+.pill-limit  {
+    background: rgba(239,68,68,.15);  color: #f87171;
+    border: 1px solid rgba(239,68,68,.3);
+    animation: limitPulse 2s ease-in-out infinite;
+    cursor: help;
+}
 .pill-warn   { background: rgba(245,158,11,.12); color: #fbbf24; }
+@keyframes limitPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    50%     { box-shadow: 0 0 0 4px rgba(239,68,68,.18); }
+}
 
 /* Toggle switch */
 .sw {
@@ -474,6 +483,23 @@
     .aim-stats { grid-template-columns: 1fr 1fr; }
     .aim-stat-val { font-size: 1.4rem; }
 }
+
+/* ══════════════════════════════════════════
+   LIMIT ALERT BAR inside key panel
+══════════════════════════════════════════ */
+.limit-alert-bar {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(239,68,68,.07);
+    border: 1px solid rgba(239,68,68,.2);
+    border-radius: 8px; padding: 7px 10px;
+    font-size: 0.75rem; color: #f87171;
+    margin-bottom: 6px;
+    animation: limitBarSlide .3s ease;
+}
+@keyframes limitBarSlide {
+    from { opacity:0; transform: translateY(-4px); }
+    to   { opacity:1; transform: translateY(0); }
+}
 </style>
 
 {{-- Flash messages --}}
@@ -610,6 +636,15 @@
 
         {{-- Keys panel --}}
         <div class="pcard-body" id="keys-{{ $provider->id }}">
+            @php $limitCount = $providerKeys->where('limit_reached', true)->count(); @endphp
+            @if($limitCount > 0)
+            <div class="limit-alert-bar" id="limitbar-{{ $provider->id }}">
+                <span style="font-size:.85rem">⚠️</span>
+                <span><strong>{{ $limitCount }} key</strong> kena rate limit saat dipakai user — klik reset untuk aktifkan kembali</span>
+            </div>
+            @else
+            <div class="limit-alert-bar" id="limitbar-{{ $provider->id }}" style="display:none"></div>
+            @endif
             @forelse($providerKeys as $key)
             <div class="key-row" id="krow-{{ $key->id }}">
                 <div class="key-ico">
@@ -623,14 +658,16 @@
                 <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
 
                 @if($key->limit_reached)
-                    <span class="pill pill-limit" id="kpill-{{ $key->id }}">LIMIT</span>
+                    <span class="pill pill-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
+                        ⚠️ LIMIT
+                    </span>
                 @elseif(!$key->is_active)
-                    <span class="pill pill-off" id="kpill-{{ $key->id }}">OFF</span>
+                    <span class="pill pill-off kpill" id="kpill-{{ $key->id }}">OFF</span>
                 @else
-                    <span class="pill pill-on" id="kpill-{{ $key->id }}">Active</span>
+                    <span class="pill pill-on kpill" id="kpill-{{ $key->id }}">Active</span>
                 @endif
 
-                <span class="key-when">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
+                <span class="key-when" id="kwhen-{{ $key->id }}">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
 
                 {{-- Health Check Button --}}
                 <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
@@ -1230,6 +1267,95 @@ function escHtml(str) {
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+/* ══════════════════════════════════════════════════════════
+   LIVE STATUS POLLING — cek tiap 30 detik apakah ada key baru kena limit
+══════════════════════════════════════════════════════════ */
+const _providerIdMap = @json($providers->pluck('id', 'id'));
+
+function pollKeyStatus() {
+    fetch('{{ route("admin.ai_management.poll_status") }}', {
+        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const keys = data.keys || {};
+        const limitPerProv = data.limit_per_provider || {};
+
+        Object.entries(keys).forEach(([keyId, key]) => {
+            const pill = document.getElementById('kpill-' + keyId);
+            const dot  = document.getElementById('hdot-' + keyId);
+            const when = document.getElementById('kwhen-' + keyId);
+
+            if (!pill) return;
+
+            /* Update pill label & style */
+            if (key.limit_reached) {
+                if (!pill.classList.contains('pill-limit')) {
+                    pill.className = 'pill pill-limit kpill';
+                    pill.innerHTML = '⚠️ LIMIT';
+                    pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali';
+                    /* Flash animasi sebentar untuk notifikasi visual */
+                    pill.style.outline = '2px solid #ef4444';
+                    setTimeout(() => { pill.style.outline = ''; }, 2000);
+                }
+            } else if (!key.is_active) {
+                pill.className = 'pill pill-off kpill';
+                pill.innerHTML = 'OFF';
+                pill.title = '';
+            } else {
+                pill.className = 'pill pill-on kpill';
+                pill.innerHTML = 'Active';
+                pill.title = '';
+            }
+
+            /* Update last-used time */
+            if (when && key.last_used_at) {
+                when.textContent = key.last_used_at;
+            }
+
+            /* Update health dot warna jika key baru kena limit */
+            if (dot && key.limit_reached && !dot.classList.contains('hd-spin')) {
+                dot.className = 'health-dot hd-bad';
+                dot.title = 'Key kena rate limit';
+            }
+        });
+
+        /* Update limit-alert-bar per provider */
+        Object.entries(limitPerProv).forEach(([provId, count]) => {
+            const bar = document.getElementById('limitbar-' + provId);
+            if (bar) {
+                bar.style.display = 'flex';
+                bar.innerHTML = '<span style="font-size:.85rem">⚠️</span>' +
+                    '<span><strong>' + count + ' key</strong> kena rate limit saat dipakai user — klik reset untuk aktifkan kembali</span>';
+            }
+        });
+
+        /* Sembunyikan bar untuk provider yang sudah tidak ada limitnya */
+        document.querySelectorAll('.limit-alert-bar').forEach(bar => {
+            const provId = bar.id.replace('limitbar-', '');
+            if (!limitPerProv[provId]) {
+                bar.style.display = 'none';
+            }
+        });
+
+        /* Update stat box "Rate Limited" di header */
+        const statLimitEl = document.querySelector('.aim-stat.s-yellow .aim-stat-val');
+        if (statLimitEl) {
+            statLimitEl.textContent = data.total_limit ?? '?';
+        }
+        const statSubEl = document.querySelector('.aim-stat.s-yellow .aim-stat-sub');
+        if (statSubEl) {
+            statSubEl.textContent = (data.total_limit > 0) ? 'Perlu reset' : 'Semua aman';
+        }
+    })
+    .catch(err => console.warn('[AI Management Poll] Error:', err));
+}
+
+/* Jalankan polling tiap 30 detik */
+setInterval(pollKeyStatus, 30000);
+/* Sekali langsung saat load untuk pastikan sync */
+pollKeyStatus();
 </script>
 
 @endsection

@@ -376,6 +376,15 @@ class AgenticChatbotController extends Controller
                 return;
             }
 
+            // ── Auto-reset limit_reached saat API berhasil dipanggil ──────────
+            // Jika sebelumnya key ini ditandai limit (misal kena daily quota kemarin),
+            // dan sekarang berhasil dapat response — berarti quota sudah reset dari
+            // provider. Langsung bersihkan flag-nya tanpa perlu manual reset admin.
+            if ($loopCount === 1 && $apiKey->limit_reached) {
+                $apiKey->update(['limit_reached' => false]);
+                Log::info("[Agentic] Auto-reset limit_reached for api_key_id={$apiKey->id} (successful response received).");
+            }
+
             $assistantMsg = $response['choices'][0]['message'];
             $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
             $toolCalls = $assistantMsg['tool_calls'] ?? [];

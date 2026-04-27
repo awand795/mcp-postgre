@@ -92,6 +92,39 @@ class AiController extends Controller
         return back()->with('success', 'Limit API Key berhasil di-reset.');
     }
 
+    /**
+     * Polling endpoint — kembalikan status terbaru semua API keys
+     * Dipanggil setiap 30 detik dari halaman AI Management via JS
+     */
+    public function pollKeyStatus(): \Illuminate\Http\JsonResponse
+    {
+        $keys = AiApiKey::with('provider')
+            ->select('id', 'provider_id', 'key_name', 'is_active', 'limit_reached', 'last_used_at', 'usage_count')
+            ->get()
+            ->map(function ($key) {
+                return [
+                    'id'            => $key->id,
+                    'is_active'     => $key->is_active,
+                    'limit_reached' => $key->limit_reached,
+                    'last_used_at'  => $key->last_used_at?->diffForHumans(),
+                    'usage_count'   => $key->usage_count,
+                    'provider_id'   => $key->provider_id,
+                ];
+            });
+
+        // Hitung limit per provider untuk update banner
+        $limitPerProvider = $keys
+            ->where('limit_reached', true)
+            ->groupBy('provider_id')
+            ->map->count();
+
+        return response()->json([
+            'keys'               => $keys->keyBy('id'),
+            'limit_per_provider' => $limitPerProvider,
+            'total_limit'        => $keys->where('limit_reached', true)->count(),
+        ]);
+    }
+
     public function storeProvider(Request $request)
     {
         $request->validate([
