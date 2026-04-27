@@ -135,6 +135,19 @@ class AiController extends Controller
     // HEALTH CHECK — Ping provider dengan request minimal, baca header & response
     // Mengembalikan JSON: status, latency_ms, info dari header, dan error jika ada
     // ──────────────────────────────────────────────────────────────────────────
+    /**
+     * Ambil model aktif pertama dari DB untuk provider ini.
+     * Fallback ke $default jika tidak ada.
+     */
+    private function pickModel(AiApiKey $key, string $default): string
+    {
+        return $key->provider
+            ->models()
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->value('model_name') ?? $default;
+    }
+
     public function healthCheck(AiApiKey $key): \Illuminate\Http\JsonResponse
     {
         $key->load('provider');
@@ -149,11 +162,11 @@ class AiController extends Controller
 
                 // ── OpenAI ────────────────────────────────────────────────────
                 case 'openai':
+                    $model    = $this->pickModel($key, 'gpt-4o-mini');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
-                        ->withOptions(['on_stats' => null])
                         ->post('https://api.openai.com/v1/chat/completions', [
-                            'model'      => 'gpt-4o-mini',
+                            'model'      => $model,
                             'max_tokens' => 1,
                             'messages'   => [['role' => 'user', 'content' => 'hi']],
                         ]);
@@ -163,6 +176,7 @@ class AiController extends Controller
                     $status  = $response->status();
 
                     $result = $this->buildResult($status, $latency, [
+                        'Model diuji'            => $model,
                         'Requests Limit/min'     => $headers['x-ratelimit-limit-requests'][0]     ?? null,
                         'Requests Remaining/min' => $headers['x-ratelimit-remaining-requests'][0] ?? null,
                         'Tokens Limit/min'       => $headers['x-ratelimit-limit-tokens'][0]       ?? null,
@@ -175,6 +189,7 @@ class AiController extends Controller
 
                 // ── Anthropic Claude ─────────────────────────────────────────
                 case 'claude':
+                    $model    = $this->pickModel($key, 'claude-haiku-4-5-20251001');
                     $response = Http::timeout(15)
                         ->withHeaders([
                             'x-api-key'         => $key->api_key,
@@ -182,7 +197,7 @@ class AiController extends Controller
                             'Content-Type'      => 'application/json',
                         ])
                         ->post('https://api.anthropic.com/v1/messages', [
-                            'model'      => 'claude-haiku-4-5-20251001',
+                            'model'      => $model,
                             'max_tokens' => 1,
                             'messages'   => [['role' => 'user', 'content' => 'hi']],
                         ]);
@@ -192,6 +207,7 @@ class AiController extends Controller
                     $status  = $response->status();
 
                     $result = $this->buildResult($status, $latency, [
+                        'Model diuji'            => $model,
                         'Requests Limit/min'     => $headers['anthropic-ratelimit-requests-limit'][0]     ?? null,
                         'Requests Remaining/min' => $headers['anthropic-ratelimit-requests-remaining'][0] ?? null,
                         'Tokens Limit/min'       => $headers['anthropic-ratelimit-tokens-limit'][0]       ?? null,
@@ -204,34 +220,34 @@ class AiController extends Controller
 
                 // ── Google Gemini ─────────────────────────────────────────────
                 case 'gemini':
-                    // Gemini tidak punya endpoint usage — pakai generateContent minimal
+                    // Pakai model aktif dari DB, fallback ke gemini-2.0-flash
+                    $model    = $this->pickModel($key, 'gemini-2.0-flash');
                     $response = Http::timeout(15)
                         ->withBody(json_encode([
-                            'contents'        => [['parts' => [['text' => 'hi']], 'role' => 'user']],
+                            'contents'         => [['parts' => [['text' => 'hi']], 'role' => 'user']],
                             'generationConfig' => ['maxOutputTokens' => 1],
                         ]), 'application/json')
-                        ->post('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $key->api_key);
+                        ->post('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $key->api_key);
 
                     $latency = round((microtime(true) - $startTime) * 1000);
-                    $headers = $response->headers();
                     $status  = $response->status();
                     $body    = $response->json();
 
                     // Cek quota exhausted dari body
-                    $bodyLower = strtolower(json_encode($body));
+                    $bodyLower    = strtolower(json_encode($body));
                     $isQuotaError = str_contains($bodyLower, 'quota') ||
-                        str_contains($bodyLower, 'resource_exhausted') ||
-                        str_contains($bodyLower, 'rate_limit');
+                                   str_contains($bodyLower, 'resource_exhausted') ||
+                                   str_contains($bodyLower, 'rate_limit');
 
                     $info = [
-                        'Model'         => 'gemini-1.5-flash (ping)',
+                        'Model diuji'   => $model,
                         'Quota Status'  => $isQuotaError ? '⚠️ Quota/Rate limit terdeteksi' : '✅ Normal',
                         'Note'          => 'Gemini tidak menyediakan endpoint sisa kuota via API — pantau di Google AI Studio',
                         'AI Studio URL' => 'https://aistudio.google.com/',
                     ];
 
                     if ($isQuotaError && $status !== 429) {
-                        $status = 429; // normalize
+                        $status = 429;
                     }
 
                     $result = $this->buildResult($status, $latency, $info, $body);
@@ -239,12 +255,11 @@ class AiController extends Controller
 
                 // ── Mistral ───────────────────────────────────────────────────
                 case 'mistral':
-                    // Mistral punya /v1/info endpoint (agent/model info, bukan usage)
-                    // Lebih andal: pakai chat completion minimal
+                    $model    = $this->pickModel($key, 'mistral-small-latest');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
                         ->post('https://api.mistral.ai/v1/chat/completions', [
-                            'model'      => 'mistral-small-latest',
+                            'model'      => $model,
                             'max_tokens' => 1,
                             'messages'   => [['role' => 'user', 'content' => 'hi']],
                         ]);
@@ -254,6 +269,7 @@ class AiController extends Controller
                     $status  = $response->status();
 
                     $result = $this->buildResult($status, $latency, [
+                        'Model diuji'           => $model,
                         'X-RateLimit-Limit'     => $headers['x-ratelimit-limit'][0]     ?? null,
                         'X-RateLimit-Remaining' => $headers['x-ratelimit-remaining'][0] ?? null,
                         'X-RateLimit-Reset'     => $headers['x-ratelimit-reset'][0]     ?? null,
@@ -264,10 +280,11 @@ class AiController extends Controller
                 // ── Groq ─────────────────────────────────────────────────────
                 case 'groq':
                     $groqBase = str_contains($baseUrl, 'groq') ? $baseUrl : 'https://api.groq.com/openai/v1';
+                    $model    = $this->pickModel($key, 'llama3-8b-8192');
                     $response = Http::timeout(15)
                         ->withToken($key->api_key)
                         ->post($groqBase . '/chat/completions', [
-                            'model'      => 'llama3-8b-8192',
+                            'model'      => $model,
                             'max_tokens' => 1,
                             'messages'   => [['role' => 'user', 'content' => 'hi']],
                         ]);
@@ -277,6 +294,7 @@ class AiController extends Controller
                     $status  = $response->status();
 
                     $result = $this->buildResult($status, $latency, [
+                        'Model diuji'            => $model,
                         'Requests Limit/day'     => $headers['x-ratelimit-limit-requests'][0]              ?? null,
                         'Requests Remaining/day' => $headers['x-ratelimit-remaining-requests'][0]          ?? null,
                         'Tokens Limit/min'        => $headers['x-ratelimit-limit-tokens'][0]               ?? null,
