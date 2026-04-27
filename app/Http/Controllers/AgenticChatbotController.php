@@ -1463,6 +1463,13 @@ Contoh:
 - Untuk data tren bulanan: gunakan nama bulan sebagai label ("Jan", "Feb", dst)
 - Untuk data per cabang: gunakan nama cabang sebagai label
 
+**PANDUAN KHUSUS PERBANDINGAN TAHUN/PERIODE (YoY):**
+Jika user meminta perbandingan antar tahun (contoh: "penjualan 2025 vs 2026" atau "grafik 2025 dan 2026"):
+- **DILARANG** menggunakan label sumbu X yang memanjang secara sekuensial (contoh sekuensial SALAH: "Jan 2025", "Feb 2025", ..., "Jan 2026").
+- **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan saja ("Jan", "Feb", ..., "Des").
+- **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun).
+- Contoh dataset label: `{"label": "Penjualan 2025", "data": [...]}`, `{"label": "Penjualan 2026", "data": [...]}`.
+
 **URUTAN WAJIB jika user minta grafik:**
 1. Ringkasan Eksekutif
 2. chart (grafik visualisasi)
