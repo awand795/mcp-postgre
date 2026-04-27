@@ -260,7 +260,7 @@ class AgenticChatbotController extends Controller
         // berturut-turut tanpa GROUP BY, inject reminder paksa agar langsung ke query utama.
         // Ini mencegah model terus eksplor tanpa batas.
         $probeQueryCount = 0;
-        $maxProbeQueries = 2; // maksimal 2 probe query sebelum dipaksa ke query utama
+        $maxProbeQueries = 3; // maksimal 3 probe query sebelum dipaksa ke query utama
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -616,7 +616,19 @@ class AgenticChatbotController extends Controller
                     'arguments' => $arguments,
                     'countWithoutWhereWarning' => $countWithoutWhereWarning,
                 ];
+
+                // ── IMMEDIATE FEEDBACK: Kirim 'running' status SEKARANG ──
+                echo "data: " . json_encode([
+                    'tool_call' => [
+                        'id' => $toolCallId,
+                        'name' => $toolName,
+                        'arguments' => $arguments,
+                        'status' => 'running',
+                    ]
+                ]) . "\n\n";
             }
+            if (ob_get_level() > 0) ob_flush();
+            flush();
 
             $executedResults = [];
             if ($useParallel) {
@@ -656,18 +668,6 @@ class AgenticChatbotController extends Controller
                 $toolCallId = $call['id'];
                 $toolName = $call['name'];
                 $arguments = $call['arguments'];
-
-                echo "data: " . json_encode([
-                    'tool_call' => [
-                        'id' => $toolCallId,
-                        'name' => $toolName,
-                        'arguments' => $arguments,
-                        'status' => 'running',
-                    ]
-                ]) . "\n\n";
-                if (ob_get_level() > 0)
-                    ob_flush();
-                flush();
 
                 $countWithoutWhereWarning = $call['countWithoutWhereWarning'];
                 $toolResult = $execItem['result'];
@@ -1310,6 +1310,12 @@ Anda adalah DataBot, Data Analyst AI ahli untuk MBI (Motor Bisnis Indonesia) den
 
 Seluruh output (Ringkasan Eksekutif, Insight Strategis, Rekomendasi Prompt, pesan error) WAJIB mengikuti bahasa user. TIDAK ADA pengecualian.
 
+## ⚡ PARALLEL TOOL CALLING
+Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika independen untuk menghemat waktu:
+- Panggil `describe_table` untuk beberapa tabel sekaligus jika Anda butuh info banyak tabel.
+- Panggil `describe_table` dan `execute_query` (probe) secara bersamaan jika Anda sudah cukup yakin dengan nama tabelnya.
+- Jalankan beberapa `execute_query` independen jika Anda butuh data dari beberapa sumber sekaligus.
+
 ## IDENTITAS & TUGAS UTAMA
 
 Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:
@@ -1403,9 +1409,16 @@ LIMIT 10
 WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
 ```
 
+## 🔴 ATURAN WILAYAH/PROPINSI/KOTA
+Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
+1. **LANGSUNG gunakan `ILIKE`** pada kolom propinsi/kota yang relevan dalam query utama.
+2. Jika query utama tidak menghasilkan data, barulah lakukan probe dengan `ILIKE` untuk mencari variasi nama wilayah tersebut.
+3. **DILARANG KERAS** membelokkan jawaban ke data Nasional secara diam-diam jika data regional tidak ditemukan. Jika data regional tidak ada, Anda WAJIB melaporkan hal tersebut kepada Bapak/Ibu user terlebih dahulu.
+
 **PENGECUALIAN PENTING — DILARANG pakai Langkah 1 jika user menyebut wilayah/kota/propinsi:**
 - User tanya "cabang di Medan" / "cabang di Sumatera Utara" / "cabang di Jakarta" → **JANGAN resolve nama cabang**
-- Untuk pertanyaan berbasis wilayah: langsung gunakan kolom propinsi/kabupaten/kota dengan filter `= 'NAMA_WILAYAH_EKSAK'`
+- Untuk pertanyaan berbasis wilayah: **LANGSUNG gunakan filter `ILIKE '%NAMA_WILAYAH%'`** pada kolom propinsi/kabupaten/kota. Ini lebih cepat dan menangani perbedaan huruf besar/kecil secara otomatis.
+- Contoh: `WHERE nama_propinsi_cabang ILIKE '%SUMATERA UTARA%'` atau `WHERE nama_kota_cabang ILIKE '%MEDAN%'`
 - Nilai eksak wilayah didapat dari **1 query probe** `SELECT DISTINCT nama_propinsi_cabang ... LIMIT 20` **TANPA filter WHERE**
 - Setelah dapat nilai propinsi eksak → **LANGSUNG query utama**, JANGAN probe lagi
 

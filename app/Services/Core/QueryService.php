@@ -427,7 +427,9 @@ class QueryService extends BaseService
                 Log::info("[QueryService] Persistent connection established for {$databaseCode} (keep-alive enabled)");
             }
 
+            $startTime = microtime(true);
             $rows = DB::connection($connName)->select($cleanSql);
+            $executionTime = round(microtime(true) - $startTime, 2);
 
             // JANGAN purge koneksi setelah query sukses — biarkan keep-alive
             // Koneksi akan otomatis ditutup saat PHP process selesai (end of request)
@@ -570,10 +572,16 @@ class QueryService extends BaseService
         $result = [
             'label' => $label,
             'rows_returned' => $returned,
+            'execution_time_seconds' => $executionTime ?? 0,
             'columns' => array_keys($data[0]),
             'currency_columns' => $detectedCurrencyCols,
             'rows' => $data,
         ];
+
+        // ── PERFORMANCE WARNING: Inform AI if query is slow ──────────────────
+        if (($executionTime ?? 0) > 30) {
+            $result['PERFORMANCE_NOTE'] = "Query ini memakan waktu {$executionTime} detik. Ini tergolong LAMBAT. Jika ini adalah VIEW, pertimbangkan untuk menyarankan penggunaan Materialized View atau filter yang lebih spesifik (misal: filter wilayah atau periode yang lebih sempit).";
+        }
 
         // ── LAYER 7: Business Validation Note (Common Sense Check) ───────────
         $validationNotes = [];

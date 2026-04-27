@@ -949,38 +949,40 @@
                                     const label = toolLabels[tc.name] || 'Memproses data';
 
                                     if (tc.status === 'running') {
-                                        const badge = document.createElement('div');
-                                        badge.className = 'tool-call-badge running';
-                                        badge.dataset.tool = tc.name;
+                                        const badgeId = `tool-${tc.id}`;
+                                        if (!document.getElementById(badgeId)) {
+                                            const badge = document.createElement('div');
+                                            badge.id = badgeId;
+                                            badge.className = 'tool-call-badge running';
+                                            badge.dataset.tool = tc.name;
 
-                                        // Info konteks tambahan (label bisnis)
-                                        let detail = '';
-                                        if (tc.name === 'execute_query' && tc.arguments?.label) {
-                                            // Gunakan label bisnis jika ada, jika tidak, biarkan kosong (jangan tampilkan SQL)
-                                            detail = ` · ${tc.arguments.label}`;
+                                            // Info konteks tambahan (label bisnis)
+                                            let detail = '';
+                                            if (tc.name === 'execute_query' && tc.arguments?.label) {
+                                                detail = ` · ${tc.arguments.label}`;
+                                            }
+
+                                            if (['describe_table', 'list_tables', 'get_schema_info'].includes(tc.name)) {
+                                                detail = '';
+                                            }
+
+                                            badge.innerHTML = `
+                                                <span class="tool-call-dot running"></span>
+                                                <span>${icon} ${label}${detail}</span>
+                                            `;
+                                            toolArea.appendChild(badge);
                                         }
-
-                                        // Hilangkan detail nama tabel teknis untuk tool schema
-                                        if (['describe_table', 'list_tables', 'get_schema_info'].includes(tc.name)) {
-                                            detail = '';
-                                        }
-
-                                        badge.innerHTML = `
-                                            <span class="tool-call-dot running"></span>
-                                            <span>${icon} ${label}${detail}</span>
-                                        `;
-                                        toolArea.appendChild(badge);
-                                        toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
                                         typingText.textContent = label + '...';
                                     } else if (tc.status === 'done' || tc.status === 'success') {
-                                        const runningBadge = toolArea.querySelector('.tool-call-badge.running');
-                                        if (runningBadge) {
-                                            runningBadge.classList.remove('running');
-                                            runningBadge.classList.add('done');
-                                            const dot = runningBadge.querySelector('.tool-call-dot');
-                                            if (dot) { dot.classList.remove('running'); }
-                                            const dotEl = runningBadge.querySelector('.tool-call-dot');
-                                            if (dotEl) dotEl.textContent = '✓';
+                                        const badge = document.getElementById(`tool-${tc.id}`);
+                                        if (badge) {
+                                            badge.classList.remove('running');
+                                            badge.classList.add('done');
+                                            const dot = badge.querySelector('.tool-call-dot');
+                                            if (dot) {
+                                                dot.classList.remove('running');
+                                                dot.textContent = '✓';
+                                            }
                                         }
                                         typingText.textContent = 'Menyusun laporan...';
                                     }
