@@ -57,37 +57,37 @@ class ToolCallExecutor
     {
         return [
             [
-                'type'        => 'function',
-                'name'        => 'get_database_schema_info',
+                'type' => 'function',
+                'name' => 'get_database_schema_info',
                 'description' => 'Mendapatkan daftar lengkap database, schema, dan tabel yang diizinkan untuk diakses oleh pengguna saat ini. SELALU panggil tool ini pertama kali sebelum menulis query SQL agar Anda tahu database apa saja yang tersedia.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'justification' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Alasan mengapa Anda memanggil tool ini (misal: "Memeriksa daftar tabel yang tersedia sebelum menulis query").',
                         ],
                     ],
-                    'required'   => ['justification'],
+                    'required' => ['justification'],
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'describe_table',
+                'type' => 'function',
+                'name' => 'describe_table',
                 'description' => 'Mendapatkan informasi semua kolom, tipe data, INDEX, dan relasi FOREIGN KEY untuk tabel tertentu. Gunakan ini untuk memahami struktur tabel dan kolom mana yang bisa di-JOIN atau difilter secara cepat.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'database_code' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Kode database.',
                         ],
                         'schema_name' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Nama schema.',
                         ],
                         'table_name' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Nama tabel (tanpa prefix schema).',
                         ],
                     ],
@@ -95,46 +95,46 @@ class ToolCallExecutor
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'get_column_values',
+                'type' => 'function',
+                'name' => 'get_column_values',
                 'description' => 'Mengambil nilai unik (DISTINCT) dari sebuah kolom tabel FISIK (maks 20 nilai). PERINGATAN KERAS: DILARANG MUTLAK menggunakan tool ini pada tabel/view yang namanya mengandung prefix "view_" atau apapun yang merupakan VIEW — tool ini PASTI ERROR pada VIEW karena PostgreSQL tidak support TABLESAMPLE pada VIEW. Sebagai gantinya, gunakan execute_query dengan SELECT DISTINCT kolom FROM schema.tabel LIMIT 20. Gunakan tool ini HANYA untuk tabel fisik kecil (bukan VIEW) saat Anda butuh nilai enum/kategori sebelum query utama.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
-                        'database_code' => [ 'type' => 'string' ],
-                        'schema_name' => [ 'type' => 'string' ],
+                        'database_code' => ['type' => 'string'],
+                        'schema_name' => ['type' => 'string'],
                         'table_name' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Nama tabel FISIK saja — DILARANG memasukkan nama yang mengandung "view_" atau yang merupakan VIEW.',
                         ],
-                        'column_name' => [ 'type' => 'string' ],
+                        'column_name' => ['type' => 'string'],
                     ],
                     'required' => ['database_code', 'schema_name', 'table_name', 'column_name'],
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'get_view_definition',
+                'type' => 'function',
+                'name' => 'get_view_definition',
                 'description' => 'Mendapatkan DDL/logika query di balik sebuah View. Gunakan jika tabel yang Anda hadapi adalah VIEW dan Anda perlu tahu dari tabel mana saja kolom-kolomnya berasal.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
-                        'database_code' => [ 'type' => 'string' ],
-                        'schema_name' => [ 'type' => 'string' ],
-                        'view_name' => [ 'type' => 'string' ],
+                        'database_code' => ['type' => 'string'],
+                        'schema_name' => ['type' => 'string'],
+                        'view_name' => ['type' => 'string'],
                     ],
                     'required' => ['database_code', 'schema_name', 'view_name'],
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'search_schema',
-                'description' => 'Mencari tabel atau kolom berdasarkan kata kunci. ATURAN PENGGUNAAN KETAT: (1) Panggil HANYA SEKALI per topik pencarian — jika sudah menemukan tabel yang relevan, LANGSUNG ke describe_table, jangan search lagi dengan sinonim. (2) Gunakan 1 kata pendek saja sebagai keyword ("jual" bukan "data penjualan cabang"). (3) JANGAN panggil search_schema jika get_database_schema_info sudah mengembalikan daftar tabel yang cukup jelas — langsung gunakan describe_table pada tabel yang paling relevan. (4) Jika hasil pertama sudah mengandung tabel yang relevan → STOP, jangan search lagi.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'type' => 'function',
+                'name' => 'search_schema',
+                'description' => 'Mencari tabel atau kolom berdasarkan kata kunci. ATURAN PENGGUNAAN KETAT: (1) DILARANG MUTLAK memanggil search_schema jika nama tabel sudah diketahui dari describe_table atau get_database_schema_info — langsung lanjut ke execute_query. (2) Panggil HANYA SEKALI per topik pencarian — jika hasil pertama sudah mengandung tabel yang relevan, STOP dan langsung ke describe_table. (3) DILARANG memanggil search_schema lebih dari 1 kali untuk topik yang sama meskipun dengan sinonim berbeda. (4) Gunakan 1 kata pendek saja sebagai keyword ("jual" bukan "data penjualan cabang"). (5) DILARANG memanggil search_schema sebagai langkah "konfirmasi" atau "verifikasi" nama tabel yang sudah diketahui — ini pemborosan loop yang memperlambat jawaban untuk pengguna. INGAT: Setiap pemanggilan search_schema yang tidak perlu menambah minimal 2–3 detik latensi dan satu agentic loop yang sia-sia.',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'keyword' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'SATU kata pendek saja (contoh: "jual", "cabang", "stok"). DILARANG lebih dari satu kata atau frasa panjang.',
                         ],
                     ],
@@ -142,22 +142,22 @@ class ToolCallExecutor
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'get_table_preview',
+                'type' => 'function',
+                'name' => 'get_table_preview',
                 'description' => 'Mengambil 5 baris contoh data dari tabel FISIK tertentu. PENTING: JANGAN gunakan tool ini untuk VIEW (nama yang diawali view_) atau tabel dengan lebih dari 100.000 baris karena akan sangat lambat (30-60 detik). Gunakan HANYA untuk tabel fisik berukuran kecil-sedang. Untuk VIEW besar, gunakan execute_query dengan filter WHERE yang spesifik dan LIMIT 5 sebagai gantinya.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'database_code' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Kode database.',
                         ],
                         'schema_name' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Nama schema.',
                         ],
                         'table_name' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Nama tabel.',
                         ],
                     ],
@@ -165,27 +165,27 @@ class ToolCallExecutor
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'execute_query',
+                'type' => 'function',
+                'name' => 'execute_query',
                 'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu. Support multi-database: PostgreSQL (gunakan schema_name.table_name) dan MySQL (cukup table_name atau database_name.table_name).',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'database_code' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Kode database target (database name) di mana query akan dieksekusi. Gunakan nilai dari get_database_schema_info.',
                         ],
-                        'sql'   => [
-                            'type'        => 'string',
+                        'sql' => [
+                            'type' => 'string',
                             'description' => 'Query SQL SELECT yang valid. Untuk PostgreSQL gunakan format schema_name.table_name (contoh: sch_mbi.view_penjualan). Untuk MySQL cukup table_name atau gunakan database_name.table_name.',
                         ],
                         'label' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Deskripsi singkat tentang data yang diambil.',
                         ],
                         'currency_columns' => [
-                            'type'        => 'array',
-                            'items'       => ['type' => 'string'],
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
                             'description' => 'MANDATORY: Identify all columns that represent monetary values (e.g. price, netto, total, amount) so they can be properly formatted with "Rp" in reports and exports. If you don\'t identify them, they will be displayed as raw numbers.',
                         ],
                     ],
@@ -193,19 +193,19 @@ class ToolCallExecutor
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'get_erp_menu_navigation',
+                'type' => 'function',
+                'name' => 'get_erp_menu_navigation',
                 'description' => 'Get ERP menu navigation path for a specific module or sub-menu.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'module' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Specific module name to get navigation for.',
-                            'enum'        => ['Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse', 'Report Center', 'Document'],
+                            'enum' => ['Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse', 'Report Center', 'Document'],
                         ],
                         'menu_keyword' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Optional keyword to search for a specific sub-menu.',
                         ],
                     ],
@@ -213,39 +213,39 @@ class ToolCallExecutor
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'get_erp_guidance',
+                'type' => 'function',
+                'name' => 'get_erp_guidance',
                 'description' => 'Cari panduan operasional ERP.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
-                        'keyword'  => [
-                            'type'        => 'string',
+                        'keyword' => [
+                            'type' => 'string',
                             'description' => 'Kata kunci pencarian panduan ERP.',
                         ],
                         'category' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'Filter kategori modul.',
-                            'enum'        => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse'],
+                            'enum' => ['Report Center', 'Document', 'Finance', 'Account Payable', 'Account Receivable', 'Inventory', 'Warehouse'],
                         ],
                         'list_all' => [
-                            'type'        => 'boolean',
+                            'type' => 'boolean',
                             'description' => 'Tampilkan semua panduan.',
-                            'default'     => false,
+                            'default' => false,
                         ],
                     ],
                     'required' => [],
                 ],
             ],
             [
-                'type'        => 'function',
-                'name'        => 'fetch_erp_guidance_from_web',
+                'type' => 'function',
+                'name' => 'fetch_erp_guidance_from_web',
                 'description' => 'Ambil panduan ERP dari web jika perlu.',
-                'parameters'  => [
-                    'type'       => 'object',
+                'parameters' => [
+                    'type' => 'object',
                     'properties' => [
                         'url' => [
-                            'type'        => 'string',
+                            'type' => 'string',
                             'description' => 'URL lengkap.',
                         ],
                     ],
@@ -264,12 +264,12 @@ class ToolCallExecutor
             return match ($toolName) {
                 // Core Tools
                 'get_database_schema_info' => $this->schemaService->getSchemaInfo($isGroq),
-                'describe_table'        => $this->schemaService->describeTable($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
-                'search_schema'         => $this->schemaService->searchSchema($arguments['keyword'] ?? ''),
-                'get_table_preview'     => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
-                'get_column_values'     => $this->schemaService->getColumnValues($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? '', $arguments['column_name'] ?? ''),
-                'get_view_definition'   => $this->schemaService->getViewDefinition($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['view_name'] ?? ''),
-                'execute_query'         => $this->queryService->executeQuery(
+                'describe_table' => $this->schemaService->describeTable($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
+                'search_schema' => $this->schemaService->searchSchema($arguments['keyword'] ?? ''),
+                'get_table_preview' => $this->schemaService->getTablePreview($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? ''),
+                'get_column_values' => $this->schemaService->getColumnValues($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['table_name'] ?? '', $arguments['column_name'] ?? ''),
+                'get_view_definition' => $this->schemaService->getViewDefinition($arguments['database_code'] ?? '', $arguments['schema_name'] ?? '', $arguments['view_name'] ?? ''),
+                'execute_query' => $this->queryService->executeQuery(
                     $arguments['database_code'] ?? '',
                     $arguments['sql'] ?? '',
                     $arguments['label'] ?? '',
@@ -278,7 +278,7 @@ class ToolCallExecutor
 
                 // ERP Tools
                 'get_erp_menu_navigation' => $this->erpService->getErpMenuNavigation($arguments['module'] ?? '', $arguments['menu_keyword'] ?? ''),
-                'get_erp_guidance'      => $this->erpService->getErpGuidance($arguments['keyword'] ?? '', $arguments['category'] ?? '', $arguments['list_all'] ?? false),
+                'get_erp_guidance' => $this->erpService->getErpGuidance($arguments['keyword'] ?? '', $arguments['category'] ?? '', $arguments['list_all'] ?? false),
                 'fetch_erp_guidance_from_web' => $this->erpService->fetchErpGuidanceFromWeb($arguments['url'] ?? ''),
 
                 default => json_encode(['error' => "Unknown tool: {$toolName}"]),
@@ -304,7 +304,7 @@ class ToolCallExecutor
             if (is_array($decoded)) {
                 return $decoded;
             }
-            
+
             // Handle case like "[]" or empty string
             if (trim($value) === '[]' || trim($value) === '') {
                 return [];

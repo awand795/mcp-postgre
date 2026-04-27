@@ -29,8 +29,8 @@ class QueryService extends BaseService
      * seperti nama propinsi/kabupaten sangat jarang berubah.
      * Agregasi (SUM, GROUP BY) di-cache 5 menit — cukup untuk session normal.
      */
-    private int $queryCacheTtl        = 300;  // default: 5 menit
-    private int $probeQueryCacheTtl   = 3600; // probe SELECT DISTINCT: 1 jam
+    private int $queryCacheTtl = 300;  // default: 5 menit
+    private int $probeQueryCacheTtl = 3600; // probe SELECT DISTINCT: 1 jam
 
     /**
      * Query execution timeout: 0 = UNLIMITED.
@@ -88,11 +88,11 @@ class QueryService extends BaseService
                     // in tool calls (database_code). All service lookups use ->where('database', ...)
                     $dbIdentifier = $conn->database;
                     foreach ($tables as $t) {
-                        $sch  = $t['schema_name'];
-                        $tbl  = $t['table_name'];
+                        $sch = $t['schema_name'];
+                        $tbl = $t['table_name'];
                         $desc = $t['description'] ?? '';
                         $result[$dbIdentifier][$sch][] = [
-                            'name'        => $tbl,
+                            'name' => $tbl,
                             'description' => $desc,
                         ];
                     }
@@ -107,7 +107,8 @@ class QueryService extends BaseService
             $result = [];
             foreach ($permissions as $p) {
                 $conn = $p->databaseConnection;
-                if (!$conn || !$conn->is_active) continue;
+                if (!$conn || !$conn->is_active)
+                    continue;
 
                 $dbCode = $conn->database;
 
@@ -147,11 +148,29 @@ class QueryService extends BaseService
         $driver = $dbModel ? $dbModel->driver : 'pgsql';
 
         $forbidden = [
-            'insert', 'update', 'delete', 'merge', 'upsert',
-            'drop', 'truncate', 'alter', 'create', 'rename',
-            'grant', 'revoke', 'execute', 'exec', 'call', 'do',
-            'vacuum', 'pg_read_file', 'pg_write_file',
-            'lo_import', 'lo_export', 'dblink', 'dblink_exec',
+            'insert',
+            'update',
+            'delete',
+            'merge',
+            'upsert',
+            'drop',
+            'truncate',
+            'alter',
+            'create',
+            'rename',
+            'grant',
+            'revoke',
+            'execute',
+            'exec',
+            'call',
+            'do',
+            'vacuum',
+            'pg_read_file',
+            'pg_write_file',
+            'lo_import',
+            'lo_export',
+            'dblink',
+            'dblink_exec',
         ];
 
         // Add driver-specific forbidden keywords
@@ -198,7 +217,7 @@ class QueryService extends BaseService
         // Kumpulkan semua tabel yang diizinkan untuk database ini dari semua schema
         $allowedTablesForDb = [];
         $allowedSchemasForDb = [];
-        $hasWildcardTable  = false; // true jika ada entri '*' di tabel
+        $hasWildcardTable = false; // true jika ada entri '*' di tabel
         $hasWildcardSchema = false; // true jika ada key schema '*'
 
         foreach ($allowedDbs[$databaseCode] as $sch => $tbls) {
@@ -230,22 +249,37 @@ class QueryService extends BaseService
 
             if (preg_match_all($pattern, $trimmedSql, $matches, PREG_SET_ORDER)) {
                 foreach ($matches as $match) {
-                    $hasDot   = !empty($match[3]) || !empty($match[4]);
-                    $firstId  = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
+                    $hasDot = !empty($match[3]) || !empty($match[4]);
+                    $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
                     $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
 
                     if ($hasDot) {
                         $schemaUsed = $firstId;
-                        $tbl        = $secondId;
+                        $tbl = $secondId;
                     } else {
                         $schemaUsed = null;
-                        $tbl        = $firstId;
+                        $tbl = $firstId;
                     }
 
                     // Skip SQL keywords yang bisa muncul setelah FROM/JOIN
-                    $sqlKeywords = ['select', 'where', 'on', 'and', 'or', 'as', 'lateral',
-                                    'join', 'inner', 'left', 'right', 'outer', 'cross', 'full'];
-                    if (in_array($tbl, $sqlKeywords)) continue;
+                    $sqlKeywords = [
+                        'select',
+                        'where',
+                        'on',
+                        'and',
+                        'or',
+                        'as',
+                        'lateral',
+                        'join',
+                        'inner',
+                        'left',
+                        'right',
+                        'outer',
+                        'cross',
+                        'full'
+                    ];
+                    if (in_array($tbl, $sqlKeywords))
+                        continue;
 
                     // Validasi tabel
                     if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
@@ -267,13 +301,17 @@ class QueryService extends BaseService
         Log::info("[ToolCallExecutor] Executing SQL on DB {$databaseCode}: " . substr($cleanSql, 0, 300));
 
         // ── QUERY RESULT CACHING ──────────────────────────────────────────────
-        // Cache key: probe query (SELECT DISTINCT) di-share antar user karena hasilnya
-        // sama untuk semua user — nilai propinsi/kabupaten tidak bergantung pada siapa yang tanya.
-        // Query agregasi (SUM, GROUP BY) tetap per-user untuk keamanan RBAC.
-        $isProbeForKey = stripos($cleanSql, 'SELECT DISTINCT') !== false
-                      && stripos($cleanSql, 'GROUP BY') === false;
+        // Probe query = SELECT DISTINCT tanpa GROUP BY, atau query yang hanya
+        // mengambil nilai unik/enumerasi (bukan agregasi bisnis).
+        // Definisi diperluas: query dengan IN (...) tanpa SUM/COUNT/AVG/GROUP BY
+        // juga dianggap probe karena biasanya hanya untuk validasi ketersediaan data.
+        $hasDistinct = stripos($cleanSql, 'SELECT DISTINCT') !== false;
+        $hasGroupBy = stripos($cleanSql, 'GROUP BY') !== false;
+        $hasAggregate = (bool) preg_match('/\b(SUM|COUNT|AVG|MIN|MAX)\s*\(/i', $cleanSql);
+
+        $isProbeForKey = ($hasDistinct && !$hasGroupBy) || (!$hasGroupBy && !$hasAggregate);
         $cacheKey = $isProbeForKey
-            ? 'query_probe_'  . md5($cleanSql . '_' . $databaseCode)
+            ? 'query_probe_' . md5($cleanSql . '_' . $databaseCode)
             : 'query_result_' . md5($cleanSql . '_' . $databaseCode . '_' . Auth::id());
 
         $cachedResult = Cache::get($cacheKey);
@@ -403,9 +441,9 @@ class QueryService extends BaseService
         // menggunakan nama kolom yang salah (misalnya: periode_bulan yang tidak ada di schema).
         if (empty($rows)) {
             return $this->safeJsonEncode([
-                'label'   => $label,
-                'total'   => 0,
-                'rows'    => [],
+                'label' => $label,
+                'total' => 0,
+                'rows' => [],
                 'columns' => [],
                 'MANDATORY_AI_ACTION' => implode(' ', [
                     'Query berhasil dieksekusi tetapi mengembalikan 0 baris.',
@@ -452,30 +490,63 @@ class QueryService extends BaseService
                 Log::info('[QueryService] currency_columns auto-detect skipped: pure COUNT result, not monetary.');
             } else {
                 $currencyKeywords = [
-                    'netto', 'harga', 'hpp', 'revenue', 'amount',
-                    'nominal', 'omset', 'dpp', 'profit', 'laba', 'margin',
-                    'bruto', 'diskon', 'disc', 'cost', 'sales', 'value',
-                    'penjualan', 'pendapatan', 'biaya', 'piutang', 'hutang',
+                    'netto',
+                    'harga',
+                    'hpp',
+                    'revenue',
+                    'amount',
+                    'nominal',
+                    'omset',
+                    'dpp',
+                    'profit',
+                    'laba',
+                    'margin',
+                    'bruto',
+                    'diskon',
+                    'disc',
+                    'cost',
+                    'sales',
+                    'value',
+                    'penjualan',
+                    'pendapatan',
+                    'biaya',
+                    'piutang',
+                    'hutang',
                 ];
                 // 'total' TIDAK masuk keyword generik — terlalu ambigu (total_cabang, total_dealer).
                 // AI wajib kirim currency_columns eksplisit jika kolomnya bernama "Total XXX".
                 $excludeKeywords = [
-                    'qty', 'count', 'jumlah_item', 'persentase', 'persen', 'rate', '%',
-                    'cabang', 'dealer', 'pelanggan', 'produk', 'item', 'unit',
+                    'qty',
+                    'count',
+                    'jumlah_item',
+                    'persentase',
+                    'persen',
+                    'rate',
+                    '%',
+                    'cabang',
+                    'dealer',
+                    'pelanggan',
+                    'produk',
+                    'item',
+                    'unit',
                 ];
                 $columns = array_keys($data[0]);
                 foreach ($columns as $col) {
                     $colLower = strtolower($col);
                     $isExcluded = false;
                     foreach ($excludeKeywords as $exc) {
-                        if (str_contains($colLower, $exc)) { $isExcluded = true; break; }
+                        if (str_contains($colLower, $exc)) {
+                            $isExcluded = true;
+                            break;
+                        }
                     }
-                    if ($isExcluded) continue;
+                    if ($isExcluded)
+                        continue;
                     foreach ($currencyKeywords as $kw) {
                         if (str_contains($colLower, $kw)) {
                             $sampleVal = $data[0][$col] ?? null;
                             // Nilai moneter umumnya >= 1000 (hindari false positive angka kecil)
-                            if (is_numeric($sampleVal) && abs((float)$sampleVal) >= 1000) {
+                            if (is_numeric($sampleVal) && abs((float) $sampleVal) >= 1000) {
                                 $detectedCurrencyCols[] = $col;
                             }
                             break;
@@ -490,11 +561,11 @@ class QueryService extends BaseService
         }
 
         $result = [
-            'label'            => $label,
-            'rows_returned'    => $returned,
-            'columns'          => array_keys($data[0]),
+            'label' => $label,
+            'rows_returned' => $returned,
+            'columns' => array_keys($data[0]),
             'currency_columns' => $detectedCurrencyCols,
-            'rows'             => $data,
+            'rows' => $data,
         ];
 
         // ── LAYER 7: Business Validation Note (Common Sense Check) ───────────
@@ -516,10 +587,9 @@ class QueryService extends BaseService
 
         $resultJson = $this->safeJsonEncode($result);
 
-        // Cache dengan TTL berbeda: probe query (SELECT DISTINCT tanpa GROUP BY) di-cache
-        // lebih lama karena nilai enum propinsi/kabupaten sangat jarang berubah.
-        $isProbeQuery = stripos($cleanSql, 'SELECT DISTINCT') !== false
-                     && stripos($cleanSql, 'GROUP BY') === false;
+        // Cache dengan TTL berbeda: probe query di-cache lebih lama.
+        // Gunakan definisi yang sama dengan isProbeForKey di atas.
+        $isProbeQuery = ($hasDistinct && !$hasGroupBy) || (!$hasGroupBy && !$hasAggregate);
         $ttl = $isProbeQuery ? $this->probeQueryCacheTtl : $this->queryCacheTtl;
 
         Cache::put($cacheKey, $resultJson, $ttl);
@@ -538,11 +608,11 @@ class QueryService extends BaseService
     {
         // Timeout detection per driver
         $timeoutPatterns = [
-            'pgsql'   => ['statement timeout', 'canceling statement due to statement timeout'],
-            'mysql'   => ['Statement timeout', 'max_execution_time'],
+            'pgsql' => ['statement timeout', 'canceling statement due to statement timeout'],
+            'mysql' => ['Statement timeout', 'max_execution_time'],
             'mariadb' => ['Statement timeout', 'max_execution_time'],
-            'sqlsrv'  => ['Timeout expired', 'execution timeout'],
-            'sqlite'  => ['database is locked'],
+            'sqlsrv' => ['Timeout expired', 'execution timeout'],
+            'sqlite' => ['database is locked'],
         ];
 
         $isTimeout = false;
@@ -556,12 +626,14 @@ class QueryService extends BaseService
         }
 
         // Detect PHP/Laravel connection-level timeout
-        if (!$isTimeout && (
-            stripos($dbError, 'could not obtain lock') !== false ||
-            stripos($dbError, 'SQLSTATE[HY000]') !== false ||
-            stripos($dbError, 'server has gone away') !== false ||
-            (stripos($dbError, 'SQLSTATE') !== false && stripos($dbError, 'timeout') !== false)
-        )) {
+        if (
+            !$isTimeout && (
+                stripos($dbError, 'could not obtain lock') !== false ||
+                stripos($dbError, 'SQLSTATE[HY000]') !== false ||
+                stripos($dbError, 'server has gone away') !== false ||
+                (stripos($dbError, 'SQLSTATE') !== false && stripos($dbError, 'timeout') !== false)
+            )
+        ) {
             $isTimeout = true;
         }
 
@@ -569,7 +641,7 @@ class QueryService extends BaseService
             // FIX: Format sebagai string tunggal + langkah bernomor eksplisit agar lebih mudah
             // diproses oleh Mistral yang kadang mengabaikan nested JSON array.
             return json_encode([
-                'error'  => 'QUERY_TIMEOUT',
+                'error' => 'QUERY_TIMEOUT',
                 'detail' => 'Query melebihi batas waktu 120 detik.',
                 'MANDATORY_AI_ACTION' => implode(' ', [
                     '*** PERINGATAN KRITIS: TIMEOUT BUKAN BERARTI DATA TIDAK ADA. ***',
@@ -591,7 +663,7 @@ class QueryService extends BaseService
             || (stripos($dbError, 'column') !== false && stripos($dbError, 'does not exist') !== false)
         ) {
             return json_encode([
-                'error'  => 'UNDEFINED_COLUMN',
+                'error' => 'UNDEFINED_COLUMN',
                 'detail' => $dbError,
                 'MANDATORY_AI_ACTION' => implode(' ', [
                     'Nama kolom yang digunakan SALAH.',
@@ -605,7 +677,7 @@ class QueryService extends BaseService
         // Relation / table does not exist
         if (stripos($dbError, 'does not exist') !== false || stripos($dbError, 'relation') !== false) {
             return json_encode([
-                'error'  => 'RELATION_NOT_FOUND',
+                'error' => 'RELATION_NOT_FOUND',
                 'detail' => $dbError,
                 'MANDATORY_AI_ACTION' => implode(' ', [
                     'Nama tabel atau schema SALAH.',
@@ -616,7 +688,7 @@ class QueryService extends BaseService
         }
 
         return json_encode([
-            'error'  => 'DATABASE_ERROR',
+            'error' => 'DATABASE_ERROR',
             'detail' => $dbError,
             'MANDATORY_AI_ACTION' => implode(' ', [
                 'Terjadi error database.',
@@ -645,37 +717,75 @@ class QueryService extends BaseService
         $alias = null;
         $bulan = 0;
         $tahun = 0;
+        $tahunList = []; // untuk IN (...) multi-tahun
 
-        // Check for periode_bulan and its optional alias
+        // ── Deteksi periode_bulan ─────────────────────────────────────────────
+        // Support: equality  → periode_bulan = '3'  atau  periode_bulan = 3
         if (preg_match('/(?:([\w"\'`]+)\.)?\bperiode_bulan\s*=\s*(?:[\x27"](\d{1,2})[\x27"]|(\d{1,2}))/i', $sql, $mBulan)) {
             $alias = !empty($mBulan[1]) ? $mBulan[1] : null;
-            $bulan = (int)(!empty($mBulan[2]) ? $mBulan[2] : $mBulan[3]);
+            $bulan = (int) (!empty($mBulan[2]) ? $mBulan[2] : $mBulan[3]);
+        }
+        // Support: IN clause → periode_bulan IN ('3', '4')  atau  IN (3,4)
+        if ($bulan === 0 && preg_match('/(?:([\w"\'`]+)\.)?\bperiode_bulan\s+IN\s*\(([^)]+)\)/i', $sql, $mBulanIn)) {
+            $alias = !empty($mBulanIn[1]) ? $mBulanIn[1] : null;
+            $rawVals = array_map('trim', explode(',', $mBulanIn[2]));
+            $bulanArr = array_filter(array_map(fn($v) => (int) trim($v, " '\"\t"), $rawVals), fn($v) => $v >= 1 && $v <= 12);
+            if (!empty($bulanArr)) {
+                sort($bulanArr);
+                // Ambil rentang bulan terkecil–terbesar (untuk jadi BETWEEN akhir bulan)
+                $bulanMin = min($bulanArr);
+                $bulanMax = max($bulanArr);
+                // Simpan ke $bulan supaya logika di bawah tidak berubah banyak;
+                // akan di-override ke range jika $bulanArr > 1 elemen.
+                $bulan = count($bulanArr) === 1 ? $bulanMin : -1; // -1 = multi-bulan
+                $GLOBALS['_autofix_bulan_arr'] = $bulanArr; // pass ke scope bawah via globals (sementara)
+            }
         }
 
-        // Check for periode_tahun and its optional alias
+        // ── Deteksi periode_tahun ─────────────────────────────────────────────
+        // Support: equality → periode_tahun = '2025'
         if (preg_match('/(?:([\w"\'`]+)\.)?\bperiode_tahun\s*=\s*(?:[\x27"](\d{4})[\x27"]|(\d{4}))/i', $sql, $mTahun)) {
-            // Priority for alias remains with whatever is found, usually they should be the same
             $alias = $alias ?: (!empty($mTahun[1]) ? $mTahun[1] : null);
-            $tahun = (int)(!empty($mTahun[2]) ? $mTahun[2] : $mTahun[3]);
+            $tahun = (int) (!empty($mTahun[2]) ? $mTahun[2] : $mTahun[3]);
+            $tahunList = [$tahun];
+        }
+        // Support: IN clause → periode_tahun IN ('2025', '2026')
+        if (empty($tahunList) && preg_match('/(?:([\w"\'`]+)\.)?\bperiode_tahun\s+IN\s*\(([^)]+)\)/i', $sql, $mTahunIn)) {
+            $alias = $alias ?: (!empty($mTahunIn[1]) ? $mTahunIn[1] : null);
+            $rawVals = array_map('trim', explode(',', $mTahunIn[2]));
+            $tahunList = array_filter(array_map(fn($v) => (int) trim($v, " '\"\t"), $rawVals), fn($v) => $v >= 2000 && $v <= 2099);
+            sort($tahunList);
+            $tahun = !empty($tahunList) ? $tahunList[0] : 0;
         }
 
-        if ($bulan === 0 && $tahun === 0) {
-            return $sql; // Nothing to fix
+        if ($bulan === 0 && empty($tahunList)) {
+            return $sql; // Tidak ada yang perlu di-fix
         }
 
-        // Hitung tanggal awal dan akhir
-        // Jika hanya tahun (tanpa bulan) → range 1 tahun penuh
-        $useTahun = ($tahun >= 2000 && $tahun <= 2099) ? $tahun : (int)date('Y');
+        // ── Hitung dateStart dan dateEnd ──────────────────────────────────────
+        // Jika multi-tahun (IN), ambil rentang dari tahun terkecil ke terbesar
+        $useTahunMin = !empty($tahunList) ? min($tahunList) : ((int) date('Y'));
+        $useTahunMax = !empty($tahunList) ? max($tahunList) : $useTahunMin;
 
         if ($bulan === 0) {
-            // Query tahunan: tanpa filter bulan → ambil seluruh tahun
-            $dateStart = sprintf('%04d-01-01', $useTahun);
-            $dateEnd   = sprintf('%04d-12-31', $useTahun);
+            // Hanya filter tahun — ambil rentang full (bisa multi-tahun)
+            $dateStart = sprintf('%04d-01-01', $useTahunMin);
+            $dateEnd = sprintf('%04d-12-31', $useTahunMax);
+        } elseif ($bulan === -1) {
+            // Multi-bulan (dari IN clause) — ambil dari bulan terkecil ke terbesar
+            $bulanArr = $GLOBALS['_autofix_bulan_arr'] ?? [];
+            unset($GLOBALS['_autofix_bulan_arr']);
+            $bulanMin = !empty($bulanArr) ? min($bulanArr) : 1;
+            $bulanMax = !empty($bulanArr) ? max($bulanArr) : 12;
+            $dateStart = sprintf('%04d-%02d-01', $useTahunMin, $bulanMin);
+            $lastDay = (int) date('t', mktime(0, 0, 0, $bulanMax, 1, $useTahunMax));
+            $dateEnd = sprintf('%04d-%02d-%02d', $useTahunMax, $bulanMax, $lastDay);
         } else {
-            $useBulan  = ($bulan >= 1 && $bulan <= 12) ? $bulan : (int)date('m');
-            $dateStart = sprintf('%04d-%02d-01', $useTahun, $useBulan);
-            $lastDay   = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahun));
-            $dateEnd   = sprintf('%04d-%02d-%02d', $useTahun, $useBulan, $lastDay);
+            // Satu bulan spesifik
+            $useBulan = ($bulan >= 1 && $bulan <= 12) ? $bulan : (int) date('m');
+            $dateStart = sprintf('%04d-%02d-01', $useTahunMin, $useBulan);
+            $lastDay = (int) date('t', mktime(0, 0, 0, $useBulan, 1, $useTahunMax));
+            $dateEnd = sprintf('%04d-%02d-%02d', $useTahunMax, $useBulan, $lastDay);
         }
 
         // Coba temukan nama kolom tanggal aktual dari schema secara mandiri
@@ -696,14 +806,22 @@ class QueryService extends BaseService
             . "-> BETWEEN '{$dateStart}' AND '{$dateEnd}' "
             . "using column: {$dateColumn}");
 
-        // Hapus kondisi periode_bulan dan periode_tahun dari SQL secara aman
-        // Pattern mencakup opsional alias dan whitespace di sekelilingnya
+        // Hapus kondisi periode_bulan dan periode_tahun dari SQL secara aman.
+        // Support equality (=) DAN IN (...) — keduanya harus dibersihkan agar
+        // tidak menimbulkan WHERE clause yang rusak setelah BETWEEN disisipkan.
         // PENTING: Gunakan \b untuk AND/OR agar tidak memotong kata lain seperti ORDER.
+        $inValPattern = '\s*\([^)]+\)'; // cocokkan nilai IN: ('2025','2026') atau (2025,2026)
+        $eqBulan = '=\s*[\'"]?\d{1,2}[\'"]?';
+        $eqTahun = '=\s*[\'"]?\d{4}[\'"]?';
+        $inBulan = "IN{$inValPattern}";
+        $inTahun = "IN{$inValPattern}";
         $patterns = [
-            '/\s+\b(?:AND|OR)\b\s+[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?/i',
-            '/\b[\w"\'`]*\.*periode_bulan\s*=\s*[\'"]?\d{1,2}[\'"]?(\s+\b(?:AND|OR)\b)?/i',
-            '/\s+\b(?:AND|OR)\b\s+[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?/i',
-            '/\b[\w"\'`]*\.*periode_tahun\s*=\s*[\'"]?\d{4}[\'"]?(\s+\b(?:AND|OR)\b)?/i',
+            // Hapus AND/OR sebelum kondisi (kondisi di tengah/akhir WHERE)
+            "/\s+\b(?:AND|OR)\b\s+[\w\"'`]*\.*periode_bulan\s*(?:{$eqBulan}|{$inBulan})/i",
+            // Hapus kondisi di awal WHERE (diikuti AND/OR)
+            "/\b[\w\"'`]*\.*periode_bulan\s*(?:{$eqBulan}|{$inBulan})(\s+\b(?:AND|OR)\b)?/i",
+            "/\s+\b(?:AND|OR)\b\s+[\w\"'`]*\.*periode_tahun\s*(?:{$eqTahun}|{$inTahun})/i",
+            "/\b[\w\"'`]*\.*periode_tahun\s*(?:{$eqTahun}|{$inTahun})(\s+\b(?:AND|OR)\b)?/i",
         ];
 
         $cleanSql = $sql;
@@ -712,7 +830,7 @@ class QueryService extends BaseService
         }
 
         // Tambahkan filter BETWEEN yang benar (sertakan alias jika ditemukan)
-        $qualifiedCol  = $alias ? "{$alias}.{$dateColumn}" : $dateColumn;
+        $qualifiedCol = $alias ? "{$alias}.{$dateColumn}" : $dateColumn;
         $betweenFilter = "{$qualifiedCol} BETWEEN '{$dateStart}' AND '{$dateEnd}'";
 
         // Cek apakah masih ada WHERE clause
@@ -720,7 +838,7 @@ class QueryService extends BaseService
             if (preg_match('/\b(GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\b/i', $cleanSql, $gm, PREG_OFFSET_CAPTURE)) {
                 $insertPos = $gm[0][1];
                 $before = rtrim(substr($cleanSql, 0, $insertPos));
-                $after  = ltrim(substr($cleanSql, $insertPos));
+                $after = ltrim(substr($cleanSql, $insertPos));
                 // Pastikan tidak ada trailing AND/OR di $before
                 $before = preg_replace('/\s+(?:AND|OR)\s*$/i', '', $before);
                 $cleanSql = $before . " AND {$betweenFilter} " . $after;
@@ -768,7 +886,7 @@ class QueryService extends BaseService
         }
 
         $schemaName = $m[1];
-        $tableName  = $m[2];
+        $tableName = $m[2];
 
         try {
             // FIX #7: Coba gunakan koneksi persistent yang sudah ada terlebih dahulu
@@ -807,8 +925,8 @@ class QueryService extends BaseService
                 // PostgreSQL/SQLServer: schemaName = schema (sch_mbi, public).
                 // MySQL/MariaDB: schemaName = database name (karena usesSchema()=false).
                 $adapter->usesSchema()
-                    ? [$tableName, $schemaName]
-                    : [$tableName, $dbModel->database]
+                ? [$tableName, $schemaName]
+                : [$tableName, $dbModel->database]
             );
 
             // Bersihkan koneksi sementara jika dibuat
