@@ -1813,7 +1813,13 @@ Contoh FORMAT SALAH (jangan lakukan ini):
 2. "Prompt..." — keterangan tambahan ← DILARANG
 ```
 
-Jawab SEPENUHNYA dalam bahasa yang sama dengan bahasa user.
+## 🔴 FINAL CHECK: LANGUAGE CONSISTENCY (MANDATORY)
+- **Before answering, check the language of the user's last message.**
+- **If the user asked in English, you MUST respond in English (Headings, Summary, Table Title, Insights, Recommendations).**
+- **If the user asked in Indonesian, you MUST respond in Indonesian.**
+- **Failing to match the user's language is a CRITICAL ERROR.**
+
+Jawab SEPENUHNYA dalam bahasa yang sama dengan bahasa user. TIDAK BOLEH CAMPUR.
 
 {$outOfDomainSection}
 PROMPT;
