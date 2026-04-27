@@ -1227,20 +1227,27 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('databaseFormMethod').value = 'PUT';
         editingDatabaseId = db.id;
 
-        selectDriver(db.driver || 'pgsql');
+        // Set driver visual selector dulu (tanpa override port/schema)
+        const driver = db.driver || 'pgsql';
+        document.querySelectorAll('.driver-option').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.driver-option[data-driver="${driver}"]`).classList.add('active');
+        document.getElementById('dbDriverSelect').value = driver;
+        // Apply config untuk visibility field (sqlite hide username dll), tapi JANGAN timpa nilai
+        applyDriverConfig(driver);
 
+        // Isi semua field SETELAH applyDriverConfig, agar nilai dari DB menang
         document.getElementById('dbNameInput').value = db.name || '';
         document.getElementById('dbCodeInput').value = db.code || '';
         document.getElementById('dbHostInput').value = db.host || '';
-        document.getElementById('dbPortInput').value = db.port || '';
+        document.getElementById('dbPortInput').value = db.port || '';          // override port dari applyDriverConfig
         document.getElementById('dbDatabaseInput').value = db.database || '';
         document.getElementById('dbUsernameInput').value = db.username || '';
-        document.getElementById('dbSchemaInput').value = db.schema || '';
+        document.getElementById('dbSchemaInput').value = db.schema || '';      // override schema dari applyDriverConfig
         document.getElementById('dbDescriptionInput').value = db.description || '';
         document.getElementById('dbIsActiveInput').checked = !!db.is_active;
         document.getElementById('dbIsDefaultInput').checked = !!db.is_default;
-        if (db.ssl_mode) document.getElementById('dbSslModeInput').value = db.ssl_mode;
-        if (db.connection_timeout) document.getElementById('dbTimeoutInput').value = db.connection_timeout;
+        document.getElementById('dbSslModeInput').value = db.ssl_mode || '';
+        document.getElementById('dbTimeoutInput').value = db.connection_timeout || 30;
 
         document.getElementById('dbPasswordInput').required = false;
         document.getElementById('passwordHint').style.display = 'block';
