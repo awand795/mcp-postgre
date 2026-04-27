@@ -736,7 +736,7 @@
 .badge-default { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
 .badge-inactive { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
 
-.db-card-actions { display: flex; flex-direction: column; gap: 0.35rem; flex-shrink: 0; margin-top: -0.25rem; }
+.db-card-actions { display: flex; flex-direction: row; gap: 0.35rem; flex-shrink: 0; align-items: flex-start; }
 
 .btn-icon {
     width: 32px; height: 32px;
