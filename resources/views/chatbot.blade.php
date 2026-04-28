@@ -2924,7 +2924,30 @@
                                 </div>`;
                             }
                         } catch(e) {
-                            console.error('[SmartTable Renderer] Error:', e);
+                            console.warn('[SmartTable Renderer] JSON parse error, attempting regex fallback:', e);
+                            
+                            // Fallback regex untuk mengekstrak title jika JSON rusak (misal lupa tutup bracket/comma)
+                            let fallbackTitle = '';
+                            const titleMatch = code.match(/"title"\s*:\s*"([^"]+)"/i);
+                            if (titleMatch) {
+                                fallbackTitle = titleMatch[1];
+                            }
+                            
+                            if (fallbackTitle) {
+                                const tableId = 'st-direct-fallback-' + Math.random().toString(36).substr(2, 9);
+                                const titleAttr = ` data-title="${fallbackTitle.replace(/"/g, '&quot;')}"`;
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="-1"${titleAttr}>
+                                    <div class="smart-table-toolbar">
+                                        <span class="smart-table-info">📊 Memulihkan data...</span>
+                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                                    </div>
+                                    <div class="smart-table-scroll">
+                                        <table><thead><tr><th class="p-4">⏳ Menyinkronkan data...</th></tr></thead><tbody></tbody></table>
+                                    </div>
+                                    <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
+                                </div>`;
+                            }
+                            
                             return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
                         }
                         return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan</div>`;

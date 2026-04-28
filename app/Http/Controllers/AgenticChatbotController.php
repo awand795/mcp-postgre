@@ -1589,14 +1589,13 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 
 Format smart_table:
 ```smart_table
-{"title":"Judul Tabel","headers":["Kolom1","Kolom2"],"rows":[["nilai1","nilai2"]],"currency_columns":["Kolom2"]}
+{"title":"Judul Tabel","currency_columns":["Kolom2"]}
 ```
 
 Struktur JSON smart_table:
-- `title` (string): judul tabel yang deskriptif
-- `headers` (array string): nama-nama kolom dari alias query
-- `rows` (array of arrays): setiap baris adalah array nilai sesuai urutan headers
+- `title` (string): judul tabel yang deskriptif (usahakan mengandung kata kunci yang mirip dengan label data)
 - `currency_columns` (array string): **HANYA** kolom yang berisi nilai UANG (Rp). JANGAN masukkan kolom COUNT, jumlah unit, persentase, atau angka non-moneter ke sini.
+- ⚠️ **DILARANG KERAS** menyertakan array `headers` atau `rows` di dalam JSON. Sistem frontend akan memetakan dan menyuntikkan data baris dari kueri secara otomatis!
 
 **ATURAN CURRENCY_COLUMNS (KRITIS):**
 - ✅ MASUKKAN: kolom dengan nilai rupiah/mata uang (total_netto, hpp, revenue, omset, profit, dll)
@@ -1609,11 +1608,6 @@ Setiap blok `smart_table` atau `chart` **WAJIB** dibuka dengan triple backtick (
 - ✅ BENAR: \` \` \`smart_table\n{"title":...}\n\` \` \`
 - ❌ SALAH: Menambahkan teks pengantar seperti "Berikut tabelnya:" atau "📊 [Sedang disiapkan]" di antara pembuka backtick dan JSON.
 - **DILARANG** menambahkan karakter apapun (seperti ikon 📊 atau 📈) sebelum atau sesudah blok di baris yang sama.
-
-**CONTOH WAJIB untuk hasil 1 baris multi-kolom (multi-metrik):**
-```smart_table
-{"title":"Ringkasan Penjualan Cabang HM Yamin - Maret 2025","headers":["Nama Cabang","Total HPP","Total Netto","Total Diskon","Profit"],"rows":[["HM Yamin",88400000,177600000,18300000,89200000]],"currency_columns":["Total HPP","Total Netto","Total Diskon","Profit"]}
-```
 
 ## 🔴 ATURAN TERPENTING #4 — GRAFIK WAJIB UNTUK DATA TREN/PERIODE
 
