@@ -1580,9 +1580,10 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
+- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk menampilkan hasil query. SEMUA data berbentuk tabel/daftar WAJIB menggunakan format JSON `smart_table`, berapapun jumlah barisnya (baik itu 2 baris maupun 2.000 baris).
 
 ### Kapan DILARANG smart_table (WAJIB jawab inline):
-- Hasil query **1 baris, 1 kolom** → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
+- Hasil query **1 baris, 1 kolom** (angka tunggal) → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
   - ✅ BENAR: "**Perusahaan memiliki total 93 cabang yang aktif.**"
   - ❌ SALAH: Membuat tabel `| 93 |` hanya untuk satu angka
   - ❌ SALAH: Membuat `smart_table` dengan 1 header dan 1 baris berisi angka tunggal
