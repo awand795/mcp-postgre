@@ -1792,21 +1792,32 @@
 
                 // --- Apply Premium Styling ---
                 
-                // 1. Header Row (Row 4, index 3)
-                for (let c = 0; c < cleanHeaders.length; c++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: 3, c: c });
-                    if (!ws[cellRef]) continue;
-                    ws[cellRef].s = {
-                        font: { bold: true, color: { rgb: "FFFFFF" } },
-                        fill: { fgColor: { rgb: "D32F2F" } }, // Premium Red
-                        alignment: { horizontal: "center", vertical: "center" },
-                        border: {
-                            top: { style: "thin", color: { rgb: "CCCCCC" } },
-                            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                            left: { style: "thin", color: { rgb: "CCCCCC" } },
-                            right: { style: "thin", color: { rgb: "CCCCCC" } }
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                const borderStyle = {
+                    top: { style: "thin", color: { rgb: "CCCCCC" } },
+                    bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                    left: { style: "thin", color: { rgb: "CCCCCC" } },
+                    right: { style: "thin", color: { rgb: "CCCCCC" } }
+                };
+
+                for (let R = 3; R <= range.e.r; ++R) {
+                    for (let C = 0; C <= range.e.c; ++C) {
+                        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[cellRef]) {
+                            ws[cellRef] = { t: 's', v: '' }; // Create empty cell to hold border
                         }
-                    };
+                        
+                        ws[cellRef].s = ws[cellRef].s || {};
+                        ws[cellRef].s.border = borderStyle;
+                        ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
+                        
+                        // If it's the header row (R === 3)
+                        if (R === 3) {
+                            ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
+                            ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
+                            ws[cellRef].s.alignment.horizontal = "center";
+                        }
+                    }
                 }
 
                 // 2. Titles & Metadata
@@ -2045,20 +2056,32 @@
 
                 // --- Apply Premium Styling ---
                 
-                for (let c = 0; c < headers.length; c++) {
-                    const cellRef = XLSX.utils.encode_cell({ r: 3, c: c });
-                    if (!ws[cellRef]) continue;
-                    ws[cellRef].s = {
-                        font: { bold: true, color: { rgb: "FFFFFF" } },
-                        fill: { fgColor: { rgb: "D32F2F" } }, 
-                        alignment: { horizontal: "center", vertical: "center" },
-                        border: {
-                            top: { style: "thin", color: { rgb: "CCCCCC" } },
-                            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                            left: { style: "thin", color: { rgb: "CCCCCC" } },
-                            right: { style: "thin", color: { rgb: "CCCCCC" } }
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                const borderStyle = {
+                    top: { style: "thin", color: { rgb: "CCCCCC" } },
+                    bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                    left: { style: "thin", color: { rgb: "CCCCCC" } },
+                    right: { style: "thin", color: { rgb: "CCCCCC" } }
+                };
+
+                for (let R = 3; R <= range.e.r; ++R) {
+                    for (let C = 0; C <= range.e.c; ++C) {
+                        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                        if (!ws[cellRef]) {
+                            ws[cellRef] = { t: 's', v: '' }; // Create empty cell to hold border
                         }
-                    };
+                        
+                        ws[cellRef].s = ws[cellRef].s || {};
+                        ws[cellRef].s.border = borderStyle;
+                        ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
+                        
+                        // If it's the header row (R === 3)
+                        if (R === 3) {
+                            ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
+                            ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" };
+                            ws[cellRef].s.alignment.horizontal = "center";
+                        }
+                    }
                 }
 
                 if (ws['A1']) {
@@ -2184,16 +2207,21 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
 
                 doc.setFontSize(16);
+                doc.setFont("helvetica", "bold");
                 doc.setTextColor(51, 51, 51);
                 doc.text(tableLabel.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
                 
                 doc.setFontSize(10);
+                doc.setFont("helvetica", "italic");
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, pageWidth / 2, 22, { align: 'center' });
                 
                 doc.setFontSize(8);
+                doc.setFont("helvetica", "italic");
                 doc.setTextColor(150, 150, 150);
                 doc.text('Generated by DarkoTech AI', pageWidth / 2, 26, { align: 'center' });
+                
+                doc.setFont("helvetica", "normal");
 
                 doc.autoTable({
                     head: [cleanHeaders],
@@ -2309,16 +2337,21 @@
                 const pageWidth = doc.internal.pageSize.getWidth();
 
                 doc.setFontSize(16);
+                doc.setFont("helvetica", "bold");
                 doc.setTextColor(51, 51, 51);
                 doc.text(chartTitle.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
                 
                 doc.setFontSize(10);
+                doc.setFont("helvetica", "italic");
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, pageWidth / 2, 22, { align: 'center' });
                 
                 doc.setFontSize(8);
+                doc.setFont("helvetica", "italic");
                 doc.setTextColor(150, 150, 150);
                 doc.text('Generated by DarkoTech AI', pageWidth / 2, 26, { align: 'center' });
+                
+                doc.setFont("helvetica", "normal");
 
                 let startY = 32;
                 
