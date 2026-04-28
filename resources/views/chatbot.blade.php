@@ -2475,6 +2475,22 @@
         }
         
         function buildSmartTableByElement(wrap, tableId, st, headers, allRows, sortCol, sortDir, query, filtered, pageRows, curPage, totalPages) {
+            let titleEl = wrap.querySelector('.smart-table-title');
+            if (st.label) {
+                if (!titleEl) {
+                    titleEl = document.createElement('div');
+                    titleEl.className = 'smart-table-title';
+                    titleEl.style.cssText = 'padding: 12px 16px 0; font-weight: 600; font-size: 0.95rem; color: #fff; display: flex; align-items: center; gap: 8px;';
+                    const toolbar = wrap.querySelector('.smart-table-toolbar');
+                    if (toolbar) {
+                        wrap.insertBefore(titleEl, toolbar);
+                    } else {
+                        wrap.prepend(titleEl);
+                    }
+                }
+                titleEl.innerHTML = `<span class="text-orange-500">📋</span> <span>${st.label}</span>`;
+            }
+
             const info = wrap.querySelector('.smart-table-info');
             if (info) info.textContent = `📊 ${filtered.length.toLocaleString('id')} baris · ${headers.length} kol`;
 
