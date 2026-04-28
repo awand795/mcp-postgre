@@ -2655,23 +2655,62 @@
                         };
 
                         if (!hasValidData(toolRes)) {
-                            for (let i = toolResults.length - 1; i >= 0; i--) {
-                                const r = toolResults[i];
-                                if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
-                                    toolRes = r;
-                                    break;
+                            const stTitle = wrap.getAttribute('data-title');
+                            let matchedTool = null;
+                            
+                            // 1. Coba cari berdasarkan kecocokan title vs label
+                            if (stTitle) {
+                                const titleLower = stTitle.toLowerCase();
+                                for (let i = toolResults.length - 1; i >= 0; i--) {
+                                    const r = toolResults[i];
+                                    if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
+                                        if (r.label && (titleLower.includes(r.label.toLowerCase()) || r.label.toLowerCase().includes(titleLower))) {
+                                            if (!r._usedForTable) {
+                                                matchedTool = r;
+                                                r._usedForTable = true;
+                                                break;
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
-                            if (!hasValidData(toolRes)) {
+                            // 2. Fallback: ambil execute_query terakhir yang belum dipakai
+                            if (!matchedTool) {
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
-                                    if (r && hasValidData(r)) {
-                                        toolRes = r;
+                                    if (r && r.tool_name === 'execute_query' && hasValidData(r) && !r._usedForTable) {
+                                        matchedTool = r;
+                                        r._usedForTable = true;
                                         break;
                                     }
                                 }
                             }
+                            
+                            // 3. Fallback terakhir: ambil sembarang tool_result yang punya data valid dan belum dipakai
+                            if (!matchedTool) {
+                                for (let i = toolResults.length - 1; i >= 0; i--) {
+                                    const r = toolResults[i];
+                                    if (r && hasValidData(r) && !r._usedForTable) {
+                                        matchedTool = r;
+                                        r._usedForTable = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // 4. Jika masih tidak ada, ambil hasil valid terakhir meskipun sudah dipakai (daripada kosong)
+                            if (!matchedTool) {
+                                for (let i = toolResults.length - 1; i >= 0; i--) {
+                                    const r = toolResults[i];
+                                    if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
+                                        matchedTool = r;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            toolRes = matchedTool;
                         }
 
                         if (!toolRes) {
@@ -2840,6 +2879,7 @@
                             }
                             const params = JSON.parse(code.trim());
                             const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
+                            const titleAttr = params.title ? ` data-title="${params.title.replace(/"/g, '&quot;')}"` : '';
 
                             if (idx >= 0 && !currentToolResults[idx]) {
                                 return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
@@ -2850,7 +2890,7 @@
 
                             if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
-                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}">
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}>
                                     <div class="smart-table-toolbar">
                                         <span class="smart-table-info">📊 Memuat...</span>
                                         <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">

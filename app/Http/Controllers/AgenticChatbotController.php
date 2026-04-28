@@ -729,13 +729,13 @@ class AgenticChatbotController extends Controller
                 }
 
                 $aiContent = $toolResult;
-                if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 50) {
+                if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 100) {
                     $aiContent = json_encode([
                         'rows_returned' => count($decodedRes['rows']),
                         'columns' => $decodedRes['columns'] ?? [],
                         'currency_columns' => $decodedRes['currency_columns'] ?? [],
-                        'rows' => array_slice($decodedRes['rows'], 0, 50),
-                        'instruction' => "ANALYST NOTE: Results are truncated to 50 rows for prompt efficiency, but the UI will show the full list of " . count($decodedRes['rows']) . " rows to the user. DO NOT run another query with LIMIT/OFFSET to fetch the remaining rows. The frontend already has the full data. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
+                        'rows' => array_slice($decodedRes['rows'], 0, 100),
+                        'instruction' => "ANALYST NOTE: Results are truncated to 100 rows for prompt efficiency, but the UI will show the full list of " . count($decodedRes['rows']) . " rows to the user. DO NOT run another query with LIMIT/OFFSET to fetch the remaining rows. The frontend already has the full data. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
                     ]);
                 }
 
