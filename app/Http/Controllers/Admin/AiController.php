@@ -99,7 +99,7 @@ class AiController extends Controller
     public function pollKeyStatus(): \Illuminate\Http\JsonResponse
     {
         $keys = AiApiKey::with('provider')
-            ->select('id', 'provider_id', 'key_name', 'is_active', 'limit_reached', 'last_used_at', 'usage_count')
+            ->select('id', 'provider_id', 'key_name', 'is_active', 'limit_reached', 'last_used_at', 'usage_count', 'token_count')
             ->get()
             ->map(function ($key) {
                 return [
@@ -108,6 +108,7 @@ class AiController extends Controller
                     'limit_reached' => $key->limit_reached,
                     'last_used_at'  => $key->last_used_at?->diffForHumans(),
                     'usage_count'   => $key->usage_count,
+                    'token_count'   => $key->token_count,
                     'provider_id'   => $key->provider_id,
                 ];
             });

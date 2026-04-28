@@ -500,6 +500,35 @@
 .key-usage .ku-icon { opacity: .5; font-size: .6rem; }
 .key-usage.ku-used { color: #818cf8; border-color: rgba(99,102,241,.2); background: rgba(99,102,241,.06); }
 
+/* Token badge */
+.key-tokens {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.63rem; font-weight: 600;
+    color: var(--aim-muted);
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    padding: 2px 6px; border-radius: 6px;
+    white-space: nowrap; flex-shrink: 0;
+    cursor: default;
+}
+.key-tokens .kt-icon { opacity: .45; font-size: .6rem; }
+.key-tokens.kt-has { color: #22d3ee; border-color: rgba(6,182,212,.25); background: rgba(6,182,212,.06); }
+
+/* Status badge per key (seragam dengan usage & token badge) */
+.key-status {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.63rem; font-weight: 700; letter-spacing: .03em;
+    padding: 2px 7px; border-radius: 6px;
+    white-space: nowrap; flex-shrink: 0;
+}
+.key-status.ks-ok    { color: #34d399; border: 1px solid rgba(16,185,129,.25); background: rgba(16,185,129,.08); }
+.key-status.ks-off   { color: #64748b; border: 1px solid rgba(100,116,139,.2);  background: rgba(100,116,139,.07); }
+.key-status.ks-limit {
+    color: #f87171; border: 1px solid rgba(239,68,68,.3); background: rgba(239,68,68,.1);
+    animation: limitPulse 2s ease-in-out infinite;
+    cursor: help;
+}
+
 /* ══════════════════════════════════════════
    LIMIT ALERT BAR inside key panel
 ══════════════════════════════════════════ */
@@ -674,19 +703,33 @@
                 <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
 
                 @if($key->limit_reached)
-                    <span class="pill pill-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
-                        ⚠️ LIMIT
+                    <span class="key-status ks-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
+                        ⚠ LIMIT
                     </span>
                 @elseif(!$key->is_active)
-                    <span class="pill pill-off kpill" id="kpill-{{ $key->id }}">OFF</span>
+                    <span class="key-status ks-off kpill" id="kpill-{{ $key->id }}">● OFF</span>
                 @else
-                    <span class="pill pill-on kpill" id="kpill-{{ $key->id }}">Active</span>
+                    <span class="key-status ks-ok kpill" id="kpill-{{ $key->id }}">● OK</span>
                 @endif
 
+                {{-- Usage count badge --}}
                 <span class="key-usage {{ $key->usage_count > 0 ? 'ku-used' : '' }}"
                       id="kusage-{{ $key->id }}"
-                      title="Usage count: {{ $key->usage_count }} kali dipakai | Token: {{ number_format($key->token_count) }}">  
+                      title="Dipakai {{ $key->usage_count }} kali">  
                     <span class="ku-icon">↗</span>{{ $key->usage_count }}×
+                </span>
+
+                {{-- Token count badge --}}
+                @php
+                    $tc = $key->token_count ?? 0;
+                    if ($tc >= 1000000)      $tcLabel = number_format($tc/1000000, 1) . 'M';
+                    elseif ($tc >= 1000)     $tcLabel = number_format($tc/1000, 1) . 'K';
+                    else                    $tcLabel = (string)$tc;
+                @endphp
+                <span class="key-tokens {{ $tc > 0 ? 'kt-has' : '' }}"
+                      id="ktoken-{{ $key->id }}"
+                      title="Total token dipakai: {{ number_format($tc) }} tokens">
+                    <span class="kt-icon">◈</span>{{ $tcLabel }}
                 </span>
 
                 <span class="key-when" id="kwhen-{{ $key->id }}">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
@@ -1242,14 +1285,13 @@ function renderHealthResult(keyId, data) {
         const autoFlag  = document.getElementById('hcAutoFlag');
         autoWrap.style.display = 'flex';
         if (data.auto_reset) {
-            autoFlag.innerHTML = '<span class="hc-auto-badge reset">✅ Limit flag otomatis di-reset</span>';
-            /* Update pill di key row */
-            const pill = document.getElementById('kpill-' + keyId);
-            if (pill) { pill.className = 'pill pill-on'; pill.textContent = 'Active'; }
+        autoFlag.innerHTML = '<span class="hc-auto-badge reset">✅ Limit flag otomatis di-reset</span>';
+        const pill = document.getElementById('kpill-' + keyId);
+        if (pill) { pill.className = 'key-status ks-ok kpill'; pill.innerHTML = '● OK'; pill.title = ''; }
         } else {
             autoFlag.innerHTML = '<span class="hc-auto-badge flagged">⚠️ Key otomatis ditandai LIMIT</span>';
-            const pill = document.getElementById('kpill-' + keyId);
-            if (pill) { pill.className = 'pill pill-limit'; pill.textContent = 'LIMIT'; }
+        const pill = document.getElementById('kpill-' + keyId);
+        if (pill) { pill.className = 'key-status ks-limit kpill'; pill.innerHTML = '⚠ LIMIT'; pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali'; }
         }
     }
 
@@ -1311,24 +1353,25 @@ function pollKeyStatus() {
 
             if (!pill) return;
 
-            /* Update pill label & style */
-            if (key.limit_reached) {
-                if (!pill.classList.contains('pill-limit')) {
-                    pill.className = 'pill pill-limit kpill';
-                    pill.innerHTML = '⚠️ LIMIT';
-                    pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali';
-                    /* Flash animasi sebentar untuk notifikasi visual */
-                    pill.style.outline = '2px solid #ef4444';
-                    setTimeout(() => { pill.style.outline = ''; }, 2000);
+            /* Update status badge */
+            if (pill) {
+                if (key.limit_reached) {
+                    if (!pill.classList.contains('ks-limit')) {
+                        pill.className = 'key-status ks-limit kpill';
+                        pill.innerHTML = '⚠ LIMIT';
+                        pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali';
+                        pill.style.outline = '2px solid #ef4444';
+                        setTimeout(() => { pill.style.outline = ''; }, 2000);
+                    }
+                } else if (!key.is_active) {
+                    pill.className = 'key-status ks-off kpill';
+                    pill.innerHTML = '● OFF';
+                    pill.title = '';
+                } else {
+                    pill.className = 'key-status ks-ok kpill';
+                    pill.innerHTML = '● OK';
+                    pill.title = '';
                 }
-            } else if (!key.is_active) {
-                pill.className = 'pill pill-off kpill';
-                pill.innerHTML = 'OFF';
-                pill.title = '';
-            } else {
-                pill.className = 'pill pill-on kpill';
-                pill.innerHTML = 'Active';
-                pill.title = '';
             }
 
             /* Update last-used time */
@@ -1340,11 +1383,21 @@ function pollKeyStatus() {
             const usageBadge = document.getElementById('kusage-' + keyId);
             if (usageBadge && key.usage_count !== undefined) {
                 usageBadge.innerHTML = '<span class="ku-icon">↗</span>' + key.usage_count + '×';
-                if (key.usage_count > 0) {
-                    usageBadge.classList.add('ku-used');
-                }
-                // Perbarui juga tooltip
-                usageBadge.title = 'Usage count: ' + key.usage_count + ' kali dipakai';
+                if (key.usage_count > 0) usageBadge.classList.add('ku-used');
+                usageBadge.title = 'Dipakai ' + key.usage_count + ' kali';
+            }
+
+            /* Update token count badge */
+            const tokenBadge = document.getElementById('ktoken-' + keyId);
+            if (tokenBadge && key.token_count !== undefined) {
+                const tc = key.token_count || 0;
+                let tcLabel;
+                if (tc >= 1000000)     tcLabel = (tc / 1000000).toFixed(1) + 'M';
+                else if (tc >= 1000)   tcLabel = (tc / 1000).toFixed(1) + 'K';
+                else                   tcLabel = String(tc);
+                tokenBadge.innerHTML = '<span class="kt-icon">◈</span>' + tcLabel;
+                if (tc > 0) tokenBadge.classList.add('kt-has');
+                tokenBadge.title = 'Total token dipakai: ' + tc.toLocaleString('id-ID') + ' tokens';
             }
 
             /* Update health dot warna jika key baru kena limit */
