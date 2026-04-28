@@ -1698,6 +1698,13 @@
             }
 
             try {
+                const stripHtmlTags = (str) => {
+                    if (str === null || str === undefined) return '';
+                    if (typeof str !== 'string') return String(str);
+                    if (!str.includes('<')) return str;
+                    return str.replace(/<[^>]*>?/gm, '').trim();
+                };
+                
                 // Clean data: remove HTML tags only AND force string format for large numbers
                 const cleanRows = rows.map(row =>
                     row.map(cell => {
@@ -1706,10 +1713,8 @@
                         // 1. Handle already numeric values first
                         if (typeof cell === 'number') return cell;
                         
-                        // 2. Remove HTML tags
-                        const temp = document.createElement('div');
-                        temp.innerHTML = cell;
-                        let value = temp.textContent || temp.innerText || String(cell);
+                        // 2. Remove HTML tags with fast regex (instead of slow DOM manipulation)
+                        let value = stripHtmlTags(cell);
                         
                         // 3. Smart Cleanup for Currency
                         // If it contains 'Rp', it's definitely a formatted Indonesian currency string.
@@ -1740,9 +1745,7 @@
                 );
 
                 const cleanHeaders = headers.map(h => {
-                    const temp = document.createElement('div');
-                    temp.innerHTML = h;
-                    const rawLabel = temp.textContent || temp.innerText || String(h);
+                    const rawLabel = stripHtmlTags(h);
                     return toHumanLabel(rawLabel);
                 });
 
@@ -2054,19 +2057,17 @@
             }
 
             try {
-                const cleanHeaders = headers.map(h => {
-                    const temp = document.createElement('div');
-                    temp.innerHTML = h;
-                    return temp.textContent || temp.innerText || String(h);
-                });
+                const stripHtmlTags = (str) => {
+                    if (str === null || str === undefined) return '';
+                    if (typeof str !== 'string') return String(str);
+                    if (!str.includes('<')) return str;
+                    return str.replace(/<[^>]*>?/gm, '').trim();
+                };
+
+                const cleanHeaders = headers.map(h => stripHtmlTags(h));
 
                 const cleanRows = rows.map(row =>
-                    row.map(cell => {
-                        if (cell === null || cell === undefined) return '';
-                        const temp = document.createElement('div');
-                        temp.innerHTML = cell;
-                        return (temp.textContent || temp.innerText || String(cell)).trim();
-                    })
+                    row.map(cell => stripHtmlTags(cell))
                 );
 
                 const tableLabel = smartTables[tableId]?.label || tableId.replace(/_/g, ' ');
