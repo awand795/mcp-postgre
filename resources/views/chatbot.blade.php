@@ -1800,7 +1800,7 @@
                     right: { style: "thin", color: { rgb: "CCCCCC" } }
                 };
 
-                for (let R = 3; R <= range.e.r; ++R) {
+                for (let R = 4; R <= range.e.r; ++R) {
                     for (let C = 0; C <= range.e.c; ++C) {
                         const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
                         if (!ws[cellRef]) {
@@ -1811,8 +1811,8 @@
                         ws[cellRef].s.border = borderStyle;
                         ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
                         
-                        // If it's the header row (R === 3)
-                        if (R === 3) {
+                        // If it's the header row (R === 4)
+                        if (R === 4) {
                             ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                             ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
                             ws[cellRef].s.alignment.horizontal = "center";
@@ -2064,7 +2064,7 @@
                     right: { style: "thin", color: { rgb: "CCCCCC" } }
                 };
 
-                for (let R = 3; R <= range.e.r; ++R) {
+                for (let R = 4; R <= range.e.r; ++R) {
                     for (let C = 0; C <= range.e.c; ++C) {
                         const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
                         if (!ws[cellRef]) {
@@ -2075,8 +2075,8 @@
                         ws[cellRef].s.border = borderStyle;
                         ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
                         
-                        // If it's the header row (R === 3)
-                        if (R === 3) {
+                        // If it's the header row (R === 4)
+                        if (R === 4) {
                             ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                             ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" };
                             ws[cellRef].s.alignment.horizontal = "center";
@@ -2231,7 +2231,7 @@
                     styles: { fontSize: 8, cellPadding: 3 },
                     headStyles: { fillColor: [211, 47, 47], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
                     columnStyles: currencyColsIdx.reduce((acc, idx) => {
-                        acc[idx] = { halign: 'right' };
+                        acc[idx] = { halign: 'right', minCellWidth: 22 };
                         return acc;
                     }, {})
                 });
@@ -2380,7 +2380,7 @@
                     styles: { fontSize: 8, cellPadding: 3 },
                     headStyles: { fillColor: [211, 47, 47], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
                     columnStyles: currencyColsIdx.reduce((acc, idx) => {
-                        acc[idx] = { halign: 'right' };
+                        acc[idx] = { halign: 'right', minCellWidth: 22 };
                         return acc;
                     }, {})
                 });
