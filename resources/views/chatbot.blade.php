@@ -302,6 +302,29 @@
             background: rgba(245,48,3,0.08);
             border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap;
         }
+        .smart-table-title {
+            padding: 12px 14px 10px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(245,48,3,0.12);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .chart-title {
+            padding: 12px 14px 10px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(245,48,3,0.12);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            margin-bottom: 10px;
+        }
         .smart-table-info { font-size: 11px; color: #A1A09A; white-space: nowrap; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
@@ -2724,11 +2747,11 @@
         
         function buildSmartTableByElement(wrap, tableId, st, headers, allRows, sortCol, sortDir, query, filtered, pageRows, curPage, totalPages) {
             let titleEl = wrap.querySelector('.smart-table-title');
-            if (st.label) {
+            if (st.label || wrap.getAttribute('data-title')) {
+                const finalLabel = st.label || wrap.getAttribute('data-title');
                 if (!titleEl) {
                     titleEl = document.createElement('div');
                     titleEl.className = 'smart-table-title';
-                    titleEl.style.cssText = 'padding: 12px 16px 0; font-weight: 600; font-size: 0.95rem; color: #fff; display: flex; align-items: center; gap: 8px;';
                     const toolbar = wrap.querySelector('.smart-table-toolbar');
                     if (toolbar) {
                         wrap.insertBefore(titleEl, toolbar);
@@ -2736,7 +2759,7 @@
                         wrap.prepend(titleEl);
                     }
                 }
-                titleEl.innerHTML = `<span class="text-orange-500">📋</span> <span>${st.label}</span>`;
+                titleEl.innerHTML = `<span class="text-orange-500">📋</span> <span>${finalLabel}</span>`;
             }
 
             const info = wrap.querySelector('.smart-table-info');
@@ -2862,6 +2885,7 @@
             wrapDiv.setAttribute('data-headers-b64', hb64);
             wrapDiv.setAttribute('data-rows-b64', rb64);
             wrapDiv.innerHTML = `
+                ${stData.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title}</span></div>` : ''}
                 <div class="smart-table-toolbar">
                     <span class="smart-table-info">📊 ${rows.length} baris · ${cols.length} kol</span>
                 </div>
@@ -3150,6 +3174,7 @@
                             const titleAttr = chartLabel ? ` data-title="${chartLabel}"` : '';
                             const currencyAttr = currencyColumns.length > 0 ? ` data-currency-columns='${JSON.stringify(currencyColumns)}'` : '';
                             return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}"${titleAttr}${currencyAttr}>
+                                ${chartLabel ? `<div class="chart-title"><span class="text-orange-500">📈</span> <span>${chartLabel}</span></div>` : ''}
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
                         } catch(e) {
