@@ -19,8 +19,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     
-    <!-- Client-Side Excel Generation (SheetJS) -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Client-Side Excel Generation with Styling -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         body {
@@ -1790,6 +1790,48 @@
                     { s: { r: 2, c: 0 }, e: { r: 2, c: cleanHeaders.length - 1 } }
                 ];
 
+                // --- Apply Premium Styling ---
+                
+                // 1. Header Row (Row 4, index 3)
+                for (let c = 0; c < cleanHeaders.length; c++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: 3, c: c });
+                    if (!ws[cellRef]) continue;
+                    ws[cellRef].s = {
+                        font: { bold: true, color: { rgb: "FFFFFF" } },
+                        fill: { fgColor: { rgb: "D32F2F" } }, // Premium Red
+                        alignment: { horizontal: "center", vertical: "center" },
+                        border: {
+                            top: { style: "thin", color: { rgb: "CCCCCC" } },
+                            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                            left: { style: "thin", color: { rgb: "CCCCCC" } },
+                            right: { style: "thin", color: { rgb: "CCCCCC" } }
+                        }
+                    };
+                }
+
+                // 2. Titles & Metadata
+                if (ws['A1']) {
+                    ws['A1'].s = {
+                        font: { bold: true, sz: 16, color: { rgb: "333333" } },
+                        alignment: { horizontal: "center", vertical: "center" }
+                    };
+                }
+                if (ws['A2']) {
+                    ws['A2'].s = {
+                        font: { italic: true, sz: 10, color: { rgb: "666666" } },
+                        alignment: { horizontal: "center", vertical: "center" }
+                    };
+                }
+                if (ws['A3']) {
+                    ws['A3'].s = {
+                        font: { italic: true, sz: 8, color: { rgb: "999999" } },
+                        alignment: { horizontal: "center", vertical: "center" }
+                    };
+                }
+
+                // 3. Auto-size Columns
+                ws['!cols'] = cleanHeaders.map(h => ({ wch: Math.max(15, h.length + 5) }));
+
                 // Create Workbook
                 const wb = XLSX.utils.book_new();
                 const sheetName = tableLabel.replace(/[\[\]\*\\\/\?]/g, '').substring(0, 31);
@@ -2001,6 +2043,36 @@
                     { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } }
                 ];
 
+                // --- Apply Premium Styling ---
+                
+                for (let c = 0; c < headers.length; c++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: 3, c: c });
+                    if (!ws[cellRef]) continue;
+                    ws[cellRef].s = {
+                        font: { bold: true, color: { rgb: "FFFFFF" } },
+                        fill: { fgColor: { rgb: "D32F2F" } }, 
+                        alignment: { horizontal: "center", vertical: "center" },
+                        border: {
+                            top: { style: "thin", color: { rgb: "CCCCCC" } },
+                            bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                            left: { style: "thin", color: { rgb: "CCCCCC" } },
+                            right: { style: "thin", color: { rgb: "CCCCCC" } }
+                        }
+                    };
+                }
+
+                if (ws['A1']) {
+                    ws['A1'].s = { font: { bold: true, sz: 16, color: { rgb: "333333" } }, alignment: { horizontal: "center", vertical: "center" } };
+                }
+                if (ws['A2']) {
+                    ws['A2'].s = { font: { italic: true, sz: 10, color: { rgb: "666666" } }, alignment: { horizontal: "center", vertical: "center" } };
+                }
+                if (ws['A3']) {
+                    ws['A3'].s = { font: { italic: true, sz: 8, color: { rgb: "999999" } }, alignment: { horizontal: "center", vertical: "center" } };
+                }
+
+                ws['!cols'] = headers.map(h => ({ wch: Math.max(15, h.length + 5) }));
+
                 // Create Workbook
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'Chart Data');
@@ -2109,17 +2181,19 @@
                     })
                 );
 
+                const pageWidth = doc.internal.pageSize.getWidth();
+
                 doc.setFontSize(16);
                 doc.setTextColor(51, 51, 51);
-                doc.text(tableLabel.toUpperCase(), 14, 15);
+                doc.text(tableLabel.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
                 
                 doc.setFontSize(10);
                 doc.setTextColor(100, 100, 100);
-                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, 14, 22);
+                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, pageWidth / 2, 22, { align: 'center' });
                 
                 doc.setFontSize(8);
                 doc.setTextColor(150, 150, 150);
-                doc.text('Generated by DarkoTech AI', 14, 26);
+                doc.text('Generated by DarkoTech AI', pageWidth / 2, 26, { align: 'center' });
 
                 doc.autoTable({
                     head: [cleanHeaders],
@@ -2232,17 +2306,19 @@
                 const orientation = headers.length > 6 ? 'landscape' : 'portrait';
                 const doc = new jspdf.jsPDF({ orientation: orientation });
                 
+                const pageWidth = doc.internal.pageSize.getWidth();
+
                 doc.setFontSize(16);
                 doc.setTextColor(51, 51, 51);
-                doc.text(chartTitle.toUpperCase(), 14, 15);
+                doc.text(chartTitle.toUpperCase(), pageWidth / 2, 15, { align: 'center' });
                 
                 doc.setFontSize(10);
                 doc.setTextColor(100, 100, 100);
-                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, 14, 22);
+                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, pageWidth / 2, 22, { align: 'center' });
                 
                 doc.setFontSize(8);
                 doc.setTextColor(150, 150, 150);
-                doc.text('Generated by DarkoTech AI', 14, 26);
+                doc.text('Generated by DarkoTech AI', pageWidth / 2, 26, { align: 'center' });
 
                 let startY = 32;
                 
