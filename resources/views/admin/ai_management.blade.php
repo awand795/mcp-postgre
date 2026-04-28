@@ -485,6 +485,22 @@
 }
 
 /* ══════════════════════════════════════════
+   USAGE BADGE per key
+══════════════════════════════════════════ */
+.key-usage {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.63rem; font-weight: 600;
+    color: var(--aim-muted);
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.06);
+    padding: 2px 6px; border-radius: 6px;
+    white-space: nowrap; flex-shrink: 0;
+    cursor: default;
+}
+.key-usage .ku-icon { opacity: .5; font-size: .6rem; }
+.key-usage.ku-used { color: #818cf8; border-color: rgba(99,102,241,.2); background: rgba(99,102,241,.06); }
+
+/* ══════════════════════════════════════════
    LIMIT ALERT BAR inside key panel
 ══════════════════════════════════════════ */
 .limit-alert-bar {
@@ -666,6 +682,12 @@
                 @else
                     <span class="pill pill-on kpill" id="kpill-{{ $key->id }}">Active</span>
                 @endif
+
+                <span class="key-usage {{ $key->usage_count > 0 ? 'ku-used' : '' }}"
+                      id="kusage-{{ $key->id }}"
+                      title="Usage count: {{ $key->usage_count }} kali dipakai | Token: {{ number_format($key->token_count) }}">  
+                    <span class="ku-icon">↗</span>{{ $key->usage_count }}×
+                </span>
 
                 <span class="key-when" id="kwhen-{{ $key->id }}">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
 
@@ -1312,6 +1334,17 @@ function pollKeyStatus() {
             /* Update last-used time */
             if (when && key.last_used_at) {
                 when.textContent = key.last_used_at;
+            }
+
+            /* Update usage count badge */
+            const usageBadge = document.getElementById('kusage-' + keyId);
+            if (usageBadge && key.usage_count !== undefined) {
+                usageBadge.innerHTML = '<span class="ku-icon">↗</span>' + key.usage_count + '×';
+                if (key.usage_count > 0) {
+                    usageBadge.classList.add('ku-used');
+                }
+                // Perbarui juga tooltip
+                usageBadge.title = 'Usage count: ' + key.usage_count + ' kali dipakai';
             }
 
             /* Update health dot warna jika key baru kena limit */

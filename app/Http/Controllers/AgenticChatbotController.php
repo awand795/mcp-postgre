@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ChatTableExport;
 use App\Services\ToolCallExecutor;
+use App\Services\ApiKeyResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -70,10 +71,19 @@ class AgenticChatbotController extends Controller
 
         $chatSessionId = $request->chat_session_id;
 
-        $apiKey = $user->aiKeys()->where('provider_id', $selectedModel->provider_id)->where('is_active', true)->first();
+        // ── API Key Resolution dengan Auto-Rotate ──────────────────────────
+        // Ambil SEMUA key user untuk provider ini (bukan hanya satu).
+        // Key sudah disort: limit_reached=false dulu, lalu usage_count ASC.
+        // Sistem akan rotate ke key berikutnya di dalam runAgenticLoop saat dapat 429.
+        $allApiKeys = ApiKeyResolver::getKeysForProvider($user, $selectedModel->provider_id);
 
-        if (!$apiKey) {
+        if ($allApiKeys->isEmpty()) {
             return response()->json(['error' => 'Mohon maaf, akses layanan analisis AI belum dikonfigurasi. Harap hubungi Administrator Sistem.'], 403);
+        }
+
+        $firstAvailableKey = ApiKeyResolver::pickAvailable($allApiKeys);
+        if (!$firstAvailableKey) {
+            return response()->json(['error' => 'Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok atau hubungi Administrator Sistem.'], 429);
         }
 
         $allowedDatabases = [];
@@ -188,9 +198,9 @@ class AgenticChatbotController extends Controller
         ob_implicit_flush(true);
 
         return response()->stream(
-            function () use ($messages, $apiKey, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens) {
+            function () use ($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens) {
                 try {
-                    $this->runAgenticLoop($messages, $apiKey, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens);
+                    $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens);
                 } catch (\Throwable $e) {
                     Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
                     $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
@@ -210,8 +220,18 @@ class AgenticChatbotController extends Controller
         );
     }
 
-    private function runAgenticLoop(array $messages, $apiKey, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
+    private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
     {
+        // ── Pilih key awal: yang pertama tidak limit (sudah disort di ApiKeyResolver) ────
+        $apiKey = ApiKeyResolver::pickAvailable($apiKeys);
+        if (!$apiKey) {
+            $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok.');
+            echo "data: [DONE]\n\n";
+            if (ob_get_level() > 0) ob_flush();
+            flush();
+            return;
+        }
+
         $systemPrompt = '';
         foreach ($messages as $m) {
             if ($m['role'] === 'system') {
@@ -301,13 +321,18 @@ class AgenticChatbotController extends Controller
                         );
                     } catch (\RuntimeException $e) {
                         if ($e->getMessage() === '__RATE_LIMIT__') {
-                            // Otomatis tandai key ini limit_reached di database
-                            $apiKey->update(['limit_reached' => true]);
-                            Log::warning("[Agentic] Rate limit hit — marked api_key_id={$apiKey->id} as limit_reached.");
-                            $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi.");
+                            ApiKeyResolver::markLimitReached($apiKey);
+                            $nextKey = ApiKeyResolver::pickNextAvailable($apiKeys, $apiKey->id);
+                            if ($nextKey) {
+                                Log::info("[Agentic] Streaming rate limit on key_id={$apiKey->id}. Rotating ke key_id={$nextKey->id} ({$nextKey->key_name}).");
+                                $apiKey = $nextKey;
+                                // Ulangi loop dengan key baru (tidak increment loopCount)
+                                $loopCount--;
+                                continue;
+                            }
+                            $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis hari ini. Silakan coba kembali besok atau hubungi Administrator Sistem.');
                             echo "data: [DONE]\n\n";
-                            if (ob_get_level() > 0)
-                                ob_flush();
+                            if (ob_get_level() > 0) ob_flush();
                             flush();
                             return;
                         }
@@ -324,6 +349,10 @@ class AgenticChatbotController extends Controller
                     if (!empty(trim($textContent)) && empty($toolCalls)) {
                         $textContent = $this->stripThinkingLeakage($textContent);
                         $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
+
+                        // ── Auto-reset + recordUsage saat streaming berhasil ──
+                        ApiKeyResolver::autoResetIfNeeded($apiKey);
+                        $apiKey->recordUsage();
 
                         if ($chatSessionId) {
                             ChatMessage::create([
@@ -350,13 +379,17 @@ class AgenticChatbotController extends Controller
                 }
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === '__RATE_LIMIT__') {
-                    // Otomatis tandai key ini limit_reached di database
-                    $apiKey->update(['limit_reached' => true]);
-                    Log::warning("[Agentic] Rate limit hit — marked api_key_id={$apiKey->id} as limit_reached.");
-                    $this->streamText("Mohon maaf, layanan analisis AI telah mencapai batas kuota penggunaan untuk periode ini. Silakan hubungi Administrator Sistem untuk memperbarui kuota layanan, atau coba kembali beberapa saat lagi. / We apologize, the AI analysis service has reached its usage limit. Please contact your System Administrator or try again later.");
+                    ApiKeyResolver::markLimitReached($apiKey);
+                    $nextKey = ApiKeyResolver::pickNextAvailable($apiKeys, $apiKey->id);
+                    if ($nextKey) {
+                        Log::info("[Agentic] Non-streaming rate limit on key_id={$apiKey->id}. Rotating ke key_id={$nextKey->id} ({$nextKey->key_name}).");
+                        $apiKey = $nextKey;
+                        $loopCount--;
+                        continue;
+                    }
+                    $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis hari ini. Silakan coba kembali besok atau hubungi Administrator Sistem.');
                     echo "data: [DONE]\n\n";
-                    if (ob_get_level() > 0)
-                        ob_flush();
+                    if (ob_get_level() > 0) ob_flush();
                     flush();
                     return;
                 }
@@ -380,9 +413,8 @@ class AgenticChatbotController extends Controller
             // Jika sebelumnya key ini ditandai limit (misal kena daily quota kemarin),
             // dan sekarang berhasil dapat response — berarti quota sudah reset dari
             // provider. Langsung bersihkan flag-nya tanpa perlu manual reset admin.
-            if ($loopCount === 1 && $apiKey->limit_reached) {
-                $apiKey->update(['limit_reached' => false]);
-                Log::info("[Agentic] Auto-reset limit_reached for api_key_id={$apiKey->id} (successful response received).");
+            if ($loopCount === 1) {
+                ApiKeyResolver::autoResetIfNeeded($apiKey);
             }
 
             $assistantMsg = $response['choices'][0]['message'];
@@ -594,6 +626,9 @@ class AgenticChatbotController extends Controller
                         'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
                     ]);
                 }
+
+                // ── recordUsage saat non-streaming path berhasil selesai ──
+                $apiKey->recordUsage();
 
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
