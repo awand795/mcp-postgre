@@ -2921,7 +2921,7 @@
                 let headers = [];
                 let allRows = [];
                 let toolRes = null;
-                let tableLabel = null;
+                let tableLabel = wrap.getAttribute('data-title') || null;
 
                 try {
                     const hb64 = wrap.getAttribute('data-headers-b64');
@@ -3039,7 +3039,7 @@
 
                         const tableData = toolRes.data || toolRes;
                         currencyColumns = tableData.currency_columns || [];
-                        tableLabel = toolRes.label || tableData.label || null;
+                        tableLabel = tableLabel || toolRes.label || tableData.label || null;
 
                         if (tableData.rows && Array.isArray(tableData.rows)) {
                             headers = tableData.columns || (tableData.rows[0] && typeof tableData.rows[0] === 'object' ? Object.keys(tableData.rows[0]) : []);
@@ -3199,9 +3199,10 @@
                                 </div>`;
                             }
 
-                            if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
+                             if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
                                 return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}>
+                                    ${params.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${params.title}</span></div>` : ''}
                                     <div class="smart-table-toolbar">
                                         <span class="smart-table-info">📊 Memuat...</span>
                                         <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
@@ -3222,10 +3223,11 @@
                                 fallbackTitle = titleMatch[1];
                             }
                             
-                            if (fallbackTitle) {
+                             if (fallbackTitle) {
                                 const tableId = 'st-direct-fallback-' + Math.random().toString(36).substr(2, 9);
                                 const titleAttr = ` data-title="${fallbackTitle.replace(/"/g, '&quot;')}"`;
                                 return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="-1"${titleAttr}>
+                                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${fallbackTitle}</span></div>
                                     <div class="smart-table-toolbar">
                                         <span class="smart-table-info">📊 Memulihkan data...</span>
                                         <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
