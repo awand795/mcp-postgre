@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Client-Side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         body {
@@ -2057,6 +2061,15 @@
             }
 
             try {
+                // Determine orientation based on column count
+                const orientation = headers.length > 6 ? 'landscape' : 'portrait';
+                const doc = new jspdf.jsPDF({ orientation: orientation });
+                
+                const tableLabel = smartTables[tableId]?.label || tableId.replace(/_/g, ' ');
+                const safeLabel = tableLabel.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `${safeLabel || 'table-export'}-${timestamp}.pdf`;
+
                 const stripHtmlTags = (str) => {
                     if (str === null || str === undefined) return '';
                     if (typeof str !== 'string') return String(str);
@@ -2064,48 +2077,62 @@
                     return str.replace(/<[^>]*>?/gm, '').trim();
                 };
 
-                const cleanHeaders = headers.map(h => stripHtmlTags(h));
-
-                const cleanRows = rows.map(row =>
-                    row.map(cell => stripHtmlTags(cell))
-                );
-
-                const tableLabel = smartTables[tableId]?.label || tableId.replace(/_/g, ' ');
-                const safeLabel = tableLabel.replace(/[^a-zA-Z0-9\s-]/g, '').trim().replace(/\s+/g, '-').toLowerCase();
-                const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                const filename = `${safeLabel || 'table-export'}-${timestamp}.pdf`;
-
-                const response = await fetch('{{ route("chatbot.export.pdf") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: JSON.stringify({
-                        headers: cleanHeaders,
-                        rows: cleanRows,
-                        filename: filename,
-                        title: tableLabel,
-                        currencyColumns: smartTables[tableId]?.currencyColumns || []
-                    }),
+                const cleanHeaders = headers.map(h => {
+                    const rawLabel = stripHtmlTags(h);
+                    return typeof toHumanLabel === 'function' ? toHumanLabel(rawLabel) : rawLabel;
+                });
+                
+                // Identify currency columns to format them properly
+                const currencyColsIdx = [];
+                headers.forEach((h, i) => {
+                    if (typeof isCurrencyColumn === 'function' && isCurrencyColumn(h, tableId)) {
+                        currencyColsIdx.push(i);
+                    }
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || errorData.error || 'Export failed');
-                }
+                const cleanRows = rows.map(row => 
+                    row.map((cell, i) => {
+                        let val = stripHtmlTags(cell);
+                        if (currencyColsIdx.includes(i)) {
+                            // Format as currency if it's a valid number
+                            const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
+                            if (!isNaN(num) && typeof currencyFormatter !== 'undefined') {
+                                val = currencyFormatter.format(num);
+                            }
+                        } else if (/^-?\d+(\.\d+)?$/.test(val)) {
+                            // General number formatting
+                            const h = headers[i] || '';
+                            const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
+                            if (!isNonNumericStyled) {
+                                val = parseFloat(val).toLocaleString('id-ID');
+                            }
+                        }
+                        return val;
+                    })
+                );
 
-                const blob = await response.blob();
-                if (!blob || blob.size === 0) throw new Error('File kosong atau tidak valid');
+                doc.setFontSize(16);
+                doc.setTextColor(51, 51, 51);
+                doc.text(tableLabel.toUpperCase(), 14, 15);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, 14, 22);
 
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
+                doc.autoTable({
+                    head: [cleanHeaders],
+                    body: cleanRows,
+                    startY: 28,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 3 },
+                    headStyles: { fillColor: [211, 47, 47], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                    columnStyles: currencyColsIdx.reduce((acc, idx) => {
+                        acc[idx] = { halign: 'right' };
+                        return acc;
+                    }, {})
+                });
+
+                doc.save(filename);
 
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'success',
@@ -2199,38 +2226,51 @@
                 const safeTitle = chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20);
                 const filename = `chart-${safeTitle || 'export'}-${timestamp}.pdf`;
 
-                const response = await fetch('{{ route("chatbot.export.pdf") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: JSON.stringify({
-                        headers: headers,
-                        rows: rows,
-                        filename: filename,
-                        title: chartTitle,
-                        currencyColumns: finalPdfCurrencyCols,
-                        chartImage: chartImage
-                    }),
-                });
+                // Client-side PDF Generation
+                const orientation = headers.length > 6 ? 'landscape' : 'portrait';
+                const doc = new jspdf.jsPDF({ orientation: orientation });
+                
+                doc.setFontSize(16);
+                doc.setTextColor(51, 51, 51);
+                doc.text(chartTitle.toUpperCase(), 14, 15);
+                
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Generated on: ${new Date().toLocaleString('id-ID')}`, 14, 22);
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => null);
-                    throw new Error(errorData?.message || errorData?.error || `Server error (${response.status})`);
+                let startY = 28;
+                
+                // Add chart image if canvas exists
+                if (chartImage) {
+                    const imgProps = doc.getImageProperties(chartImage);
+                    const pdfWidth = doc.internal.pageSize.getWidth() - 28; // 14px padding on each side
+                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                    
+                    // Cap height to max 120 to avoid taking up the whole page
+                    const finalHeight = Math.min(pdfHeight, 120);
+                    const finalWidth = (imgProps.width * finalHeight) / imgProps.height;
+                    
+                    doc.addImage(chartImage, 'PNG', 14, startY, finalWidth, finalHeight);
+                    startY += finalHeight + 10;
                 }
 
-                const blob = await response.blob();
-                if (!blob || blob.size === 0) throw new Error('File kosong atau tidak valid');
+                // Currency columns indices (shifted by 2 because No and Label)
+                const currencyColsIdx = finalPdfCurrencyCols.map(label => headers.indexOf(label)).filter(idx => idx > -1);
 
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
+                doc.autoTable({
+                    head: [headers],
+                    body: rows,
+                    startY: startY,
+                    theme: 'grid',
+                    styles: { fontSize: 8, cellPadding: 3 },
+                    headStyles: { fillColor: [211, 47, 47], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+                    columnStyles: currencyColsIdx.reduce((acc, idx) => {
+                        acc[idx] = { halign: 'right' };
+                        return acc;
+                    }, {})
+                });
+
+                doc.save(filename);
 
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'success',

@@ -911,6 +911,15 @@ class AgenticChatbotController extends Controller
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
+        // DOMPDF is incredibly slow and memory-heavy for massive tables.
+        // A 2000+ row table generates a 100+ page PDF which crashes the engine or times out the browser.
+        // Enforce a strict row limit for PDF only. Excel can handle infinite rows.
+        if (count($normalizedRows) > 1500) {
+            return response()->json([
+                'error' => 'Data terlalu besar untuk format PDF (' . count($normalizedRows) . ' baris). Maksimal 1.500 baris. Silakan gunakan Export Excel untuk mengunduh data sebesar ini.'
+            ], 400);
+        }
+
         // AI sepenuhnya menentukan currency — langsung pakai currencyColumns dari request
         $isCurrencyHeader = function (string $header) use ($currencyColumns): bool {
             return in_array($header, $currencyColumns);
