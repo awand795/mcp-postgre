@@ -1598,6 +1598,7 @@ Struktur JSON smart_table:
 - `title` (string): judul tabel yang deskriptif (usahakan mengandung kata kunci yang mirip dengan label data)
 - `currency_columns` (array string): **HANYA** kolom yang berisi nilai UANG (Rp). JANGAN masukkan kolom COUNT, jumlah unit, persentase, atau angka non-moneter ke sini.
 - ⚠️ **DILARANG KERAS** menyertakan array `headers` atau `rows` di dalam JSON. Sistem frontend akan memetakan dan menyuntikkan data baris dari kueri secara otomatis!
+- ⚠️ **DILARANG KERAS** mengetik ulang isi data dalam bentuk teks Markdown biasa (seperti list atau tabel `| Kolom |`) di bawah blok `smart_table`. Cukup berikan blok JSON `smart_table` singkat saja, dan data akan divisualisasikan sepenuhnya oleh sistem!
 
 **ATURAN CURRENCY_COLUMNS (KRITIS):**
 - ✅ MASUKKAN: kolom dengan nilai rupiah/mata uang (total_netto, hpp, revenue, omset, profit, dll)
