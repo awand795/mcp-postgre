@@ -27,6 +27,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     protected $headers;
     protected $rows;
     protected $title;
+    protected $fullTitle;
     protected $chartInfo;
     protected $isLargeData;
     protected $currencyColumns;
@@ -42,7 +43,8 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
     {
         $this->headers = $headers;
         $this->rows = $rows;
-        $this->title = substr($title, 0, 31); // Excel sheet title max 31 chars
+        $this->fullTitle = $title ?: 'Data';
+        $this->title = substr($this->fullTitle, 0, 31); // Excel sheet title max 31 chars
         $this->chartInfo = $chartInfo;
         $this->isLargeData = count($rows) > 1000;
         $this->currencyColumns = array_map('strtolower', $currencyColumns);
@@ -242,7 +244,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 $lastColIndex = Coordinate::columnIndexFromString($lastCol);
                 
                 // 1. Set Title at Row 1
-                $reportTitle = strtoupper($this->title ?: 'MBI DATA REPORT');
+                $reportTitle = strtoupper($this->fullTitle ?: 'MBI DATA REPORT');
                 $sheet->setCellValue('A1', $reportTitle);
                 $sheet->mergeCells("A1:{$lastCol}1");
                 

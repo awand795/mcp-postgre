@@ -891,6 +891,9 @@ class AgenticChatbotController extends Controller
 
     public function exportPdf(Request $request)
     {
+        ini_set('memory_limit', '2048M');
+        ini_set('max_execution_time', '600'); // 10 minutes max for large PDF generation
+
         $request->validate([
             'headers' => 'required|array',
             'rows' => 'required|array',
