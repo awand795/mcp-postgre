@@ -1840,8 +1840,15 @@
                     };
                 }
 
-                // 3. Auto-size Columns
+                // 3. Auto-size Columns & Row Heights
                 ws['!cols'] = cleanHeaders.map(h => ({ wch: Math.max(15, h.length + 5) }));
+                ws['!rows'] = [
+                    { hpt: 35 }, // Row 1 (Title)
+                    { hpt: 20 }, // Row 2
+                    { hpt: 15 }, // Row 3
+                    { hpt: 10 }, // Row 4 (Empty)
+                    { hpt: 25 }  // Row 5 (Header)
+                ];
 
                 // Create Workbook
                 const wb = XLSX.utils.book_new();
@@ -2094,7 +2101,15 @@
                     ws['A3'].s = { font: { italic: true, sz: 8, color: { rgb: "999999" } }, alignment: { horizontal: "center", vertical: "center" } };
                 }
 
+                // 3. Auto-size Columns & Row Heights
                 ws['!cols'] = headers.map(h => ({ wch: Math.max(15, h.length + 5) }));
+                ws['!rows'] = [
+                    { hpt: 35 }, // Row 1 (Title)
+                    { hpt: 20 }, // Row 2
+                    { hpt: 15 }, // Row 3
+                    { hpt: 10 }, // Row 4 (Empty)
+                    { hpt: 25 }  // Row 5 (Header)
+                ];
 
                 // Create Workbook
                 const wb = XLSX.utils.book_new();
