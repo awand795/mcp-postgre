@@ -352,7 +352,7 @@ class AgenticChatbotController extends Controller
 
                         // ── Auto-reset + recordUsage saat streaming berhasil ──
                         ApiKeyResolver::autoResetIfNeeded($apiKey);
-                        $apiKey->recordUsage();
+                        $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
 
                         if ($chatSessionId) {
                             ChatMessage::create([
@@ -628,7 +628,7 @@ class AgenticChatbotController extends Controller
                 }
 
                 // ── recordUsage saat non-streaming path berhasil selesai ──
-                $apiKey->recordUsage();
+                $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
 
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
@@ -2100,7 +2100,13 @@ PROMPT;
                 Log::warning('[Agentic] Gemini: empty text and no tool_calls after parsing parts. finishReason=' . $finishReason . ' parts_count=' . count($parts));
             }
 
+            // Gemini usage: data['usageMetadata']['totalTokenCount'] atau candidatesTokenCount + promptTokenCount
+            $geminiUsage = $data['usageMetadata'] ?? [];
+            $geminiTokens = (int)($geminiUsage['totalTokenCount']
+                ?? (($geminiUsage['promptTokenCount'] ?? 0) + ($geminiUsage['candidatesTokenCount'] ?? 0)));
+
             return [
+                '_tokens' => $geminiTokens,
                 'choices' => [
                     [
                         'message' => [
@@ -2136,7 +2142,12 @@ PROMPT;
                 }
             }
 
+            // Claude usage: data['usage']['input_tokens'] + data['usage']['output_tokens']
+            $claudeUsage = $data['usage'] ?? [];
+            $claudeTokens = (int)(($claudeUsage['input_tokens'] ?? 0) + ($claudeUsage['output_tokens'] ?? 0));
+
             return [
+                '_tokens' => $claudeTokens,
                 'choices' => [
                     [
                         'message' => [
@@ -2179,6 +2190,13 @@ PROMPT;
                     }
                 }
             }
+        }
+
+        // OpenAI-compatible: data['usage']['total_tokens'] atau prompt+completion
+        if (!isset($data['_tokens'])) {
+            $oaiUsage = $data['usage'] ?? [];
+            $data['_tokens'] = (int)($oaiUsage['total_tokens']
+                ?? (($oaiUsage['prompt_tokens'] ?? 0) + ($oaiUsage['completion_tokens'] ?? 0)));
         }
 
         return $data;
@@ -2333,6 +2351,7 @@ PROMPT;
         $fullText = '';
         $sseBuffer = '';
         $toolCallsRaw = [];
+        $totalTokens = 0; // akumulasi token dari chunk usage
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -2371,6 +2390,29 @@ PROMPT;
                             if (ob_get_level() > 0)
                                 ob_flush();
                             flush();
+                        }
+
+                        // Ekstrak usage token dari chunk (OpenAI kirim di chunk terakhir)
+                        // Format: {"usage":{"prompt_tokens":X,"completion_tokens":Y,"total_tokens":Z}}
+                        if (isset($parsed['usage']['total_tokens'])) {
+                            $totalTokens = (int)$parsed['usage']['total_tokens'];
+                        } elseif (isset($parsed['usage']['prompt_tokens'])) {
+                            $totalTokens = (int)(($parsed['usage']['prompt_tokens'] ?? 0) + ($parsed['usage']['completion_tokens'] ?? 0));
+                        }
+                        // Gemini streaming: usageMetadata di chunk terakhir
+                        if (isset($parsed['usageMetadata']['totalTokenCount'])) {
+                            $totalTokens = (int)$parsed['usageMetadata']['totalTokenCount'];
+                        } elseif (isset($parsed['usageMetadata']['promptTokenCount'])) {
+                            $totalTokens = (int)(($parsed['usageMetadata']['promptTokenCount'] ?? 0) + ($parsed['usageMetadata']['candidatesTokenCount'] ?? 0));
+                        }
+                        // Claude streaming: message_delta event kirim usage
+                        // {"type":"message_delta","usage":{"output_tokens":X}}
+                        // {"type":"message_start","message":{"usage":{"input_tokens":X}}}
+                        if (($parsed['type'] ?? '') === 'message_start') {
+                            $totalTokens += (int)($parsed['message']['usage']['input_tokens'] ?? 0);
+                        }
+                        if (($parsed['type'] ?? '') === 'message_delta') {
+                            $totalTokens += (int)($parsed['usage']['output_tokens'] ?? 0);
                         }
 
                         // Ekstrak tool_calls (Format OpenAI/Mistral/Groq/OpenRouter)
@@ -2443,9 +2485,16 @@ PROMPT;
             ];
         }
 
-        Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText) . " tool_calls=" . count($toolCalls));
+        // Fallback: estimasi dari panjang teks jika provider tidak kirim usage
+        // (~4 karakter per token adalah estimasi kasar tapi lebih baik dari 0)
+        if ($totalTokens === 0 && strlen($fullText) > 0) {
+            $totalTokens = (int)ceil(strlen($fullText) / 4);
+        }
+
+        Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText) . " tool_calls=" . count($toolCalls) . " tokens={$totalTokens}");
 
         return [
+            '_tokens' => $totalTokens,
             'choices' => [
                 [
                     'message' => [
