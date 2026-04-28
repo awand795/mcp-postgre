@@ -1421,6 +1421,7 @@ Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau
 4. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan. User ingin melihat data, bukan grafik.
 5. **PEMILIHAN KOLOM**: Jika user tidak menyebutkan kolom, pilih 5-7 kolom paling relevan (ID/Kode, Nama, Alamat, Kota, Status, dll).
 6. **FORMAT OUTPUT**: Langsung sajikan tabel setelah Ringkasan Eksekutif. Jangan tambahkan teks pengantar teknis seperti "Grafik sedang disiapkan" atau sejenisnya.
+7. ⚠️ **LARANGAN LIMIT/OFFSET**: **DILARANG KERAS** menggunakan klausa `LIMIT` atau `OFFSET` dalam query (contoh: `LIMIT 50`) kecuali user secara eksplisit memintanya (seperti "top 10" atau "5 terbaik"). Biarkan query mengembalikan SELURUH baris secara utuh. Sistem kami sudah dirancang untuk menangani ribuan baris dengan aman.
 
 ## 🔴 ATURAN PEMILIHAN DATA UNTUK TABEL (PENTING)
 
