@@ -1699,10 +1699,26 @@
         // ── Export Table to Excel ─────────────────────────────────────────────
         async function exportTableToExcel(tableId, headers, rows) {
             const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
+            
+            // Show prominent loading modal for better UX with large data
+            Swal.fire({
+                title: 'Menyiapkan Export Excel',
+                html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> baris data...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, file akan otomatis terunduh.</small>`,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             if (exportBtn) {
                 exportBtn.disabled = true;
-                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting ${rows.length} rows...`;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
             }
+
+            // Use timeout to allow Swal to render before heavy computation blocks the thread
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             try {
                 const stripHtmlTags = (str) => {
@@ -1858,6 +1874,9 @@
                 // Download
                 XLSX.writeFile(wb, filename);
 
+                // Close loading modal
+                Swal.close();
+
                 // Show success toast
                 Swal.fire({
                     toast: true,
@@ -1920,11 +1939,27 @@
 
         // ── Export Chart to Excel ──────────────────────────────────────────────
         async function exportChartToExcel(chartId, chartConfig) {
-            const exportBtn = document.querySelector(`#${chartId}`).closest('.chart-container').querySelector('.chart-export-btn');
+            const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
+            const exportBtn = chartContainer?.querySelector('.chart-export-btn');
+            
+            Swal.fire({
+                title: 'Menyiapkan Export Excel',
+                html: 'Sedang memproses data grafik...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar.</small>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             if (exportBtn) {
                 exportBtn.disabled = true;
-                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
             }
+
+            // Small delay for UI update
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             try {
                 // Extract chart data EXACTLY as displayed
@@ -2117,6 +2152,9 @@
 
                 // Download
                 XLSX.writeFile(wb, filename);
+                
+                // Close loading modal
+                Swal.close();
 
                 // Show success toast
                 Swal.fire({
@@ -2163,10 +2201,25 @@
         // ── Export Table to PDF ──────────────────────────────────────────────
         async function exportTableToPdf(tableId, headers, rows) {
             const exportBtn = document.querySelector(`#${tableId} .smart-table-export-pdf-btn`);
+            
+            Swal.fire({
+                title: 'Menyiapkan Export PDF',
+                html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> baris data...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, browser mungkin sedikit melambat saat menyusun halaman PDF.</small>`,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             if (exportBtn) {
                 exportBtn.disabled = true;
-                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
             }
+
+            // UI update delay
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             try {
                 // Determine orientation based on column count
@@ -2252,6 +2305,9 @@
                 });
 
                 doc.save(filename);
+                
+                // Close loading modal
+                Swal.close();
 
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'success',
@@ -2260,6 +2316,7 @@
                 });
 
             } catch (error) {
+                Swal.close();
                 console.error('[PDF Export Error]', error);
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'error',
@@ -2278,11 +2335,27 @@
 
         // ── Export Chart to PDF ──────────────────────────────────────────────
         async function exportChartToPdf(chartId, chartConfig) {
-            const exportBtn = document.querySelector(`#${chartId}`).closest('.chart-container').querySelector('.chart-export-pdf-btn');
+            const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
+            const exportBtn = chartContainer?.querySelector('.chart-export-pdf-btn');
+            
+            Swal.fire({
+                title: 'Menyiapkan Export PDF',
+                html: 'Sedang menyusun dokumen PDF...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar.</small>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
             if (exportBtn) {
                 exportBtn.disabled = true;
-                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Exporting...`;
+                exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
             }
+
+            // UI update delay
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             try {
                 const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
@@ -2401,6 +2474,9 @@
                 });
 
                 doc.save(filename);
+                
+                // Close loading modal
+                Swal.close();
 
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'success',
@@ -2409,6 +2485,7 @@
                 });
 
             } catch (error) {
+                Swal.close();
                 console.error('[Chart PDF Export Error]', error);
                 Swal.fire({
                     toast: true, position: 'top-end', icon: 'error',
