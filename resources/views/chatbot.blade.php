@@ -2658,20 +2658,42 @@
                             const stTitle = wrap.getAttribute('data-title');
                             let matchedTool = null;
                             
-                            // 1. Coba cari berdasarkan kecocokan title vs label
+                            // 1. Coba cari berdasarkan kecocokan title vs label (Fuzzy/Keyword Scoring)
                             if (stTitle) {
-                                const titleLower = stTitle.toLowerCase();
+                                const titleWords = stTitle.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+                                let bestMatch = null;
+                                let bestScore = 0;
+
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
-                                    if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
-                                        if (r.label && (titleLower.includes(r.label.toLowerCase()) || r.label.toLowerCase().includes(titleLower))) {
-                                            if (!r._usedForTable) {
-                                                matchedTool = r;
-                                                r._usedForTable = true;
-                                                break;
+                                    if (r && r.tool_name === 'execute_query' && hasValidData(r) && !r._usedForTable) {
+                                        if (r.label) {
+                                            const labelLower = r.label.toLowerCase();
+                                            const labelWords = labelLower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+                                            
+                                            let score = 0;
+                                            // Hitung kata yang sama
+                                            for (const w of titleWords) {
+                                                if (labelWords.includes(w)) score++;
+                                            }
+                                            
+                                            // Bonus besar jika ada substring exact match
+                                            if (stTitle.toLowerCase().includes(labelLower) || labelLower.includes(stTitle.toLowerCase())) {
+                                                score += 10;
+                                            }
+                                            
+                                            if (score > bestScore) {
+                                                bestScore = score;
+                                                bestMatch = r;
                                             }
                                         }
                                     }
+                                }
+
+                                // Harus ada minimal 1 kata bermakna (length > 2) yang cocok
+                                if (bestMatch && bestScore >= 1) {
+                                    matchedTool = bestMatch;
+                                    bestMatch._usedForTable = true;
                                 }
                             }
 
