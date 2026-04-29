@@ -1549,12 +1549,13 @@ Jika user bertanya tentang Profit/HPP/Omzet:
 | **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` |
 
 **STRATEGI QUERY (WAJIB):**
-- Selalu gunakan `LEFT JOIN` ke tabel Master jika tabel Transaksi memiliki data harga pokok yang tidak lengkap (NULL) atau jika Anda ingin menjamin akurasi profit.
-- Gunakan `COALESCE` untuk memberikan nilai default (0) jika harga tidak ditemukan di kedua tabel, guna menghindari hasil query `NULL`.
+- **MANDATORY JOIN**: Anda **WAJIB** melakukan `LEFT JOIN` ke tabel Master untuk setiap perhitungan Profit/HPP. DILARANG menghitung Profit/HPP hanya dari satu tabel transaksi, karena data harga pokok di transaksi sering tidak lengkap (NULL).
+- **MANDATORY DIMENSION**: Kolom dimensi (Nama Cabang, Nama Barang, atau Kategori) **WAJIB** menjadi kolom pertama dalam query dan tabel hasil.
+- **COALESCE**: Gunakan `COALESCE(t.hrg_pokok, m.hrg_pokok, 0)` untuk menjamin tidak ada hasil `NULL` yang merusak tabel.
 
 **CHECKPOINT KRITIS:**
-1. *"Apakah saya sudah menemukan tabel Master yang relevan untuk melakukan fallback harga pokok?"*
-2. *"Apakah join key yang saya gunakan sudah benar berdasarkan hasil describe_table kedua tabel?"*
+1. *"Apakah saya sudah melakukan LEFT JOIN ke tabel Master untuk menjamin validitas HPP?"*
+2. *"Apakah kolom Nama Cabang/Dimensi sudah menjadi kolom pertama di SELECT?"*
 3. *"Apakah Profit sudah dihitung sebagai (Total Netto - Total HPP)?"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
@@ -1615,14 +1616,10 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
   - ❌ SALAH: Membuat tabel `| 93 |` hanya untuk satu angka
   - ❌ SALAH: Membuat `smart_table` dengan 1 header dan 1 baris berisi angka tunggal
 
-Format smart_table:
-```smart_table
-{"title":"Judul Tabel","currency_columns":["Kolom2"]}
-```
-
 Struktur JSON smart_table:
-- `title` (string): **WAJIB**. Berikan judul tabel yang sangat deskriptif dan profesional (misal: "Daftar 10 Cabang dengan Penjualan Tertinggi - Maret 2026").
-- `currency_columns` (array string): **HANYA** kolom yang berisi nilai UANG (Rp). JANGAN masukkan kolom COUNT, jumlah unit, persentase, atau angka non-moneter ke sini.
+- `title` (string): **WAJIB**. Berikan judul tabel yang sangat deskriptif dan profesional.
+- **KOLOM PERTAMA**: Kolom pertama dalam `rows` **WAJIB** berisi identitas baris (Nama Cabang, Nama Barang, Periode, dll).
+- `currency_columns` (array string): **HANYA** kolom yang berisi nilai UANG (Rp).
 - ⚠️ **DILARANG KERAS** menyertakan array `headers` atau `rows` di dalam JSON. Sistem frontend akan memetakan dan menyuntikkan data baris dari kueri secara otomatis!
 - ⚠️ **DILARANG KERAS** mengetik ulang isi data dalam bentuk teks Markdown biasa (seperti list atau tabel `| Kolom |`) di bawah blok `smart_table`. Cukup berikan blok JSON `smart_table` singkat saja, dan data akan divisualisasikan sepenuhnya oleh sistem!
 
