@@ -12,9 +12,14 @@ return [
     |
     */
     'server' => [
-        'name' => env('MCP_SERVER_NAME', 'Laravel MCP'),
-        'version' => env('MCP_SERVER_VERSION', '1.0.0'),
-        'instructions' => env('MCP_SERVER_INSTRUCTIONS'),
+        'name' => env('MCP_SERVER_NAME', 'ERP Database MCP Server'),
+        'version' => env('MCP_SERVER_VERSION', '2.0.0'),
+        'instructions' => env('MCP_SERVER_INSTRUCTIONS', implode(' ', [
+            'Ini adalah MCP Server untuk analisis database ERP multi-database.',
+            'Selalu panggil get_schema_info PERTAMA untuk melihat database dan tabel yang tersedia.',
+            'Gunakan describe_table sebelum execute_query untuk memastikan nama kolom benar.',
+            'Hanya query SELECT yang diperbolehkan.',
+        ])),
     ],
 
     /*
@@ -96,7 +101,12 @@ return [
             'enabled' => (bool) env('MCP_HTTP_INTEGRATED_ENABLED', true),
             'legacy' => (bool) env('MCP_HTTP_INTEGRATED_LEGACY', false),
             'route_prefix' => env('MCP_HTTP_INTEGRATED_ROUTE_PREFIX', 'mcp'),
-            'middleware' => ['api'],
+            // ── Tambahkan McpAuthMiddleware di sini ──────────────────────────────
+            // Semua request ke /mcp/* akan divalidasi Bearer token dulu
+            'middleware' => [
+                'api',
+                \App\Mcp\Middleware\McpAuthMiddleware::class,
+            ],
             'domain' => env('MCP_HTTP_INTEGRATED_DOMAIN'),
             'sse_poll_interval' => (int) env('MCP_HTTP_INTEGRATED_SSE_POLL_SECONDS', 1),
             'cors_origin' => env('MCP_HTTP_INTEGRATED_CORS_ORIGIN', '*'),

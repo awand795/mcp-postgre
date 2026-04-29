@@ -647,6 +647,47 @@ class AdminController extends Controller
         return back()->with('success', 'Cache berhasil dibersihkan.');
     }
 
+    // ── MCP TOKEN MANAGEMENT ─────────────────────────────────────────────────
+
+    /**
+     * Generate MCP API Token untuk user tertentu.
+     * Token plaintext hanya ditampilkan SEKALI — simpan baik-baik.
+     * Di database hanya disimpan hash SHA-256-nya.
+     */
+    public function generateMcpToken(User $user)
+    {
+        $plainToken = bin2hex(random_bytes(32)); // 64 karakter hex
+        $hashed     = hash('sha256', $plainToken);
+
+        $user->update(['mcp_api_token' => $hashed]);
+
+        // Invalidate cache token lama jika ada
+        \App\Mcp\Auth\McpTokenGuard::invalidateToken($plainToken);
+
+        return response()->json([
+            'success'         => true,
+            'message'         => 'Token MCP berhasil dibuat. Salin sekarang — tidak akan ditampilkan lagi.',
+            'mcp_api_token'   => $plainToken,
+            'user_id'         => $user->id,
+            'user_email'      => $user->email,
+            'mcp_server_url'  => url('/mcp'),
+            'usage_example'   => 'Authorization: Bearer ' . $plainToken,
+        ]);
+    }
+
+    /**
+     * Revoke MCP API Token untuk user tertentu.
+     */
+    public function revokeMcpToken(User $user)
+    {
+        $user->update(['mcp_api_token' => null]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token MCP user ' . $user->email . ' berhasil di-revoke.',
+        ]);
+    }
+
     /**
      * Clear table cache (called internally)
      */

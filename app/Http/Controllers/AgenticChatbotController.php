@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exports\ChatTableExport;
 use App\Services\ToolCallExecutor;
 use App\Services\ApiKeyResolver;
+use App\Services\Mcp\McpClientService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -23,11 +24,13 @@ class AgenticChatbotController extends Controller
 
     private \App\Services\ToolCallExecutor $toolExecutor;
     private \App\Services\Core\QueryService $queryService;
+    private McpClientService $mcpClient;
 
     public function __construct(\App\Services\ToolCallExecutor $toolExecutor, \App\Services\Core\QueryService $queryService)
     {
         $this->toolExecutor = $toolExecutor;
         $this->queryService = $queryService;
+        $this->mcpClient    = new McpClientService();
     }
 
     public function index()
@@ -235,8 +238,10 @@ class AgenticChatbotController extends Controller
             ob_flush();
         flush();
 
-        $this->toolExecutor->setAllowedTables($allowedDatabases);
-        $tools = ToolCallExecutor::getToolDefinitions();
+        // ── MCP Client: update RBAC dan ambil tool definitions ──────────────
+        $this->toolExecutor->setAllowedTables($allowedDatabases); // backward compat
+        $this->mcpClient->setAllowedDbs($allowedDatabases);
+        $tools = $this->mcpClient->listTools();
         $loopCount = 0;
         $allTurnToolResults = [];
         $textContent = '';
@@ -639,8 +644,8 @@ class AgenticChatbotController extends Controller
                     Log::info("[Agentic] Starting Fiber for tool: {$call['name']}");
                     $tName = $call['name'];
                     $tArgs = $call['arguments'];
-                    $fiber = new \Fiber(function () use ($tName, $tArgs, $isGroq): string {
-                        return $this->toolExecutor->execute($tName, $tArgs, $isGroq);
+                    $fiber = new \Fiber(function () use ($tName, $tArgs): string {
+                        return $this->mcpClient->callTool($tName, $tArgs);
                     });
                     $fiber->start();
                     $fibers[] = ['fiber' => $fiber, 'call' => $call];
@@ -660,7 +665,7 @@ class AgenticChatbotController extends Controller
                 Log::info("[Agentic] Executing Tool: {$call['name']}");
                 $executedResults[] = [
                     'call' => $call,
-                    'result' => $this->toolExecutor->execute($call['name'], $call['arguments'], $isGroq),
+                    'result' => $this->mcpClient->callTool($call['name'], $call['arguments']),
                 ];
             }
 

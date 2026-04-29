@@ -61,6 +61,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{user}/ai-keys/{key}/toggle', [AdminController::class, 'toggleUserAiKey'])->name('users.ai_keys.toggle');
         Route::delete('/users/{user}', [AdminController::class, 'userDelete'])->name('users.delete');
 
+        // MCP Token Management
+        Route::post('/users/{user}/mcp-token/generate', [AdminController::class, 'generateMcpToken'])->name('users.mcp_token.generate');
+        Route::delete('/users/{user}/mcp-token', [AdminController::class, 'revokeMcpToken'])->name('users.mcp_token.revoke');
+
         // User Import/Export
         Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');
         Route::post('/users/import', [AdminController::class, 'usersImport'])->name('users.import');
