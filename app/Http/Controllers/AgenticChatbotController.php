@@ -1604,10 +1604,21 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 ### Kapan WAJIB pakai smart_table:
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
-- Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
-- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk semua jenis output (hasil query maupun daftar kolom dari `describe_table`). SEMUA data berbentuk tabel/daftar WAJIB divisualisasikan melalui sistem `smart_table`. Khusus untuk hasil tool `describe_table`, sistem frontend akan OTOMATIS menginjeksi dan menampilkan tabel struktur kolom ke layar pengguna. Jadi Anda cukup memberikan ringkasan paragraf singkat ("Berikut adalah kolom yang tersedia..."), **TANPA** perlu membuat tabel Markdown atau memanggil JSON smart_table secara manual!
-
-### Kapan DILARANG smart_table (WAJIB jawab inline):
+- ⚠️ **ATURAN MUTLAK TABEL**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk semua jenis output. SEMUA data berbentuk tabel/daftar WAJIB divisualisasikan melalui sistem JSON `smart_table`. 
+  - **Untuk hasil tool `execute_query` atau `describe_table`**: Anda CUKUP memberikan ringkasan paragraf singkat, JANGAN memanggil JSON `smart_table` secara manual karena sistem frontend akan OTOMATIS menginjeksi tabelnya ke layar pengguna!
+  - **Untuk Tabel Kustom/Buatan Sendiri (bukan dari tool)**: Jika Anda membuat tabel ringkasan atau perbandingan dari pemikiran Anda sendiri (misal: "Bandingkan tipe A dan tipe B"), Anda **WAJIB** membuat blok JSON `smart_table` secara manual dan **WAJIB memasukkan array `headers` dan `rows`** di dalamnya! Formatnya:
+    ```smart_table
+    {
+      "title": "Perbandingan Tipe A vs B",
+      "headers": ["Aspek", "Tipe A", "Tipe B"],
+      "rows": [
+        ["Harga", "Rp 150.000", "Rp 250.000"],
+        ["Keawetan", "2 Tahun", "4 Tahun"]
+      ],
+      "currency_columns": []
+    }
+    ```
+    JANGAN gunakan Markdown table!
 - Hasil query **1 baris, 1 kolom** (angka tunggal, e.g. `COUNT(*)` saja) → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
   - ✅ BENAR: "**Perusahaan memiliki total 93 cabang yang aktif.**"
   - ❌ SALAH: Membuat tabel `| 93 |` hanya untuk satu angka

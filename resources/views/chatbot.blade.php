@@ -3299,12 +3299,20 @@
                                 </div>`;
                             }
 
-                             if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
+                            if ((idx >= 0 && currentToolResults[idx]) || idx === -1) {
                                 const tableId = 'st-direct-' + Math.random().toString(36).substr(2, 9);
-                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}>
+                                const hb64 = params.headers ? btoa(unescape(encodeURIComponent(JSON.stringify(params.headers)))) : '';
+                                const rb64 = params.rows ? btoa(unescape(encodeURIComponent(JSON.stringify(params.rows)))) : '';
+                                const hAttr = hb64 ? ` data-headers-b64="${hb64}"` : '';
+                                const rAttr = rb64 ? ` data-rows-b64="${rb64}"` : '';
+                                const currCols = params.currency_columns || [];
+                                const currAttr = currCols.length > 0 ? ` data-currency-columns='${JSON.stringify(currCols)}'` : '';
+                                const dataReady = (params.headers && params.headers.length > 0) ? true : false;
+                                
+                                return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}${hAttr}${rAttr}${currAttr}>
                                     ${params.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${params.title}</span></div>` : ''}
                                     <div class="smart-table-toolbar">
-                                        <span class="smart-table-info">📊 Memuat...</span>
+                                        <span class="smart-table-info">📊 ${dataReady ? 'Menginisialisasi tabel...' : 'Memuat...'}</span>
                                         <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
                                     </div>
                                     <div class="smart-table-scroll">
