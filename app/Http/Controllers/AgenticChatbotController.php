@@ -1545,21 +1545,21 @@ Jika user bertanya tentang Profit/HPP/Omzet:
 |---|---|---|
 | **Netto** | `SUM(t.total_harga - t.total_disc)` | Nilai Bruto - Diskon (Tanpa PPN) |
 | **Total Netto** | `SUM(t.total_netto)` | Nilai Final (Setelah PPN & Diskon) |
-| **HPP Satuan** | `AVG(COALESCE(t.hrg_pokok, m.hrg_pokok, 0))` | Biaya per unit (Gunakan AVG jika di-group) |
-| **Total HPP** | `SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` | Biaya × Qty Terjual |
+| **HPP** | `SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0))` | Jumlah Harga Pokok Satuan (HPP Satuan) |
+| **Total HPP** | `SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` | Akumulasi Biaya Sesungguhnya (Cost × Qty) |
 | **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` | Total Netto - Total HPP |
 
 **STRATEGI QUERY (WAJIB):**
-- **MANDATORY JOIN**: Anda **WAJIB** melakukan `LEFT JOIN` ke tabel Master untuk setiap perhitungan Profit/HPP. DILARANG menghitung Profit/HPP hanya dari satu tabel transaksi, karena data harga pokok di transaksi sering tidak lengkap (NULL).
-- **MANDATORY DIMENSION**: Kolom dimensi (Nama Cabang, Nama Barang, atau Kategori) **WAJIB** menjadi kolom pertama dalam query dan tabel hasil.
-- **COLUMN COMPLIANCE**: Jika user meminta beberapa metrik secara eksplisit (misal: "tampilkan Netto dan Total Netto"), Anda **WAJIB** menampilkan keduanya sebagai kolom terpisah. DILARANG hanya menampilkan salah satunya.
-- **ANTI-HALLUCINATION (COST)**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `price`, `selling_price`) sebagai fallback untuk harga pokok. HPP harus berasal dari kolom biaya/modal (`hrg_pokok`, `hrg_beli`, `hrg_modal`). Jika tidak ditemukan di tabel Master, gunakan `0`, **JANGAN** gunakan harga jual.
+- **MANDATORY JOIN**: Anda **WAJIB** melakukan `LEFT JOIN` ke tabel Master untuk setiap perhitungan Profit/HPP. DILARANG menghitung Profit/HPP hanya dari satu tabel transaksi.
+- **COLUMN NAMES**: Gunakan alias kolom yang user-friendly dan **EKSAK** sesuai permintaan user (misal: "HPP", "Total HPP", "Profit").
+- **MANDATORY DIMENSION**: Kolom dimensi (Nama Cabang, Kategori, dll) **WAJIB** menjadi kolom pertama.
+- **ANTI-HALLUCINATION (COST)**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `price`, `selling_price`) sebagai fallback untuk harga pokok. Jika kolom 'biaya/pokok/beli' tidak ada di Master, gunakan `0`. DILARANG KERAS berasumsi harga jual = harga pokok.
+- **COLUMN COMPLIANCE**: Jika user minta "Netto, Total Netto, HPP, Total HPP, Profit", Anda **WAJIB** menampilkan kelimanya sebagai kolom terpisah.
 
 **CHECKPOINT KRITIS:**
-1. *"Apakah saya sudah menampilkan SEMUA metrik yang diminta user (misal: Netto DAN Total Netto)?"*
-2. *"Apakah saya sudah melakukan LEFT JOIN ke tabel Master untuk menjamin validitas HPP?"*
-3. *"Apakah saya menggunakan kolom biaya (bukan harga jual) untuk fallback HPP?"*
-4. *"Apakah kolom Nama Cabang/Dimensi sudah menjadi kolom pertama di SELECT?"*
+1. *"Apakah saya menampilkan kelima kolom: Netto, Total Netto, HPP, Total HPP, dan Profit secara terpisah?"*
+2. *"Apakah Profit sudah dihitung: (Total Netto - Total HPP)?"*
+3. *"Apakah HPP dan Total HPP menggunakan kolom Biaya (bukan Harga Jual)?"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
