@@ -2898,7 +2898,7 @@
                     page: 0
                 };
 
-                const searchInput = wrapDiv.querySelector(\`#\${tableId}-search\`);
+                const searchInput = wrapDiv.querySelector('#' + tableId + '-search');
                 if (searchInput) {
                     searchInput.addEventListener('input', (e) => {
                         smartTables[tableId].query = e.target.value;
