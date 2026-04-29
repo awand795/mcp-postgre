@@ -4,9 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatbotController;
 use App\Http\Controllers\AgenticChatbotController;
 use App\Http\Controllers\AdminController;
-use App\Http\Controllers\MCPServer;
 use Illuminate\Support\Facades\Route;
-use Laravel\Mcp\Facades\Mcp;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -103,5 +101,5 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// MCP Server endpoint (untuk koneksi klien eksternal seperti Claude Desktop)
-Mcp::web('/mcp', MCPServer::class);
+// MCP route sudah otomatis didaftarkan oleh McpServiceProvider dari php-mcp/laravel
+// di prefix /mcp (default). Tidak perlu Mcp::web() lagi.

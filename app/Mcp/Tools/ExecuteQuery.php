@@ -3,140 +3,123 @@
 namespace App\Mcp\Tools;
 
 use App\Services\ToolCallExecutor;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use PhpMcp\Server\Attributes\McpTool;
 
 class ExecuteQuery
 {
     /**
-     * Execute a read-only SQL query (SELECT only) on any configured database.
-     * Only tables allowed by the user's role can be accessed.
-     *
-     * @param string $database_code The database code (e.g., 'mbi_prod')
-     * @param string $query The SQL query to execute
+     * Execute a read-only SQL SELECT query on any configured database.
+     * Access is restricted to tables allowed by the user role.
+     * Always call describe_table first to get exact column names.
      */
-    #[McpTool(name: 'execute_query')]
-    public function handle(string $database_code, string $query): array
+    #[McpTool(
+        name: 'execute_query',
+        description: 'Execute a read-only SQL SELECT query on any configured database. Access is restricted to tables allowed by the user role. Always call describe_table first to get exact column names.'
+    )]
+    public function handle(string $database_code, string $sql, string $label = ''): array
     {
-        // ── LAYER 1: Hanya SELECT ─────────────────────────────────────────────
-        if (!preg_match('/^\s*select/i', $query)) {
+        // Layer 1: SELECT only
+        $stripped = preg_replace('/--[^\n]*/', '', $sql);
+        $stripped = preg_replace('/\/\*.*?\*\//s', '', $stripped);
+        $stripped = trim($stripped);
+
+        if (!preg_match('/^\s*SELECT\b/i', $stripped)) {
             throw new \InvalidArgumentException('Only SELECT queries are allowed.');
         }
 
-        // ── LAYER 2: Blokir keyword berbahaya (driver-aware) ─────────────────
-        // Get driver type for driver-specific forbidden keywords
+        // Layer 2: Forbidden keywords
         $dbModel = \App\Models\DatabaseConnection::where('database', $database_code)->active()->first();
         if (!$dbModel) {
             throw new \InvalidArgumentException("Database '{$database_code}' not found or inactive.");
         }
 
-        $driver = $dbModel->driver;
-
+        $driver    = $dbModel->driver;
         $forbidden = [
-            'insert', 'update', 'delete', 'merge', 'upsert',
-            'drop', 'truncate', 'alter', 'create', 'rename',
-            'grant', 'revoke', 'execute', 'exec', 'call', 'do',
-            'vacuum', 'pg_read_file', 'pg_write_file',
-            'lo_import', 'lo_export', 'dblink', 'dblink_exec',
+            'insert','update','delete','merge','upsert','drop','truncate','alter','create',
+            'rename','grant','revoke','execute','exec','call','do','vacuum',
+            'pg_read_file','pg_write_file','lo_import','lo_export','dblink','dblink_exec',
         ];
+        if ($driver === 'pgsql')                         $forbidden[] = 'copy';
+        elseif ($driver === 'sqlsrv')                    $forbidden[] = 'bulk';
+        elseif (in_array($driver, ['mysql','mariadb']))  { $forbidden[] = 'load'; $forbidden[] = 'into'; }
 
-        // Add driver-specific forbidden keywords
-        if ($driver === 'pgsql') {
-            $forbidden[] = 'copy';
-        } elseif ($driver === 'sqlsrv') {
-            $forbidden[] = 'bulk';
-        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-            $forbidden[] = 'load';
-            $forbidden[] = 'into';
-        }
-
-        $lower = strtolower($query);
+        $lower = strtolower($stripped);
         foreach ($forbidden as $kw) {
             if (preg_match('/\b' . preg_quote($kw, '/') . '\b/', $lower)) {
                 throw new \InvalidArgumentException("Keyword '{$kw}' is not allowed.");
             }
         }
 
-        // ── LAYER 3: Blokir multiple statements ──────────────────────────────
-        $cleanQuery = rtrim($query, '; ');
-        if (str_contains($cleanQuery, ';')) {
+        // Layer 3: Single statement
+        $clean = rtrim($stripped, '; ');
+        if (str_contains($clean, ';')) {
             throw new \InvalidArgumentException('Only one query per call is allowed.');
         }
 
-        // ── LAYER 4: RBAC — validasi akses tabel berdasarkan role ────────────
+        // Layer 4: RBAC
         $executor = new ToolCallExecutor();
-        $allowed = $executor->getAllowedTables();
+        $allowed  = $executor->getAllowedTables();
 
         if (!isset($allowed[$database_code])) {
-            throw new \InvalidArgumentException("Access denied: You don't have access to database '{$database_code}'.");
+            throw new \InvalidArgumentException("Access denied: no access to database '{$database_code}'.");
         }
 
-        // Collect all allowed tables and schemas for this database
-        $allowedTablesForDb = [];
-        $allowedSchemasForDb = [];
+        $allowedTables  = [];
+        $allowedSchemas = [];
+        $hasWildcard    = false;
         foreach ($allowed[$database_code] as $sch => $tbls) {
-            $allowedSchemasForDb[] = strtolower($sch);
-            foreach ($tbls as $tbl) {
-                $allowedTablesForDb[] = strtolower($tbl);
+            if ($sch !== '*') $allowedSchemas[] = strtolower($sch);
+            foreach ($tbls as $t) {
+                $n = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                if ($n === '*') { $hasWildcard = true; } else { $allowedTables[] = strtolower($n); }
             }
         }
 
-        // Extract table names from query
-        if (preg_match_all('/(?:from|join)\s+(?:([a-zA-Z0-9_]+)\.)?([a-zA-Z0-9_]+)/i', $cleanQuery, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $schemaUsed = !empty($match[1]) ? strtolower(trim($match[1])) : null;
-                $tbl = strtolower(trim($match[2]));
-
-                // Skip SQL keywords
-                if (in_array($tbl, ['select', 'where', 'on', 'and', 'or', 'as', 'lateral', 'join', 'inner', 'left', 'right', 'outer'])) {
-                    continue;
-                }
-
-                if (!in_array($tbl, $allowedTablesForDb)) {
-                    throw new \InvalidArgumentException("Access denied: table '{$tbl}' is not allowed for your role.");
-                }
-
-                if ($schemaUsed && !in_array($schemaUsed, $allowedSchemasForDb)) {
-                    throw new \InvalidArgumentException("Access denied: schema '{$schemaUsed}' is not allowed.");
+        if (!$hasWildcard) {
+            $identPat = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
+            if (preg_match_all('/(?:from|join)\s+' . $identPat . '(?:\s*\.\s*' . $identPat . ')?/i', $clean, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $m) {
+                    $hasDot = !empty($m[3]) || !empty($m[4]);
+                    $first  = strtolower(!empty($m[1]) ? $m[1] : $m[2]);
+                    $tbl    = $hasDot ? strtolower(!empty($m[3]) ? $m[3] : $m[4]) : $first;
+                    $sqlKw  = ['select','where','on','and','or','as','lateral','join','inner','left','right','outer','cross','full'];
+                    if (in_array($tbl, $sqlKw)) continue;
+                    if (!in_array($tbl, $allowedTables)) {
+                        throw new \InvalidArgumentException("Access denied: table '{$tbl}' is not allowed.");
+                    }
                 }
             }
         }
 
-        // ── LAYER 5: Execute Query ───────────────────────────────────────────
-        $connName = "temp_conn_{$database_code}";
+        // Layer 5: Execute
+        $connName = "mcp_query_{$database_code}";
         try {
-            $adapter = $dbModel->getAdapter();
-
             DB::purge($connName);
             config(["database.connections.{$connName}" => $dbModel->getConnectionConfig()]);
 
-            // Set driver-specific timeout
             if ($driver === 'pgsql') {
                 DB::connection($connName)->statement('SET statement_timeout = 0');
-            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            } elseif (in_array($driver, ['mysql','mariadb'])) {
                 DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
             }
 
-            $rows = DB::connection($connName)->select($cleanQuery);
+            $rows = DB::connection($connName)->select($clean);
             DB::purge($connName);
 
-            // Transform result to standard format
-            $result = [];
-            foreach ($rows as $row) {
-                $result[] = (array) $row;
-            }
+            $data = array_map(fn($r) => (array) $r, $rows);
 
             return [
                 'database_code' => $database_code,
-                'driver' => $driver,
-                'rows_returned' => count($result),
-                'columns' => !empty($result) ? array_keys($result[0]) : [],
-                'rows' => $result,
+                'driver'        => $driver,
+                'label'         => $label,
+                'rows_returned' => count($data),
+                'columns'       => !empty($data) ? array_keys($data[0]) : [],
+                'rows'          => $data,
             ];
         } catch (\Exception $e) {
             DB::purge($connName);
-            throw new \RuntimeException("Query execution failed: " . $e->getMessage());
+            throw new \RuntimeException("Query failed: " . $e->getMessage());
         }
     }
 }
