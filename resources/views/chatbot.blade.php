@@ -1270,6 +1270,7 @@
 
                 // Defer init to next tick so DOM elements (canvas) are ready
                 setTimeout(() => {
+                    convertMarkdownTablesToSmartTables(bubble);
                     initChartsInBubble(bubble, toolResultsForInit);
                     initDashboardsInBubble(bubble);
                     initSmartTablesInBubble(bubble, toolResultsForInit);
@@ -2835,42 +2836,143 @@
 
             wrap.setAttribute('data-initialized', 'true');
         }
-        // ── AUTO-INJECT: Build smart_table dari execute_query tool result jika AI tidak mengirimnya ──
+
+        // ── AUTO-CONVERT: Mengubah tabel Markdown biasa (HTML table) menjadi smart_table ──
+        function convertMarkdownTablesToSmartTables(bubble) {
+            const rawTables = bubble.querySelectorAll('table:not(.smart-table)');
+            rawTables.forEach((table) => {
+                if (table.closest('.smart-table-wrap')) return;
+
+                const headers = [];
+                table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
+
+                const rows = [];
+                table.querySelectorAll('tbody tr').forEach(tr => {
+                    const row = [];
+                    tr.querySelectorAll('td').forEach(td => row.push(td.innerHTML.trim()));
+                    if (row.length > 0) rows.push(row);
+                });
+
+                if (headers.length === 0 || rows.length === 0) return;
+
+                const tableId = 'st-md-' + Math.random().toString(36).substr(2, 9);
+                const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
+                const rb64 = btoa(unescape(encodeURIComponent(JSON.stringify(rows))));
+
+                const wrapDiv = document.createElement('div');
+                wrapDiv.className = 'smart-table-wrap';
+                wrapDiv.id = tableId;
+                wrapDiv.setAttribute('data-headers', hb64);
+                wrapDiv.setAttribute('data-rows', rb64);
+                wrapDiv.setAttribute('data-currency', '[]');
+                wrapDiv.setAttribute('data-title', 'Tabel Ringkasan');
+
+                wrapDiv.innerHTML = `
+                    <div class="smart-table-info">📊 ${rows.length.toLocaleString('id')} baris · ${headers.length} kol</div>
+                    <div class="smart-table-toolbar">
+                        <div class="smart-table-search">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="${tableId}-search" placeholder="Cari di tabel...">
+                        </div>
+                    </div>
+                    <div class="smart-table-scroll">
+                        <table class="smart-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    ${rows.length > PAGE_SIZE ? \`<div class="smart-table-pagination">
+                        <span class="smart-table-page-info"></span>
+                        <div class="smart-table-btns"></div>
+                    </div>\` : ''}
+                `;
+
+                table.parentNode.replaceChild(wrapDiv, table);
+
+                smartTables[tableId] = {
+                    headers: headers,
+                    allRows: rows,
+                    currencyColumns: [],
+                    label: 'Tabel Ringkasan',
+                    sortCol: -1,
+                    sortDir: 'asc',
+                    query: '',
+                    page: 0
+                };
+
+                const searchInput = wrapDiv.querySelector(\`#\${tableId}-search\`);
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        smartTables[tableId].query = e.target.value;
+                        smartTables[tableId].page = 0;
+                        buildSmartTable(tableId);
+                    });
+                }
+
+                buildSmartTable(tableId);
+                wrapDiv.setAttribute('data-initialized', 'true');
+            });
+        }
+
+        // ── AUTO-INJECT: Build smart_table dari execute_query/describe_table tool result jika AI tidak mengirimnya ──
         function autoInjectSmartTableFromToolResults(bubble, toolResults) {
             if (!toolResults || toolResults.length === 0) return;
             // Hanya inject jika belum ada smart-table-wrap di bubble
             if (bubble.querySelector('.smart-table-wrap')) return;
 
-            // Cari execute_query result yang punya rows dan >= 2 kolom
+            // Cari execute_query ATAU describe_table
             let queryResult = null;
             for (let i = toolResults.length - 1; i >= 0; i--) {
                 const tr = toolResults[i];
                 if (!tr) continue;
                 const toolName = tr.tool_name || tr.tool || '';
-                if (toolName !== 'execute_query') continue;
                 const data = tr.data || tr;
-                const rows = data.rows || data.data?.rows || [];
-                const cols = data.columns || data.data?.columns || [];
-                if (rows.length > 0 && cols.length >= 2) {
-                    queryResult = { data, tr };
-                    break;
+                
+                if (toolName === 'execute_query') {
+                    const rows = data.rows || data.data?.rows || [];
+                    const cols = data.columns || data.data?.columns || [];
+                    if (rows.length > 0 && cols.length >= 2) {
+                        queryResult = { data, tr, type: 'query' };
+                        break;
+                    }
+                } else if (toolName === 'describe_table') {
+                    const cols = data.columns || data.data?.columns || [];
+                    if (cols.length > 0) {
+                        queryResult = { data, tr, type: 'schema' };
+                        break;
+                    }
                 }
             }
             if (!queryResult) return;
 
-            const { data, tr } = queryResult;
-            const rows = data.rows || data.data?.rows || [];
-            const cols = data.columns || data.data?.columns || [];
-            const currCols = data.currency_columns || data.data?.currency_columns || tr.currency_columns || [];
-            const label = data.label || data.data?.label || 'Hasil Data';
+            const { data, tr, type } = queryResult;
+            let stData = null;
 
-            // Buat JSON smart_table dan inject ke bubble
-            const stData = {
-                title: label,
-                headers: cols,
-                rows: rows.map(r => cols.map(c => r[c] !== undefined ? r[c] : '')),
-                currency_columns: currCols
-            };
+            if (type === 'query') {
+                const rows = data.rows || data.data?.rows || [];
+                const cols = data.columns || data.data?.columns || [];
+                const currCols = data.currency_columns || data.data?.currency_columns || tr.currency_columns || [];
+                const label = data.label || data.data?.label || 'Hasil Data';
+
+                stData = {
+                    title: label,
+                    headers: cols,
+                    rows: rows.map(r => cols.map(c => r[c] !== undefined ? r[c] : '')),
+                    currency_columns: currCols
+                };
+            } else if (type === 'schema') {
+                const cols = data.columns || data.data?.columns || [];
+                const tableName = data.table_name || data.data?.table_name || 'Struktur Tabel';
+                
+                stData = {
+                    title: 'Struktur Kolom: ' + tableName,
+                    headers: ['Nama Kolom', 'Tipe Data', 'Keterangan'],
+                    rows: cols.map(c => [c.name || '', c.type || '', c.description || '']),
+                    currency_columns: []
+                };
+            }
+            
+            if (!stData) return;
 
             const tableId = 'st-auto-' + Math.random().toString(36).substr(2, 9);
             const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(stData.headers))));

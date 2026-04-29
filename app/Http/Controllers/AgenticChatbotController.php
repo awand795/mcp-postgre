@@ -1605,7 +1605,7 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
-- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk menampilkan hasil query. SEMUA data berbentuk tabel/daftar WAJIB menggunakan format JSON `smart_table`, berapapun jumlah barisnya (baik itu 2 baris maupun 2.000 baris). Jika AI ingin menampilkan tabel rekapitulasi/metrik (contoh: 1 baris hasil COUNT/SUM), AI DILARANG melakukan pivot/transpose data ke dalam format Markdown. Gunakan blok `smart_table` saja!
+- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk semua jenis output (hasil query maupun daftar kolom dari `describe_table`). SEMUA data berbentuk tabel/daftar WAJIB divisualisasikan melalui sistem `smart_table`. Khusus untuk hasil tool `describe_table`, sistem frontend akan OTOMATIS menginjeksi dan menampilkan tabel struktur kolom ke layar pengguna. Jadi Anda cukup memberikan ringkasan paragraf singkat ("Berikut adalah kolom yang tersedia..."), **TANPA** perlu membuat tabel Markdown atau memanggil JSON smart_table secara manual!
 
 ### Kapan DILARANG smart_table (WAJIB jawab inline):
 - Hasil query **1 baris, 1 kolom** (angka tunggal, e.g. `COUNT(*)` saja) → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
