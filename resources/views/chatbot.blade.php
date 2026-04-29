@@ -3044,6 +3044,7 @@
                             if (!res) return false;
                             if (res.data && res.data.rows && Array.isArray(res.data.rows) && res.data.rows.length > 0) return true;
                             if (res.rows && Array.isArray(res.rows) && res.rows.length > 0) return true;
+                            if (res.data && res.data.columns && Array.isArray(res.data.columns) && res.data.columns.length > 0) return true;
                             return false;
                         };
 
@@ -3059,9 +3060,9 @@
 
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
-                                    if (r && r.tool_name === 'execute_query' && hasValidData(r) && !r._usedForTable) {
-                                        if (r.label) {
-                                            const labelLower = r.label.toLowerCase();
+                                    if (r && (r.tool_name === 'execute_query' || r.tool_name === 'describe_table') && hasValidData(r) && !r._usedForTable) {
+                                        if (r.label || r.data?.table_name) {
+                                            const labelLower = (r.label || r.data?.table_name || '').toLowerCase();
                                             const labelWords = labelLower.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
                                             
                                             let score = 0;
@@ -3094,7 +3095,7 @@
                             if (!matchedTool) {
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
-                                    if (r && r.tool_name === 'execute_query' && hasValidData(r) && !r._usedForTable) {
+                                    if (r && (r.tool_name === 'execute_query' || r.tool_name === 'describe_table') && hasValidData(r) && !r._usedForTable) {
                                         matchedTool = r;
                                         r._usedForTable = true;
                                         break;
@@ -3118,7 +3119,7 @@
                             if (!matchedTool) {
                                 for (let i = toolResults.length - 1; i >= 0; i--) {
                                     const r = toolResults[i];
-                                    if (r && r.tool_name === 'execute_query' && hasValidData(r)) {
+                                    if (r && (r.tool_name === 'execute_query' || r.tool_name === 'describe_table') && hasValidData(r)) {
                                         matchedTool = r;
                                         break;
                                     }
@@ -3157,6 +3158,10 @@
                                 headers = ['Info'];
                                 allRows = tableData.map(r => [r]);
                              }
+                        } else if (tableData.columns && Array.isArray(tableData.columns) && tableData.table_name) {
+                            headers = ['Nama Kolom', 'Tipe Data', 'Keterangan'];
+                            allRows = tableData.columns.map(c => [c.name || '', c.type || '', c.description || '']);
+                            if (!tableLabel) tableLabel = 'Struktur Kolom: ' + tableData.table_name;
                         }
                     }
 
