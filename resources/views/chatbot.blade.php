@@ -3022,6 +3022,7 @@
                 let allRows = [];
                 let toolRes = null;
                 let tableLabel = wrap.getAttribute('data-title') || null;
+                let currencyColumns = [];
 
                 try {
                     const hb64 = wrap.getAttribute('data-headers-b64');
@@ -3031,6 +3032,10 @@
                         headers = JSON.parse(decodeURIComponent(escape(atob(hb64))));
                         allRows = JSON.parse(decodeURIComponent(escape(atob(rb64))));
                         tableLabel = wrap.getAttribute('data-title') || tableId.replace(/_/g, ' ');
+                        const currAttr = wrap.getAttribute('data-currency-columns');
+                        if (currAttr) {
+                            try { currencyColumns = JSON.parse(currAttr); } catch(e) {}
+                        }
                     }
                     else if (!isNaN(toolIdx)) {
                         toolRes = toolResults[toolIdx];
@@ -3165,7 +3170,7 @@
                     smartTables[tableId] = {
                         headers, allRows, filteredRows: allRows,
                         page: 0, sortCol: -1, sortDir: 'asc', query: '',
-                        currencyColumns: currencyColumns || [],
+                        currencyColumns: currencyColumns,
                         label: tableLabel || null
                     };
 
