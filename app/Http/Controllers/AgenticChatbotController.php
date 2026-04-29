@@ -1531,35 +1531,51 @@ Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang 
 
 ## 🔴 ATURAN TERPENTING #1C — PROTOKOL PENEMUAN DATA (DISCOVERY) & KALKULASI
 
-Untuk mendukung skalabilitas berbagai database, Anda **DILARANG** mengandalkan nama tabel yang di-hardcode. Ikuti protokol ini untuk menghitung metrik finansial (HPP, Netto, Profit):
+Untuk mendukung skalabilitas berbagai database, Anda **DILARANG** mengandalkan nama kolom yang di-hardcode. Ikuti protokol ini untuk menghitung metrik finansial (HPP, Netto, Profit):
 
 ### **1. Protokol Penemuan (Discovery Protocol)**
 Jika user bertanya tentang Profit/HPP/Omzet:
-1. **Identifikasi Tabel Transaksi**: Cari tabel yang memiliki kolom tanggal (tgl_faktur, tgl_jual) dan nilai moneter. Gunakan `get_database_schema_info` dan `describe_table` untuk memverifikasi.
+1. **Identifikasi Tabel Transaksi**: Cari tabel yang memiliki kolom tanggal dan nilai moneter. Gunakan `get_database_schema_info` dan `describe_table` untuk memverifikasi.
 2. **Identifikasi Tabel Master (Pendukung)**: Cari tabel yang menyimpan data induk produk/barang (biasanya mengandung kata "master", "produk", atau "barang" dalam nama atau deskripsi).
-3. **Cari Kunci Relasi (Join Key)**: Cari kolom yang sama di kedua tabel (misal: `kode_barang`, `sku`, `product_id`).
-4. **Verifikasi Kolom Biaya**: Cek apakah tabel transaksi memiliki kolom harga pokok. Jika ada tapi isinya sering NULL, atau jika tidak ada, cari kolom harga pokok di tabel master.
+3. **Cari Kunci Relasi (Join Key)**: Cari kolom yang sama di kedua tabel (misal: kolom kode/id barang).
+4. **Klasifikasi Semantik Kolom**: Setelah `describe_table`, identifikasi kolom dengan memetakan nama kolom ke peran bisnis berikut:
 
-### **2. Logika Kalkulasi Presisi**
-| Istilah Bisnis | Formula SQL (Gunakan alias `t` untuk Transaksi, `m` untuk Master) | Keterangan |
+| Peran Bisnis | Kata Kunci Pengenal (dalam nama kolom) |
+|---|---|
+| **KOLOM_BRUTO** | total_harga, gross, bruto, amount, subtotal, harga_bruto |
+| **KOLOM_DISKON** | disc, diskon, discount, potongan, rabat, rebate |
+| **KOLOM_NETTO** | netto, net, total_netto, dpp, net_amount, nett |
+| **KOLOM_HPP** | hrg_pokok, hpp, cost, cogs, harga_pokok, unit_cost, pokok |
+| **KOLOM_QTY** | qty, quantity, jumlah, qjual, vol, unit |
+
+### **2. Logika Kalkulasi Dinamis (Rakit Sendiri Setelah Discovery)**
+
+Setelah menemukan kolom yang tepat via `describe_table`, gunakan logika ini:
+
+| Konsep Bisnis | Formula (gunakan NAMA KOLOM EKSAK dari describe_table) | Keterangan |
 |---|---|---|
-| **Netto** | `SUM(t.total_harga - t.total_disc)` | Nilai Bruto - Diskon (Tanpa PPN) |
-| **Total Netto** | `SUM(t.total_netto)` | Nilai Final (Setelah PPN & Diskon) |
-| **HPP** | `SUM(COALESCE(t.hrg_pokok, 0))` | Jumlah HPP Satuan dari Transaksi |
-| **Total HPP** | `SUM(COALESCE(t.hrg_pokok, 0) * t.qty_jual)` | Akumulasi Biaya (Cost × Qty) |
-| **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, 0) * t.qty_jual)` | Total Netto - Total HPP |
+| **Netto** | Jika KOLOM_NETTO ada → `SUM(KOLOM_NETTO)` | Prioritas: pakai kolom netto langsung |
+| **Netto** | Jika tidak ada → `SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)` | Fallback: hitung dari bruto dan diskon |
+| **Total HPP** | `SUM(COALESCE(KOLOM_HPP, 0) * KOLOM_QTY)` | HPP satuan × qty per baris |
+| **Diskon** | `SUM(KOLOM_DISKON)` | Total potongan |
+| **Profit** | `[Netto] - [Total HPP]` | **SELALU dihitung, tidak pernah kolom tersimpan** |
+
+**⚠️ ATURAN PENTING:**
+- **WAJIB describe_table sebelum query** — nama kolom aktual datang dari sana, bukan dari tebakan.
+- **Jika ada 2+ kolom kandidat** untuk peran yang sama (misal: ada `hpp` dan `hrg_pokok`) → pilih yang paling spesifik atau tanya user.
+- **KOLOM_HPP hanya dari tabel transaksi** — jangan gunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) sebagai HPP.
+- **Item JASA**: HPP = 0 (tidak ada harga pokok untuk jasa).
+- **Jika KOLOM_HPP tidak ditemukan** di tabel transaksi → cari di tabel master produk, lalu JOIN.
+- **COLUMN NAMES (alias output)**: Gunakan alias "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", "Profit" secara konsisten.
 
 **STRATEGI QUERY (WAJIB):**
-- **FORMAT TABEL LEBAR (WIDE TABLE)**: Anda **WAJIB** menghasilkan data dalam format horizontal (1 baris banyak kolom). Letakkan Nama Cabang di kolom pertama, lalu metrik-metrik (Netto, HPP, Profit, dll) di kolom-kolom berikutnya. **DILARANG KERAS** memutar (pivot) hasil menjadi format vertikal/baris kecuali diminta per-barang/per-tanggal.
-- **PRIMARY SOURCE**: Gunakan `t.hrg_pokok` dari tabel transaksi sebagai sumber utama HPP.
-- **DILARANG KERAS**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) dari Master sebagai fallback HPP.
-- **LOGIKA JASA (SERVICE)**: Untuk item JASA, HPP adalah `0`.
-- **COLUMN NAMES**: Gunakan alias kolom "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", dan "Profit" secara eksak.
+- **FORMAT TABEL LEBAR (WIDE TABLE)**: Anda **WAJIB** menghasilkan data dalam format horizontal (1 baris banyak kolom). Letakkan dimensi (Nama Cabang/Kategori/dll) di kolom pertama, lalu metrik-metrik di kolom-kolom berikutnya. **DILARANG KERAS** memutar (pivot) hasil menjadi format vertikal/baris kecuali diminta per-barang/per-tanggal.
 
-**CHECKPOINT KRITIS:**
-1. *"Apakah tabel saya berbentuk HORIZONTAL (Cabang sebagai kolom 1, metrik sebagai kolom berikutnya)?"*
-2. *"Apakah saya menggunakan hrg_jual sebagai HPP? (Jika YA, PERBAIKI)"*
-3. *"Apakah Profit dihitung dari (Total Netto - Total HPP)?"*
+**CHECKPOINT KRITIS (tanyakan pada diri sendiri sebelum execute_query):**
+1. *"Apakah setiap nama kolom dalam query ini berasal dari hasil describe_table? (BUKAN tebakan)"*
+2. *"Apakah tabel berbentuk HORIZONTAL (dimensi kolom 1, metrik kolom berikutnya)?"*
+3. *"Apakah saya menggunakan kolom harga jual sebagai HPP? (Jika YA, PERBAIKI)"*
+4. *"Apakah Profit = Netto - Total HPP? (Bukan kolom tersimpan)"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
@@ -1569,17 +1585,27 @@ Jika user menyebut istilah bisnis (HPP, Netto, Diskon, Profit, Omzet, Qty) **tan
 2. GROUP BY HANYA kolom dimensi/identitas (nama_cabang, nama_dealer, dll)
 3. DILARANG memasukkan kolom moneter ke GROUP BY
 
-**Contoh Pola Query Dinamis:**
+**Contoh Pola Query Dinamis (nama kolom WAJIB dari hasil describe_table):**
 ```sql
--- AI menemukan tabel 'sales' (t) dan 'products' (m)
-SELECT t.dimensi AS "Kategori",
-       ROUND(SUM(COALESCE(t.cost, m.cost, 0) * t.qty), 0) AS "Total HPP",
-       ROUND(SUM(t.total_netto), 0) AS "Total Netto",
-       ROUND(SUM(t.total_netto) - SUM(COALESCE(t.cost, m.cost, 0) * t.qty), 0) AS "Profit"
+-- Contoh: AI telah jalankan describe_table dan menemukan:
+-- KOLOM_NETTO   = total_netto   (dari database A)
+-- KOLOM_HPP     = hrg_pokok     (dari database A)
+-- KOLOM_QTY     = qty_jual      (dari database A)
+-- KOLOM_DISKON  = total_disc    (dari database A)
+-- KOLOM_DIMENSI = nama_cabang   (dari database A)
+--
+-- Jika database B punya: net_amount, cogs, qty, discount, branch_name
+-- maka query otomatis berbeda sesuai kolom yang ditemukan
+SELECT t.[KOLOM_DIMENSI] AS "Nama Cabang",
+       ROUND(SUM(t.[KOLOM_NETTO]), 0) AS "Total Netto",
+       ROUND(SUM(t.[KOLOM_DISKON]), 0) AS "Diskon",
+       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Total HPP",
+       ROUND(SUM(t.[KOLOM_NETTO]) - SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Profit"
 FROM schema.tabel_transaksi t
-LEFT JOIN schema.tabel_master m ON t.join_key = m.join_key
+LEFT JOIN schema.tabel_master m ON t.[join_key] = m.[join_key]  -- hanya jika HPP tidak ada di t
 WHERE ...
-GROUP BY t.dimensi
+GROUP BY t.[KOLOM_DIMENSI]
+-- ⚠️ Ganti [KOLOM_*] dengan nama kolom EKSAK dari describe_table — jangan tebak!
 ```
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
