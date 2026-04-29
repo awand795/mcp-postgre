@@ -1554,19 +1554,24 @@ Setelah menemukan kolom yang tepat via `describe_table`, gunakan logika ini:
 
 | Konsep Bisnis | Formula (gunakan NAMA KOLOM EKSAK dari describe_table) | Keterangan |
 |---|---|---|
-| **Netto** | Jika KOLOM_NETTO ada → `SUM(KOLOM_NETTO)` | Prioritas: pakai kolom netto langsung |
-| **Netto** | Jika tidak ada → `SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)` | Fallback: hitung dari bruto dan diskon |
-| **Total HPP** | `SUM(COALESCE(KOLOM_HPP, 0) * KOLOM_QTY)` | HPP satuan × qty per baris |
-| **Diskon** | `SUM(KOLOM_DISKON)` | Total potongan |
-| **Profit** | `[Netto] - [Total HPP]` | **SELALU dihitung, tidak pernah kolom tersimpan** |
+| **Netto** | Jika KOLOM_NETTO ada → `SUM(KOLOM_NETTO)` | Nilai bersih (sudah potong diskon, sebelum HPP) |
+| **Netto** | Jika tidak ada → `SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)` | Fallback: hitung dari bruto dikurangi diskon |
+| **Total Netto** | Sama dengan **Netto** — alias berbeda untuk metrik yang sama | Gunakan alias "Total Netto" jika user menyebut "Total Netto" |
+| **HPP** | `ROUND(SUM(COALESCE(KOLOM_HPP, 0)), 0)` | Akumulasi HPP satuan (tanpa dikali qty) |
+| **Total HPP** | `ROUND(SUM(COALESCE(KOLOM_HPP, 0) * KOLOM_QTY), 0)` | HPP satuan × qty — biaya total sesungguhnya |
+| **Diskon** | `SUM(KOLOM_DISKON)` | Total potongan/rabat |
+| **Profit** | `[Total Netto] - [Total HPP]` | **SELALU dihitung, tidak pernah kolom tersimpan** |
 
-**⚠️ ATURAN PENTING:**
+**⚠️ ATURAN KOLOM WAJIB TAMPIL — KRITIS:**
+- **Tampilkan SEMUA kolom yang diminta user** — jika user menyebut "netto, total netto, hpp, total hpp, diskon, profit" maka query WAJIB menghasilkan ke-6 kolom tersebut, TIDAK BOLEH ada yang dihilangkan.
+- **Bedakan "HPP" vs "Total HPP"**: HPP = `SUM(KOLOM_HPP)` tanpa dikali qty. Total HPP = `SUM(KOLOM_HPP * KOLOM_QTY)` dengan dikali qty.
+- **Bedakan "Netto" vs "Total Netto"**: Jika KOLOM_NETTO tersedia, keduanya bisa sama nilainya — tampilkan dua kolom dengan alias berbeda. Jika tidak tersedia, hitung dari BRUTO - DISKON.
 - **WAJIB describe_table sebelum query** — nama kolom aktual datang dari sana, bukan dari tebakan.
-- **Jika ada 2+ kolom kandidat** untuk peran yang sama (misal: ada `hpp` dan `hrg_pokok`) → pilih yang paling spesifik atau tanya user.
+- **Jika ada 2+ kolom kandidat** untuk peran yang sama → pilih yang paling spesifik atau tanya user.
 - **KOLOM_HPP hanya dari tabel transaksi** — jangan gunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) sebagai HPP.
 - **Item JASA**: HPP = 0 (tidak ada harga pokok untuk jasa).
 - **Jika KOLOM_HPP tidak ditemukan** di tabel transaksi → cari di tabel master produk, lalu JOIN.
-- **COLUMN NAMES (alias output)**: Gunakan alias "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", "Profit" secara konsisten.
+- **COLUMN NAMES (alias output)**: Gunakan alias "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", "Profit" secara konsisten dan tepat sesuai yang diminta user.
 
 **STRATEGI QUERY (WAJIB):**
 - **FORMAT TABEL LEBAR (WIDE TABLE)**: Anda **WAJIB** menghasilkan data dalam format horizontal (1 baris banyak kolom). Letakkan dimensi (Nama Cabang/Kategori/dll) di kolom pertama, lalu metrik-metrik di kolom-kolom berikutnya. **DILARANG KERAS** memutar (pivot) hasil menjadi format vertikal/baris kecuali diminta per-barang/per-tanggal.
@@ -1585,27 +1590,27 @@ Jika user menyebut istilah bisnis (HPP, Netto, Diskon, Profit, Omzet, Qty) **tan
 2. GROUP BY HANYA kolom dimensi/identitas (nama_cabang, nama_dealer, dll)
 3. DILARANG memasukkan kolom moneter ke GROUP BY
 
-**Contoh Pola Query Dinamis (nama kolom WAJIB dari hasil describe_table):**
+**Contoh Pola Query Dinamis LENGKAP (nama kolom WAJIB dari hasil describe_table):**
 ```sql
 -- Contoh: AI telah jalankan describe_table dan menemukan:
--- KOLOM_NETTO   = total_netto   (dari database A)
--- KOLOM_HPP     = hrg_pokok     (dari database A)
--- KOLOM_QTY     = qty_jual      (dari database A)
--- KOLOM_DISKON  = total_disc    (dari database A)
--- KOLOM_DIMENSI = nama_cabang   (dari database A)
+-- KOLOM_NETTO   = total_netto   | KOLOM_BRUTO  = total_harga
+-- KOLOM_HPP     = hrg_pokok     | KOLOM_QTY    = qty_jual
+-- KOLOM_DISKON  = total_disc    | KOLOM_DIMENSI = nama_cabang
 --
--- Jika database B punya: net_amount, cogs, qty, discount, branch_name
--- maka query otomatis berbeda sesuai kolom yang ditemukan
+-- Query ini menampilkan SEMUA 6 metrik sekaligus jika user memintanya:
 SELECT t.[KOLOM_DIMENSI] AS "Nama Cabang",
+       ROUND(SUM(t.[KOLOM_NETTO]), 0) AS "Netto",
        ROUND(SUM(t.[KOLOM_NETTO]), 0) AS "Total Netto",
        ROUND(SUM(t.[KOLOM_DISKON]), 0) AS "Diskon",
+       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0)), 0) AS "HPP",
        ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Total HPP",
        ROUND(SUM(t.[KOLOM_NETTO]) - SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Profit"
 FROM schema.tabel_transaksi t
-LEFT JOIN schema.tabel_master m ON t.[join_key] = m.[join_key]  -- hanya jika HPP tidak ada di t
 WHERE ...
 GROUP BY t.[KOLOM_DIMENSI]
+-- ⚠️ WAJIB: Hanya tampilkan kolom yang diminta user. Jika user minta 6 kolom → hasilkan 6 kolom.
 -- ⚠️ Ganti [KOLOM_*] dengan nama kolom EKSAK dari describe_table — jangan tebak!
+-- ⚠️ Jika KOLOM_NETTO tidak ada: ganti SUM(KOLOM_NETTO) dengan SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)
 ```
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
