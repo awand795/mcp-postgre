@@ -1599,6 +1599,11 @@ Struktur JSON smart_table:
 - Contoh SALAH: `"currency_columns":["Total Cabang"]` ← angka 91 akan diformat Rp 91!
 - Contoh BENAR: `"currency_columns":["Netto","Total Netto","HPP","Total HPP","Diskon","Profit"]`
 
+**⚠️ ATURAN NOMINAL (SANGAT KRITIS):**
+Untuk semua nilai uang/mata uang, Anda **WAJIB** menuliskan angka nominal lengkap sebagai integer tanpa pemisah ribuan dan tanpa singkatan (K/jt/M).
+- ✅ BENAR: 150000, 2750000
+- ❌ SALAH: 150 (maksudnya 150rb), 150K, 2.75 (maksudnya 2.75jt)
+
 ## 🔴 ATURAN FORMATTING — KODE BLOK (PENTING)
 Setiap blok `smart_table` atau `chart` **WAJIB** dibuka dengan triple backtick (```) diikuti langsung oleh identifier (smart_table atau chart), lalu isi JSON, dan ditutup dengan triple backtick.
 - ✅ BENAR: \` \` \`smart_table\n{"title":...}\n\` \` \`
