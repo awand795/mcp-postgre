@@ -71,10 +71,6 @@ class AgenticChatbotController extends Controller
 
         $chatSessionId = $request->chat_session_id;
 
-        // ── API Key Resolution dengan Auto-Rotate ──────────────────────────
-        // Ambil SEMUA key user untuk provider ini (bukan hanya satu).
-        // Key sudah disort: limit_reached=false dulu, lalu usage_count ASC.
-        // Sistem akan rotate ke key berikutnya di dalam runAgenticLoop saat dapat 429.
         $allApiKeys = ApiKeyResolver::getKeysForProvider($user, $selectedModel->provider_id);
 
         if ($allApiKeys->isEmpty()) {
@@ -88,16 +84,10 @@ class AgenticChatbotController extends Controller
 
         $allowedDatabases = [];
         if ($user->is_admin) {
-            // FIX: Admin mendapat schema NYATA dari setiap database agar AI tidak
-            // menebak schema_name='*' saat memanggil describe_table / execute_query.
-            // Tanpa ini, MANDATORY_SCHEMA_USAGE di getSchemaInfo kosong karena
-            // array_filter membuang semua key '*', sehingga AI looping dengan
-            // wildcard schema dan memerlukan 3-4 loop ekstra sebelum eksekusi query.
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
-                $tables = $c->getTables(); // [{schema_name, table_name, description}]
+                $tables = $c->getTables();
                 if (empty($tables)) {
-                    // Fallback ke wildcard jika DB tidak mengembalikan tabel apapun
                     $allowedDatabases[$c->database] = ['*' => [['name' => '*', 'description' => '']]];
                     continue;
                 }
@@ -191,7 +181,6 @@ class AgenticChatbotController extends Controller
 
         session_write_close();
 
-        // Paksa PHP flush buffer secara implicit agar SSE tidak menunggu buffer penuh
         if (ob_get_level() > 0) {
             ob_end_clean();
         }
@@ -222,7 +211,6 @@ class AgenticChatbotController extends Controller
 
     private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
     {
-        // ── Pilih key awal: yang pertama tidak limit (sudah disort di ApiKeyResolver) ────
         $apiKey = ApiKeyResolver::pickAvailable($apiKeys);
         if (!$apiKey) {
             $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok.');
@@ -253,14 +241,8 @@ class AgenticChatbotController extends Controller
         $allTurnToolResults = [];
         $textContent = '';
 
-        // ── Fix #1: Track tool terakhir yang dieksekusi ──────────────────────
-        // Digunakan untuk heuristik streaming: hanya stream jika tool terakhir
-        // adalah "terminal tool" (execute_query / get_erp_guidance) yang hampir
-        // pasti menghasilkan final answer, bukan tool intermediate seperti
-        // get_database_schema_info / search_schema / describe_table.
         $lastExecutedToolName = null;
 
-        // Tool-tool yang hampir pasti menghasilkan final answer setelah dieksekusi.
         $terminalTools = [
             'execute_query',
             'get_erp_guidance',
@@ -268,21 +250,11 @@ class AgenticChatbotController extends Controller
             'fetch_erp_guidance_from_web',
         ];
 
-        // Track berapa kali execute_query dipanggil di turn ini.
-        // Streaming hanya boleh aktif jika execute_query sudah dipanggil >= 2x
-        // (artinya ada query exploratory sebelumnya dan ini kemungkinan query final),
-        // ATAU jika execute_query dipanggil 1x dan tidak ada SELECT DISTINCT di SQL-nya
-        // (query langsung ke data akhir, bukan query probe nilai kolom).
         $executeQueryCount = 0;
         $lastExecutedSql = '';
 
-        // Hard limit probe query: jika model sudah melakukan >= 2 SELECT DISTINCT
-        // berturut-turut tanpa GROUP BY, inject reminder paksa agar langsung ke query utama.
-        // Ini mencegah model terus eksplor tanpa batas.
         $probeQueryCount = 0;
-        $maxProbeQueries = 2; // FIX: maksimal 2 probe query sebelum dipaksa ke query utama
-        // (Sebelumnya 3 — dikurangi karena dengan instruksi multi-keyword OR di system prompt,
-        //  1 probe saja seharusnya sudah cukup untuk resolve nama entitas.)
+        $maxProbeQueries = 2;
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -290,15 +262,6 @@ class AgenticChatbotController extends Controller
             $isGroq = $providerCode === 'groq' || str_contains($apiKey->provider->base_url ?? '', 'groq.com');
             Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
 
-            // ── STRATEGI TRUE SSE STREAMING ──────────────────────────────────
-            // Streaming HANYA aktif jika loop ini kemungkinan besar adalah FINAL ANSWER.
-            //
-            // Untuk execute_query: streaming aktif hanya jika:
-            //   - Ini bukan query probe (SELECT DISTINCT ... LIMIT x tanpa GROUP BY)
-            //   - execute_query sudah pernah dipanggil sebelumnya di turn ini
-            // Ini mencegah streaming aktif di loop SELECT DISTINCT yang hasilnya
-            // masih akan dipakai sebagai input untuk query berikutnya.
-            // ────────────────────────────────────────────────────────────────────
             $isProbeQuery = $executeQueryCount > 0
                 && stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
                 && stripos($lastExecutedSql, 'GROUP BY') === false;
@@ -307,9 +270,6 @@ class AgenticChatbotController extends Controller
 
             try {
                 if ($useStreaming) {
-                    // ── STREAMING MODE: langsung kirim token ke browser ──
-                    // streamFinalResponseFromApi() mengembalikan teks lengkap
-                    // DAN sudah mengirim setiap token via SSE ke browser.
                     Log::info("[Agentic] Loop #{$loopCount} using STREAMING mode (tool results available)");
                     try {
                         $response = $this->streamFinalResponseFromApi(
@@ -328,7 +288,6 @@ class AgenticChatbotController extends Controller
                             if ($nextKey) {
                                 Log::info("[Agentic] Streaming rate limit on key_id={$apiKey->id}. Rotating ke key_id={$nextKey->id} ({$nextKey->key_name}).");
                                 $apiKey = $nextKey;
-                                // Ulangi loop dengan key baru (tidak increment loopCount)
                                 $loopCount--;
                                 continue;
                             }
@@ -341,18 +300,15 @@ class AgenticChatbotController extends Controller
                         throw $e;
                     }
 
-                    // Ambil data dari response stream
                     $assistantMsg = $response['choices'][0]['message'] ?? [];
                     $finishReason = $response['choices'][0]['finish_reason'] ?? 'stop';
                     $toolCalls = $assistantMsg['tool_calls'] ?? [];
                     $textContent = $assistantMsg['content'] ?? '';
 
-                    // Jika stream menghasilkan teks (bukan tool call) DAN tidak ada tool calls → selesai
                     if (!empty(trim($textContent)) && empty($toolCalls)) {
                         $textContent = $this->stripThinkingLeakage($textContent);
                         $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
 
-                        // ── Auto-reset + recordUsage saat streaming berhasil ──
                         ApiKeyResolver::autoResetIfNeeded($apiKey);
                         $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
 
@@ -371,7 +327,6 @@ class AgenticChatbotController extends Controller
                         return;
                     }
 
-                    // Hanya fallback ke non-streaming jika benar-benar kosong total (teks & tool)
                     if (empty($textContent) && empty($toolCalls)) {
                         Log::warning("[Agentic] Streaming returned empty, falling back to non-streaming for loop #{$loopCount}");
                         $response = $this->callAiApi($messages, $tools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount);
@@ -411,10 +366,6 @@ class AgenticChatbotController extends Controller
                 return;
             }
 
-            // ── Auto-reset limit_reached saat API berhasil dipanggil ──────────
-            // Jika sebelumnya key ini ditandai limit (misal kena daily quota kemarin),
-            // dan sekarang berhasil dapat response — berarti quota sudah reset dari
-            // provider. Langsung bersihkan flag-nya tanpa perlu manual reset admin.
             if ($loopCount === 1) {
                 ApiKeyResolver::autoResetIfNeeded($apiKey);
             }
@@ -629,7 +580,6 @@ class AgenticChatbotController extends Controller
                     ]);
                 }
 
-                // ── recordUsage saat non-streaming path berhasil selesai ──
                 $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
 
                 $this->streamText($processedContent);
@@ -669,7 +619,6 @@ class AgenticChatbotController extends Controller
                     'countWithoutWhereWarning' => $countWithoutWhereWarning,
                 ];
 
-                // ── IMMEDIATE FEEDBACK: Kirim 'running' status SEKARANG ──
                 echo "data: " . json_encode([
                     'tool_call' => [
                         'id' => $toolCallId,
@@ -800,12 +749,9 @@ class AgenticChatbotController extends Controller
                     'name' => $toolName,
                     'content' => $aiContent,
                     'decoded_data' => $decodedRes,
-                    '_is_live_gemini_response' => true, // tandai sebagai live agar Gemini kirim functionResponse
+                    '_is_live_gemini_response' => true,
                 ];
 
-                // ── Inject reminder STATUS FILTER setelah tool result masuk ke messages ──
-                // PENTING: Harus setelah tool result, bukan sebelum — Mistral/OpenAI tidak
-                // mengizinkan user message di antara assistant tool_calls dan tool results.
                 if (!empty($countWithoutWhereWarning)) {
                     $actualCount = null;
                     if (is_array($decodedRes) && !empty($decodedRes['rows'])) {
@@ -823,7 +769,7 @@ class AgenticChatbotController extends Controller
                         ]),
                     ];
                 }
-            } // end foreach $executedResults
+            }
             if (ob_get_level() > 0)
                 ob_flush();
             flush();
@@ -905,7 +851,7 @@ class AgenticChatbotController extends Controller
     public function exportPdf(Request $request)
     {
         ini_set('memory_limit', '2048M');
-        ini_set('max_execution_time', '600'); // 10 minutes max for large PDF generation
+        ini_set('max_execution_time', '600');
 
         $request->validate([
             'headers' => 'required|array',
@@ -924,16 +870,12 @@ class AgenticChatbotController extends Controller
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
-        // DOMPDF is incredibly slow and memory-heavy for massive tables.
-        // A 2000+ row table generates a 100+ page PDF which crashes the engine or times out the browser.
-        // Enforce a strict row limit for PDF only. Excel can handle infinite rows.
         if (count($normalizedRows) > 1500) {
             return response()->json([
                 'error' => 'Data terlalu besar untuk format PDF (' . count($normalizedRows) . ' baris). Maksimal 1.500 baris. Silakan gunakan Export Excel untuk mengunduh data sebesar ini.'
             ], 400);
         }
 
-        // AI sepenuhnya menentukan currency — langsung pakai currencyColumns dari request
         $isCurrencyHeader = function (string $header) use ($currencyColumns): bool {
             return in_array($header, $currencyColumns);
         };
@@ -955,14 +897,13 @@ class AgenticChatbotController extends Controller
             'currencyColumns' => $currencyColumns,
             'generatedAt' => now()->format('d M Y H:i'),
             'colCount' => count($headers),
-            'fontSize' => 10, // Font size 100% (10pt) stabil
+            'fontSize' => 10,
             'chartImage' => $chartImage,
             'columnTypes' => $columnTypes,
         ]);
 
-        // Hitung lebar kertas dinamis (A4 landscape min 842pt, atau n_kolom * 130pt)
         $paperWidth = max(842, count($headers) * 130);
-        $pdf->setPaper([0, 0, $paperWidth, 595]); // 595pt adalah tinggi standar A4
+        $pdf->setPaper([0, 0, $paperWidth, 595]);
 
         return $pdf->download($filename);
     }
@@ -1050,19 +991,6 @@ class AgenticChatbotController extends Controller
     private function formatMessagesForProvider(string $providerCode, array $messages): array
     {
         if ($providerCode === 'gemini') {
-            // Gemini format rules:
-            //  1. Role hanya 'user' atau 'model'
-            //  2. functionResponse WAJIB dalam role 'user'
-            //  3. functionCall HANYA dari model sebagai output — DILARANG client kirim ulang
-            //  4. Dua role sama berturut-turut → error 400
-            //
-            // STRATEGI HISTORY:
-            //  - assistant + tool_calls (dari DB/history) → kirim hanya TEXT-nya sebagai 'model'
-            //    Jika text kosong, kirim placeholder "[Mengambil data...]"
-            //  - tool results (dari DB/history) → kirim sebagai 'user' + functionResponse
-            //    Tapi jika toolName tidak dikenal Gemini (fake history), kirim sebagai text biasa
-            //  - assistant + tool_calls (LIVE, _is_live_gemini_response=true) → kirim functionCall
-
             $geminiMessages = [];
             $prevRole = null;
 
@@ -1072,26 +1000,20 @@ class AgenticChatbotController extends Controller
 
                 $role = $m['role'];
 
-                // ── TOOL RESULT ──────────────────────────────────────────────
                 if ($role === 'tool') {
                     $isHistoryTool = empty($m['_is_live_gemini_response'] ?? null);
 
                     if ($isHistoryTool) {
-                        // History tool result: kirim sebagai text ringkasan biasa
-                        // supaya Gemini tidak bingung dengan functionResponse tanpa matching functionCall
                         $toolName = $m['name'] ?? 'tool';
                         $rawContent = $m['content'] ?? '';
 
-                        // Pastikan rawContent adalah string sebelum di-decode
                         if (is_array($rawContent)) {
                             $rawContent = json_encode($rawContent);
                         }
                         $decoded = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : [];
 
-                        // Buat ringkasan singkat — pastikan semua nilai adalah string
                         if (is_array($decoded) && !empty($decoded)) {
                             $rowCount = (int) ($decoded['rows_returned'] ?? count($decoded['rows'] ?? []));
-                            // Pastikan columns adalah array of strings, bukan nested arrays
                             $rawCols = $decoded['columns'] ?? [];
                             $cols = implode(', ', array_map(
                                 fn($c) => is_string($c) ? $c : (is_array($c) ? json_encode($c) : (string) $c),
@@ -1111,7 +1033,6 @@ class AgenticChatbotController extends Controller
                             $prevRole = 'user';
                         }
                     } else {
-                        // Live tool result: kirim sebagai functionResponse (normal flow)
                         $rawContent = $m['content'] ?? '';
                         if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
                             $parsedContent = $m['decoded_data'];
@@ -1141,7 +1062,6 @@ class AgenticChatbotController extends Controller
                     continue;
                 }
 
-                // ── ASSISTANT MESSAGE ─────────────────────────────────────────
                 if ($role === 'assistant') {
                     $isLive = !empty($m['_is_live_gemini_response']);
                     $parts = [];
@@ -1151,7 +1071,6 @@ class AgenticChatbotController extends Controller
                     }
 
                     if ($isLive && !empty($m['tool_calls'])) {
-                        // Live response: kirim functionCall
                         foreach ($m['tool_calls'] as $tc) {
                             $args = $tc['function']['arguments'] ?? '{}';
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
@@ -1165,7 +1084,6 @@ class AgenticChatbotController extends Controller
                             ];
                         }
                     } elseif (!$isLive && !empty($m['tool_calls']) && empty($parts)) {
-                        // History tanpa text: kirim placeholder
                         $toolNames = array_map(fn($tc) => $tc['function']['name'] ?? 'tool', $m['tool_calls']);
                         $parts[] = ['text' => '[Mengambil data: ' . implode(', ', $toolNames) . ']'];
                     }
@@ -1183,7 +1101,6 @@ class AgenticChatbotController extends Controller
                     continue;
                 }
 
-                // ── USER MESSAGE ──────────────────────────────────────────────
                 if ($role === 'user') {
                     $parts = [];
                     if (!empty($m['content'])) {
@@ -1248,8 +1165,6 @@ class AgenticChatbotController extends Controller
             return $claudeMessages;
         }
 
-        // Strip internal-only fields before sending to standard OpenAI-compatible providers
-        // (decoded_data and _is_live_gemini_response are for internal use only)
         $internalFields = ['decoded_data', '_is_live_gemini_response'];
         return array_map(function ($m) use ($internalFields) {
             foreach ($internalFields as $field) {
@@ -1268,14 +1183,6 @@ class AgenticChatbotController extends Controller
         foreach ($recentHistory as $msg) {
             $toolResults = $msg['tool_results'] ?? null;
             if ($msg['role'] === 'assistant' && !empty($toolResults)) {
-                // Rekonstruksi history tool calls dalam format OpenAI-compatible.
-                // Format ini akan dikonversi oleh formatMessagesForProvider() sebelum
-                // dikirim ke masing-masing provider.
-                //
-                // CATATAN untuk Gemini: fakeToolCalls di history harus menggunakan
-                // 'arguments' berupa JSON object string '{}' agar saat di-decode
-                // menghasilkan stdClass (bukan array kosong []).
-                // formatMessagesForProvider() sudah menangani konversi [] -> stdClass.
                 $fakeToolCalls = [];
                 foreach ($toolResults as $res) {
                     $fakeToolCalls[] = [
@@ -1283,7 +1190,7 @@ class AgenticChatbotController extends Controller
                         'type' => 'function',
                         'function' => [
                             'name' => $res['tool_name'] ?? 'query',
-                            'arguments' => '{}', // stdClass setelah decode, bukan array
+                            'arguments' => '{}',
                         ],
                     ];
                 }
@@ -1313,7 +1220,7 @@ class AgenticChatbotController extends Controller
                         'content' => $toolContent,
                         'decoded_data' => isset($truncated) ? $truncated : $toolData,
                     ];
-                    unset($truncated); // Clear for next iteration
+                    unset($truncated);
                 }
             } else {
                 $messages[] = ['role' => $msg['role'] ?? 'user', 'content' => $msg['content'] ?? ''];
@@ -1324,15 +1231,12 @@ class AgenticChatbotController extends Controller
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // SYSTEM PROMPT — ADAPTIVE LANGUAGE (AI-DRIVEN DETECTION)
-    // AI akan otomatis mendeteksi bahasa user dan menjawab dalam bahasa yang sama.
-    // Tidak ada lagi hardcoded Indonesian/English split.
+    // SYSTEM PROMPT
     // ─────────────────────────────────────────────────────────────────────────
     private function buildSystemPrompt(array $allowedDatabases = [], bool $scopeLimited = true): string
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
-            // Cek driver database untuk berikan hint SQL yang tepat
             $dbModel = \App\Models\DatabaseConnection::where('database', $dbCode)->active()->first();
             $driver = $dbModel ? strtoupper($dbModel->driver) : 'UNKNOWN';
             $schemaList = implode(', ', array_filter(array_keys($schemas), fn($s) => $s !== '*'));
@@ -1347,12 +1251,10 @@ class AgenticChatbotController extends Controller
         }
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
-        // ── OPTIMASI: SUNTIKKAN TABEL UTAMA (Skipping 1-2 discovery loops) ──
         $mainTablesHint = [];
         try {
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $conn) {
-                // Gunakan method getTables() bawaan model yang sudah menangani koneksi dengan benar
                 $tables = $conn->getTables();
                 $tableNames = array_slice(array_column($tables, 'table_name'), 0, 15);
 
@@ -1492,7 +1394,7 @@ Nama kolom yang DILARANG ditebak (harus dari describe_table):
 - Jangan gunakan: `netto`, `total_netto_tebakan` → nama asli harus dari describe_table  
 - Jangan gunakan: `diskon`, `total_disc_tebakan` → nama asli harus dari describe_table
 - Jangan gunakan: `periode_bulan`, `periode_tahun` → kolom tanggal asli harus dari describe_table
-- `profit`/`laba` hampir tidak pernah kolom tersimpan — hitung: `SUM(col_net) - SUM(col_hpp)`
+- `profit`/`laba` hampir tidak pernah kolom tersimpan — hitung: `SUM(col_dpp) - SUM(col_hpp * col_qty)`
 
 ## 🔴 ATURAN TERPENTING #1B — RESOLVE NAMA CABANG/ENTITAS SEBELUM QUERY
 
@@ -1557,28 +1459,46 @@ Jika user bertanya tentang Profit/HPP/Omzet:
 |---|---|
 | **KOLOM_BRUTO** | total_harga, gross, bruto, amount, subtotal, harga_bruto |
 | **KOLOM_DISKON** | disc, diskon, discount, potongan, rabat, rebate |
-| **KOLOM_NETTO** | netto, net, total_netto, dpp, net_amount, nett |
+| **KOLOM_DPP** | dpp, dasar_pengenaan, taxable_base |
+| **KOLOM_PPN** | ppn, tax, vat, pajak |
+| **KOLOM_NETTO** | total_netto, netto, net_amount, nett — **nilai AKHIR termasuk PPN** |
 | **KOLOM_HPP** | hrg_pokok, hpp, cost, cogs, harga_pokok, unit_cost, pokok |
 | **KOLOM_QTY** | qty, quantity, jumlah, qjual, vol, unit |
 
-### **2. Logika Kalkulasi Dinamis (Rakit Sendiri Setelah Discovery)**
+### **2. Definisi Konsep Bisnis MBI (WAJIB DIPAHAMI)**
+
+Struktur harga per baris transaksi di MBI adalah:
+```
+total_harga (bruto)
+  - total_disc (diskon)
+  = total_dpp (DPP / Dasar Pengenaan Pajak — harga setelah diskon, SEBELUM PPN)
+  + total_ppn (PPN)
+  = total_netto (nilai akhir yang dibayar pelanggan, TERMASUK PPN)
+```
+
+**KRITIS — Bedakan "Netto" vs "Total Netto":**
+- **"Netto"** yang dimaksud user dalam konteks analisis bisnis = **DPP** (nilai bersih setelah diskon, sebelum PPN) → gunakan `KOLOM_DPP`
+- **"Total Netto"** = nilai transaksi akhir termasuk PPN → gunakan `KOLOM_NETTO` (kolom total_netto)
+- **JANGAN menyamakan keduanya** — ini dua angka yang berbeda!
+
+### **3. Logika Kalkulasi Dinamis (Rakit Sendiri Setelah Discovery)**
 
 Setelah menemukan kolom yang tepat via `describe_table`, gunakan logika ini:
 
 | Konsep Bisnis | Formula (gunakan NAMA KOLOM EKSAK dari describe_table) | Keterangan |
 |---|---|---|
-| **Netto** | Jika KOLOM_NETTO ada → `SUM(KOLOM_NETTO)` | Nilai bersih (sudah potong diskon, sebelum HPP) |
-| **Netto** | Jika tidak ada → `SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)` | Fallback: hitung dari bruto dikurangi diskon |
-| **Total Netto** | Sama dengan **Netto** — alias berbeda untuk metrik yang sama | Gunakan alias "Total Netto" jika user menyebut "Total Netto" |
+| **Netto** | `SUM(KOLOM_DPP)` | Nilai bersih setelah diskon, SEBELUM PPN (= DPP) |
+| **Netto (fallback)** | `SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)` | Jika KOLOM_DPP tidak ada: hitung dari bruto - diskon |
+| **Total Netto** | `SUM(KOLOM_NETTO)` | Nilai akhir yang dibayar pelanggan, TERMASUK PPN |
 | **HPP** | `ROUND(SUM(COALESCE(KOLOM_HPP, 0)), 0)` | Akumulasi HPP satuan (tanpa dikali qty) |
 | **Total HPP** | `ROUND(SUM(COALESCE(KOLOM_HPP, 0) * KOLOM_QTY), 0)` | HPP satuan × qty — biaya total sesungguhnya |
 | **Diskon** | `SUM(KOLOM_DISKON)` | Total potongan/rabat |
-| **Profit** | `[Total Netto] - [Total HPP]` | **SELALU dihitung, tidak pernah kolom tersimpan** |
+| **Profit** | `SUM(KOLOM_DPP) - SUM(COALESCE(KOLOM_HPP, 0) * KOLOM_QTY)` | Netto (DPP) dikurangi Total HPP — **SELALU dihitung** |
 
 **⚠️ ATURAN KOLOM WAJIB TAMPIL — KRITIS:**
 - **Tampilkan SEMUA kolom yang diminta user** — jika user menyebut "netto, total netto, hpp, total hpp, diskon, profit" maka query WAJIB menghasilkan ke-6 kolom tersebut, TIDAK BOLEH ada yang dihilangkan.
 - **Bedakan "HPP" vs "Total HPP"**: HPP = `SUM(KOLOM_HPP)` tanpa dikali qty. Total HPP = `SUM(KOLOM_HPP * KOLOM_QTY)` dengan dikali qty.
-- **Bedakan "Netto" vs "Total Netto"**: Jika KOLOM_NETTO tersedia, keduanya bisa sama nilainya — tampilkan dua kolom dengan alias berbeda. Jika tidak tersedia, hitung dari BRUTO - DISKON.
+- **Bedakan "Netto" vs "Total Netto"**: Netto = DPP (`SUM(KOLOM_DPP)`). Total Netto = nilai akhir + PPN (`SUM(KOLOM_NETTO)`). Keduanya BERBEDA nilainya karena Total Netto sudah termasuk PPN!
 - **WAJIB describe_table sebelum query** — nama kolom aktual datang dari sana, bukan dari tebakan.
 - **Jika ada 2+ kolom kandidat** untuk peran yang sama → pilih yang paling spesifik atau tanya user.
 - **KOLOM_HPP hanya dari tabel transaksi** — jangan gunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) sebagai HPP.
@@ -1593,7 +1513,8 @@ Setelah menemukan kolom yang tepat via `describe_table`, gunakan logika ini:
 1. *"Apakah setiap nama kolom dalam query ini berasal dari hasil describe_table? (BUKAN tebakan)"*
 2. *"Apakah tabel berbentuk HORIZONTAL (dimensi kolom 1, metrik kolom berikutnya)?"*
 3. *"Apakah saya menggunakan kolom harga jual sebagai HPP? (Jika YA, PERBAIKI)"*
-4. *"Apakah Profit = Netto - Total HPP? (Bukan kolom tersimpan)"*
+4. *"Apakah Netto = DPP (sebelum PPN) dan Total Netto = DPP + PPN? Keduanya BERBEDA nilai!"*
+5. *"Apakah Profit = SUM(DPP) - SUM(HPP × QTY)? (Bukan kolom tersimpan)"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
@@ -1606,24 +1527,26 @@ Jika user menyebut istilah bisnis (HPP, Netto, Diskon, Profit, Omzet, Qty) **tan
 **Contoh Pola Query Dinamis LENGKAP (nama kolom WAJIB dari hasil describe_table):**
 ```sql
 -- Contoh: AI telah jalankan describe_table dan menemukan:
--- KOLOM_NETTO   = total_netto   | KOLOM_BRUTO  = total_harga
--- KOLOM_HPP     = hrg_pokok     | KOLOM_QTY    = qty_jual
--- KOLOM_DISKON  = total_disc    | KOLOM_DIMENSI = nama_cabang
+-- KOLOM_DPP    = total_dpp    | KOLOM_NETTO  = total_netto
+-- KOLOM_BRUTO  = total_harga  | KOLOM_DISKON = total_disc
+-- KOLOM_HPP    = hrg_pokok    | KOLOM_QTY    = qty_jual
+-- KOLOM_DIMENSI = nama_cabang
 --
 -- Query ini menampilkan SEMUA 6 metrik sekaligus jika user memintanya:
 SELECT t.[KOLOM_DIMENSI] AS "Nama Cabang",
-       ROUND(SUM(t.[KOLOM_NETTO]), 0) AS "Netto",
-       ROUND(SUM(t.[KOLOM_NETTO]), 0) AS "Total Netto",
-       ROUND(SUM(t.[KOLOM_DISKON]), 0) AS "Diskon",
-       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0)), 0) AS "HPP",
-       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Total HPP",
-       ROUND(SUM(t.[KOLOM_NETTO]) - SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Profit"
+       ROUND(SUM(t.[KOLOM_DPP]), 0)                                             AS "Netto",
+       ROUND(SUM(t.[KOLOM_NETTO]), 0)                                           AS "Total Netto",
+       ROUND(SUM(t.[KOLOM_DISKON]), 0)                                          AS "Diskon",
+       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0)), 0)                                AS "HPP",
+       ROUND(SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0)               AS "Total HPP",
+       ROUND(SUM(t.[KOLOM_DPP]) - SUM(COALESCE(t.[KOLOM_HPP], 0) * t.[KOLOM_QTY]), 0) AS "Profit"
 FROM schema.tabel_transaksi t
 WHERE ...
 GROUP BY t.[KOLOM_DIMENSI]
 -- ⚠️ WAJIB: Hanya tampilkan kolom yang diminta user. Jika user minta 6 kolom → hasilkan 6 kolom.
 -- ⚠️ Ganti [KOLOM_*] dengan nama kolom EKSAK dari describe_table — jangan tebak!
--- ⚠️ Jika KOLOM_NETTO tidak ada: ganti SUM(KOLOM_NETTO) dengan SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)
+-- ⚠️ "Netto" = DPP (SUM(total_dpp)), "Total Netto" = nilai akhir + PPN (SUM(total_netto))
+-- ⚠️ Jika KOLOM_DPP tidak ada: ganti SUM(KOLOM_DPP) dengan SUM(KOLOM_BRUTO) - SUM(KOLOM_DISKON)
 ```
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
@@ -1669,7 +1592,7 @@ Struktur JSON smart_table:
 - ✅ MASUKKAN: kolom dengan nilai rupiah/mata uang (total_netto, hpp, revenue, omset, profit, dll)
 - ❌ JANGAN MASUKKAN: kolom COUNT, jumlah cabang, jumlah dealer, qty, persentase, ID, kode
 - Contoh SALAH: `"currency_columns":["Total Cabang"]` ← angka 91 akan diformat Rp 91!
-- Contoh BENAR: `"currency_columns":["Total Penjualan","Total HPP"]`
+- Contoh BENAR: `"currency_columns":["Netto","Total Netto","HPP","Total HPP","Diskon","Profit"]`
 
 ## 🔴 ATURAN FORMATTING — KODE BLOK (PENTING)
 Setiap blok `smart_table` atau `chart` **WAJIB** dibuka dengan triple backtick (```) diikuti langsung oleh identifier (smart_table atau chart), lalu isi JSON, dan ditutup dengan triple backtick.
@@ -1984,21 +1907,6 @@ PROMPT;
         return $content;
     }
 
-    /**
-     * Strip AI "thinking/reasoning" text yang bocor ke response final.
-     *
-     * Gemini (dan beberapa model lain) kadang menulis proses berpikir internal
-     * di awal response sebelum menyajikan jawaban bisnis yang sesungguhnya.
-     * Contoh teks yang harus dihapus:
-     *   - "Jika ragu, jalankan describe_table lagi..."
-     *   - "Dari hasil describe_table sebelumnya..."
-     *   - Paragraf yang menyebut nama tabel/kolom teknis
-     *   - Paragraf yang membahas alasan memilih COUNT/filter SQL
-     *
-     * STRATEGI: Hapus semua paragraf di awal konten yang mengandung
-     * frasa "thinking" khas AI, hingga ditemukan konten bisnis yang valid
-     * (dimulai dengan markdown heading, bullet, angka, atau kalimat bisnis).
-     */
     private function stripThinkingLeakage(string $content): string
     {
         $thinkingLinePatterns = [
@@ -2019,8 +1927,6 @@ PROMPT;
             '/^kolom yang tersedia/i',
         ];
 
-        // Pola untuk mendeteksi baris yang berisi daftar nama kolom teknis
-        // (biasanya berbentuk: `nama_kolom`, `nama_kolom2`, ...)
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
 
         $lines = explode("\n", $content);
@@ -2031,7 +1937,6 @@ PROMPT;
             $trimmed = trim($line);
             $isThinkingLine = false;
 
-            // Cek pola thinking eksplisit
             foreach ($thinkingLinePatterns as $pattern) {
                 if (preg_match($pattern, $trimmed)) {
                     $isThinkingLine = true;
@@ -2039,7 +1944,6 @@ PROMPT;
                 }
             }
 
-            // Cek apakah baris ini adalah daftar nama kolom teknis
             if (!$isThinkingLine && preg_match($columnListPattern, $trimmed)) {
                 $isThinkingLine = true;
             }
@@ -2054,7 +1958,6 @@ PROMPT;
 
         $result = implode("\n", $cleanLines);
 
-        // Fallback: jika semua baris terhapus, kembalikan konten asli
         if ($strippedCount > 0 && empty(trim($result))) {
             Log::warning('[ThinkingLeakage] All lines stripped — returning original content as fallback.');
             return $content;
@@ -2066,9 +1969,6 @@ PROMPT;
 
     private function streamText(string $text): void
     {
-        // Kirim dalam potongan per kata (split by space) agar teks muncul alami
-        // dan overhead SSE tidak terlalu tinggi (4 char = terlalu banyak event).
-        // Chunk per 32 karakter atau per batas kata untuk keseimbangan optimal.
         $chunkSize = 32;
 
         foreach (mb_str_split($text, $chunkSize) as $chunk) {
@@ -2079,10 +1979,6 @@ PROMPT;
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // API PROVIDER IMPLEMENTATIONS
-    // ─────────────────────────────────────────────────────────────────────────
-
     private function handleProviderResponse($response, string $providerCode): ?array
     {
         if ($response->failed()) {
@@ -2090,15 +1986,11 @@ PROMPT;
             $status = $response->status();
             Log::error("[Agentic] API Error ({$providerCode}) status={$status} body=" . $body);
 
-            // ── Rate Limit / Quota Habis ──────────────────────────────────────
             if ($status === 429) {
                 Log::warning("[Agentic] Rate Limit ({$providerCode}): " . $body);
-                // Lempar exception khusus agar runAgenticLoop bisa tangkap dan
-                // sampaikan pesan yang tepat ke user
                 throw new \RuntimeException('__RATE_LIMIT__');
             }
 
-            // ── Gemini: quota exceeded (bisa status 400 atau 429) ─────────────
             if ($providerCode === 'gemini') {
                 $bodyLower = strtolower($body);
                 if (
@@ -2116,8 +2008,6 @@ PROMPT;
 
         $data = $response->json();
 
-        // Provider custom (selain gemini & claude) semuanya OpenAI-compatible.
-        // Tidak perlu transformasi khusus — langsung lanjut ke salvage logic di bawah.
         $isCustomProvider = !in_array($providerCode, ['gemini', 'claude', 'openai', 'mistral']);
 
         if ($providerCode === 'gemini') {
@@ -2127,7 +2017,6 @@ PROMPT;
                 return null;
             }
 
-            // Gemini 2.5 Flash (thinking mode): finish_reason bisa 'STOP', 'MAX_TOKENS', dll (uppercase)
             $finishReason = strtolower($candidate['finishReason'] ?? 'stop');
 
             $parts = $candidate['content']['parts'] ?? [];
@@ -2135,8 +2024,6 @@ PROMPT;
             $toolCalls = [];
 
             foreach ($parts as $p) {
-                // PENTING: skip 'thought' parts (Gemini 2.5 internal thinking)
-                // thought parts punya key 'thought' = true — JANGAN dikirim balik ke user
                 if (!empty($p['thought'])) {
                     Log::info('[Agentic] Gemini: skipping thought part (' . strlen($p['text'] ?? '') . ' chars)');
                     continue;
@@ -2155,14 +2042,10 @@ PROMPT;
                 }
             }
 
-            // Jika text kosong dan tool calls kosong tapi ada parts thought,
-            // kemungkinan model sedang berpikir dan belum generate output.
-            // Log untuk debug.
             if (empty($text) && empty($toolCalls)) {
                 Log::warning('[Agentic] Gemini: empty text and no tool_calls after parsing parts. finishReason=' . $finishReason . ' parts_count=' . count($parts));
             }
 
-            // Gemini usage: data['usageMetadata']['totalTokenCount'] atau candidatesTokenCount + promptTokenCount
             $geminiUsage = $data['usageMetadata'] ?? [];
             $geminiTokens = (int)($geminiUsage['totalTokenCount']
                 ?? (($geminiUsage['promptTokenCount'] ?? 0) + ($geminiUsage['candidatesTokenCount'] ?? 0)));
@@ -2204,7 +2087,6 @@ PROMPT;
                 }
             }
 
-            // Claude usage: data['usage']['input_tokens'] + data['usage']['output_tokens']
             $claudeUsage = $data['usage'] ?? [];
             $claudeTokens = (int)(($claudeUsage['input_tokens'] ?? 0) + ($claudeUsage['output_tokens'] ?? 0));
 
@@ -2223,7 +2105,6 @@ PROMPT;
             ];
         }
 
-        // ── Custom / OpenAI-compatible salvage logic ──────────────────────────
         if (isset($data['choices'][0]['message'])) {
             $msg = &$data['choices'][0]['message'];
             $content = $msg['content'] ?? '';
@@ -2254,7 +2135,6 @@ PROMPT;
             }
         }
 
-        // OpenAI-compatible: data['usage']['total_tokens'] atau prompt+completion
         if (!isset($data['_tokens'])) {
             $oaiUsage = $data['usage'] ?? [];
             $data['_tokens'] = (int)($oaiUsage['total_tokens']
@@ -2264,15 +2144,6 @@ PROMPT;
         return $data;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // TRUE SSE STREAMING — kirim token per token ke browser saat model generate
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Stream final text response langsung dari provider ke browser via SSE.
-     * Hanya dipanggil pada loop terakhir (saat model akan jawab teks, bukan tool call).
-     * Return: teks lengkap yang sudah di-stream (untuk disimpan ke DB).
-     */
     private function streamFinalResponseFromApi(
         array $messages,
         array $tools,
@@ -2286,7 +2157,6 @@ PROMPT;
         $formattedTools = $this->formatToolsForProvider($providerCode, $tools);
         $formattedMessages = $this->formatMessagesForProvider($providerCode, $messages);
 
-        // Pilih metode streaming sesuai provider
         return match (true) {
             $providerCode === 'claude' => $this->streamClaudeApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt),
             $providerCode === 'gemini' => $this->streamGeminiApi($formattedMessages, $formattedTools, $apiKey, $model, $maxTokens, $systemPrompt, $loopCount),
@@ -2294,10 +2164,6 @@ PROMPT;
         };
     }
 
-    /**
-     * Streaming universal untuk semua provider OpenAI-compatible
-     * (OpenAI, Mistral, Groq, OpenRouter, custom).
-     */
     private function streamOpenAiCompatibleApi(
         array $messages,
         array $tools,
@@ -2319,7 +2185,7 @@ PROMPT;
             'messages' => $messages,
             'max_tokens' => $maxTokens,
             'temperature' => 0.3,
-            'stream' => true,   // ← Kunci: aktifkan streaming
+            'stream' => true,
         ];
         if (!empty($tools)) {
             $payload['tools'] = $tools;
@@ -2338,9 +2204,6 @@ PROMPT;
         return $this->curlStreamSse($url, $headers, $payload, $providerCode);
     }
 
-    /**
-     * Streaming untuk Anthropic Claude.
-     */
     private function streamClaudeApi(
         array $messages,
         array $tools,
@@ -2369,9 +2232,6 @@ PROMPT;
         return $this->curlStreamSse($url, $headers, $payload, 'claude');
     }
 
-    /**
-     * Streaming untuk Google Gemini (streamGenerateContent endpoint).
-     */
     private function streamGeminiApi(
         array $messages,
         array $tools,
@@ -2403,17 +2263,12 @@ PROMPT;
         return $this->curlStreamSse($url, $headers, $payload, 'gemini');
     }
 
-    /**
-     * Core curl streaming engine.
-     * Baca SSE dari provider token per token, langsung forward ke browser.
-     * Return teks lengkap yang diterima.
-     */
     private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): array
     {
         $fullText = '';
         $sseBuffer = '';
         $toolCallsRaw = [];
-        $totalTokens = 0; // akumulasi token dari chunk usage
+        $totalTokens = 0;
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -2425,14 +2280,9 @@ PROMPT;
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
-            // FIX: Paksa HTTP/1.1 agar tidak kena HTTP/2 stream error (INTERNAL_ERROR err 2)
-            // HTTP/2 multiplexing kadang menyebabkan stream ditutup prematur oleh beberapa
-            // provider (nvidia/openrouter) sehingga SSE gagal dan fallback ke non-streaming.
-            // HTTP/1.1 lebih stabil untuk long-polling SSE.
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
                 $sseBuffer .= $data;
-                // Proses baris-baris SSE yang lengkap (diakhiri \n)
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
                     $line = substr($sseBuffer, 0, $pos);
                     $sseBuffer = substr($sseBuffer, $pos + 1);
@@ -2449,7 +2299,6 @@ PROMPT;
                         if (!$parsed)
                             continue;
 
-                        // Ekstrak teks
                         $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
                         if ($token !== '') {
                             $fullText .= $token;
@@ -2459,22 +2308,16 @@ PROMPT;
                             flush();
                         }
 
-                        // Ekstrak usage token dari chunk (OpenAI kirim di chunk terakhir)
-                        // Format: {"usage":{"prompt_tokens":X,"completion_tokens":Y,"total_tokens":Z}}
                         if (isset($parsed['usage']['total_tokens'])) {
                             $totalTokens = (int)$parsed['usage']['total_tokens'];
                         } elseif (isset($parsed['usage']['prompt_tokens'])) {
                             $totalTokens = (int)(($parsed['usage']['prompt_tokens'] ?? 0) + ($parsed['usage']['completion_tokens'] ?? 0));
                         }
-                        // Gemini streaming: usageMetadata di chunk terakhir
                         if (isset($parsed['usageMetadata']['totalTokenCount'])) {
                             $totalTokens = (int)$parsed['usageMetadata']['totalTokenCount'];
                         } elseif (isset($parsed['usageMetadata']['promptTokenCount'])) {
                             $totalTokens = (int)(($parsed['usageMetadata']['promptTokenCount'] ?? 0) + ($parsed['usageMetadata']['candidatesTokenCount'] ?? 0));
                         }
-                        // Claude streaming: message_delta event kirim usage
-                        // {"type":"message_delta","usage":{"output_tokens":X}}
-                        // {"type":"message_start","message":{"usage":{"input_tokens":X}}}
                         if (($parsed['type'] ?? '') === 'message_start') {
                             $totalTokens += (int)($parsed['message']['usage']['input_tokens'] ?? 0);
                         }
@@ -2482,7 +2325,6 @@ PROMPT;
                             $totalTokens += (int)($parsed['usage']['output_tokens'] ?? 0);
                         }
 
-                        // Ekstrak tool_calls (Format OpenAI/Mistral/Groq/OpenRouter)
                         $delta = $parsed['choices'][0]['delta'] ?? [];
                         if (!empty($delta['tool_calls'])) {
                             foreach ($delta['tool_calls'] as $tc) {
@@ -2504,13 +2346,11 @@ PROMPT;
                             }
                         }
 
-                        // Gemini Format: {"candidates":[{"content":{"parts":[{"functionCall":{"name":"...","args":{...}}}]}}]}
                         if ($providerCode === 'gemini') {
                             $parts = $parsed['candidates'][0]['content']['parts'] ?? [];
                             foreach ($parts as $p) {
                                 if (!empty($p['functionCall'])) {
                                     $fc = $p['functionCall'];
-                                    // Gemini biasanya mengirim satu call per chunk atau sekaligus
                                     $toolCallsRaw[] = [
                                         'id' => 'gemini_call_' . uniqid(),
                                         'name' => $fc['name'] ?? '',
@@ -2539,7 +2379,6 @@ PROMPT;
             throw new \RuntimeException('__RATE_LIMIT__');
         }
 
-        // Transform toolCallsRaw ke format yang dimengerti runAgenticLoop
         $toolCalls = [];
         foreach ($toolCallsRaw as $tc) {
             $toolCalls[] = [
@@ -2552,8 +2391,6 @@ PROMPT;
             ];
         }
 
-        // Fallback: estimasi dari panjang teks jika provider tidak kirim usage
-        // (~4 karakter per token adalah estimasi kasar tapi lebih baik dari 0)
         if ($totalTokens === 0 && strlen($fullText) > 0) {
             $totalTokens = (int)ceil(strlen($fullText) / 4);
         }
@@ -2575,13 +2412,9 @@ PROMPT;
         ];
     }
 
-    /**
-     * Ekstrak token teks dari satu SSE chunk sesuai format provider.
-     */
     private function extractTokenFromSseChunk(array $parsed, string $providerCode): string
     {
         if ($providerCode === 'claude') {
-            // Claude: {"type":"content_block_delta","delta":{"type":"text_delta","text":"..."}}
             if (($parsed['type'] ?? '') === 'content_block_delta') {
                 return $parsed['delta']['text'] ?? '';
             }
@@ -2589,25 +2422,18 @@ PROMPT;
         }
 
         if ($providerCode === 'gemini') {
-            // Gemini: {"candidates":[{"content":{"parts":[{"text":"..."}]}}]}
             $parts = $parsed['candidates'][0]['content']['parts'] ?? [];
             $text = '';
             foreach ($parts as $p) {
                 if (!empty($p['thought']))
-                    continue; // skip thinking parts
+                    continue;
                 $text .= $p['text'] ?? '';
             }
             return $text;
         }
 
-        // OpenAI-compatible (OpenAI, Mistral, Groq, OpenRouter, custom)
-        // Format: {"choices":[{"delta":{"content":"..."},"finish_reason":null}]}
         return $parsed['choices'][0]['delta']['content'] ?? '';
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // PROVIDER API IMPLEMENTATIONS (non-streaming, untuk tool call loops)
-    // ─────────────────────────────────────────────────────────────────────────
 
     private function callOpenAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens, string $systemPrompt = ''): ?array
     {
@@ -2687,8 +2513,6 @@ PROMPT;
             ],
         ];
 
-        // Gemini 2.5 Flash/Pro: nonaktifkan thinking mode agar tidak ada empty parts.
-        // thinkingConfig dengan budgetTokens=0 menonaktifkan extended thinking.
         if (str_contains($currentModelName, '2.5')) {
             $payload['generationConfig']['thinkingConfig'] = [
                 'thinkingBudget' => 0,
@@ -2700,8 +2524,6 @@ PROMPT;
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
-            // Loop 1-3: paksa Gemini WAJIB panggil tool (mode ANY).
-            // Loop berikutnya: biarkan AUTO agar bisa balas teks jika sudah punya data.
             $toolMode = ($loopCount <= 3) ? 'ANY' : 'AUTO';
             $payload['toolConfig'] = [
                 'functionCallingConfig' => ['mode' => $toolMode],
@@ -2730,19 +2552,12 @@ PROMPT;
         $isGroq = $providerCode === 'groq' || str_contains($baseUrl, 'groq.com');
         $isOpenRouter = $providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai');
 
-        // ════════════════════════════════════════════════════════════
-        // NORMALISASI MESSAGES — berlaku untuk SEMUA provider custom
-        // Standar OpenAI-compatible: assistant.content wajib string,
-        // tool.content wajib string, tool_calls.arguments wajib string.
-        // ════════════════════════════════════════════════════════════
         $normalizedMessages = [];
         foreach ($messages as $m) {
             $role = $m['role'] ?? '';
 
             if ($role === 'assistant') {
-                // content harus string (bukan null / array)
                 $m['content'] = is_string($m['content'] ?? null) ? $m['content'] : '';
-                // normalisasi setiap tool_call
                 if (!empty($m['tool_calls'])) {
                     $m['tool_calls'] = array_map(function ($tc) {
                         $tc['type'] = $tc['type'] ?? 'function';
@@ -2755,7 +2570,6 @@ PROMPT;
             }
 
             if ($role === 'tool') {
-                // content harus string
                 if (!is_string($m['content'] ?? null)) {
                     $m['content'] = json_encode($m['content'] ?? '');
                 }
@@ -2765,11 +2579,6 @@ PROMPT;
         }
         $messages = $normalizedMessages;
 
-        // ════════════════════════════════════════════════════════════
-        // NORMALISASI TOOLS — sanitasi parameter schema kosong
-        // Groq (dan beberapa provider lain) menolak tools dengan
-        // "properties": [] (array) — harus object kosong: {}
-        // ════════════════════════════════════════════════════════════
         if (!empty($tools)) {
             $tools = array_map(function ($tool) {
                 if (!isset($tool['function']['parameters']))
@@ -2786,14 +2595,9 @@ PROMPT;
             }, $tools);
         }
 
-        // ════════════════════════════════════════════════════════════
-        // GROQ — History Pruning untuk manajemen TPM
-        // Pangkas tool results lama agar tidak meledak di token limit.
-        // PENTING: Hanya truncate pesan lama (bukan 4 pesan terakhir).
-        // ════════════════════════════════════════════════════════════
         if ($isGroq && $loopCount >= 3) {
             $totalMessages = count($messages);
-            $guardZone = 4; // jaga 4 pesan terakhir tetap utuh
+            $guardZone = 4;
             $prunedCount = 0;
             for ($i = 0; $i < $totalMessages - $guardZone; $i++) {
                 if (($messages[$i]['role'] ?? '') === 'tool' && strlen($messages[$i]['content'] ?? '') > 500) {
@@ -2810,9 +2614,6 @@ PROMPT;
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // BUILD PAYLOAD — standar OpenAI-compatible
-        // ════════════════════════════════════════════════════════════
         $payload = [
             'model' => $model->model_name,
             'messages' => $messages,
@@ -2825,14 +2626,10 @@ PROMPT;
             $payload['tool_choice'] = 'auto';
         }
 
-        // Groq tidak support parallel tool calls
         if ($isGroq) {
             $payload['parallel_tool_calls'] = false;
         }
 
-        // ════════════════════════════════════════════════════════════
-        // CUSTOM HEADERS — per provider
-        // ════════════════════════════════════════════════════════════
         $httpRequest = Http::timeout(600)->retry(3, 2000);
 
         if ($isOpenRouter) {
