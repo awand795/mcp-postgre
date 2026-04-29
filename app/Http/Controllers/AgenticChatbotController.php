@@ -1545,21 +1545,21 @@ Jika user bertanya tentang Profit/HPP/Omzet:
 |---|---|---|
 | **Netto** | `SUM(t.total_harga - t.total_disc)` | Nilai Bruto - Diskon (Tanpa PPN) |
 | **Total Netto** | `SUM(t.total_netto)` | Nilai Final (Setelah PPN & Diskon) |
-| **HPP** | `SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0))` | Jumlah Harga Pokok Satuan (HPP Satuan) |
-| **Total HPP** | `SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` | Akumulasi Biaya Sesungguhnya (Cost × Qty) |
-| **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, m.hrg_pokok, 0) * t.qty_jual)` | Total Netto - Total HPP |
+| **HPP** | `SUM(COALESCE(t.hrg_pokok, 0))` | Jumlah HPP Satuan dari Transaksi |
+| **Total HPP** | `SUM(COALESCE(t.hrg_pokok, 0) * t.qty_jual)` | Akumulasi Biaya (Cost × Qty) |
+| **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, 0) * t.qty_jual)` | Total Netto - Total HPP |
 
 **STRATEGI QUERY (WAJIB):**
-- **MANDATORY JOIN**: Anda **WAJIB** melakukan `LEFT JOIN` ke tabel Master untuk setiap perhitungan Profit/HPP. DILARANG menghitung Profit/HPP hanya dari satu tabel transaksi.
-- **COLUMN NAMES**: Gunakan alias kolom yang user-friendly dan **EKSAK** sesuai permintaan user (misal: "HPP", "Total HPP", "Profit").
-- **MANDATORY DIMENSION**: Kolom dimensi (Nama Cabang, Kategori, dll) **WAJIB** menjadi kolom pertama.
-- **ANTI-HALLUCINATION (COST)**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `price`, `selling_price`) sebagai fallback untuk harga pokok. Jika kolom 'biaya/pokok/beli' tidak ada di Master, gunakan `0`. DILARANG KERAS berasumsi harga jual = harga pokok.
-- **COLUMN COMPLIANCE**: Jika user minta "Netto, Total Netto, HPP, Total HPP, Profit", Anda **WAJIB** menampilkan kelimanya sebagai kolom terpisah.
+- **PRIMARY SOURCE**: Gunakan `t.hrg_pokok` dari tabel transaksi sebagai sumber utama HPP.
+- **DILARANG KERAS**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) dari tabel Master sebagai fallback HPP. Ini akan menyebabkan Profit menjadi 0 atau salah hitung.
+- **LOGIKA JASA (SERVICE)**: Untuk item JASA (biasanya `hrg_pokok` bernilai NULL), HPP adalah `0`. Jangan paksa mengambil data dari Master jika Master hanya berisi harga jual.
+- **FALLBACK MASTER**: Hanya lakukan fallback ke Master jika Anda menemukan kolom modal yang eksak (misal: `hrg_beli`, `hrg_modal`). Jika tidak ada, gunakan `0`.
+- **COLUMN NAMES**: Gunakan alias kolom "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", dan "Profit" secara eksak.
 
 **CHECKPOINT KRITIS:**
-1. *"Apakah saya menampilkan kelima kolom: Netto, Total Netto, HPP, Total HPP, dan Profit secara terpisah?"*
-2. *"Apakah Profit sudah dihitung: (Total Netto - Total HPP)?"*
-3. *"Apakah HPP dan Total HPP menggunakan kolom Biaya (bukan Harga Jual)?"*
+1. *"Apakah saya menggunakan hrg_jual sebagai HPP? (Jika YA, segera PERBAIKI menjadi hrg_pokok atau 0)"*
+2. *"Apakah Profit dihitung dari (Total Netto - Total HPP)?"*
+3. *"Apakah semua kolom (Netto, Total Netto, HPP, Total HPP, Diskon, Profit) sudah muncul?"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
