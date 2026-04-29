@@ -1566,8 +1566,8 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - ⚠️ **ATURAN MUTLAK TABEL**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)**. 
-  - **UNTUK HASIL TOOL execute_query**: Anda **DILARANG KERAS** memanggil JSON `smart_table` secara manual. Cukup berikan ringkasan narasi saja. Sistem frontend akan OTOMATIS menginjeksi tabel horizontal dari hasil kueri ke layar pengguna!
-  - **KAPAN BOLEH PAKAI JSON MANUAL?**: Hanya jika Anda membuat tabel perbandingan manual (misal: membandingkan Keunggulan Produk A vs B) yang datanya **TIDAK** berasal dari database.
+  - **UNTUK HASIL DATABASE (execute_query)**: Anda **WAJIB** mencantumkan blok ```smart_table``` singkat (berisi `title` dan `currency_columns` saja) tepat setelah Ringkasan Eksekutif. Ini sangat penting agar sistem frontend dapat memicu penampilan tabel data secara profesional.
+  - **KAPAN PAKAI JSON LENGKAP?**: Hanya jika Anda membuat tabel perbandingan manual (misal: membandingkan Keunggulan Produk A vs B) yang datanya **TIDAK** berasal dari database. Untuk data database, jangan sertakan `headers` atau `rows`.
   - Jika Anda membuat tabel kustom (bukan dari tool), formatnya:
     ```smart_table
     {
