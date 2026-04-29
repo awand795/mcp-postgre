@@ -1550,16 +1550,16 @@ Jika user bertanya tentang Profit/HPP/Omzet:
 | **Profit** | `SUM(t.total_netto) - SUM(COALESCE(t.hrg_pokok, 0) * t.qty_jual)` | Total Netto - Total HPP |
 
 **STRATEGI QUERY (WAJIB):**
+- **FORMAT TABEL LEBAR (WIDE TABLE)**: Anda **WAJIB** menghasilkan data dalam format horizontal (1 baris banyak kolom). Letakkan Nama Cabang di kolom pertama, lalu metrik-metrik (Netto, HPP, Profit, dll) di kolom-kolom berikutnya. **DILARANG KERAS** memutar (pivot) hasil menjadi format vertikal/baris kecuali diminta per-barang/per-tanggal.
 - **PRIMARY SOURCE**: Gunakan `t.hrg_pokok` dari tabel transaksi sebagai sumber utama HPP.
-- **DILARANG KERAS**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) dari tabel Master sebagai fallback HPP. Ini akan menyebabkan Profit menjadi 0 atau salah hitung.
-- **LOGIKA JASA (SERVICE)**: Untuk item JASA (biasanya `hrg_pokok` bernilai NULL), HPP adalah `0`. Jangan paksa mengambil data dari Master jika Master hanya berisi harga jual.
-- **FALLBACK MASTER**: Hanya lakukan fallback ke Master jika Anda menemukan kolom modal yang eksak (misal: `hrg_beli`, `hrg_modal`). Jika tidak ada, gunakan `0`.
+- **DILARANG KERAS**: Jangan pernah menggunakan kolom harga jual (`hrg_jual`, `harga_jual`, `price`) dari Master sebagai fallback HPP.
+- **LOGIKA JASA (SERVICE)**: Untuk item JASA, HPP adalah `0`.
 - **COLUMN NAMES**: Gunakan alias kolom "Netto", "Total Netto", "HPP", "Total HPP", "Diskon", dan "Profit" secara eksak.
 
 **CHECKPOINT KRITIS:**
-1. *"Apakah saya menggunakan hrg_jual sebagai HPP? (Jika YA, segera PERBAIKI menjadi hrg_pokok atau 0)"*
-2. *"Apakah Profit dihitung dari (Total Netto - Total HPP)?"*
-3. *"Apakah semua kolom (Netto, Total Netto, HPP, Total HPP, Diskon, Profit) sudah muncul?"*
+1. *"Apakah tabel saya berbentuk HORIZONTAL (Cabang sebagai kolom 1, metrik sebagai kolom berikutnya)?"*
+2. *"Apakah saya menggunakan hrg_jual sebagai HPP? (Jika YA, PERBAIKI)"*
+3. *"Apakah Profit dihitung dari (Total Netto - Total HPP)?"*
 
 ## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
 
@@ -1582,12 +1582,6 @@ WHERE ...
 GROUP BY t.dimensi
 ```
 
-**Contoh SALAH** (JANGAN lakukan ini):
-```
--- SALAH: SELECT hrg_pokok, total_netto ... GROUP BY nama_cabang, hrg_pokok, total_netto
--- SALAH: menggunakan nama kolom tebakan tanpa describe_table
-```
-
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
 
 ### ⛔ LARANGAN MUTLAK NOMOR 1 (BERLAKU UNTUK SEMUA MODEL):
@@ -1599,9 +1593,10 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 ### Kapan WAJIB pakai smart_table:
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
-- ⚠️ **ATURAN MUTLAK TABEL**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk semua jenis output. SEMUA data berbentuk tabel/daftar WAJIB divisualisasikan melalui sistem JSON `smart_table`. 
-  - **Untuk hasil tool `execute_query` atau `describe_table`**: Anda CUKUP memberikan ringkasan paragraf singkat, JANGAN memanggil JSON `smart_table` secara manual karena sistem frontend akan OTOMATIS menginjeksi tabelnya ke layar pengguna!
-  - **Untuk Tabel Kustom/Buatan Sendiri (bukan dari tool)**: Jika Anda membuat tabel ringkasan atau perbandingan dari pemikiran Anda sendiri (misal: "Bandingkan tipe A dan tipe B"), Anda **WAJIB** membuat blok JSON `smart_table` secara manual dan **WAJIB memasukkan array `headers` dan `rows`** di dalamnya! Formatnya:
+- ⚠️ **ATURAN MUTLAK TABEL**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)**. 
+  - **UNTUK HASIL TOOL execute_query**: Anda **DILARANG KERAS** memanggil JSON `smart_table` secara manual. Cukup berikan ringkasan narasi saja. Sistem frontend akan OTOMATIS menginjeksi tabel horizontal dari hasil kueri ke layar pengguna!
+  - **KAPAN BOLEH PAKAI JSON MANUAL?**: Hanya jika Anda membuat tabel perbandingan manual (misal: membandingkan Keunggulan Produk A vs B) yang datanya **TIDAK** berasal dari database.
+  - Jika Anda membuat tabel kustom (bukan dari tool), formatnya:
     ```smart_table
     {
       "title": "Perbandingan Tipe A vs B",
