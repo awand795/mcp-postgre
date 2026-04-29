@@ -2881,10 +2881,8 @@
                             <tbody></tbody>
                         </table>
                     </div>
-                    ${rows.length > PAGE_SIZE ? \`<div class="smart-table-pagination">
-                        <span class="smart-table-page-info"></span>
-                        <div class="smart-table-btns"></div>
-                    </div>\` : ''}
+                    </div>
+                    ${rows.length > PAGE_SIZE ? '<div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>' : ''}
                 `;
 
                 table.parentNode.replaceChild(wrapDiv, table);
