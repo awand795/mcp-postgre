@@ -3169,10 +3169,14 @@
                                 headers = ['Info'];
                                 allRows = tableData.map(r => [r]);
                              }
-                        } else if (tableData.columns && Array.isArray(tableData.columns) && tableData.table_name) {
+                        } else if (tableData.columns && Array.isArray(tableData.columns) && (tableData.table || tableData.table_name)) {
                             headers = ['Nama Kolom', 'Tipe Data', 'Keterangan'];
-                            allRows = tableData.columns.map(c => [c.name || '', c.type || '', c.description || '']);
-                            if (!tableLabel) tableLabel = 'Struktur Kolom: ' + tableData.table_name;
+                            allRows = tableData.columns.map(c => [
+                                c.column || c.name || '', 
+                                c.type || '', 
+                                c.notes || c.description || ''
+                            ]);
+                            if (!tableLabel) tableLabel = 'Struktur Kolom: ' + (tableData.table || tableData.table_name);
                         }
                     }
 
