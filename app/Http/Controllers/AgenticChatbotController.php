@@ -280,7 +280,9 @@ class AgenticChatbotController extends Controller
         // berturut-turut tanpa GROUP BY, inject reminder paksa agar langsung ke query utama.
         // Ini mencegah model terus eksplor tanpa batas.
         $probeQueryCount = 0;
-        $maxProbeQueries = 3; // maksimal 3 probe query sebelum dipaksa ke query utama
+        $maxProbeQueries = 2; // FIX: maksimal 2 probe query sebelum dipaksa ke query utama
+        // (Sebelumnya 3 — dikurangi karena dengan instruksi multi-keyword OR di system prompt,
+        //  1 probe saja seharusnya sudah cukup untuk resolve nama entitas.)
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -780,12 +782,13 @@ class AgenticChatbotController extends Controller
 
                     if ($currentIsProbe) {
                         $probeQueryCount++;
+                        Log::info("[Agentic] Probe query #{$probeQueryCount}: " . substr($lastExecutedSql, 0, 150));
                         $isProbeLimitReached = ($currentIsProbe && $probeQueryCount >= $maxProbeQueries);
                         if ($isProbeLimitReached) {
-                            Log::warning("[Agentic] PROBE LIMIT reached (2/2). Injecting force-execute reminder.");
+                            Log::warning("[Agentic] PROBE LIMIT reached ({$probeQueryCount}/{$maxProbeQueries}). Injecting force-execute reminder.");
                             if (!empty($executedResults)) {
                                 $lastIdx = count($executedResults) - 1;
-                                $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai (2/2). Anda dilarang melakukan probe lagi. Segera eksekusi query utama berdasarkan nilai yang sudah ditemukan.";
+                                $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai ({$probeQueryCount}/{$maxProbeQueries}). Anda DILARANG KERAS melakukan probe lagi. Ambil nilai eksak dari hasil probe di atas dan gunakan langsung untuk query utama dengan WHERE nama_kolom = 'NILAI_EKSAK'. Jangan ILIKE — pakai = (equals) dengan nilai persis dari hasil probe.";
                             }
                         }
                     }
@@ -1493,23 +1496,36 @@ Nama kolom yang DILARANG ditebak (harus dari describe_table):
 
 ## 🔴 ATURAN TERPENTING #1B — RESOLVE NAMA CABANG/ENTITAS SEBELUM QUERY
 
-User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis ("hm yamin", "HM Yamin", "yamin", dll). Nama yang tersimpan di database bisa berbeda ("HM. YAMIN", "HM YAMIN BC", dll).
+User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis. Nama di database bisa berbeda: "hm yamin" → "HM. YAMIN", "kapt muslim" → "KAPT. MUSLIM 1", dll.
 
 **WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas SPESIFIK (bukan wilayah/propinsi/kota):**
 
-**Langkah 1 — Resolve nama eksak dulu (hanya untuk nama entitas spesifik):**
+**Langkah 1 — Resolve nama eksak dengan MULTI-KEYWORD OR (wajib dilakukan SEKALI saja):**
+
+Jika nama user terdiri dari beberapa kata (misal: "hm yamin"), buat filter yang mencari SETIAP kata secara terpisah menggunakan OR:
 ```sql
 SELECT DISTINCT nama_cabang
 FROM schema.tabel
-WHERE nama_cabang ILIKE '%keyword_dari_user%'
+WHERE nama_cabang ILIKE '%hm%'
+   OR nama_cabang ILIKE '%yamin%'
 LIMIT 10
 ```
-→ Dapatkan nama eksak dari hasil query ini (misal: "HM. YAMIN")
+**MENGAPA:** "hm yamin" tidak akan match `%hm yamin%` jika di database ada titik ("HM. YAMIN") atau spasi berbeda. Memecah per kata memastikan hasil selalu ditemukan.
+
+**Aturan pemecahan kata kunci:**
+- Input 1 kata ("yamin") → 1 kondisi ILIKE: `ILIKE '%yamin%'`
+- Input 2 kata ("hm yamin") → 2 kondisi OR: `ILIKE '%hm%' OR ILIKE '%yamin%'`
+- Input 3 kata ("kapt muslim barat") → 3 kondisi OR: `ILIKE '%kapt%' OR ILIKE '%muslim%' OR ILIKE '%barat%'`
+- **DILARANG KERAS** menggabungkan seluruh input sebagai 1 frase: `ILIKE '%hm yamin%'` ← **ini penyebab 0 hasil!**
+- **DILARANG KERAS** menjalankan probe kedua jika probe pertama sudah mengembalikan hasil. Jika probe pertama 0 hasil BARULAH coba variasi lain — HANYA 1 KALI.
+- **KRITIS — TIDAK BOLEH PROBE ULANG:** Jika probe pertama berhasil (ada hasil), LANGSUNG gunakan nama eksak itu untuk query utama. JANGAN probe lagi meski hasilnya 1 baris.
 
 **Langkah 2 — Gunakan nama eksak (bukan ILIKE) untuk query utama:**
 ```sql
 WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
 ```
+
+Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
 
 ## 🔴 ATURAN WILAYAH/PROPINSI/KOTA
 Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
@@ -1519,15 +1535,12 @@ Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
 
 **PENGECUALIAN PENTING — DILARANG pakai Langkah 1 jika user menyebut wilayah/kota/propinsi:**
 - User tanya "cabang di Medan" / "cabang di Sumatera Utara" / "cabang di Jakarta" → **JANGAN resolve nama cabang**
-- Untuk pertanyaan berbasis wilayah: **LANGSUNG gunakan filter `ILIKE '%NAMA_WILAYAH%'`** pada kolom propinsi/kabupaten/kota. Ini lebih cepat dan menangani perbedaan huruf besar/kecil secara otomatis.
+- Untuk pertanyaan berbasis wilayah: **LANGSUNG gunakan filter `ILIKE '%NAMA_WILAYAH%'`** pada kolom propinsi/kabupaten/kota.
 - Contoh: `WHERE nama_propinsi_cabang ILIKE '%SUMATERA UTARA%'` atau `WHERE nama_kota_cabang ILIKE '%MEDAN%'`
 - Nilai eksak wilayah didapat dari **1 query probe** `SELECT DISTINCT nama_propinsi_cabang ... LIMIT 20` **TANPA filter WHERE**
 - Setelah dapat nilai propinsi eksak → **LANGSUNG query utama**, JANGAN probe lagi
 
-**DILARANG** langsung pakai keyword user sebagai filter tanpa Langkah 1 (hanya berlaku untuk nama entitas spesifik).
 **DILARANG** pakai `ILIKE` di query utama jika sudah mendapat nama eksak dari Langkah 1.
-
-Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
 
 ## 🔴 ATURAN TERPENTING #1C — PROTOKOL PENEMUAN DATA (DISCOVERY) & KALKULASI
 
@@ -2412,6 +2425,11 @@ PROMPT;
             CURLOPT_CONNECTTIMEOUT => 30,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
+            // FIX: Paksa HTTP/1.1 agar tidak kena HTTP/2 stream error (INTERNAL_ERROR err 2)
+            // HTTP/2 multiplexing kadang menyebabkan stream ditutup prematur oleh beberapa
+            // provider (nvidia/openrouter) sehingga SSE gagal dan fallback ke non-streaming.
+            // HTTP/1.1 lebih stabil untuk long-polling SSE.
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
                 $sseBuffer .= $data;
                 // Proses baris-baris SSE yang lengkap (diakhiri \n)
