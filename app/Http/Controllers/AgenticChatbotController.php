@@ -729,14 +729,24 @@ class AgenticChatbotController extends Controller
                 }
 
                 $aiContent = $toolResult;
-                if (is_array($decodedRes) && isset($decodedRes['rows']) && count($decodedRes['rows']) > 100) {
-                    $aiContent = json_encode([
-                        'rows_returned' => count($decodedRes['rows']),
-                        'columns' => $decodedRes['columns'] ?? [],
-                        'currency_columns' => $decodedRes['currency_columns'] ?? [],
-                        'rows' => array_slice($decodedRes['rows'], 0, 100),
-                        'instruction' => "ANALYST NOTE: Results are truncated to 100 rows for prompt efficiency, but the UI will show the full list of " . count($decodedRes['rows']) . " rows to the user. DO NOT run another query with LIMIT/OFFSET to fetch the remaining rows. The frontend already has the full data. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
-                    ]);
+                if (is_array($decodedRes) && isset($decodedRes['rows'])) {
+                    $rowCount = count($decodedRes['rows']);
+                    if ($rowCount > 100) {
+                        $aiContent = json_encode([
+                            'rows_returned' => $rowCount,
+                            'columns' => $decodedRes['columns'] ?? [],
+                            'currency_columns' => $decodedRes['currency_columns'] ?? [],
+                            'rows' => array_slice($decodedRes['rows'], 0, 100),
+                            'instruction' => "ANALYST NOTE: Results are truncated to 100 rows for prompt efficiency, but the UI will show the full list of " . $rowCount . " rows to the user. DO NOT run another query with LIMIT/OFFSET to fetch the remaining rows. The frontend already has the full data. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
+                        ]);
+                    } elseif ($rowCount === 0 && $toolName === 'execute_query') {
+                        $aiContent = json_encode([
+                            'rows_returned' => 0,
+                            'columns' => $decodedRes['columns'] ?? [],
+                            'rows' => [],
+                            'instruction' => "ANALYST NOTE: Query mengembalikan 0 baris (kosong). ⚠️ PERINGATAN KERAS: Jika Anda baru saja mencari data untuk tanggal/periode tertentu (kemarin/hari ini/dsb), ANDA DILARANG mengeksekusi query lagi untuk mencari MAX() date atau tanggal lain. LANGSUNG laporkan ke user bahwa data untuk tanggal tersebut belum tersedia dan BERHENTI memanggil tool execute_query."
+                        ]);
+                    }
                 }
 
                 $frontendResult = [
@@ -1440,7 +1450,7 @@ Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau
 
 Jika Anda memanggil beberapa tool dan mendapatkan beberapa hasil (misal: satu hasil LIST detail dan satu hasil COUNT total):
 1. **WAJIB** gunakan data dari query LIST detail untuk membuat blok `smart_table`.
-2. **DILARANG** menggunakan hasil query `COUNT(*)` untuk membuat `smart_table`. Angka total dari COUNT wajib ditulis langsung dalam narasi (Ringkasan Eksekutif atau penutup).
+2. Jika Anda hanya memiliki data rekapitulasi/summary (walaupun hanya 1 baris berisi banyak metrik) dan ingin menampilkannya sebagai tabel, Anda **WAJIB** menampilkannya sebagai blok `smart_table`. **DILARANG KERAS** menggunakan tabel Markdown biasa (`| Kolom | Kolom |`) dengan melakukan pivot data! Jika tidak pakai smart_table, angka rekap harus masuk dalam narasi paragraf biasa.
 3. **KONSISTENSI**: Jika data detail transaksi/faktur sudah diambil, **DILARANG KERAS** menggantinya dengan data rekap/summary (seperti rekap per cabang). Meskipun data detail terpotong (truncated) di log Anda, sistem frontend sudah memilikinya secara utuh. Tetap gunakan hasil query detail untuk `smart_table`!
 4. **BATASAN EKSEKUSI**: Jika user meminta rincian/transaksi, jalankan **SATU** query detail saja. Jangan jalankan query rekap/summary tambahan kecuali diminta eksplisit.
 
@@ -1595,10 +1605,10 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 - Hasil query memiliki **≥ 2 kolom** DAN **≥ 2 baris** → WAJIB smart_table
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - Hasil query memiliki **≥ 2 baris** meskipun hanya 1 kolom → WAJIB smart_table
-- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk menampilkan hasil query. SEMUA data berbentuk tabel/daftar WAJIB menggunakan format JSON `smart_table`, berapapun jumlah barisnya (baik itu 2 baris maupun 2.000 baris).
+- ⚠️ **ATURAN MUTLAK**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)** untuk menampilkan hasil query. SEMUA data berbentuk tabel/daftar WAJIB menggunakan format JSON `smart_table`, berapapun jumlah barisnya (baik itu 2 baris maupun 2.000 baris). Jika AI ingin menampilkan tabel rekapitulasi/metrik (contoh: 1 baris hasil COUNT/SUM), AI DILARANG melakukan pivot/transpose data ke dalam format Markdown. Gunakan blok `smart_table` saja!
 
 ### Kapan DILARANG smart_table (WAJIB jawab inline):
-- Hasil query **1 baris, 1 kolom** (angka tunggal) → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
+- Hasil query **1 baris, 1 kolom** (angka tunggal, e.g. `COUNT(*)` saja) → **DILARANG KERAS**. Sebutkan angkanya langsung dalam narasi.
   - ✅ BENAR: "**Perusahaan memiliki total 93 cabang yang aktif.**"
   - ❌ SALAH: Membuat tabel `| 93 |` hanya untuk satu angka
   - ❌ SALAH: Membuat `smart_table` dengan 1 header dan 1 baris berisi angka tunggal
