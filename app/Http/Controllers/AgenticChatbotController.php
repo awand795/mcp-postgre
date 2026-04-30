@@ -1598,6 +1598,13 @@ Untuk semua nilai uang/mata uang (baik dari database maupun data eksternal/globa
 - **RENTANG HARGA**: Jika menyajikan rentang harga dalam tabel, WAJIB gunakan angka penuh dipisahkan tanda hubung. Contoh: "200000-300000" (BUKAN "200-300").
 - **DATA GLOBAL**: Aturan ini berlaku mutlak untuk data yang Anda berikan dari pengetahuan internal Anda. Jangan pernah gunakan singkatan harga.
 
+**⚠️ ATURAN TABEL RINGKASAN MANUAL (KRITIS — WAJIB DIBACA):**
+Jika Anda membuat tabel ringkasan per kunjungan/faktur (misalnya "Rincian Transaksi Kunjungan 1"), nilai yang Anda tulis di dalam tabel WAJIB diambil langsung dari data SQL yang sudah Anda ambil — BUKAN dari hasil kalkulasi di kepala Anda.
+- ✅ BENAR: Nilai dari baris data asli, misalnya `Rp 517.000` jika kolom `hrg_jual` bernilai 517000.
+- ❌ SALAH: Menulis `Rp 517` karena Anda "pikir" satuannya ribuan — INI KESALAHAN FATAL.
+- **WAJIB**: Nilai rupiah di tabel ringkasan manual HARUS identik dengan nilai di smart_table utama yang dihasilkan dari data SQL.
+- **DILARANG**: Mempersingkat, mengubah skala, atau menebak nilai numerik. Jika nilai di database adalah 517000, tulis 517000 di tabel.
+
 ## 🔴 ATURAN FORMATTING — KODE BLOK (PENTING)
 Setiap blok `smart_table` atau `chart` **WAJIB** dibuka dengan triple backtick (```) diikuti langsung oleh identifier (smart_table atau chart), lalu isi JSON, dan ditutup dengan triple backtick.
 - ✅ BENAR: \` \` \`smart_table\n{"title":...}\n\` \` \`

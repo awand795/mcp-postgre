@@ -2538,9 +2538,14 @@
                 if (aiCols.includes(h)) {
                     return true;
                 }
+                // Jika AI sudah set currencyColumns eksplisit tapi header ini tidak ada di dalamnya,
+                // jangan fallback agar tidak false positive pada kolom qty/count/dll.
+                if (aiCols.length > 0) return false;
             }
 
-            return false;
+            // 1. Fallback: deteksi otomatis dari nama header
+            // Berlaku untuk tabel dari markdown/auto-convert yang tidak punya metadata AI.
+            return isLikelyCurrencyLabel(h);
         }
 
         // Deteksi otomatis apakah label kemungkinan kolom currency
