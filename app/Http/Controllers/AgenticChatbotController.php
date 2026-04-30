@@ -1838,6 +1838,7 @@ Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan
 ## ATURAN SQL
 - **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
 - **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
+- **POSTGRESQL STRUCTURE (CRITICAL)**: Hanya gunakan format 2 level: `schema.table` (contoh: `sch_mbi.view_penjualan`). **DILARANG KERAS** menggunakan format 3 level seperti `schema.table.column` di dalam klausa `FROM` atau `JOIN`. Kolom hanya boleh diletakkan di `SELECT`, `WHERE`, `GROUP BY`, dll.
 - Cara mengetahui driver database: lihat info di bagian "DATABASE TERSEDIA" di atas — tercantum driver-nya.
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - Filter tanggal: BETWEEN pada kolom DATE/TIMESTAMP dari describe_table
@@ -1853,10 +1854,10 @@ Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan
 
 ## PROTOKOL TIMEOUT & HASIL KOSONG
 Jika `get_column_values` error/timeout → skip, lanjut ke describe_table.
-Jika `execute_query` timeout atau 0 rows:
-1. JANGAN simpulkan "data tidak ada"
-2. WAJIB panggil describe_table → cek kolom tanggal → retry query
-3. Ulangi minimal 3 kali sebelum lapor kendala teknis
+Jika `execute_query` timeout, 0 rows, atau error database/kolom:
+1. JANGAN simpulkan "data tidak ada" dan JANGAN beritahu user tentang detail error teknis (seperti "column does not exist") di awal.
+2. WAJIB panggil `describe_table` → perbaiki query (pastikan nama kolom benar, filter tanggal tepat, dan alias sesuai) → retry query.
+3. Ulangi proses ini (debug & retry) minimal 3 kali dengan strategi berbeda sebelum akhirnya melapor kendala teknis kepada user.
 
 ## 🔴 ATURAN LIMIT QUERY — WAJIB DIIKUTI
 

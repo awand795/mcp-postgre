@@ -901,6 +901,20 @@ class QueryService extends BaseService
         $cleanSql = preg_replace('/\s+(?:AND|OR)\s+\)/i', ' )', $cleanSql);
         $cleanSql = trim($cleanSql);
 
+        // FIX: Dukung periode_bulan dan periode_tahun di SELECT dan GROUP BY
+        // dengan menggantinya ke fungsi ekstraksi tanggal yang sesuai driver.
+        $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+        $driver = $dbModel ? $dbModel->driver : 'pgsql';
+        $qualifiedCol = $alias ? "{$alias}.{$dateColumn}" : $dateColumn;
+
+        $extractMonth = ($driver === 'pgsql') ? "EXTRACT(MONTH FROM {$qualifiedCol})" : "MONTH({$qualifiedCol})";
+        $extractYear = ($driver === 'pgsql') ? "EXTRACT(YEAR FROM {$qualifiedCol})" : "YEAR({$qualifiedCol})";
+
+        // Ganti periode_bulan dan periode_tahun di seluruh query
+        // Gunakan regex agar tidak mengganti bagian dari kata lain
+        $cleanSql = preg_replace('/\bperiode_bulan\b/i', $extractMonth, $cleanSql);
+        $cleanSql = preg_replace('/\bperiode_tahun\b/i', $extractYear, $cleanSql);
+
         Log::info("[QueryService] AutoFix SQL result: " . substr($cleanSql, 0, 400));
 
         return $cleanSql;
