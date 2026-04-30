@@ -2863,54 +2863,34 @@
                 const wrapDiv = document.createElement('div');
                 wrapDiv.className = 'smart-table-wrap';
                 wrapDiv.id = tableId;
-                wrapDiv.setAttribute('data-headers', hb64);
-                wrapDiv.setAttribute('data-rows', rb64);
-                wrapDiv.setAttribute('data-currency', '[]');
+                wrapDiv.setAttribute('data-table-id', tableId);
+                wrapDiv.setAttribute('data-headers-b64', hb64);
+                wrapDiv.setAttribute('data-rows-b64', rb64);
+                wrapDiv.setAttribute('data-currency-columns', '[]');
                 wrapDiv.setAttribute('data-title', 'Tabel Ringkasan');
 
                 wrapDiv.innerHTML = `
-                    <div class="smart-table-info">📊 ${rows.length.toLocaleString('id')} baris · ${headers.length} kol</div>
+                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>Tabel Ringkasan</span></div>
                     <div class="smart-table-toolbar">
+                        <span class="smart-table-info">📊 ${rows.length} baris · ${headers.length} kol</span>
                         <div class="smart-table-search">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" id="${tableId}-search" placeholder="Cari di tabel...">
+                            <input type="text" class="smart-table-search-input" placeholder="Cari di tabel...">
                         </div>
                     </div>
                     <div class="smart-table-scroll">
-                        <table class="smart-table">
-                            <thead></thead>
-                            <tbody></tbody>
-                        </table>
+                        <table class="smart-table"><thead></thead><tbody></tbody></table>
                     </div>
-                    </div>
-                    ${rows.length > PAGE_SIZE ? '<div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>' : ''}
-                `;
+                    <div class="smart-table-pagination">
+                        <span class="smart-table-page-info"></span>
+                        <div class="smart-table-btns"></div>
+                    </div>`;
 
                 table.parentNode.replaceChild(wrapDiv, table);
-
-                smartTables[tableId] = {
-                    headers: headers,
-                    allRows: rows,
-                    currencyColumns: [],
-                    label: 'Tabel Ringkasan',
-                    sortCol: -1,
-                    sortDir: 'asc',
-                    query: '',
-                    page: 0
-                };
-
-                const searchInput = wrapDiv.querySelector('#' + tableId + '-search');
-                if (searchInput) {
-                    searchInput.addEventListener('input', (e) => {
-                        smartTables[tableId].query = e.target.value;
-                        smartTables[tableId].page = 0;
-                        buildSmartTable(tableId);
-                    });
-                }
-
-                buildSmartTable(tableId);
-                wrapDiv.setAttribute('data-initialized', 'true');
             });
+
+            // Re-init tables to pick up the new wraps
+            initSmartTablesInBubble(bubble);
         }
 
         // ── AUTO-INJECT: Build smart_table dari execute_query/describe_table tool result jika AI tidak mengirimnya ──

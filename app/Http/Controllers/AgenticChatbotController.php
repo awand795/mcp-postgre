@@ -20,7 +20,7 @@ use Exception;
 class AgenticChatbotController extends Controller
 {
     private int $maxToolLoops = 20;
-    private int $maxHistory = 20;
+    private $maxHistory = 15;
 
     private \App\Services\ToolCallExecutor $toolExecutor;
     private \App\Services\Core\QueryService $queryService;
@@ -1009,28 +1009,23 @@ class AgenticChatbotController extends Controller
                 if ($role === 'tool') {
                     $isHistoryTool = empty($m['_is_live_gemini_response'] ?? null);
 
-                    if ($isHistoryTool) {
-                        $toolName = $m['name'] ?? 'tool';
                         $rawContent = $m['content'] ?? '';
-
                         if (is_array($rawContent)) {
                             $rawContent = json_encode($rawContent);
                         }
+                        
                         $decoded = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : [];
-
-                        if (is_array($decoded) && !empty($decoded)) {
-                            $rowCount = (int) ($decoded['rows_returned'] ?? count($decoded['rows'] ?? []));
-                            $rawCols = $decoded['columns'] ?? [];
-                            $cols = implode(', ', array_map(
-                                fn($c) => is_string($c) ? $c : (is_array($c) ? json_encode($c) : (string) $c),
-                                array_slice($rawCols, 0, 5)
-                            ));
-                            $summary = "[Konteks: {$toolName} mengambil {$rowCount} baris" . ($cols ? " ({$cols})" : '') . "]";
-                        } else {
-                            $summary = "[Konteks: {$toolName} selesai]";
-                        }
-
-                        $parts = [['text' => $summary]];
+                        
+                        // Use functionResponse for history if it matches the Gemini structure
+                        $parts = [
+                            [
+                                'functionResponse' => [
+                                    'name' => $m['name'] ?? 'tool',
+                                    'response' => is_array($decoded) ? $decoded : ['result' => $rawContent],
+                                ]
+                            ]
+                        ];
+                        
                         if ($prevRole === 'user' && !empty($geminiMessages)) {
                             $last = &$geminiMessages[count($geminiMessages) - 1];
                             $last['parts'] = array_merge($last['parts'], $parts);
@@ -1089,9 +1084,21 @@ class AgenticChatbotController extends Controller
                                 ]
                             ];
                         }
-                    } elseif (!$isLive && !empty($m['tool_calls']) && empty($parts)) {
-                        $toolNames = array_map(fn($tc) => $tc['function']['name'] ?? 'tool', $m['tool_calls']);
-                        $parts[] = ['text' => '[Mengambil data: ' . implode(', ', $toolNames) . ']'];
+                    } elseif (!$isLive && !empty($m['tool_calls'])) {
+                        // For history assistant messages, also include functionCalls so tool responses have context
+                        foreach ($m['tool_calls'] as $tc) {
+                            $args = $tc['function']['arguments'] ?? '{}';
+                            $argsArr = is_string($args) ? json_decode($args, false) : $args;
+                            if (!$argsArr || $argsArr === [])
+                                $argsArr = new \stdClass();
+                                
+                            $parts[] = [
+                                'functionCall' => [
+                                    'name' => $tc['function']['name'] ?? 'tool',
+                                    'args' => $argsArr,
+                                ]
+                            ];
+                        }
                     }
 
                     if (empty($parts))
@@ -1572,15 +1579,16 @@ Contoh hasil 1 baris 1 kolom: `COUNT(*) = 93`, `SUM(total) = 500.000.000`
 - Hasil query memiliki **≥ 2 kolom** DAN **1 baris** berisi beberapa metrik (mis. HPP, Netto, Profit bersamaan) → WAJIB smart_table
 - ⚠️ **ATURAN MUTLAK TABEL**: **DILARANG KERAS menggunakan tabel Markdown biasa (`| Kolom | Kolom |`)**. 
   - **UNTUK HASIL DATABASE (execute_query)**: Anda **WAJIB** mencantumkan blok ```smart_table``` singkat (berisi `title` dan `currency_columns` saja) tepat setelah Ringkasan Eksekutif. Ini sangat penting agar sistem frontend dapat memicu penampilan tabel data secara profesional.
-  - **KAPAN PAKAI JSON LENGKAP?**: Hanya jika Anda membuat tabel perbandingan manual (misal: membandingkan Keunggulan Produk A vs B) yang datanya **TIDAK** berasal dari database. Untuk data database, jangan sertakan `headers` atau `rows`.
-  - Jika Anda membuat tabel kustom (bukan dari tool), formatnya:
+  - **KAPAN PAKAI JSON LENGKAP?**: Anda **WAJIB** menggunakan JSON lengkap (`headers` dan `rows`) jika data yang ditampilkan berasal dari pengetahuan internal Anda (data global, informasi umum, data non-database).
+  - ⚠️ **ATURAN MUTLAK DATA GLOBAL**: Jika Anda memberikan data yang TIDAK berasal dari database (misal: "Penjualan Mobil Global 2024"), Anda **TETAP WAJIB** menyajikannya dalam format `smart_table`. **DILARANG KERAS** menggunakan tabel Markdown biasa (`| Col | Col |`).
+  - Contoh format untuk data global/internal:
     ```smart_table
     {
-      "title": "Perbandingan Tipe A vs B",
-      "headers": ["Aspek", "Tipe A", "Tipe B"],
+      "title": "Data Penjualan Global 2024",
+      "headers": ["Wilayah", "Unit Terjual", "Market Share"],
       "rows": [
-        ["Harga", "Rp 150.000", "Rp 250.000"],
-        ["Keawetan", "2 Tahun", "4 Tahun"]
+        ["Asia", "15.000.000", "45%"],
+        ["Eropa", "8.000.000", "24%"]
       ],
       "currency_columns": []
     }
@@ -1919,7 +1927,90 @@ PROMPT;
 
     private function processContentForCharts(string $content, array $toolResults): string
     {
+        // 1. Convert Markdown tables to smart_table JSON blocks
+        if (strpos($content, '|') !== false) {
+            $lines = explode("\n", $content);
+            $newLines = [];
+            $currentTable = [];
+            $isInsideTable = false;
+
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                // Simple regex for markdown table row
+                if (preg_match('/^\|.*\|$/', $trimmed)) {
+                    $isInsideTable = true;
+                    $currentTable[] = $trimmed;
+                } else {
+                    if ($isInsideTable) {
+                        // Process the collected table
+                        $newLines[] = $this->convertMarkdownToSmartTable($currentTable);
+                        $currentTable = [];
+                        $isInsideTable = false;
+                    }
+                    $newLines[] = $line;
+                }
+            }
+            if ($isInsideTable) {
+                $newLines[] = $this->convertMarkdownToSmartTable($currentTable);
+            }
+            $content = implode("\n", $newLines);
+        }
+
+        // 2. Fix missing backticks for smart_table JSON if AI output raw JSON
+        if (strpos($content, '"headers"') !== false && strpos($content, '"rows"') !== false) {
+            if (strpos($content, '```smart_table') === false) {
+                // Try to find raw JSON and wrap it
+                $content = preg_replace_callback('/\{\s*"title":\s*".*?"\s*,\s*"headers":\s*\[.*?\].*?\}/s', function($matches) {
+                    return "```smart_table\n" . $matches[0] . "\n```";
+                }, $content);
+            }
+        }
+
         return $content;
+    }
+
+    private function convertMarkdownToSmartTable(array $tableLines): string
+    {
+        // Need at least header and separator or header and data
+        if (count($tableLines) < 2) return implode("\n", $tableLines);
+
+        $headers = [];
+        $dataRows = [];
+        $foundSeparator = false;
+
+        foreach ($tableLines as $idx => $line) {
+            $cols = explode('|', $line);
+            // Remove empty first/last elements from the | split
+            if (empty(trim($cols[0]))) array_shift($cols);
+            if (!empty($cols) && empty(trim($cols[count($cols)-1]))) array_pop($cols);
+            
+            $cols = array_map('trim', $cols);
+
+            if ($idx === 0) {
+                $headers = $cols;
+            } elseif ($idx === 1 && preg_match('/^[:\-\s|]+$/', $line)) {
+                $foundSeparator = true;
+                continue;
+            } else {
+                // Ensure row has same number of columns as header
+                if (count($cols) >= count($headers)) {
+                    $dataRows[] = array_slice($cols, 0, count($headers));
+                }
+            }
+        }
+
+        // If it wasn't really a table (no separator found and only 2 lines), return original
+        if (!$foundSeparator && count($tableLines) < 3) return implode("\n", $tableLines);
+        if (empty($headers) || empty($dataRows)) return implode("\n", $tableLines);
+
+        $json = [
+            'title' => 'Ringkasan Data',
+            'headers' => $headers,
+            'rows' => $dataRows,
+            'currency_columns' => []
+        ];
+
+        return "\n```smart_table\n" . json_encode($json, JSON_PRETTY_PRINT) . "\n```\n";
     }
 
     private function stripThinkingLeakage(string $content): string
