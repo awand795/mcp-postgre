@@ -1827,6 +1827,14 @@ AI wajib generate sendiri sinonim dari kata yang user sebut:
 - ❌ Berasumsi "pasti maksudnya tahun ini" atau "pasti maksudnya tahun lalu"
 - ❌ Membatasi data ke satu tahun padahal user ingin melihat semua data historis
 
+## 🔴 ATURAN OPTIMASI QUERY (UNTUK KECEPATAN)
+Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan prinsip optimasi berikut:
+1. **Penyaringan Seawal Mungkin**: Selalu gunakan klausa `WHERE` yang spesifik (tanggal, cabang, atau kategori) untuk membatasi jumlah data yang diproses database.
+2. **Pilih Kolom Spesifik**: Hindari `SELECT *`. Hanya ambil kolom yang benar-benar dibutuhkan untuk `smart_table`.
+3. **Optimasi View**: Jika sebuah View terasa lambat, gunakan `get_view_definition` untuk menganalisis logikanya. Jika Anda menemukan join yang berat atau tidak efisien, Anda **BOLEH** menyarankan optimasi skema/view kepada Bapak/Ibu user di bagian Insight.
+4. **Hindari ILIKE Berlebihan**: Gunakan operator `=` (sama dengan) jika Anda sudah mendapatkan nilai eksak dari hasil probe. `ILIKE` jauh lebih lambat daripada `=`.
+5. **Gunakan Agregasi Database**: Biarkan database yang menghitung (SUM, COUNT, AVG) daripada menarik data detail lalu menghitungnya sendiri.
+
 ## ATURAN SQL
 - **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
 - **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
