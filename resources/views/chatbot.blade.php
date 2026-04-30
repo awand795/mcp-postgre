@@ -2950,69 +2950,91 @@
             initSmartTablesInBubble(bubble);
         }
 
-        // ── AUTO-INJECT: Build smart_table dari execute_query/describe_table tool result jika AI tidak mengirimnya ──
+        // ── AUTO-INJECT: Build smart_table dari tool_results (RAM atau DB) ──
+        // FIXED: tool_results dari DB bisa berupa array nested berbeda struktur.
+        // Fungsi ini sekarang menormalisasi semua variasi struktur sebelum render.
         function autoInjectSmartTableFromToolResults(bubble, toolResults) {
             if (!toolResults || toolResults.length === 0) return;
             // Hanya inject jika belum ada smart-table-wrap di bubble
             if (bubble.querySelector('.smart-table-wrap')) return;
 
-            // Cari execute_query ATAU describe_table
-            let queryResult = null;
-            for (let i = toolResults.length - 1; i >= 0; i--) {
-                const tr = toolResults[i];
-                if (!tr) continue;
+            // ── Normalizer: ekstrak rows/cols dari semua variasi struktur DB/RAM ──
+            // Dari RAM (live): { tool_name, data: { rows, columns, currency_columns, label }, currency_columns, label }
+            // Dari DB (history): bisa { tool_name, data: { rows_returned, columns, rows, ... } }
+            //                    atau tool_result langsung berisi rows/columns di level atas
+            function extractQueryData(tr) {
+                if (!tr) return null;
                 const toolName = tr.tool_name || tr.tool || '';
-                const data = tr.data || tr;
-                
-                if (toolName === 'execute_query') {
-                    const rows = data.rows || data.data?.rows || [];
-                    const cols = data.columns || data.data?.columns || [];
-                    if (rows.length > 0 && cols.length >= 2) {
-                        queryResult = { data, tr, type: 'query' };
-                        break;
-                    }
-                } else if (toolName === 'describe_table') {
-                    const cols = data.columns || data.data?.columns || [];
-                    if (cols.length > 0) {
-                        queryResult = { data, tr, type: 'schema' };
-                        break;
+                if (!['execute_query', 'describe_table'].includes(toolName)) return null;
+
+                // Coba berbagai lokasi data
+                const candidates = [
+                    tr.data,
+                    tr.data?.data,
+                    tr,
+                ];
+
+                for (const d of candidates) {
+                    if (!d || typeof d !== 'object') continue;
+
+                    if (toolName === 'execute_query') {
+                        const rows = d.rows || [];
+                        const cols = d.columns || [];
+                        if (Array.isArray(rows) && rows.length > 0 && Array.isArray(cols) && cols.length >= 1) {
+                            return {
+                                type: 'query',
+                                rows,
+                                cols,
+                                currCols: d.currency_columns || tr.currency_columns || [],
+                                label: d.label || tr.label || 'Hasil Data',
+                            };
+                        }
+                    } else if (toolName === 'describe_table') {
+                        const cols = d.columns || [];
+                        if (Array.isArray(cols) && cols.length > 0) {
+                            return {
+                                type: 'schema',
+                                cols,
+                                tableName: d.table_name || d.table || tr.label || 'Tabel',
+                            };
+                        }
                     }
                 }
+                return null;
             }
-            if (!queryResult) return;
 
-            const { data, tr, type } = queryResult;
+            // Ambil execute_query terbaru yang valid (atau describe_table jika tidak ada)
+            let extracted = null;
+            for (let i = toolResults.length - 1; i >= 0; i--) {
+                extracted = extractQueryData(toolResults[i]);
+                if (extracted) break;
+            }
+            if (!extracted) return;
+
             let stData = null;
-
-            if (type === 'query') {
-                const rows = data.rows || data.data?.rows || [];
-                const cols = data.columns || data.data?.columns || [];
-                const currCols = data.currency_columns || data.data?.currency_columns || tr.currency_columns || [];
-                const label = data.label || data.data?.label || 'Hasil Data';
-
+            if (extracted.type === 'query') {
+                const { rows, cols, currCols, label } = extracted;
                 stData = {
                     title: label,
                     headers: cols,
-                    rows: rows.map(r => cols.map(c => r[c] !== undefined ? r[c] : '')),
-                    currency_columns: currCols
+                    rows: rows.map(r => Array.isArray(r) ? r : cols.map(c => r[c] !== undefined ? r[c] : '')),
+                    currency_columns: currCols,
                 };
-            } else if (type === 'schema') {
-                const cols = data.columns || data.data?.columns || [];
-                const tableName = data.table_name || data.data?.table_name || 'Struktur Tabel';
-                
+            } else if (extracted.type === 'schema') {
+                const { cols, tableName } = extracted;
                 stData = {
                     title: 'Struktur Kolom: ' + tableName,
                     headers: ['Nama Kolom', 'Tipe Data', 'Keterangan'],
-                    rows: cols.map(c => [c.name || '', c.type || '', c.description || '']),
-                    currency_columns: []
+                    rows: cols.map(c => [c.name || c.column_name || '', c.type || c.data_type || '', c.description || c.notes || '']),
+                    currency_columns: [],
                 };
             }
-            
             if (!stData) return;
 
             const tableId = 'st-auto-' + Math.random().toString(36).substr(2, 9);
             const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(stData.headers))));
             const rb64 = btoa(unescape(encodeURIComponent(JSON.stringify(stData.rows))));
+            const currCols = stData.currency_columns;
 
             const wrapDiv = document.createElement('div');
             wrapDiv.className = 'smart-table-wrap';
@@ -3023,9 +3045,10 @@
             wrapDiv.setAttribute('data-headers-b64', hb64);
             wrapDiv.setAttribute('data-rows-b64', rb64);
             wrapDiv.innerHTML = `
-                ${stData.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title}</span></div>` : ''}
+                <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title}</span></div>
                 <div class="smart-table-toolbar">
-                    <span class="smart-table-info">📊 ${rows.length} baris · ${cols.length} kol</span>
+                    <span class="smart-table-info">📊 ${stData.rows.length} baris · ${stData.headers.length} kol</span>
+                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
                 </div>
                 <div class="smart-table-scroll">
                     <table><thead></thead><tbody></tbody></table>
@@ -3045,6 +3068,17 @@
                 currencyColumns: currCols,
                 label: stData.title
             };
+
+            // Init search on the new wrap
+            const searchInput = wrapDiv.querySelector('.smart-table-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    smartTables[tableId].query = searchInput.value;
+                    smartTables[tableId].page = 0;
+                    buildSmartTable(tableId);
+                });
+            }
+
             buildSmartTable(tableId);
             wrapDiv.setAttribute('data-initialized', 'true');
         }
