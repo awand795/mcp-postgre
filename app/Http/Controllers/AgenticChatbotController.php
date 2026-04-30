@@ -319,6 +319,7 @@ class AgenticChatbotController extends Controller
                         $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
 
                         if ($chatSessionId) {
+                            $textContent = $this->injectSmartTableDataIntoContent($textContent, $allTurnToolResults);
                             ChatMessage::create([
                                 'chat_session_id' => $chatSessionId,
                                 'role' => 'assistant',
@@ -576,6 +577,7 @@ class AgenticChatbotController extends Controller
 
                 $finalContent = $this->stripThinkingLeakage($finalContent);
                 $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
+                $processedContent = $this->injectSmartTableDataIntoContent($processedContent, $allTurnToolResults);
 
                 if ($chatSessionId) {
                     ChatMessage::create([
@@ -1911,6 +1913,99 @@ Jawab SEPENUHNYA dalam bahasa yang sama dengan bahasa user. TIDAK BOLEH CAMPUR.
 
 {$outOfDomainSection}
 PROMPT;
+    }
+
+    /**
+     * Inject actual rows+headers data into smart_table blocks before saving to DB.
+     *
+     * Problem: AI emits ```smart_table {"tool_index": 0, "title": "..."}``` blocks.
+     * At stream-time the frontend JS has data in RAM (currentToolResults).
+     * But when history is reloaded, that RAM is gone. The DB-stored content still
+     * has {"tool_index": 0} with NO rows/headers, so the table can't render.
+     *
+     * Solution: Before saving to DB, replace every tool_index reference with the
+     * actual headers+rows data embedded inline inside the JSON block.
+     * On reload, initSmartTablesInBubble reads data-headers-b64 / data-rows-b64
+     * directly from DOM attributes — no RAM dependency.
+     */
+    private function injectSmartTableDataIntoContent(string $content, array $toolResults): string
+    {
+        if (empty($toolResults) || strpos($content, 'smart_table') === false) {
+            return $content;
+        }
+
+        $content = preg_replace_callback(
+            '/```smart_table\s*([\s\S]*?)```/m',
+            function (array $matches) use ($toolResults) {
+                $rawJson = trim($matches[1]);
+                if (empty($rawJson)) return $matches[0];
+
+                try {
+                    $params = json_decode($rawJson, true);
+                    if (!is_array($params)) return $matches[0];
+
+                    // Skip if already has inline data
+                    if (!empty($params['headers']) && !empty($params['rows'])) {
+                        return $matches[0];
+                    }
+
+                    $toolIdx = isset($params['tool_index']) ? (int)$params['tool_index'] : -1;
+
+                    $toolRes = null;
+                    if ($toolIdx >= 0 && !empty($toolResults[$toolIdx])) {
+                        $toolRes = $toolResults[$toolIdx];
+                    } else {
+                        foreach (array_reverse($toolResults) as $tr) {
+                            $d = $tr['data'] ?? null;
+                            if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
+                                $toolRes = $tr;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!$toolRes) return $matches[0];
+
+                    $tableData = $toolRes['data'] ?? null;
+                    if (is_string($tableData)) {
+                        $tableData = json_decode($tableData, true) ?: null;
+                    }
+                    if (!is_array($tableData)) return $matches[0];
+
+                    $rawRows = $tableData['rows'] ?? [];
+                    $columns = $tableData['columns'] ?? [];
+
+                    if (empty($rawRows) || empty($columns)) return $matches[0];
+
+                    $normalizedRows = array_map(function ($row) use ($columns) {
+                        if (is_array($row) && array_values($row) === $row) return $row;
+                        if (is_array($row)) return array_map(fn($c) => $row[$c] ?? null, $columns);
+                        return [$row];
+                    }, $rawRows);
+
+                    $newParams = $params;
+                    $newParams['headers'] = $columns;
+                    $newParams['rows'] = $normalizedRows;
+                    if (!isset($newParams['currency_columns']) && !empty($toolRes['currency_columns'])) {
+                        $newParams['currency_columns'] = $toolRes['currency_columns'];
+                    }
+                    if (empty($newParams['title']) && !empty($toolRes['label'])) {
+                        $newParams['title'] = $toolRes['label'];
+                    }
+
+                    $newJson = json_encode($newParams, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                    Log::info('[SmartTableInject] Injected ' . count($normalizedRows) . ' rows (tool_index=' . $toolIdx . ')');
+                    return "```smart_table\n" . $newJson . "\n```";
+
+                } catch (\Throwable $e) {
+                    Log::warning('[SmartTableInject] Failed: ' . $e->getMessage());
+                    return $matches[0];
+                }
+            },
+            $content
+        );
+
+        return $content;
     }
 
     private function processContentForCharts(string $content, array $toolResults): string

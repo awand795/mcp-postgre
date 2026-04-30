@@ -3079,8 +3079,17 @@
                 });
             }
 
-            buildSmartTable(tableId);
-            wrapDiv.setAttribute('data-initialized', 'true');
+            // CRITICAL FIX: jangan pakai buildSmartTable(tableId) karena bergantung
+            // document.getElementById yang bisa gagal saat wrapDiv belum masuk document
+            // (terjadi saat load history — wrap belum di-appendChild ke chatMessages).
+            // Gunakan buildSmartTableByElement langsung pakai referensi DOM yang sudah ada.
+            const totalPages = Math.max(1, Math.ceil(stData.rows.length / PAGE_SIZE));
+            const pageRows = stData.rows.slice(0, PAGE_SIZE);
+            buildSmartTableByElement(wrapDiv, tableId, smartTables[tableId],
+                stData.headers, stData.rows,
+                -1, 'asc', '',
+                stData.rows, pageRows, 0, totalPages
+            );
         }
 
         function initSmartTablesInBubble(bubble, messageToolResults = null) {
