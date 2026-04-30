@@ -190,24 +190,25 @@
         /* Chart Container */
         .chart-container {
             background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px; padding: 15px 15px 25px 15px; margin: 20px 0;
-            width: 100%; height: 400px; position: relative;
+            border-radius: 12px; padding: 0 0 25px 0; margin: 24px 0;
+            width: 100%; min-height: 400px; height: auto; position: relative;
+            overflow: hidden;
         }
         .chart-container canvas {
             position: relative; z-index: 1;
             max-height: 330px;
+            padding: 0 15px;
         }
         .chart-container .chart-toolbar {
             margin-bottom: 5px;
         }
         .chart-container + .markdown-body,
-        .chart-container + p,
-        .chart-container + div {
-            margin-top: 10px;
+        .chart-container + p {
+            margin-top: 15px;
         }
         .chart-toolbar {
             display: flex; justify-content: flex-end; gap: 8px;
-            margin-bottom: 10px; padding-bottom: 10px;
+            margin-bottom: 10px; padding: 0 15px 10px 15px;
             border-bottom: 1px solid rgba(255,255,255,0.08);
         }
         .chart-export-btn {
@@ -240,7 +241,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 16px;
-            margin: 20px 0;
+            margin: 24px 0;
             width: 100%;
         }
         .metric-card {
@@ -292,7 +293,7 @@
 
         /* ── Smart Table ── */
         .smart-table-wrap {
-            margin: 12px 0; border-radius: 10px;
+            margin: 24px 0; border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.1);
             overflow: hidden; background: rgba(0,0,0,0.2);
         }
