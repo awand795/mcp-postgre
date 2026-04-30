@@ -1244,7 +1244,7 @@ class AgenticChatbotController extends Controller
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $conn) {
                 $tables = $conn->getTables();
-                $tableNames = array_slice(array_column($tables, 'table_name'), 0, 50);
+                $tableNames = array_column($tables, 'table_name');
 
                 if (!empty($tableNames)) {
                     $mainTablesHint[] = "Database [{$conn->database}]: " . implode(', ', $tableNames);
