@@ -1767,19 +1767,21 @@
                         
                         // 3. Smart Cleanup for Currency
                         // If it contains 'Rp', it's definitely a formatted Indonesian currency string.
-                        // We remove 'Rp', thousand separators (.), and handle decimal comma (,) if present.
+                        // Support format Indonesia: titik=ribuan, koma=desimal
                         if (value.includes('Rp')) {
                             value = value.replace(/Rp\s?/g, '');
-                            // If it has multiple dots, they are thousand separators (e.g., 1.000.000)
-                            if ((value.match(/\./g) || []).length > 1) {
+                            // Jika ada koma → koma desimal, titik ribuan: "1.500.000,50"
+                            if (value.includes(',')) {
+                                value = value.replace(/\./g, '').replace(',', '.');
+                            }
+                            // Jika lebih dari satu titik → semua titik ribuan: "1.500.000"
+                            else if ((value.match(/\./g) || []).length > 1) {
                                 value = value.replace(/\./g, '');
-                            } 
-                            // If it has one dot followed by 3 digits at the end, it's likely a thousand separator
+                            }
+                            // Satu titik diikuti tepat 3 digit → titik ribuan: "517.000"
                             else if (/\.\d{3}$/.test(value)) {
                                 value = value.replace(/\./g, '');
                             }
-                            // Convert decimal comma to dot for parseFloat
-                            value = value.replace(',', '.');
                         }
 
                         // 4. Final attempt to get a clean number
@@ -2612,31 +2614,47 @@
             const h = header ? header.toLowerCase() : '';
             
             if (isMoney) {
-                // Handle ranges like "200000-300000" or "Rp 200k - 300k"
-                // Must have a hyphen and NOT be a negative number (starts with -)
+                // Helper: parse angka dari string, support format Indonesia (titik=ribuan, koma=desimal)
+                // contoh: "Rp 517.000" → 517000, "Rp 1.500.000" → 1500000, "517000" → 517000
+                const parseIndonesianNumber = (s) => {
+                    let v = s.toLowerCase().trim();
+                    // Hapus prefix Rp dan spasi
+                    v = v.replace(/rp\s?/g, '');
+                    // Deteksi format Indonesia: titik sebagai pemisah ribuan
+                    // Kasus 1: ada koma → koma adalah desimal, titik adalah ribuan
+                    // Contoh: "1.500.000,50" atau "517.000,00"
+                    if (v.includes(',')) {
+                        v = v.replace(/\./g, '').replace(',', '.');
+                    }
+                    // Kasus 2: ada titik tapi BUKAN desimal (titik ribuan Indonesia)
+                    // Deteksi: jika ada LEBIH DARI SATU titik, atau titik diikuti tepat 3 digit di akhir
+                    else if ((v.match(/\./g) || []).length > 1) {
+                        // Lebih dari satu titik → semua titik adalah ribuan
+                        v = v.replace(/\./g, '');
+                    } else if (/\.\d{3}$/.test(v)) {
+                        // Satu titik, diikuti tepat 3 digit → titik ribuan (contoh: "517.000")
+                        v = v.replace(/\./g, '');
+                    }
+                    // Kasus 3: shorthand k (contoh: "517k")
+                    let num = parseFloat(v.replace(/[^0-9.]/g, ''));
+                    if (v.endsWith('k')) num *= 1000;
+                    return num;
+                };
+
+                // Handle ranges like "200000-300000" atau "Rp 517.000 - Rp 520.000"
                 if (strVal.includes('-') && !strVal.startsWith('-')) {
                     const parts = strVal.split('-').map(p => p.trim());
                     if (parts.length === 2) {
-                        const cleanNum = (s) => {
-                            let clean = s.toLowerCase().replace(/[^0-9.k]/g, '');
-                            let n = parseFloat(clean);
-                            if (clean.endsWith('k')) n *= 1000;
-                            return n;
-                        };
-                        const n1 = cleanNum(parts[0]);
-                        const n2 = cleanNum(parts[1]);
-                        
+                        const n1 = parseIndonesianNumber(parts[0]);
+                        const n2 = parseIndonesianNumber(parts[1]);
                         if (!isNaN(n1) && !isNaN(n2)) {
                             return `${currencyFormatter.format(n1)} - ${currencyFormatter.format(n2)}`;
                         }
                     }
                 }
 
-                // Standard single number parsing with shorthand support (k)
-                let clean = strVal.toLowerCase().replace(/[^0-9.k-]/g, '');
-                let num = parseFloat(clean);
-                if (clean.endsWith('k')) num *= 1000;
-
+                // Standard single number parsing
+                const num = parseIndonesianNumber(strVal);
                 if (!isNaN(num)) {
                     return currencyFormatter.format(num);
                 }
