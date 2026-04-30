@@ -271,7 +271,8 @@ class AgenticChatbotController extends Controller
                 && stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
                 && stripos($lastExecutedSql, 'GROUP BY') === false;
 
-            $useStreaming = !empty($textContent) || ($loopCount > 1 && !empty($allTurnToolResults));
+            // Gunakan streaming sejak loop pertama agar jawaban langsung (out-of-scope) tetap mengalir ke user
+            $useStreaming = true;
 
             try {
                 if ($useStreaming) {
