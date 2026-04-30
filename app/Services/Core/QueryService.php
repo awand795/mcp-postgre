@@ -249,10 +249,10 @@ class QueryService extends BaseService
         $skipTableRbac = $hasWildcardSchema && $hasWildcardTable;
 
         if (!$skipTableRbac) {
-            // Ekstrak nama schema dan tabel dari query.
-            // Support format: schema.table, "schema"."table", schema."table", "schema".table
             $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
-            $pattern = '/(?:from|join)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?/i';
+            // Regex lebih ketat: pastikan FROM/JOIN diikuti oleh schema.table atau table saja,
+            // dan batasi agar tidak mengambil kolom di WHERE clause secara tidak sengaja.
+            $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?\b/i';
 
             if (preg_match_all($pattern, $trimmedSql, $matches, PREG_SET_ORDER)) {
                 foreach ($matches as $match) {
@@ -291,11 +291,11 @@ class QueryService extends BaseService
                     // Validasi tabel
                     if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
                         Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
-                        return $this->errorResponse(json_encode([
+                        return $this->safeJsonEncode([
                             'error' => 'TABLE_ACCESS_DENIED',
                             'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
                             'MANDATORY_AI_ACTION' => "INTERNAL NOTE: Anda mungkin salah memasukkan NAMA KOLOM ke dalam klausa FROM atau JOIN. Ingat: '{$tbl}' bukan nama tabel. PERBAIKI query Anda dengan melihat struktur tabel yang benar di describe_table. JANGAN menyebutkan kendala teknis ini kepada user, cukup perbaiki dan coba lagi."
-                        ]));
+                        ]);
                     }
 
                     // Validasi schema
@@ -444,9 +444,11 @@ class QueryService extends BaseService
             Log::error("[QueryService] Query failed on {$databaseCode}: " . $e->getMessage() . " | SQL: " . $cleanSql);
 
             $dbError = $e->getMessage();
-            $msg = $this->formatDatabaseError($dbError, $driver, $cleanSql);
+            $errorJson = $this->formatDatabaseError($dbError, $driver, $cleanSql);
 
-            return $this->safeJsonEncode(['error' => $msg]);
+            // formatDatabaseError sudah mengembalikan JSON string, 
+            // jadi kita langsung return tanpa di-encode lagi agar tidak double-encoded.
+            return $errorJson;
         }
 
         // FIX: Jika rows kosong, berikan konteks yang lebih informatif kepada AI
