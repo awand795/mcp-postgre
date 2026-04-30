@@ -164,6 +164,11 @@
         }
 
 
+        /* Chat Area */
+        #chat-messages {
+            overflow-x: hidden;
+        }
+
         /* Markdown styles */
         .markdown-body { line-height: 1.6; }
         .markdown-body p { margin: 6px 0; font-size: 13px; }
@@ -177,8 +182,15 @@
         .markdown-body code { background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #fb923c; }
         .markdown-body pre { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; margin: 8px 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.08); }
         .markdown-body pre code { background: none; padding: 0; color: inherit; font-size: 12px; }
-        .markdown-body .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
-        .markdown-body table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+        .markdown-body .table-wrap { 
+            overflow-x: auto; 
+            margin: 12px 0; 
+            border-radius: 8px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 100%;
+            max-width: 100%;
+        }
+        .markdown-body table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
         .markdown-body table thead tr { background: rgba(245,48,3,0.2); }
         .markdown-body table th { padding: 9px 14px; text-align: left; font-weight: 600; color: #fff; white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.4); }
         .markdown-body table td { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: #d4d4d0; white-space: nowrap; }
@@ -296,6 +308,7 @@
             margin: 24px 0; border-radius: 10px;
             border: 1px solid rgba(255,255,255,0.1);
             overflow: hidden; background: rgba(0,0,0,0.2);
+            max-width: 100%;
         }
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
@@ -360,8 +373,12 @@
         .smart-table-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
         .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
-        .smart-table-scroll { overflow-x: auto; }
-        .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+        .smart-table-scroll { 
+            overflow-x: auto; 
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
+        .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 600px; table-layout: auto; }
         .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
         .smart-table-scroll th {
             padding: 8px 13px; text-align: left; font-weight: 600; color: #fff;
@@ -374,7 +391,7 @@
         .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #f53003; }
         .smart-table-scroll td {
             padding: 7px 13px !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-            color: #d4d4d0 !important; max-width: 300px !important; font-size: 11px !important;
+            color: #d4d4d0 !important; max-width: 400px !important; font-size: 11px !important;
             overflow: hidden !important; text-overflow: ellipsis !important;
             white-space: nowrap !important;
         }
