@@ -1588,9 +1588,11 @@ Struktur JSON smart_table:
 - Contoh BENAR: `"currency_columns":["Netto","Total Netto","HPP","Total HPP","Diskon","Profit"]`
 
 **⚠️ ATURAN NOMINAL (SANGAT KRITIS):**
-Untuk semua nilai uang/mata uang, Anda **WAJIB** menuliskan angka nominal lengkap sebagai integer tanpa pemisah ribuan dan tanpa singkatan (K/jt/M).
+Untuk semua nilai uang/mata uang (baik dari database maupun data eksternal/global), Anda **WAJIB** menuliskan angka nominal LENGKAP sebagai integer murni tanpa pemisah ribuan dan tanpa singkatan (K/jt/M/rb).
 - ✅ BENAR: 150000, 2750000
-- ❌ SALAH: 150 (maksudnya 150rb), 150K, 2.75 (maksudnya 2.75jt)
+- ❌ SALAH: 150 (maksudnya 150rb), 150K, 200k, 2.75 (maksudnya 2.75jt)
+- **RENTANG HARGA**: Jika menyajikan rentang harga dalam tabel, WAJIB gunakan angka penuh dipisahkan tanda hubung. Contoh: "200000-300000" (BUKAN "200-300").
+- **DATA GLOBAL**: Aturan ini berlaku mutlak untuk data yang Anda berikan dari pengetahuan internal Anda. Jangan pernah gunakan singkatan harga.
 
 ## 🔴 ATURAN FORMATTING — KODE BLOK (PENTING)
 Setiap blok `smart_table` atau `chart` **WAJIB** dibuka dengan triple backtick (```) diikuti langsung oleh identifier (smart_table atau chart), lalu isi JSON, dan ditutup dengan triple backtick.

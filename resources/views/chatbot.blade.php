@@ -2602,14 +2602,38 @@
             if (val === null || val === undefined || val === '') return '';
             
             const isMoney = header && isCurrencyColumn(header, tableId);
-            const strVal = String(val);
+            const strVal = String(val).trim();
             const h = header ? header.toLowerCase() : '';
             
-            // Clean number for parsing
-            const num = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
-            
-            if (isMoney && !isNaN(num)) {
-                return currencyFormatter.format(num);
+            if (isMoney) {
+                // Handle ranges like "200000-300000" or "Rp 200k - 300k"
+                // Must have a hyphen and NOT be a negative number (starts with -)
+                if (strVal.includes('-') && !strVal.startsWith('-')) {
+                    const parts = strVal.split('-').map(p => p.trim());
+                    if (parts.length === 2) {
+                        const cleanNum = (s) => {
+                            let clean = s.toLowerCase().replace(/[^0-9.k]/g, '');
+                            let n = parseFloat(clean);
+                            if (clean.endsWith('k')) n *= 1000;
+                            return n;
+                        };
+                        const n1 = cleanNum(parts[0]);
+                        const n2 = cleanNum(parts[1]);
+                        
+                        if (!isNaN(n1) && !isNaN(n2)) {
+                            return `${currencyFormatter.format(n1)} - ${currencyFormatter.format(n2)}`;
+                        }
+                    }
+                }
+
+                // Standard single number parsing with shorthand support (k)
+                let clean = strVal.toLowerCase().replace(/[^0-9.k-]/g, '');
+                let num = parseFloat(clean);
+                if (clean.endsWith('k')) num *= 1000;
+
+                if (!isNaN(num)) {
+                    return currencyFormatter.format(num);
+                }
             }
             
             // Patterns that should NOT get thousands separators (IDs, Codes, Years, Refs, etc.)
@@ -2622,9 +2646,12 @@
                 return val.toLocaleString('id-ID');
             }
             
+            // Standard number parsing for non-money columns
+            const numVal = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
+            
             // If string looks like a pure number and is long, format it ONLY if not an ID/Code/Ref
-            if (!isNaN(num) && /^-?\d+$/.test(strVal) && strVal.length > 3 && !isNonNumericStyled) {
-                return num.toLocaleString('id-ID');
+            if (!isNaN(numVal) && /^-?\d+$/.test(strVal) && strVal.length > 3 && !isNonNumericStyled) {
+                return numVal.toLocaleString('id-ID');
             }
             
             return val;
