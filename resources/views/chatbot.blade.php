@@ -1149,11 +1149,12 @@
                 const activeResults = toolResultsForRender !== undefined ? toolResultsForRender : currentToolResults;
                 // Defer inisialisasi chart/table agar DOM siap
                 setTimeout(() => {
+                    // FIX: paksa konversi tabel markdown biasa → smart table di semua jalur
+                    convertMarkdownTablesToSmartTables(bubble);
                     initChartsInBubble(bubble, activeResults);
                     initDashboardsInBubble(bubble);
                     initSmartTablesInBubble(bubble, activeResults);
                     autoInjectSmartTableFromToolResults(bubble, activeResults);
-                    
                 }, 60);
             }
 
@@ -2866,6 +2867,7 @@
         }
 
         // ── AUTO-CONVERT: Mengubah tabel Markdown biasa (HTML table) menjadi smart_table ──
+        // IMPROVED: deteksi judul dari heading terdekat, strip HTML di cells, auto-detect currency
         function convertMarkdownTablesToSmartTables(bubble) {
             const rawTables = bubble.querySelectorAll('table:not(.smart-table)');
             rawTables.forEach((table) => {
@@ -2874,14 +2876,45 @@
                 const headers = [];
                 table.querySelectorAll('thead th').forEach(th => headers.push(th.textContent.trim()));
 
+                // Fallback: jika tidak ada thead, ambil baris pertama tbody sebagai header
+                if (headers.length === 0) {
+                    const firstRow = table.querySelector('tbody tr');
+                    if (firstRow) {
+                        firstRow.querySelectorAll('td').forEach(td => headers.push(td.textContent.trim()));
+                        firstRow.remove();
+                    }
+                }
+
                 const rows = [];
                 table.querySelectorAll('tbody tr').forEach(tr => {
                     const row = [];
-                    tr.querySelectorAll('td').forEach(td => row.push(td.innerHTML.trim()));
+                    tr.querySelectorAll('td').forEach(td => {
+                        // Strip HTML tags, simpan teks bersih
+                        row.push(td.textContent.trim());
+                    });
                     if (row.length > 0) rows.push(row);
                 });
 
                 if (headers.length === 0 || rows.length === 0) return;
+
+                // Auto-detect judul tabel dari heading sebelumnya (h1–h4 atau strong)
+                let tableTitle = 'Tabel Data';
+                let prev = table.previousElementSibling;
+                while (prev) {
+                    const tag = prev.tagName?.toLowerCase();
+                    if (['h1','h2','h3','h4'].includes(tag)) {
+                        tableTitle = prev.textContent.trim();
+                        break;
+                    }
+                    if (tag === 'p' && prev.querySelector('strong')) {
+                        tableTitle = prev.textContent.trim();
+                        break;
+                    }
+                    prev = prev.previousElementSibling;
+                }
+
+                // Auto-detect kolom currency dari nama header
+                const autoCurrencyCols = headers.filter(h => isLikelyCurrencyLabel(h));
 
                 const tableId = 'st-md-' + Math.random().toString(36).substr(2, 9);
                 const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
@@ -2893,17 +2926,14 @@
                 wrapDiv.setAttribute('data-table-id', tableId);
                 wrapDiv.setAttribute('data-headers-b64', hb64);
                 wrapDiv.setAttribute('data-rows-b64', rb64);
-                wrapDiv.setAttribute('data-currency-columns', '[]');
-                wrapDiv.setAttribute('data-title', 'Tabel Ringkasan');
+                wrapDiv.setAttribute('data-currency-columns', JSON.stringify(autoCurrencyCols));
+                wrapDiv.setAttribute('data-title', tableTitle);
 
                 wrapDiv.innerHTML = `
-                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>Tabel Ringkasan</span></div>
+                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${tableTitle}</span></div>
                     <div class="smart-table-toolbar">
                         <span class="smart-table-info">📊 ${rows.length} baris · ${headers.length} kol</span>
-                        <div class="smart-table-search">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input type="text" class="smart-table-search-input" placeholder="Cari di tabel...">
-                        </div>
+                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
                     </div>
                     <div class="smart-table-scroll">
                         <table class="smart-table"><thead></thead><tbody></tbody></table>
@@ -4006,9 +4036,12 @@
             if (sender === 'ai') {
                 bubble.innerHTML = renderMarkdown(text);
                 bubble.querySelectorAll('pre code').forEach(b => { try { hljs.highlightElement(b); } catch (e) {} });
+                // FIX: konversi tabel markdown → smart table di addMessage juga
+                convertMarkdownTablesToSmartTables(bubble);
                 initChartsInBubble(bubble);
                 initDashboardsInBubble(bubble);
                 initSmartTablesInBubble(bubble, messageToolResults);
+                autoInjectSmartTableFromToolResults(bubble, messageToolResults || []);
             } else {
                 bubble.textContent = text;
             }
