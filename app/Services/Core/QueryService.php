@@ -249,12 +249,29 @@ class QueryService extends BaseService
         $skipTableRbac = $hasWildcardSchema && $hasWildcardTable;
 
         if (!$skipTableRbac) {
-            $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
-            // Regex lebih ketat: pastikan FROM/JOIN diikuti oleh schema.table atau table saja,
-            // dan batasi agar tidak mengambil kolom di WHERE clause secara tidak sengaja.
-            $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?\b/i';
+            // ── BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
+            //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
+            //   TRIM(LEADING ' ' FROM kolom)    → 'kolom' bukan nama tabel!
+            //
+            // Strategi: hapus dulu semua konteks "FUNGSI(... FROM ...)" dari SQL
+            // sebelum di-scan RBAC, sehingga FROM di dalam fungsi tidak ikut tertangkap.
+            $sqlFunctionsUsingFrom = ['EXTRACT', 'TRIM', 'OVERLAY', 'POSITION', 'SUBSTRING'];
+            $sqlForRbacScan = $trimmedSql;
+            foreach ($sqlFunctionsUsingFrom as $fn) {
+                // Ganti FUNGSI(... FROM ...) dengan placeholder agar FROM di dalamnya
+                // tidak terbaca sebagai FROM tabel oleh regex RBAC di bawah.
+                $sqlForRbacScan = preg_replace(
+                    '/\b' . preg_quote($fn, '/') . '\s*\([^)]*\bFROM\b[^)]*\)/i',
+                    $fn . '(__RBAC_SKIP__)',
+                    $sqlForRbacScan
+                );
+            }
 
-            if (preg_match_all($pattern, $trimmedSql, $matches, PREG_SET_ORDER)) {
+            $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
+            // Cocokkan FROM/JOIN diikuti identifier, tapi TIDAK diikuti '(' (itu subquery/fungsi)
+            $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?(?!\s*\()/i';
+
+            if (preg_match_all($pattern, $sqlForRbacScan, $matches, PREG_SET_ORDER)) {
                 foreach ($matches as $match) {
                     $hasDot = !empty($match[3]) || !empty($match[4]);
                     $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
@@ -268,7 +285,7 @@ class QueryService extends BaseService
                         $tbl = $firstId;
                     }
 
-                    // Skip SQL keywords yang bisa muncul setelah FROM/JOIN
+                    // Skip SQL keywords dan placeholder fungsi
                     $sqlKeywords = [
                         'select',
                         'where',
@@ -283,7 +300,8 @@ class QueryService extends BaseService
                         'right',
                         'outer',
                         'cross',
-                        'full'
+                        'full',
+                        '__rbac_skip__', // placeholder dari EXTRACT(... FROM ...) dll
                     ];
                     if (in_array($tbl, $sqlKeywords))
                         continue;
@@ -294,7 +312,14 @@ class QueryService extends BaseService
                         return $this->safeJsonEncode([
                             'error' => 'TABLE_ACCESS_DENIED',
                             'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
-                            'MANDATORY_AI_ACTION' => "INTERNAL NOTE: Anda mungkin salah memasukkan NAMA KOLOM ke dalam klausa FROM atau JOIN. Ingat: '{$tbl}' bukan nama tabel. PERBAIKI query Anda dengan melihat struktur tabel yang benar di describe_table. JANGAN menyebutkan kendala teknis ini kepada user, cukup perbaiki dan coba lagi."
+                            'hint' => 'Tabel yang diizinkan: ' . implode(', ', array_slice($allowedTablesForDb, 0, 10)),
+                            'MANDATORY_AI_ACTION' => implode(' ', [
+                                "INTERNAL NOTE: '{$tbl}' bukan nama tabel yang diizinkan.",
+                                "Kemungkinan penyebab: (1) Anda menggunakan tabel fisik di balik sebuah VIEW — gunakan nama VIEW yang tersedia, BUKAN tabel dasarnya.",
+                                "(2) Typo nama tabel — cek get_database_schema_info untuk nama yang benar.",
+                                'WAJIB: Perbaiki query menggunakan nama VIEW/tabel dari daftar allowed tables di atas.',
+                                'DILARANG menyebutkan kendala teknis ini kepada user. Cukup perbaiki query dan coba lagi.',
+                            ]),
                         ]);
                     }
 
