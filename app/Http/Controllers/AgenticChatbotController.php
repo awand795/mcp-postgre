@@ -1007,58 +1007,33 @@ class AgenticChatbotController extends Controller
                 $role = $m['role'];
 
                 if ($role === 'tool') {
-                    $isHistoryTool = empty($m['_is_live_gemini_response'] ?? null);
-
-                        $rawContent = $m['content'] ?? '';
-                        if (is_array($rawContent)) {
-                            $rawContent = json_encode($rawContent);
-                        }
-                        
-                        $decoded = is_string($rawContent) ? (json_decode($rawContent, true) ?? []) : [];
-                        
-                        // Use functionResponse for history if it matches the Gemini structure
-                        $parts = [
-                            [
-                                'functionResponse' => [
-                                    'name' => $m['name'] ?? 'tool',
-                                    'response' => is_array($decoded) ? $decoded : ['result' => $rawContent],
-                                ]
-                            ]
-                        ];
-                        
-                        if ($prevRole === 'user' && !empty($geminiMessages)) {
-                            $last = &$geminiMessages[count($geminiMessages) - 1];
-                            $last['parts'] = array_merge($last['parts'], $parts);
-                        } else {
-                            $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                            $prevRole = 'user';
-                        }
+                    $rawContent = $m['content'] ?? '';
+                    if (is_array($rawContent)) {
+                        $rawContent = json_encode($rawContent);
+                    }
+                    
+                    if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
+                        $parsedContent = $m['decoded_data'];
                     } else {
-                        $rawContent = $m['content'] ?? '';
-                        if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
-                            $parsedContent = $m['decoded_data'];
-                        } elseif (is_string($rawContent)) {
-                            $decoded = json_decode($rawContent, true);
-                            $parsedContent = is_array($decoded) ? $decoded : ['result' => $rawContent];
-                        } else {
-                            $parsedContent = is_array($rawContent) ? $rawContent : ['result' => (string) $rawContent];
-                        }
+                        $decoded = is_string($rawContent) ? json_decode($rawContent, true) : null;
+                        $parsedContent = is_array($decoded) ? $decoded : ['result' => (string)$rawContent];
+                    }
 
-                        $parts = [
-                            [
-                                'functionResponse' => [
-                                    'name' => $m['name'] ?? 'tool',
-                                    'response' => $parsedContent,
-                                ]
+                    $parts = [
+                        [
+                            'functionResponse' => [
+                                'name' => $m['name'] ?? 'tool',
+                                'response' => $parsedContent,
                             ]
-                        ];
-                        if ($prevRole === 'user' && !empty($geminiMessages)) {
-                            $last = &$geminiMessages[count($geminiMessages) - 1];
-                            $last['parts'] = array_merge($last['parts'], $parts);
-                        } else {
-                            $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
-                            $prevRole = 'user';
-                        }
+                        ]
+                    ];
+                    
+                    if ($prevRole === 'user' && !empty($geminiMessages)) {
+                        $last = &$geminiMessages[count($geminiMessages) - 1];
+                        $last['parts'] = array_merge($last['parts'], $parts);
+                    } else {
+                        $geminiMessages[] = ['role' => 'user', 'parts' => $parts];
+                        $prevRole = 'user';
                     }
                     continue;
                 }
