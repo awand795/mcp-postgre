@@ -1244,7 +1244,7 @@ class AgenticChatbotController extends Controller
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $conn) {
                 $tables = $conn->getTables();
-                $tableNames = array_slice(array_column($tables, 'table_name'), 0, 15);
+                $tableNames = array_slice(array_column($tables, 'table_name'), 0, 50);
 
                 if (!empty($tableNames)) {
                     $mainTablesHint[] = "Database [{$conn->database}]: " . implode(', ', $tableNames);
@@ -1441,9 +1441,11 @@ Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
 Untuk mendukung skalabilitas berbagai database, Anda **DILARANG** mengandalkan nama kolom yang di-hardcode. Ikuti protokol ini untuk menghitung metrik finansial (HPP, Netto, Profit):
 
 ### **1. Protokol Penemuan (Discovery Protocol)**
-Jika user bertanya tentang Profit/HPP/Omzet:
-1. **Identifikasi Tabel Transaksi**: Cari tabel yang memiliki kolom tanggal dan nilai moneter. Gunakan `get_database_schema_info` dan `describe_table` untuk memverifikasi.
-2. **Identifikasi Tabel Master (Pendukung)**: Cari tabel yang menyimpan data induk produk/barang (biasanya mengandung kata "master", "produk", atau "barang" dalam nama atau deskripsi).
+1. **Cari Tabel Relevan (Prioritas Tinggi)**:
+   - **Penjualan/Omzet**: Cari tabel dengan nama mengandung `penjualan`, `transaksi`, `faktur`, `rinci`, `detail`, `ssr`.
+   - **Master Barang**: Cari tabel dengan nama mengandung `master`, `barang`, `produk`, `item`.
+   - **MANDATORY**: Jika tabel sudah ada di daftar "Daftar Tabel Utama" di prompt, **LANGSUNG** panggil `describe_table`. DILARANG memanggil `search_schema` berulang kali untuk sinonim jika tabel sudah terlihat jelas.
+2. **Identifikasi Tabel Transaksi**: Cari tabel yang memiliki kolom tanggal dan nilai moneter. Gunakan `get_database_schema_info` dan `describe_table` untuk memverifikasi.
 3. **Cari Kunci Relasi (Join Key)**: Cari kolom yang sama di kedua tabel (misal: kolom kode/id barang).
 4. **Klasifikasi Semantik Kolom**: Setelah `describe_table`, identifikasi kolom dengan memetakan nama kolom ke peran bisnis berikut:
 
@@ -1699,7 +1701,7 @@ Your response MUST follow this exact structure regardless of language:
 
 ## TOOLS TERSEDIA
 1. `get_database_schema_info` — Dapatkan struktur database. **GUNAKAN INI PERTAMA.**
-2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci. **ATURAN KETAT: GUNAKAN HANYA JIKA tabel tidak ditemukan dari get_database_schema_info. Panggil MAKSIMAL 1 KALI per topik. Jika sudah ada hasil yang relevan → STOP, langsung ke describe_table. DILARANG keras memanggil search_schema berulang kali untuk sinonim yang sama.**
+2. `search_schema` — Cari tabel/kolom berdasarkan kata kunci. **ATURAN KETAT: GUNAKAN HANYA JIKA tabel tidak ditemukan dari daftar tabel di prompt atau get_database_schema_info. Panggil MAKSIMAL 1 KALI per topik. Gunakan kata kunci yang luas (misal: "penjualan" atau "barang") daripada spesifik (misal: "ban"). Jika sudah ada tabel yang terlihat relevan (mengandung 'penjualan', 'transaksi', 'barang', 'item') → STOP, langsung ke describe_table.**
 3. `describe_table` — **WAJIB DIPANGGIL** sebelum execute_query. Dapatkan nama kolom EKSAK.
 4. `get_column_values` — **DILARANG untuk tabel/VIEW dengan nama mengandung "view_"**. Untuk VIEW, gunakan execute_query SELECT DISTINCT sebagai gantinya. Untuk tabel fisik kecil: ambil nilai unik dari kolom sebelum query utama.
 5. `get_view_definition` — Dapatkan DDL/logika di balik sebuah View.
