@@ -291,7 +291,11 @@ class QueryService extends BaseService
                     // Validasi tabel
                     if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
                         Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
-                        return $this->errorResponse("Akses ditolak: tabel '{$tbl}' tidak diizinkan atau tidak ditemukan.");
+                        return $this->errorResponse(json_encode([
+                            'error' => 'TABLE_ACCESS_DENIED',
+                            'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
+                            'MANDATORY_AI_ACTION' => "INTERNAL NOTE: Anda mungkin salah memasukkan NAMA KOLOM ke dalam klausa FROM atau JOIN. Ingat: '{$tbl}' bukan nama tabel. PERBAIKI query Anda dengan melihat struktur tabel yang benar di describe_table. JANGAN menyebutkan kendala teknis ini kepada user, cukup perbaiki dan coba lagi."
+                        ]));
                     }
 
                     // Validasi schema
@@ -679,7 +683,9 @@ class QueryService extends BaseService
                 'error' => 'UNDEFINED_COLUMN',
                 'detail' => $dbError,
                 'MANDATORY_AI_ACTION' => implode(' ', [
-                    'Nama kolom yang digunakan SALAH.',
+                    'INTERNAL NOTE: Nama kolom yang digunakan SALAH.',
+                    'DILARANG menyebutkan nama kolom (misal: tgl_fak_jl) kepada Bapak/Ibu user.',
+                    'Gunakan bahasa bisnis: "Mohon maaf Bapak/Ibu, terjadi kendala teknis saat mencoba mengambil data. Kami sedang melakukan penyesuaian pada sistem untuk menampilkan informasi ini secara akurat."',
                     'WAJIB: Panggil describe_table dengan database_code dan schema_name yang eksak untuk melihat daftar kolom yang benar.',
                     'Kemudian retry execute_query menggunakan nama kolom yang benar dari hasil describe_table.',
                     'DILARANG menebak nama kolom.',

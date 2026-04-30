@@ -1372,16 +1372,20 @@ Jika Anda memanggil beberapa tool dan mendapatkan beberapa hasil (misal: satu ha
 ## 🔴 LARANGAN KERAS: JANGAN BOCORKAN "ISI DAPUR" TEKNIS
 User adalah level eksekutif yang TIDAK mengerti database. DILARANG KERAS menyebutkan hal berikut dalam jawaban Anda:
 1. **DILARANG** menyebut "nama tabel" (misal: view_data_penjualan_xxx).
-2. **DILARANG** menyebut "nama kolom" database (misal: nama_propinsi_cabang).
+2. **DILARANG** menyebut "nama kolom" database (misal: nama_propinsi_cabang atau tgl_fak_jl).
 3. **DILARANG** menyebut istilah teknis agentic (misal: "hasil probe", "query SQL", "menjalankan query", "mengecek database").
 4. **DILARANG** menyebut "0 baris" atau "query mengembalikan data kosong".
 5. **DILARANG** meminta izin untuk "melanjutkan pengecekan" atau "mencoba query lain". Lakukan saja secara mandiri selama masih dalam batas turn Anda.
+6. **DILARANG** menyebutkan kegagalan teknis atau proses coba-coba (retry) saat Anda sedang memperbaiki query. Jika satu query gagal dan Anda mencoba query lain, JANGAN beritahu user tentang kegagalan tersebut. Cukup berikan hasil akhir yang sukses.
+7. **BAHASA BISNIS UNTUK KENDALA**: Jika setelah semua upaya (retry) data tetap tidak ditemukan atau terjadi error yang tidak bisa diperbaiki, gunakan bahasa bisnis yang sangat sopan:
+   - "Mohon maaf Bapak/Ibu, terjadi kendala teknis saat mencoba mengambil data. Saya sedang berkoordinasi dengan sistem untuk memastikan rincian data tersebut dapat ditampilkan kembali."
+   - "Mohon maaf Bapak/Ibu, data yang diminta belum dapat kami sajikan saat ini karena terdapat pembaruan pada struktur informasi database. Kami akan segera memperbaikinya."
 
 **CONTOH BAHASA BISNIS YANG BENAR:**
 - Salah (Teknis): "Query saya pada tabel view_xxx mengembalikan 0 baris untuk Sumatera Utara."
 - Benar (Bisnis): "Mohon maaf Bapak/Ibu, saat ini belum terdapat catatan transaksi penjualan untuk wilayah Sumatera Utara pada periode tersebut."
 
-- Salah (Teknis): "Saya akan mencoba mengecek kota Medan untuk memverifikasi data."
+- Salah (Teknis): "Saya akan mencoba mengecek kota Medan untuk memverifikasi data karena kolom tgl_fak_jl tidak ditemukan."
 - Benar (Bisnis): "Saya akan melakukan penelusuran lebih mendalam pada tingkat kota untuk memastikan rincian datanya."
 
 ## 🔴 ATURAN TERPENTING #1 — JANGAN TEBAK NAMA KOLOM
@@ -2534,7 +2538,8 @@ PROMPT;
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
-            $toolMode = ($loopCount <= 3) ? 'ANY' : 'AUTO';
+            // Hanya paksa tool call di loop pertama (ANY), loop selanjutnya biarkan AI memilih (AUTO)
+            $toolMode = ($loopCount === 1) ? 'ANY' : 'AUTO';
             $payload['toolConfig'] = [
                 'functionCallingConfig' => ['mode' => $toolMode],
             ];
@@ -2543,12 +2548,12 @@ PROMPT;
         $payloadJson = json_encode($payload);
         Log::info("[Agentic] Sending request to Gemini. Model={$currentModelName} PayloadSize=" . strlen($payloadJson) . " bytes");
 
-        $response = Http::timeout(600)->retry(3, 2000)->withBody($payloadJson, 'application/json')->post($url);
+        $response = Http::timeout(600)->retry(3, 2000, null, false)->withBody($payloadJson, 'application/json')->post($url);
 
         if ($response->status() === 503 && $currentModelName !== 'gemini-1.5-flash') {
             Log::warning("[Agentic] Model {$currentModelName} busy (503). Falling back to gemini-1.5-flash.");
             $fallbackUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey->api_key;
-            $response = Http::timeout(600)->retry(2, 2000)->withBody($payloadJson, 'application/json')->post($fallbackUrl);
+            $response = Http::timeout(600)->retry(2, 2000, null, false)->withBody($payloadJson, 'application/json')->post($fallbackUrl);
         }
         return $this->handleProviderResponse($response, 'gemini');
     }
@@ -2640,7 +2645,7 @@ PROMPT;
             $payload['parallel_tool_calls'] = false;
         }
 
-        $httpRequest = Http::timeout(600)->retry(3, 2000);
+        $httpRequest = Http::timeout(600)->retry(3, 2000, null, false);
 
         if ($isOpenRouter) {
             $httpRequest = $httpRequest->withHeaders([
