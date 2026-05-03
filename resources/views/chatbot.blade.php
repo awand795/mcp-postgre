@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
@@ -52,15 +53,17 @@
             border-bottom-right-radius: 4px;
         }
         .chat-bubble-ai {
-            background: rgba(0, 0, 0, 0.05);
+            background: #ffffff;
             color: #1f2937;
-            border: 1px solid rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         html.dark .chat-bubble-ai {
             background: rgba(255, 255, 255, 0.05);
             color: #eeeeec;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: none;
         }
         /* Tool Call Badge */
         .tool-call-badge {
@@ -188,32 +191,45 @@
         /* Markdown styles */
         .markdown-body { line-height: 1.6; }
         .markdown-body p { margin: 6px 0; font-size: 13px; }
-        .markdown-body h1,.markdown-body h2 { font-size: 15px; font-weight: 700; color: #fff; margin: 16px 0 8px; }
-        .markdown-body h3 { font-size: 14px; font-weight: 600; color: #f97316; margin: 14px 0 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; }
+        .markdown-body h1,.markdown-body h2 { font-size: 15px; font-weight: 700; color: #1f2937; margin: 16px 0 8px; }
+        html.dark .markdown-body h1, html.dark .markdown-body h2 { color: #fff; }
+        .markdown-body h3 { font-size: 14px; font-weight: 600; color: #f97316; margin: 14px 0 6px; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 4px; }
+        html.dark .markdown-body h3 { border-bottom-color: rgba(255,255,255,0.08); }
         .markdown-body h4 { font-size: 13px; font-weight: 600; color: #fb923c; margin: 10px 0 4px; }
         .markdown-body ul,.markdown-body ol { padding-left: 18px; margin: 6px 0; }
         .markdown-body li { margin: 3px 0; font-size: 13px; }
-        .markdown-body strong { color: #ffffff; font-weight: 600; }
-        .markdown-body em { color: #d4d4d0; font-style: italic; }
-        .markdown-body code { background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #fb923c; }
-        .markdown-body pre { background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px; margin: 8px 0; overflow-x: auto; border: 1px solid rgba(255,255,255,0.08); }
+        .markdown-body strong { color: #111827; font-weight: 600; }
+        html.dark .markdown-body strong { color: #ffffff; }
+        .markdown-body em { color: #4b5563; font-style: italic; }
+        html.dark .markdown-body em { color: #d4d4d0; }
+        .markdown-body code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #ea580c; }
+        html.dark .markdown-body code { background: rgba(255,255,255,0.1); color: #fb923c; }
+        .markdown-body pre { background: #1f2937; padding: 10px; border-radius: 8px; margin: 8px 0; overflow-x: auto; border: 1px solid rgba(0,0,0,0.1); }
+        html.dark .markdown-body pre { background: rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.08); }
         .markdown-body pre code { background: none; padding: 0; color: inherit; font-size: 12px; }
         .markdown-body .table-wrap { 
             overflow-x: auto; 
             margin: 12px 0; 
             border-radius: 8px; 
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(0,0,0,0.1);
             width: 100%;
             max-width: 100%;
         }
+        html.dark .markdown-body .table-wrap { border-color: rgba(255,255,255,0.1); }
         .markdown-body table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
-        .markdown-body table thead tr { background: rgba(245,48,3,0.2); }
-        .markdown-body table th { padding: 9px 14px; text-align: left; font-weight: 600; color: #fff; white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.4); }
-        .markdown-body table td { padding: 8px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); color: #d4d4d0; white-space: nowrap; }
-        .markdown-body table tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .markdown-body table thead tr { background: rgba(245,48,3,0.1); }
+        html.dark .markdown-body table thead tr { background: rgba(245,48,3,0.2); }
+        .markdown-body table th { padding: 9px 14px; text-align: left; font-weight: 600; color: #111827; white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.3); }
+        html.dark .markdown-body table th { color: #fff; border-bottom-color: rgba(245,48,3,0.4); }
+        .markdown-body table td { padding: 8px 14px; border-bottom: 1px solid rgba(0,0,0,0.05); color: #374151; white-space: nowrap; }
+        html.dark .markdown-body table td { border-bottom-color: rgba(255,255,255,0.06); color: #d4d4d0; }
+        .markdown-body table tbody tr:hover { background: rgba(0,0,0,0.02); }
+        html.dark .markdown-body table tbody tr:hover { background: rgba(255,255,255,0.04); }
         .markdown-body table tbody tr:last-child td { border-bottom: none; }
-        .markdown-body blockquote { border-left: 3px solid #f97316; padding-left: 12px; margin: 8px 0; color: #A1A09A; font-style: italic; font-size: 12px; }
-        .markdown-body hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
+        .markdown-body blockquote { border-left: 3px solid #f97316; padding-left: 12px; margin: 8px 0; color: #6b7280; font-style: italic; font-size: 12px; }
+        html.dark .markdown-body blockquote { color: #A1A09A; }
+        .markdown-body hr { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 12px 0; }
+        html.dark .markdown-body hr { border-top-color: rgba(255,255,255,0.08); }
 
         /* Chart Container */
         .chart-container {
@@ -491,9 +507,15 @@
         
         /* Sidebar fixes */
         #chat-sidebar {
-            background-color: #0a0a0a !important;
+            background-color: #ffffff !important;
         }
         #chat-sidebar.open {
+            background-color: rgba(255, 255, 255, 0.98) !important;
+        }
+        html.dark #chat-sidebar {
+            background-color: #0a0a0a !important;
+        }
+        html.dark #chat-sidebar.open {
             background-color: rgba(10, 10, 10, 0.98) !important;
         }
         
@@ -502,6 +524,9 @@
             user-select: none;
         }
         #history-list .group:active {
+            background-color: rgba(0,0,0,0.1) !important;
+        }
+        html.dark #history-list .group:active {
             background-color: rgba(255,255,255,0.15) !important;
         }
         
@@ -568,21 +593,21 @@
     <div class="flex w-full max-w-6xl h-[95vh] glass-panel rounded-3xl overflow-hidden relative">
 
         <!-- Sidebar (Pushes content, not overlay) -->
-        <aside id="chat-sidebar" class="w-72 bg-[#0a0a0a]/95 border-r border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden" style="width: 0; opacity: 0;">
+        <aside id="chat-sidebar" class="w-72 bg-white/90 dark:bg-[#0a0a0a]/95 border-r border-gray-200 dark:border-white/10 flex flex-col transition-all duration-300 flex-shrink-0 overflow-hidden" style="width: 0; opacity: 0;">
 
             <!-- Sidebar Header / Mobile Close -->
-            <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0" style="min-width: 288px;">
-                <button id="btn-new-chat" class="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-[#f53003]/20 to-[#ff4433]/20 hover:from-[#f53003]/40 hover:to-[#ff4433]/40 text-white border border-[#f53003]/50 rounded-xl text-sm font-medium transition-all shadow-lg shadow-red-500/10">
+            <div class="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between flex-shrink-0" style="min-width: 288px;">
+                <button id="btn-new-chat" class="flex-1 flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-[#f53003]/10 dark:from-[#f53003]/20 to-[#ff4433]/10 dark:to-[#ff4433]/20 hover:from-[#f53003]/20 dark:hover:from-[#f53003]/40 hover:to-[#ff4433]/20 dark:hover:to-[#ff4433]/40 text-gray-800 dark:text-white border border-[#f53003]/30 dark:border-[#f53003]/50 rounded-xl text-sm font-medium transition-all shadow-lg shadow-red-500/5 dark:shadow-red-500/10">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Chat Baru
                 </button>
-                <button id="btn-close-sidebar" class="ml-3 p-1.5 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors flex-shrink-0">
+                <button id="btn-close-sidebar" class="ml-3 p-1.5 text-gray-400 dark:text-[#A1A09A] hover:text-gray-700 dark:hover:text-white rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
 
             <!-- History List -->
-            <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-white/40 uppercase tracking-wider flex-shrink-0" style="min-width: 288px;">Riwayat Terakhir</div>
+            <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider flex-shrink-0" style="min-width: 288px;">Riwayat Terakhir</div>
             <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar" style="min-width: 288px;">
                 <!-- JS populated -->
                 <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">Memuat riwayat...</div>
@@ -1249,7 +1274,7 @@
                 sessions.forEach(s => {
                     const isActive = s.id == currentSessionId;
                     const item = document.createElement('div');
-                    item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-white/10 text-white' : 'text-[#A1A09A] hover:bg-white/5 hover:text-white'}`;
+                    item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
                     item.style.pointerEvents = 'auto';
 
                     // History item click area

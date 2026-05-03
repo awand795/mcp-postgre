@@ -77,30 +77,42 @@
         }
 
         .theme-toggle {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(0,0,0,0.1);
-            padding: 10px;
-            border-radius: 50%;
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0,0,0,0.08);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 100;
+            color: #1f2937;
         }
         
         .theme-toggle:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            background: #ffffff;
+            color: #f53003;
         }
 
         html.dark .theme-toggle {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        html.dark .theme-toggle:hover {
+            background: #1e293b;
+            color: #fb923c;
             border-color: rgba(255, 255, 255, 0.2);
-            color: white;
         }
 
         /* Mobile Responsive */

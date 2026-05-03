@@ -164,6 +164,33 @@
             z-index: 999;
         }
 
+        /* Floating Theme Toggle */
+        .floating-theme-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .floating-theme-toggle:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+        }
+
         /* Global UI Elements */
         .glass-card {
             background: var(--card-bg);
@@ -412,6 +439,14 @@
                 justify-content: center;
             }
 
+            .floating-theme-toggle {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+
             .sidebar-overlay.active {
                 display: block;
             }
@@ -523,6 +558,11 @@
         @yield('content')
     </div>
 
+    <!-- Floating Theme Toggle -->
+    <button class="floating-theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <i class="fas fa-moon" id="floating-theme-icon"></i>
+    </button>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @yield('scripts')
     <script>
@@ -549,6 +589,8 @@
         function updateThemeToggle(theme) {
             const icon = document.getElementById('theme-icon');
             const text = document.getElementById('theme-text');
+            const floatingIcon = document.getElementById('floating-theme-icon');
+            
             if (icon && text) {
                 if (theme === 'dark') {
                     icon.className = 'fas fa-sun';
@@ -556,6 +598,13 @@
                 } else {
                     icon.className = 'fas fa-moon';
                     text.innerText = 'Dark Mode';
+                }
+            }
+            if (floatingIcon) {
+                if (theme === 'dark') {
+                    floatingIcon.className = 'fas fa-sun';
+                } else {
+                    floatingIcon.className = 'fas fa-moon';
                 }
             }
         }
