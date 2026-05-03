@@ -11,16 +11,15 @@ Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 
-    // Register hanya aktif di local/testing env.
-    // Di production, user dibuat melalui Admin Dashboard (/admin/users)
-    if (app()->environment('local', 'testing')) {
-        Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-        Route::post('/register', [AuthController::class, 'register'])->name('register.store');
-    } else {
-        // Fallback agar route name 'register' tetap ada (dipakai di login.blade.php)
-        Route::get('/register', fn() => redirect()->route('login'))->name('register');
-        Route::post('/register', fn() => redirect()->route('login'))->name('register.store');
-    }
+    // Forgot Password & Reset Password Routes
+    Route::get('/forgot-password', [App\Http\Controllers\ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/forgot-password', [App\Http\Controllers\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+    
+    Route::get('/verify-otp', [App\Http\Controllers\ForgotPasswordController::class, 'showVerifyOtpForm'])->name('password.verify');
+    Route::post('/verify-otp', [App\Http\Controllers\ForgotPasswordController::class, 'verifyOtp'])->name('password.verify.post');
+    
+    Route::get('/reset-password', [App\Http\Controllers\ForgotPasswordController::class, 'showResetPasswordForm'])->name('password.reset');
+    Route::post('/reset-password', [App\Http\Controllers\ForgotPasswordController::class, 'resetPassword'])->name('password.update');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');

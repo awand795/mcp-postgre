@@ -12,9 +12,21 @@
         :root {
             --primary: #6366f1;
             --primary-dark: #4f46e5;
+            --bg-dark: #f3f4f6; /* Light bg */
+            --bg-secondary: #e5e7eb; /* Light bg 2 */
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+        }
+
+        html.dark :root {
             --bg-dark: #0f172a;
+            --bg-secondary: #1e293b;
             --card-bg: rgba(30, 41, 59, 0.7);
             --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: white;
+            --text-muted: #94a3b8;
         }
 
         * {
@@ -25,10 +37,11 @@
         }
 
         body {
-            background: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: white;
+            background: radial-gradient(circle at top right, var(--bg-secondary), var(--bg-dark));
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         /* Sidebar */
@@ -71,7 +84,7 @@
             align-items: center;
             gap: 12px;
             padding: 0.8rem 1rem;
-            color: #94a3b8;
+            color: var(--text-muted);
             text-decoration: none;
             border-radius: 12px;
             transition: all 0.3s;
@@ -80,7 +93,7 @@
         .nav-links a:hover,
         .nav-links a.active {
             background: rgba(99, 102, 241, 0.1);
-            color: white;
+            color: var(--text-main);
         }
 
         .nav-links a.active i {
@@ -127,7 +140,7 @@
             display: none;
             background: rgba(99, 102, 241, 0.1);
             border: 1px solid var(--glass-border);
-            color: white;
+            color: var(--text-main);
             padding: 0.6rem 0.8rem;
             border-radius: 10px;
             cursor: pointer;
@@ -237,14 +250,14 @@
         }
 
         .btn-cancel {
-            background: rgba(255, 255, 255, 0.05);
-            color: #cbd5e1;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(100, 100, 100, 0.1);
+            color: var(--text-muted);
+            border: 1px solid var(--glass-border);
         }
 
         .btn-cancel:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: rgba(100, 100, 100, 0.2);
+            color: var(--text-main);
             transform: translateY(-2px);
         }
 
@@ -334,11 +347,11 @@
 
         .filter-group input, .filter-group select {
             width: 100%;
-            background: rgba(15, 23, 42, 0.3);
+            background: var(--card-bg);
             border: 1px solid var(--glass-border);
             padding: 0.8rem 1rem;
             border-radius: 12px;
-            color: white;
+            color: var(--text-main);
             transition: all 0.3s;
             font-size: 0.95rem;
         }
@@ -497,6 +510,7 @@
                         class="fas fa-users"></i> <span>Management User</span></a></li>
             <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a>
             </li>
+            <li><a href="#" onclick="toggleTheme()"><i class="fas fa-moon" id="theme-icon"></i> <span id="theme-text">Dark Mode</span></a></li>
         </ul>
         <form action="{{ route('logout') }}" method="POST" id="logout-form">
             @csrf
@@ -512,6 +526,45 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @yield('scripts')
     <script>
+        // Theme initialization
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeToggle('light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeToggle('dark');
+            }
+        }
+
+        function updateThemeToggle(theme) {
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            if (icon && text) {
+                if (theme === 'dark') {
+                    icon.className = 'fas fa-sun';
+                    text.innerText = 'Light Mode';
+                } else {
+                    icon.className = 'fas fa-moon';
+                    text.innerText = 'Dark Mode';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            updateThemeToggle(currentTheme);
+        });
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.querySelector('.sidebar-overlay');

@@ -35,32 +35,6 @@ class AuthController extends Controller
         ])->onlyInput('email');
     }
 
-    public function showRegister()
-    {
-        if (Auth::check()) {
-            return redirect()->route('chatbot');
-        }
-        return view('auth.register');
-    }
-
-    public function register(Request $request)
-    {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        Auth::login($user);
-
-        return redirect()->route('chatbot');
-    }
 
     public function logout(Request $request)
     {

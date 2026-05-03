@@ -25,13 +25,24 @@
     <style>
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #1a1a1a, #000000);
+            background: radial-gradient(circle at top left, #f3f4f6, #e5e7eb);
             height: 100vh;
             overflow: hidden;
+            color: #1f2937;
+            transition: background 0.3s ease;
+        }
+        html.dark body {
+            background: radial-gradient(circle at top left, #1a1a1a, #000000);
+            color: white;
         }
         .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+        html.dark .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
         }
@@ -41,10 +52,15 @@
             border-bottom-right-radius: 4px;
         }
         .chat-bubble-ai {
+            background: rgba(0, 0, 0, 0.05);
+            color: #1f2937;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-bottom-left-radius: 4px;
+        }
+        html.dark .chat-bubble-ai {
             background: rgba(255, 255, 255, 0.05);
             color: #eeeeec;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-bottom-left-radius: 4px;
         }
         /* Tool Call Badge */
         .tool-call-badge {
@@ -639,6 +655,9 @@
                         <span class="btn-text">Logout</span>
                     </button>
                 </form>
+                <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme" class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-indigo-500/30 hover:text-indigo-500">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                </button>
             </div>
         </div>
 
@@ -748,7 +767,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <script>
+        // Theme initialization
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                updateThemeToggle('light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                updateThemeToggle('dark');
+            }
+        }
+
+        function updateThemeToggle(theme) {
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                if (theme === 'dark') {
+                    icon.className = 'fas fa-sun';
+                } else {
+                    icon.className = 'fas fa-moon';
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            updateThemeToggle(currentTheme);
+            
             const messageInput    = document.getElementById('message-input');
             const chatMessages    = document.getElementById('chat-messages');
             const typingIndicator = document.getElementById('typing-indicator');
