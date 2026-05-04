@@ -350,7 +350,7 @@ class ScrapeERP extends Command
         return $url;
     }
 
-    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, &$fieldQueue, $title, $enrichmentLookup, $level = 0, $baseUrl = 'http://74.48.112.31:4000')
+    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, &$fieldQueue, $title, $enrichmentLookup, $level = 0, $baseUrl = '')
     {
         foreach ($node->childNodes as $child) {
             if ($child->nodeType === XML_TEXT_NODE) {
