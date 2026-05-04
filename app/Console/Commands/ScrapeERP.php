@@ -172,7 +172,7 @@ class ScrapeERP extends Command
                     continue;
                 }
 
-                $guide = $this->parseGuidePage($res->body(), $url);
+                $guide = $this->parseGuidePage($res->body(), $url, $baseUrl);
                 if ($guide) {
                     $guides[] = $guide;
                     if (!empty($guide['category']) && !in_array($guide['category'], $categories)) {
@@ -189,7 +189,7 @@ class ScrapeERP extends Command
         }
 
         // 4. Update JSON
-        $this->updateJson($guides, $categories);
+        $this->updateJson($guides, $categories, $baseUrl);
 
         $this->info('✨ ERP Documentation Scrape completed successfully!');
         return 0;
@@ -198,7 +198,7 @@ class ScrapeERP extends Command
     /**
      * Parse a single guide page into the structured format.
      */
-    private function parseGuidePage(string $html, string $url): ?array
+    private function parseGuidePage(string $html, string $url, string $baseUrl): ?array
     {
         $crawler = new Crawler($html);
 
@@ -280,7 +280,7 @@ class ScrapeERP extends Command
         // Process children of entry-content recursively for 1:1 layout match
         $rootNode = $contentNode->getNode(0);
         if ($rootNode) {
-            $this->processNodesRecursively($rootNode, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup);
+            $this->processNodesRecursively($rootNode, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, 0, $baseUrl);
         }
 
         // Flush any remaining fields in the queue at the end
@@ -325,7 +325,32 @@ class ScrapeERP extends Command
         ];
     }
 
-    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, &$fieldQueue, $title, $enrichmentLookup, $level = 0)
+    /**
+     * Normalize URLs: Handle relative paths and fix port mismatches.
+     */
+    private function normalizeUrl(?string $url, string $baseUrl): ?string
+    {
+        if (!$url) return null;
+
+        // 1. Handle relative URLs
+        if (!str_starts_with($url, 'http')) {
+            if (str_starts_with($url, '/')) {
+                $url = rtrim($baseUrl, '/') . $url;
+            } else {
+                $url = rtrim($baseUrl, '/') . '/' . $url;
+            }
+        }
+
+        // 2. Fix Port Mismatch (Force port 4000 if it still has 6000 from source DB)
+        // Only fix if the host matches our known ERP server IP
+        if (str_contains($url, '74.48.112.31:6000')) {
+            $url = str_replace('74.48.112.31:6000', '74.48.112.31:4000', $url);
+        }
+
+        return $url;
+    }
+
+    private function processNodesRecursively(\DOMNode $node, &$mdContent, &$images, &$videos, &$formFields, &$fieldQueue, $title, $enrichmentLookup, $level = 0, $baseUrl = 'http://74.48.112.31:4000')
     {
         foreach ($node->childNodes as $child) {
             if ($child->nodeType === XML_TEXT_NODE) {
@@ -360,13 +385,13 @@ class ScrapeERP extends Command
             // Handle Images
             elseif ($tagName === 'img' || ($tagName === 'a' && $child->getElementsByTagName('img')->length > 0)) {
                 $img = $tagName === 'img' ? $child : $child->getElementsByTagName('img')->item(0);
-                $src = $img->getAttribute('src');
+                $src = $this->normalizeUrl($img->getAttribute('src'), $baseUrl);
                 $alt = $img->getAttribute('alt') ?: 'Gambar Panduan';
 
                 if (in_array(strtolower(trim($alt)), ['gambar', 'gambar panduan']))
                     $alt = 'Langkah Panduan';
 
-                if ($src && str_contains($src, 'http')) {
+                if ($src) {
                     $mdContent .= "![{$alt}]({$src})\n\n";
                     $images[] = ['src' => $src, 'alt' => $alt, 'caption' => ''];
 
@@ -414,7 +439,7 @@ class ScrapeERP extends Command
 
                         // Process the rest of the paragraph but prefix with >
                         $tempContent = "";
-                        $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                        $this->processNodesRecursively($child, $tempContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
 
                         // Remove the header text from temp content to avoid duplication
                         $cleanContent = str_replace($headerText, '', $tempContent);
@@ -428,7 +453,7 @@ class ScrapeERP extends Command
                 if ($tagName === 'li')
                     $mdContent .= "- ";
 
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
 
                 if (in_array($tagName, ['p', 'ul', 'ol', 'div'])) {
                     $mdContent .= "\n\n";
@@ -440,14 +465,14 @@ class ScrapeERP extends Command
             // Handle Tables
             elseif ($tagName === 'table') {
                 $mdContent .= "\n";
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
                 $mdContent .= "\n";
             } elseif ($tagName === 'tr') {
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
                 $mdContent .= "\n";
             } elseif (in_array($tagName, ['td', 'th'])) {
                 $mdContent .= "| ";
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
                 $mdContent .= " ";
             }
 
@@ -459,7 +484,9 @@ class ScrapeERP extends Command
                     $src = $child->getElementsByTagName('a')->item(0)->getAttribute('href');
                 }
 
-                if ($src && str_contains($src, 'http')) {
+                $src = $this->normalizeUrl($src, $baseUrl);
+
+                if ($src) {
                     $videos[] = $src;
                     $mdContent .= "### 🎥 Video Panduan\n[Klik di sini untuk menonton video]({$src})\n\n";
                 }
@@ -467,7 +494,7 @@ class ScrapeERP extends Command
                 $mdContent .= "---\n\n";
             } else {
                 // Default recursion for other elements (span, strong, b, etc.) to ensure text is captured
-                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1);
+                $this->processNodesRecursively($child, $mdContent, $images, $videos, $formFields, $fieldQueue, $title, $enrichmentLookup, $level + 1, $baseUrl);
             }
         }
     }
@@ -570,14 +597,14 @@ class ScrapeERP extends Command
         return array_unique($keys);
     }
 
-    private function updateJson(array $guides, array $categories)
+    private function updateJson(array $guides, array $categories, string $baseUrl)
     {
         $path = config_path('erp_guidance.json');
 
         sort($categories);
 
         $data = [
-            'source' => 'http://74.48.112.31:4000/docs/ (Unified Scraper)',
+            'source' => "{$baseUrl}/docs/ (Unified Scraper)",
             'last_updated' => now()->format('Y-m-d H:i:s'),
             'total_guides' => count($guides),
             'categories' => $categories,
