@@ -17,12 +17,12 @@
     --aim-green:    #10b981;
     --aim-yellow:   #f59e0b;
     --aim-red:      #ef4444;
-    --aim-surface:  rgba(255, 255, 255, 0.9);
-    --aim-border:   rgba(0, 0, 0, 0.1);
-    --aim-border-h: rgba(99, 102, 241, 0.3);
-    --aim-text:     #1f2937;
-    --aim-muted:    #4b5563;
-    --aim-dim:      #9ca3af;
+    --aim-surface:  #ffffff;
+    --aim-border:   rgba(99,102,241,0.18);
+    --aim-border-h: rgba(99,102,241,0.35);
+    --aim-text:     #0f172a;
+    --aim-muted:    #475569;
+    --aim-dim:      #94a3b8;
     --aim-radius:   18px;
     --aim-radius-sm:10px;
 }
@@ -123,9 +123,9 @@ html.dark .aim-alert.danger { color: #f87171; }
 .aim-stat-val.blue   { color: var(--aim-indigo); }
 .aim-stat-val.green  { color: #059669; }
 html.dark .aim-stat-val.green { color: #34d399; }
-.aim-stat-val.yellow { color: #d97706; }
+.aim-stat-val.yellow { color: #b45309; }
 html.dark .aim-stat-val.yellow { color: #fbbf24; }
-.aim-stat-val.cyan   { color: #0891b2; }
+.aim-stat-val.cyan   { color: #0369a1; }
 html.dark .aim-stat-val.cyan { color: #22d3ee; }
 .aim-stat-sub   { font-size: 0.7rem; color: var(--aim-dim); margin-top: 5px; }
 .aim-stat-icon  {
@@ -197,9 +197,9 @@ html.dark .pcard:hover { border-color: rgba(99,102,241,.25); box-shadow: 0 8px 3
 .pcard-name  { font-size: 0.92rem; font-weight: 600; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
 .pcard-code  {
     font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 5px;
-    background: rgba(0,0,0,.05); color: var(--aim-muted); white-space: nowrap;
+    background: rgba(99,102,241,0.1); color: #4338ca; white-space: nowrap;
 }
-html.dark .pcard-code { background: rgba(0,0,0,.25); }
+html.dark .pcard-code { background: rgba(0,0,0,.25); color: var(--aim-muted); }
 
 /* Pill */
 .pill {
@@ -398,10 +398,10 @@ html.dark .pf-btn-mod { color: #22d3ee; }
 html.dark .modal-overlay { background: rgba(0,0,0,.75); }
 .modal-box {
     background: #ffffff;
-    border: 1px solid var(--aim-border);
+    border: 1.5px solid rgba(99,102,241,0.18);
     border-radius: 20px; padding: 2rem;
     width: 100%; max-width: 450px;
-    box-shadow: 0 25px 60px rgba(0,0,0,.1);
+    box-shadow: 0 25px 60px rgba(99,102,241,0.12);
     animation: popIn .2s cubic-bezier(.34,1.56,.64,1);
     color: var(--aim-text);
 }
@@ -421,11 +421,11 @@ html.dark .modal-box {
 .form-grp label { display:block; margin-bottom:.45rem; color:var(--aim-muted); font-size:0.82rem; font-weight:600; }
 .form-grp input, .form-grp select {
     width: 100%;
-    background: #f9fafb;
-    border: 1px solid var(--aim-border);
+    background: #f8f9ff;
+    border: 1.5px solid rgba(99,102,241,0.25);
     padding: .65rem .9rem; border-radius: 10px;
     color: var(--aim-text); font-family: inherit; font-size: 0.88rem;
-    transition: all .15s;
+    transition: all .15s; box-shadow: inset 0 1px 3px rgba(99,102,241,0.06);
 }
 html.dark .form-grp input, html.dark .form-grp select {
     background: #1e293b;

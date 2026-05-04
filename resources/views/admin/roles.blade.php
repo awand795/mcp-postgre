@@ -167,10 +167,10 @@
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr;
             gap: 1rem;
-            background: rgba(99,102,241,0.04);
+            background: var(--bg-secondary);
             padding: 1.25rem;
             border-radius: 12px;
-            border: 1px solid var(--glass-border2);
+            border: 1.5px solid var(--glass-border);
             margin-bottom: 1rem;
         }
 
@@ -190,13 +190,14 @@
 
         .filter-group input, .filter-group select {
             background: var(--input-bg);
-            border: 1px solid var(--input-border);
+            border: 1.5px solid var(--input-border);
             padding: 0.6rem 0.8rem;
             border-radius: 8px;
-            color: var(--text-main);
+            color: var(--input-text);
             font-size: 0.85rem;
             transition: all 0.2s;
             font-family: 'Outfit', sans-serif;
+            box-shadow: inset 0 1px 3px rgba(99,102,241,0.05);
         }
 
         .filter-group input:focus, .filter-group select:focus {
@@ -280,7 +281,7 @@
 
         .table-item.allowed {
             border-left: 4px solid #10b981;
-            background: rgba(16, 185, 129, 0.05);
+            background: rgba(16, 185, 129, 0.07);
         }
 
         .table-checkbox-wrapper {
@@ -344,9 +345,9 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
-        .badge-db { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2); }
-        .badge-schema { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border: none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); }
-        .badge-type { background: linear-gradient(135deg, #ec4899, #d946ef); color: white; border: none; box-shadow: 0 2px 4px rgba(236, 72, 153, 0.2); }
+        .badge-db { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.3); }
+        .badge-schema { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border: none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); }
+        .badge-type { background: linear-gradient(135deg, #ec4899, #d946ef); color: white; border: none; box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3); }
 
         html.dark .badge { box-shadow: none; }
         html.dark .badge-db { color: #a5b4fc; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }

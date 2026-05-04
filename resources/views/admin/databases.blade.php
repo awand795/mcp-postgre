@@ -571,13 +571,14 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
 .toolbar-search input {
     width: 100%;
     background: var(--input-bg);
-    border: 1px solid var(--input-border);
+    border: 1.5px solid var(--input-border);
     padding: 0.6rem 2.5rem 0.6rem 2.2rem;
     border-radius: 10px;
-    color: var(--text-main);
+    color: var(--input-text);
     font-size: 0.9rem;
     transition: all 0.2s;
     font-family: 'Outfit', sans-serif;
+    box-shadow: inset 0 1px 3px rgba(99,102,241,0.05);
 }
 .toolbar-search input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 .toolbar-search input::placeholder { color: var(--text-muted); opacity: 0.7; }
@@ -590,17 +591,18 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
 .toolbar-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .filter-select {
     background: var(--input-bg);
-    border: 1px solid var(--input-border);
+    border: 1.5px solid var(--input-border);
     padding: 0.6rem 0.9rem;
     border-radius: 10px;
-    color: var(--text-main);
+    color: var(--input-text);
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
     font-family: 'Outfit', sans-serif;
+    box-shadow: inset 0 1px 3px rgba(99,102,241,0.05);
 }
 .filter-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-.filter-select option { background: var(--card-bg); color: var(--text-main); }
+.filter-select option { background: var(--select-bg); color: var(--input-text); }
 .toolbar-view { display: flex; gap: 0.25rem; }
 .view-btn {
     background: rgba(99,102,241,0.04);
@@ -736,9 +738,12 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
     font-weight: 700;
     letter-spacing: 0.04em;
 }
-.badge-driver  { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); }
-.badge-default { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
-.badge-inactive { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+.badge-driver  { background: rgba(139,92,246,0.15); color: #6d28d9; border: 1.5px solid rgba(139,92,246,0.3); }
+.badge-default { background: rgba(59,130,246,0.15); color: #1d4ed8; border: 1.5px solid rgba(59,130,246,0.3); }
+.badge-inactive { background: rgba(100,116,139,0.15); color: #475569; border: 1.5px solid rgba(100,116,139,0.25); }
+html.dark .badge-driver  { color: #a78bfa; border-color: rgba(139,92,246,0.2); background: rgba(139,92,246,0.1); }
+html.dark .badge-default { color: #60a5fa; border-color: rgba(59,130,246,0.2); background: rgba(59,130,246,0.1); }
+html.dark .badge-inactive { color: #94a3b8; border-color: rgba(100,116,139,0.2); }
 
 .db-card-actions { display: flex; flex-direction: row; gap: 0.35rem; flex-shrink: 0; align-items: flex-start; }
 
@@ -804,9 +809,12 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
     font-size: 0.8rem;
     font-weight: 600;
 }
-.chip-success { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
-.chip-failed  { background: rgba(239,68,68,0.12);  color: #ef4444;  border: 1px solid rgba(239,68,68,0.2); }
-.chip-pending { background: rgba(245,158,11,0.12); color: #f59e0b;  border: 1px solid rgba(245,158,11,0.2); }
+.chip-success { background: rgba(16,185,129,0.1); color: #047857; border: 1.5px solid rgba(16,185,129,0.3); }
+.chip-failed  { background: rgba(239,68,68,0.1);  color: #b91c1c;  border: 1.5px solid rgba(239,68,68,0.3); }
+.chip-pending { background: rgba(245,158,11,0.1); color: #b45309;  border: 1.5px solid rgba(245,158,11,0.3); }
+html.dark .chip-success { color: #10b981; border-color: rgba(16,185,129,0.2); }
+html.dark .chip-failed  { color: #ef4444; border-color: rgba(239,68,68,0.2); }
+html.dark .chip-pending { color: #f59e0b; border-color: rgba(245,158,11,0.2); }
 .error-hint {
     font-size: 0.72rem; color: #ef4444; opacity: 0.7;
     max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -948,13 +956,14 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
 .form-group textarea {
     width: 100%;
     background: var(--input-bg);
-    border: 1px solid var(--input-border);
+    border: 1.5px solid var(--input-border);
     padding: 0.75rem 1rem;
     border-radius: 12px;
-    color: var(--text-main);
+    color: var(--input-text);
     font-size: 0.9rem;
     transition: all 0.2s;
     font-family: inherit;
+    box-shadow: inset 0 1px 3px rgba(99,102,241,0.05);
 }
 .form-group input:focus,
 .form-group select:focus,
