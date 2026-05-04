@@ -4109,12 +4109,12 @@
 
             const isDark = document.documentElement.classList.contains('dark');
             const theme = {
-                text: isDark ? '#94a3b8' : '#64748b',
-                grid: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-                legend: isDark ? '#f1f5f9' : '#1e293b',
-                tooltipBg: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-                tooltipText: isDark ? '#f1f5f9' : '#1e293b',
-                tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                text:         isDark ? '#cbd5e1' : '#475569',   // axis tick labels — bright slate in dark
+                grid:         isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)', // grid lines — visible in dark
+                legend:       isDark ? '#f1f5f9' : '#1e293b',  // legend labels
+                tooltipBg:    isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)',
+                tooltipText:  isDark ? '#f1f5f9' : '#1e293b',
+                tooltipBorder:isDark ? 'rgba(148,163,184,0.25)' : 'rgba(0,0,0,0.06)'
             };
 
             const premiumPalette = [
