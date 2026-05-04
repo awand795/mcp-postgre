@@ -283,15 +283,17 @@
 
         /* Chart Container */
         .chart-container {
-            background: rgba(0,0,0,0.04);
-            border: 1px solid rgba(0,0,0,0.08);
-            border-radius: 12px; padding: 0 0 25px 0; margin: 24px 0;
+            background: linear-gradient(145deg, #f0f4ff 0%, #faf0ff 50%, #fff0f6 100%);
+            border: 1.5px solid rgba(99,102,241,0.2);
+            border-radius: 16px; padding: 0 0 25px 0; margin: 24px 0;
             width: 100%; min-height: 400px; height: auto; position: relative;
             overflow: hidden;
+            box-shadow: 0 8px 32px rgba(99,102,241,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
         }
         html.dark .chart-container {
             background: rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: none;
         }
         .chart-container canvas {
             position: relative; z-index: 1;
@@ -405,16 +407,18 @@
         /* ── Smart Table ── */
         .smart-table-wrap {
             margin: 24px 0; border-radius: 16px;
-            border: 1px solid #e2e8f0;
-            overflow: hidden; background: #ffffff;
+            border: 1.5px solid rgba(99,102,241,0.2);
+            overflow: hidden;
+            background: linear-gradient(160deg, #f5f3ff 0%, #fdf4ff 40%, #fff0f9 100%);
             max-width: 100%;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 12px 30px -5px rgba(99,102,241,0.15), 0 4px 10px -3px rgba(168,85,247,0.1);
             display: flex; flex-direction: column; min-width: 0;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .smart-table-wrap:hover {
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 40px -5px rgba(99,102,241,0.2), 0 8px 16px -3px rgba(168,85,247,0.15);
             transform: translateY(-2px);
+            border-color: rgba(99,102,241,0.35);
         }
         html.dark .smart-table-wrap {
             border-color: rgba(255,255,255,0.1);
@@ -424,8 +428,8 @@
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 12px 18px;
-            background: rgba(99, 102, 241, 0.03);
-            border-bottom: 1px solid rgba(99, 102, 241, 0.1); flex-wrap: wrap;
+            background: linear-gradient(90deg, rgba(99,102,241,0.08) 0%, rgba(168,85,247,0.06) 100%);
+            border-bottom: 1.5px solid rgba(99,102,241,0.15); flex-wrap: wrap;
         }
         html.dark .smart-table-toolbar {
             background: rgba(245,48,3,0.08);
@@ -439,8 +443,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.1);
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 60%, #ec4899 100%);
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.15), 0 2px 12px rgba(99,102,241,0.3);
         }
         html.dark .smart-table-title {
             color: #fff;
@@ -451,12 +455,12 @@
             padding: 12px 14px 10px;
             font-weight: 700;
             font-size: 13px;
-            color: #1e293b;
+            color: #ffffff;
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(99, 102, 241, 0.05);
-            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
             margin-bottom: 10px;
         }
         html.dark .chart-title {
@@ -464,12 +468,12 @@
             background: rgba(245,48,3,0.12);
             border-bottom-color: rgba(255,255,255,0.06);
         }
-        .smart-table-info { font-size: 11px; color: #4f46e5; font-weight: 600; white-space: nowrap; }
+        .smart-table-info { font-size: 11px; color: #6d28d9; font-weight: 700; white-space: nowrap; }
         html.dark .smart-table-info { color: #A1A09A; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
             flex: 1; min-width: 140px; max-width: 240px;
-            background: #ffffff; border: 1.5px solid #e2e8f0;
+            background: rgba(255,255,255,0.8); border: 1.5px solid rgba(99,102,241,0.25);
             border-radius: 10px; padding: 6px 14px; font-size: 12px; color: #1e293b;
             outline: none; font-family: 'Outfit', sans-serif;
             transition: all 0.2s;
@@ -479,10 +483,11 @@
         }
         .smart-table-search:focus {
             border-color: #6366f1;
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+            background: #ffffff;
         }
         .smart-table-export-btn {
-            background: #ecfdf5; color: #059669;
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669;
             border: 1px solid #10b981;
             padding: 6px 14px; border-radius: 10px;
             font-size: 11px; cursor: pointer;
@@ -491,11 +496,11 @@
             font-weight: 600;
         }
         .smart-table-export-btn:hover:not(:disabled) {
-            background: #10b981; color: white;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            background: linear-gradient(135deg, #10b981, #059669); color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         }
         .smart-table-export-pdf-btn {
-            background: #fef2f2; color: #dc2626;
+            background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626;
             border: 1px solid #ef4444;
             padding: 6px 14px; border-radius: 10px;
             font-size: 11px; cursor: pointer;
@@ -504,39 +509,43 @@
             font-weight: 600;
         }
         .smart-table-export-pdf-btn:hover:not(:disabled) {
-            background: #ef4444; color: white;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+            background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
         .smart-table-scroll thead tr {
-            background: #f1f5f9;
-            border-bottom: 2px solid #e2e8f0;
+            background: linear-gradient(90deg, #ede9fe 0%, #f3e8ff 50%, #fce7f3 100%);
+            border-bottom: 2px solid rgba(99,102,241,0.2);
         }
         html.dark .smart-table-scroll thead tr { background: rgba(30, 41, 59, 0.8); }
         .smart-table-scroll th {
-            padding: 14px 18px; text-align: left; font-weight: 700; color: #334155;
+            padding: 14px 18px; text-align: left; font-weight: 700; color: #4c1d95;
             white-space: nowrap; border: none;
             cursor: pointer; user-select: none; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
         }
         html.dark .smart-table-scroll th { color: #f1f5f9; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
-        .smart-table-scroll th:hover { background: #e2e8f0; }
+        .smart-table-scroll th:hover { background: rgba(99,102,241,0.12); color: #6d28d9; }
         .smart-table-scroll td {
-            padding: 14px 18px !important; border-bottom: 1px solid #f1f5f9 !important;
+            padding: 14px 18px !important; border-bottom: 1px solid rgba(99,102,241,0.07) !important;
             color: #1e293b !important; font-size: 13px !important;
         }
+        .smart-table-scroll tbody tr:nth-child(even) {
+            background: rgba(99,102,241,0.03);
+        }
         .smart-table-scroll tbody tr:hover {
-            background: rgba(99, 102, 241, 0.04);
+            background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(168,85,247,0.06));
         }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 14px 20px;
-            border-top: 1px solid #e2e8f0;
-            background: #f8fafc; flex-wrap: wrap;
+            border-top: 1.5px solid rgba(99,102,241,0.12);
+            background: linear-gradient(90deg, rgba(99,102,241,0.04) 0%, rgba(168,85,247,0.03) 100%);
+            flex-wrap: wrap;
         }
         html.dark .smart-table-pagination {
             border-top-color: rgba(255,255,255,0.07);
             background: rgba(0,0,0,0.15);
         }
-        .smart-table-page-info { font-size: 11px; color: #6b7280; }
+        .smart-table-page-info { font-size: 11px; color: #6d28d9; font-weight: 600; }
         html.dark .smart-table-page-info { color: #706f6c; }
         .smart-table-btns { display: flex; gap: 4px; flex-wrap: wrap; }
         .st-btn {
