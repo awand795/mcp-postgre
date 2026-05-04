@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,231 +7,215 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --primary: #f53003;
+            --primary-dark: #c42200;
+            --bg: #f0f2f8;
+            --card: rgba(255,255,255,0.97);
+            --border: rgba(99,102,241,0.12);
+            --text: #1e293b;
+            --muted: #64748b;
+            --input-bg: rgba(255,255,255,0.9);
+            --input-border: rgba(99,102,241,0.2);
+        }
+        html.dark {
+            --bg: #0b1120;
+            --card: rgba(17,24,39,0.92);
+            --border: rgba(99,102,241,0.2);
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --input-bg: rgba(15,23,42,0.8);
+            --input-border: rgba(99,102,241,0.3);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Outfit',sans-serif; }
         body {
-            font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #f3f4f6, #e5e7eb);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.3s ease;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 1.5rem;
+            transition: background 0.4s;
+            position: relative; overflow: hidden;
         }
-
         html.dark body {
-            background: radial-gradient(circle at top left, #1a1a1a, #000000);
+            background: linear-gradient(135deg, #0b1120 0%, #0f172a 60%, #111827 100%);
+        }
+        /* Decorative blobs */
+        body::before, body::after {
+            content:''; position:fixed; border-radius:50%;
+            pointer-events:none; z-index:0;
+        }
+        body::before {
+            width:600px; height:600px;
+            background: radial-gradient(circle, rgba(245,48,3,0.06) 0%, transparent 70%);
+            top:-200px; right:-100px;
+        }
+        body::after {
+            width:500px; height:500px;
+            background: radial-gradient(circle, rgba(99,102,241,0.05) 0%, transparent 70%);
+            bottom:-150px; left:-100px;
         }
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            transition: all 0.3s ease;
+        .login-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 2.5rem 2.25rem;
+            width: 100%; max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 4px 20px rgba(99,102,241,0.08);
+            position: relative; z-index: 1;
+            transition: background 0.4s, border-color 0.4s;
         }
-
-        html.dark .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        html.dark .login-card {
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.15);
         }
+        .login-header { text-align:center; margin-bottom:2rem; }
+        .brand-icon {
+            width: 60px; height: 60px; border-radius: 18px;
+            background: linear-gradient(135deg, #f53003, #ff4433);
+            display: inline-flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 24px rgba(245,48,3,0.3);
+            margin-bottom: 1rem;
+        }
+        .brand-icon i { color:#fff; font-size:1.5rem; }
+        .login-header h1 { font-size:1.5rem; font-weight:700; color:var(--text); margin-bottom:4px; }
+        .login-header p { font-size:0.85rem; color:var(--muted); }
 
-        .input-glass {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            color: #1f2937;
+        .form-group { margin-bottom:1.25rem; }
+        .form-label {
+            display:block; margin-bottom:0.5rem;
+            font-size:0.75rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:0.05em;
+            color:var(--muted);
+        }
+        .input-wrap { position:relative; }
+        .input-wrap i {
+            position:absolute; left:14px; top:50%; transform:translateY(-50%);
+            color:var(--muted); font-size:0.85rem;
+        }
+        .form-input {
+            width:100%;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 12px;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            color: var(--text); font-size:0.9rem;
+            transition: all 0.2s;
+            font-family:'Outfit',sans-serif;
+        }
+        .form-input::placeholder { color:var(--muted); opacity:0.6; }
+        .form-input:focus {
+            outline:none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(245,48,3,0.12);
+            background: var(--input-bg);
+        }
+        html.dark .form-input { color: #f1f5f9; }
+        .form-error { color:#ef4444; font-size:0.75rem; margin-top:4px; }
+
+        .form-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
+        .forgot-link { font-size:0.78rem; color:var(--primary); text-decoration:none; font-weight:500; transition:opacity 0.2s; }
+        .forgot-link:hover { opacity:0.75; }
+
+        .remember-wrap { display:flex; align-items:center; gap:8px; }
+        .remember-wrap input[type=checkbox] { accent-color:var(--primary); width:15px; height:15px; }
+        .remember-wrap label { font-size:0.8rem; color:var(--muted); cursor:pointer; }
+
+        .btn-login {
+            width:100%;
+            background: linear-gradient(135deg, #f53003, #ff4433);
+            color:#fff; border:none; border-radius:12px;
+            padding:0.9rem; font-size:0.9rem; font-weight:700;
+            letter-spacing:0.04em; cursor:pointer;
+            transition: all 0.25s; margin-top:1.25rem;
+            box-shadow: 0 4px 16px rgba(245,48,3,0.3);
+            font-family:'Outfit',sans-serif;
+        }
+        .btn-login:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(245,48,3,0.4); filter:brightness(1.05); }
+        .btn-login:active { transform:translateY(0); }
+
+        /* Theme Toggle */
+        .theme-btn {
+            position:fixed; top:20px; right:20px;
+            width:42px; height:42px; border-radius:12px;
+            background:var(--card); border:1px solid var(--border);
+            color:var(--text); cursor:pointer;
+            display:flex; align-items:center; justify-content:center;
+            font-size:1rem; z-index:10;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
             transition: all 0.2s;
         }
+        .theme-btn:hover { border-color:var(--primary); color:var(--primary); transform:scale(1.05); }
 
-        html.dark .input-glass {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .input-glass:focus {
-            background: #ffffff;
-            border-color: #f53003;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(245, 48, 3, 0.2);
-        }
-
-        html.dark .input-glass:focus {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #f53003, #ff4433);
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(245, 48, 3, 0.4);
-        }
-
-        .checkbox-custom {
-            accent-color: #f53003;
-        }
-
-        .theme-toggle {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0,0,0,0.08);
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            color: #1f2937;
-        }
-        
-        .theme-toggle:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            background: #ffffff;
-            color: #f53003;
-        }
-
-        html.dark .theme-toggle {
-            background: rgba(30, 41, 59, 0.8);
-            border-color: rgba(255, 255, 255, 0.1);
-            color: #f1f5f9;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        
-        html.dark .theme-toggle:hover {
-            background: #1e293b;
-            color: #fb923c;
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 480px) {
-            body {
-                padding: 0 !important;
-                align-items: flex-start;
-            }
-            .glass-panel {
-                border-radius: 0 !important;
-                min-height: 100vh;
-                padding: 1.5rem !important;
-            }
-            .w-16 {
-                width: 3rem !important;
-                height: 3rem !important;
-            }
-            .w-10 {
-                width: 2rem !important;
-                height: 2rem !important;
-            }
-            .text-2xl {
-                font-size: 1.5rem !important;
-            }
-            .input-glass {
-                padding: 0.75rem !important;
-            }
-            button[type="submit"] {
-                padding: 0.875rem !important;
-            }
+        @media (max-width:480px) {
+            body { padding:0; align-items:flex-start; }
+            .login-card { border-radius:0; min-height:100vh; padding:2rem 1.5rem; display:flex; flex-direction:column; justify-content:center; }
         }
     </style>
     <script>
-        // Check for saved theme preference, otherwise default to light
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
+        (function(){
+            if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}
+            else{document.documentElement.classList.remove('dark');}
+        })();
+        function toggleTheme(){
+            const d=document.documentElement.classList.contains('dark');
+            document.documentElement.classList[d?'remove':'add']('dark');
+            localStorage.setItem('theme',d?'light':'dark');
+            document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
         }
-
-        function toggleTheme() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeIcon('light');
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeIcon('dark');
-            }
-        }
-
-        function updateThemeIcon(theme) {
-            const icon = document.getElementById('theme-icon');
-            if (theme === 'dark') {
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />';
-            } else {
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />';
-            }
-        }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-            updateThemeIcon(currentTheme);
+        document.addEventListener('DOMContentLoaded',()=>{
+            const d=document.documentElement.classList.contains('dark');
+            document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
         });
     </script>
 </head>
-
-<body class="p-6 relative">
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Theme">
-        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-800 dark:text-white">
-            <!-- Icon will be injected here -->
-        </svg>
+<body>
+    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme">
+        <i id="ti" class="fas fa-sun"></i>
     </button>
 
-    <div class="w-full max-w-md glass-panel p-10 rounded-3xl relative">
-        <div class="flex flex-col items-center mb-10">
-            <div
-                class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f53003] to-[#ff4433] flex items-center justify-center shadow-lg shadow-red-500/20 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <path d="M9 12l2 2 4-4" />
-                </svg>
-            </div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Selamat Datang</h1>
-            <p class="text-gray-500 dark:text-[#A1A09A] text-sm mt-1">Masuk untuk mengakses darkotech AI</p>
+    <div class="login-card">
+        <div class="login-header">
+            <div class="brand-icon"><i class="fas fa-robot"></i></div>
+            <h1>Selamat Datang</h1>
+            <p>Masuk untuk mengakses darkotech AI</p>
         </div>
 
-        <form action="{{ route('login.post') }}" method="POST" class="space-y-6">
+        <form action="{{ route('login.post') }}" method="POST">
             @csrf
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 dark:text-[#A1A09A] uppercase tracking-wider mb-2 ml-1">Alamat Email</label>
-                <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                    class="w-full input-glass rounded-xl px-4 py-3.5 text-sm" placeholder="email@contoh.com">
-                @error('email') <p class="text-red-500 text-[11px] mt-1 ml-1">{{ $message }}</p> @enderror
-            </div>
-
-            <div>
-                <div class="flex justify-between items-center mb-2 ml-1">
-                    <label class="block text-xs font-semibold text-gray-600 dark:text-[#A1A09A] uppercase tracking-wider">Password</label>
-                    <a href="{{ route('password.request') }}" class="text-[11px] text-[#f53003] dark:text-[#A1A09A] dark:hover:text-white font-medium transition-colors">Lupa pass?</a>
+            <div class="form-group">
+                <label class="form-label">Alamat Email</label>
+                <div class="input-wrap">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" name="email" value="{{ old('email') }}" required autofocus
+                        class="form-input" placeholder="email@contoh.com">
                 </div>
-                <input type="password" name="password" required
-                    class="w-full input-glass rounded-xl px-4 py-3.5 text-sm" placeholder="••••••••">
-                @error('password') <p class="text-red-500 text-[11px] mt-1 ml-1">{{ $message }}</p> @enderror
+                @error('email')<p class="form-error">{{ $message }}</p>@enderror
             </div>
 
-            <div class="flex items-center ml-1">
-                <input type="checkbox" name="remember" id="remember"
-                    class="checkbox-custom w-4 h-4 rounded border-gray-300 dark:border-white/10 dark:bg-white/5">
-                <label for="remember" class="ml-2 text-xs text-gray-600 dark:text-[#A1A09A] cursor-pointer">Ingat saya</label>
+            <div class="form-group">
+                <div class="form-row">
+                    <label class="form-label" style="margin:0;">Password</label>
+                    <a href="{{ route('password.request') }}" class="forgot-link">Lupa password?</a>
+                </div>
+                <div class="input-wrap" style="margin-top:0.5rem;">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" name="password" required
+                        class="form-input" placeholder="••••••••">
+                </div>
+                @error('password')<p class="form-error">{{ $message }}</p>@enderror
             </div>
 
-            <button type="submit"
-                class="w-full btn-primary text-white font-bold py-4 rounded-xl shadow-lg mt-2 text-sm tracking-wide">
-                MASUK SEKARANG
+            <div class="remember-wrap">
+                <input type="checkbox" name="remember" id="remember">
+                <label for="remember">Ingat saya</label>
+            </div>
+
+            <button type="submit" class="btn-login">
+                <i class="fas fa-sign-in-alt" style="margin-right:8px;"></i>MASUK SEKARANG
             </button>
         </form>
     </div>
-
 </body>
 </html>

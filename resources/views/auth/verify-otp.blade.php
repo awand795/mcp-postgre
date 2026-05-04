@@ -1,146 +1,79 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Verifikasi OTP - darkotech AI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #f3f4f6, #e5e7eb);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.3s ease;
-        }
-        html.dark body { background: radial-gradient(circle at top left, #1a1a1a, #000000); }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            transition: all 0.3s ease;
-        }
-        html.dark .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-        }
-        .input-glass {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            color: #1f2937;
-            transition: all 0.2s;
-            text-align: center;
-            letter-spacing: 0.5em;
-            font-size: 1.5rem;
-        }
-        html.dark .input-glass {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        .input-glass:focus {
-            background: #ffffff;
-            border-color: #f53003;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(245, 48, 3, 0.2);
-        }
-        html.dark .input-glass:focus { background: rgba(255, 255, 255, 0.08); }
-        .btn-primary {
-            background: linear-gradient(135deg, #f53003, #ff4433);
-            transition: all 0.3s;
-        }
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(245, 48, 3, 0.4);
-        }
-        .theme-toggle {
-            position: absolute; top: 20px; right: 20px;
-            background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(0,0,0,0.1);
-            padding: 10px; border-radius: 50%; cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: all 0.3s ease;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .theme-toggle:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.15); }
-        html.dark .theme-toggle { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: white; }
+        :root{--primary:#f53003;--bg:#f0f2f8;--card:rgba(255,255,255,0.97);--border:rgba(99,102,241,0.12);--text:#1e293b;--muted:#64748b;--input-bg:rgba(255,255,255,0.9);--input-border:rgba(99,102,241,0.2);}
+        html.dark{--bg:#0b1120;--card:rgba(17,24,39,0.92);--border:rgba(99,102,241,0.2);--text:#f1f5f9;--muted:#94a3b8;--input-bg:rgba(15,23,42,0.8);--input-border:rgba(99,102,241,0.3);}
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;}
+        body{background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;transition:background 0.4s;position:relative;}
+        html.dark body{background:linear-gradient(135deg,#0b1120 0%,#0f172a 60%,#111827 100%);}
+        body::before{content:'';position:fixed;width:600px;height:600px;background:radial-gradient(circle,rgba(245,48,3,0.06),transparent 70%);top:-200px;right:-100px;pointer-events:none;}
+        .auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:2.5rem 2.25rem;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.08);position:relative;z-index:1;transition:background 0.4s,border-color 0.4s;}
+        html.dark .auth-card{box-shadow:0 20px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(99,102,241,0.15);}
+        .auth-header{text-align:center;margin-bottom:2rem;}
+        .brand-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#f53003,#ff4433);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(245,48,3,0.3);margin-bottom:1rem;}
+        .brand-icon i{color:#fff;font-size:1.3rem;}
+        .auth-header h1{font-size:1.4rem;font-weight:700;color:var(--text);margin-bottom:4px;}
+        .auth-header p{font-size:0.85rem;color:var(--muted);line-height:1.5;}
+        .auth-header strong{color:var(--text);}
+        .form-group{margin-bottom:1.25rem;}
+        .form-label{display:block;margin-bottom:0.5rem;font-size:0.73rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);}
+        .input-wrap{position:relative;}
+        .input-wrap i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:0.85rem;}
+        .form-input{width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:12px;padding:0.75rem 1rem 0.75rem 2.75rem;color:var(--text);font-size:0.9rem;transition:all 0.2s;font-family:'Outfit',sans-serif;letter-spacing:0.15em;}
+        .form-input::placeholder{color:var(--muted);opacity:0.6;letter-spacing:0.1em;}
+        .form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(245,48,3,0.12);}
+        .form-error{color:#ef4444;font-size:0.75rem;margin-top:4px;}
+        .alert-success{background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);color:#10b981;padding:0.75rem 1rem;border-radius:10px;font-size:0.85rem;margin-bottom:1rem;}
+        .btn-submit{width:100%;background:linear-gradient(135deg,#f53003,#ff4433);color:#fff;border:none;border-radius:12px;padding:0.9rem;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.25s;margin-top:0.5rem;box-shadow:0 4px 16px rgba(245,48,3,0.3);font-family:'Outfit',sans-serif;}
+        .btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,48,3,0.4);}
+        .auth-footer{margin-top:1.5rem;text-align:center;font-size:0.82rem;color:var(--muted);}
+        .auth-footer a,.resend-btn{color:var(--primary);font-weight:600;text-decoration:none;cursor:pointer;background:none;border:none;font-family:'Outfit',sans-serif;font-size:inherit;}
+        .resend-btn:hover{opacity:0.8;}
+        .theme-btn{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.06);transition:all 0.2s;}
+        .theme-btn:hover{border-color:var(--primary);color:var(--primary);}
+        @media(max-width:480px){body{padding:0;align-items:flex-start;}.auth-card{border-radius:0;min-height:100vh;padding:2rem 1.5rem;display:flex;flex-direction:column;justify-content:center;}}
     </style>
     <script>
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-        function toggleTheme() {
-            if (document.documentElement.classList.contains('dark')) {
-                document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeIcon('light');
-            } else {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeIcon('dark');
-            }
-        }
-        function updateThemeIcon(theme) {
-            const icon = document.getElementById('theme-icon');
-            if (theme === 'dark') {
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />';
-            } else {
-                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />';
-            }
-        }
-        document.addEventListener('DOMContentLoaded', () => {
-            updateThemeIcon(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-        });
+        (function(){if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}})();
+        function toggleTheme(){const d=document.documentElement.classList.contains('dark');document.documentElement.classList[d?'remove':'add']('dark');localStorage.setItem('theme',d?'light':'dark');document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';}
+        document.addEventListener('DOMContentLoaded',()=>{document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';});
     </script>
 </head>
-<body class="p-6 relative">
-    <button onclick="toggleTheme()" class="theme-toggle" title="Toggle Theme">
-        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-800 dark:text-white"></svg>
-    </button>
-
-    <div class="w-full max-w-md glass-panel p-10 rounded-3xl relative">
-        <div class="flex flex-col items-center mb-8">
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Verifikasi OTP</h1>
-            <p class="text-gray-500 dark:text-[#A1A09A] text-sm mt-2 text-center">Masukkan 6 digit kode OTP yang telah dikirimkan ke <strong>{{ $email }}</strong></p>
+<body>
+    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme"><i id="ti" class="fas fa-sun"></i></button>
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="brand-icon"><i class="fas fa-shield-alt"></i></div>
+            <h1>Verifikasi OTP</h1>
+            <p>Masukkan 6 digit kode yang dikirim ke<br><strong>{{ $email }}</strong></p>
         </div>
-
-        @if (session('status'))
-            <div class="mb-4 text-sm font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 p-3 rounded-xl border border-green-200 dark:border-green-800">
-                {{ session('status') }}
-            </div>
-        @endif
-
-        <form action="{{ route('password.verify.post') }}" method="POST" class="space-y-6">
+        @if(session('status'))<div class="alert-success"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>@endif
+        <form action="{{ route('password.verify.post') }}" method="POST">
             @csrf
             <input type="hidden" name="email" value="{{ $email }}">
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 dark:text-[#A1A09A] uppercase tracking-wider mb-2 ml-1">Kode OTP</label>
-                <input type="text" name="otp" required autofocus maxlength="6"
-                    class="w-full input-glass rounded-xl px-4 py-3" placeholder="000000">
-                @error('otp') <p class="text-red-500 text-[11px] mt-1 ml-1 text-center">{{ $message }}</p> @enderror
+            <div class="form-group">
+                <label class="form-label">Kode OTP</label>
+                <div class="input-wrap">
+                    <i class="fas fa-hashtag"></i>
+                    <input type="text" name="otp" required autofocus maxlength="6"
+                        class="form-input" placeholder="000000" style="text-align:center;">
+                </div>
+                @error('otp')<p class="form-error" style="text-align:center;">{{ $message }}</p>@enderror
             </div>
-
-            <button type="submit" class="w-full btn-primary text-white font-bold py-4 rounded-xl shadow-lg mt-2 text-sm tracking-wide">
-                VERIFIKASI
-            </button>
+            <button type="submit" class="btn-submit"><i class="fas fa-check-circle" style="margin-right:8px;"></i>VERIFIKASI SEKARANG</button>
         </form>
-
-        <div class="mt-8 text-center">
-            <p class="text-gray-500 dark:text-[#A1A09A] text-sm">
-                Belum menerima email?
-                <form action="{{ route('password.email') }}" method="POST" class="inline">
-                    @csrf
-                    <input type="hidden" name="email" value="{{ $email }}">
-                    <button type="submit" class="text-[#f53003] hover:text-[#ff4433] font-semibold transition-colors bg-transparent border-none cursor-pointer p-0">Kirim Ulang</button>
-                </form>
-            </p>
+        <div class="auth-footer">
+            Belum menerima email?
+            <form action="{{ route('password.email') }}" method="POST" style="display:inline;">
+                @csrf
+                <input type="hidden" name="email" value="{{ $email }}">
+                <button type="submit" class="resend-btn">Kirim Ulang</button>
+            </form>
         </div>
     </div>
 </body>

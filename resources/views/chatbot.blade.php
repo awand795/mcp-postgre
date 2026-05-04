@@ -33,8 +33,8 @@
             transition: background 0.3s ease;
         }
         html.dark body {
-            background: radial-gradient(circle at top left, #1a1a1a, #000000);
-            color: white;
+            background: linear-gradient(135deg, #0b1120 0%, #0f172a 60%, #111827 100%);
+            color: #f1f5f9;
         }
         .glass-panel {
             background: rgba(255, 255, 255, 0.7);
@@ -43,9 +43,9 @@
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
         }
         html.dark .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            background: rgba(15,23,42,0.85);
+            border: 1px solid rgba(99,102,241,0.15);
+            box-shadow: 0 8px 40px 0 rgba(0,0,0,0.7);
         }
         .chat-bubble-user {
             background: linear-gradient(135deg, #f53003, #ff4433);
@@ -60,9 +60,9 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         html.dark .chat-bubble-ai {
-            background: rgba(255, 255, 255, 0.05);
-            color: #eeeeec;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(17,24,39,0.9);
+            color: #e2e8f0;
+            border: 1px solid rgba(99,102,241,0.15);
             box-shadow: none;
         }
         /* Tool Call Badge */
@@ -107,11 +107,13 @@
         }
         @keyframes icon-breathe { 0%,100%{box-shadow:0 0 0 0 rgba(245,48,3,0.18)} 50%{box-shadow:0 0 0 6px rgba(245,48,3,0)} }
         .ai-loading-text { flex:1; overflow:hidden; }
-        .ai-loading-label { font-size:12px; font-weight:600; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .ai-loading-label { font-size:12px; font-weight:600; color:#1f2937; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        html.dark .ai-loading-label { color:#fff; }
         .ai-loading-label.anim { animation:txt-in 0.35s ease; }
         @keyframes txt-in { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         .ai-loading-sub { font-size:10px; color:#706f6c; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .ai-loading-bar-wrap { width:100%; height:2px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+        .ai-loading-bar-wrap { width:100%; height:2px; background:rgba(0,0,0,0.06); border-radius:2px; overflow:hidden; }
+        html.dark .ai-loading-bar-wrap { background:rgba(255,255,255,0.06); }
         .ai-loading-bar {
             height:100%; width:35%;
             background:linear-gradient(90deg,transparent,#f53003,transparent);

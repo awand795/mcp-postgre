@@ -1,29 +1,29 @@
 @extends('layouts.admin')
+@section('page-title', 'Management Role & Permissions')
 
 @section('content')
-    <div class="header">
-        <h1>Management Role & Permissions</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <h2 style="font-size:1.1rem;font-weight:700;color:var(--text-main);">Role & Permissions</h2>
+            <p style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;">Kelola hak akses tabel untuk setiap role</p>
+        </div>
         <button class="btn btn-primary" onclick="showRoleModal('create')"><i class="fas fa-plus"></i> <span>Tambah Role</span></button>
     </div>
 
     <div class="roles-container">
         <!-- Role List -->
         <div class="glass-card role-list-card">
-            <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; color: #94a3b8;">Daftar Role</h3>
-            <ul style="list-style: none;">
+            <h3 style="margin-bottom:1.25rem;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Daftar Role</h3>
+            <ul style="list-style:none;">
                 @foreach($roles as $role)
-                    <li style="margin-bottom: 0.8rem;">
+                    <li style="margin-bottom:6px;">
                         <button class="btn role-item {{ $loop->first ? 'active' : '' }}"
-                            style="width: 100%; justify-content: space-between; background: rgba(255,255,255,0.05); text-align: left;"
+                            style="width:100%;justify-content:space-between;background:rgba(99,102,241,0.05);text-align:left;border:1px solid var(--glass-border2);border-radius:10px;padding:0.65rem 0.9rem;color:var(--text-main);font-weight:500;font-size:0.85rem;"
                             onclick="selectRole({{ $role->id }}, this)">
-                            <span><i class="fas fa-user-shield" style="margin-right: 10px;"></i> {{ $role->name }}</span>
-                            <div style="display: flex; gap: 8px;">
-                                <i class="fas fa-edit btn-edit"
-                                    onclick="event.stopPropagation(); showRoleModal('edit', {{ json_encode($role) }})"
-                                    style="font-size: 0.8rem; padding: 6px; border-radius: 8px; cursor: pointer;" title="Edit Role"></i>
-                                <i class="fas fa-trash" onclick="event.stopPropagation(); deleteRole({{ $role->id }})"
-                                    style="font-size: 0.8rem; padding: 6px; opacity: 0.7; cursor: pointer; color: #ef4444;"
-                                    title="Hapus Role"></i>
+                            <span style="font-size:0.85rem;"><i class="fas fa-user-shield" style="margin-right:8px;color:var(--primary);"></i>{{ $role->name }}</span>
+                            <div style="display:flex;gap:6px;">
+                                <i class="fas fa-edit" onclick="event.stopPropagation();showRoleModal('edit',{{ json_encode($role) }})" style="font-size:0.8rem;padding:5px;border-radius:6px;cursor:pointer;color:#f59e0b;" title="Edit"></i>
+                                <i class="fas fa-trash" onclick="event.stopPropagation();deleteRole({{ $role->id }})" style="font-size:0.8rem;padding:5px;cursor:pointer;color:#ef4444;" title="Hapus"></i>
                             </div>
                         </button>
                     </li>
@@ -31,15 +31,13 @@
             </ul>
         </div>
 
-        <!-- Checkbox Permissions -->
+        <!-- Permissions Area -->
         <div class="glass-card permissions-card" id="permissions-area">
             <div class="permissions-header">
                 <div>
-                    <h2 id="selected-role-name">{{ $roles[0]->name ?? 'Select Role' }}</h2>
-                    <p id="selected-role-desc" style="color: #94a3b8; font-size: 0.9rem;">{{ $roles[0]->description ?? '' }}
-                    </p>
-                    <span id="unsaved-indicator"
-                        style="display: none; color: #f59e0b; font-size: 0.85rem; margin-top: 5px;">
+                    <h2 id="selected-role-name" style="font-size:1.1rem;font-weight:700;color:var(--text-main);">{{ $roles[0]->name ?? 'Select Role' }}</h2>
+                    <p id="selected-role-desc" style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">{{ $roles[0]->description ?? '' }}</p>
+                    <span id="unsaved-indicator" style="display:none;color:#f59e0b;font-size:0.82rem;margin-top:5px;display:none;">
                         <i class="fas fa-exclamation-triangle"></i> Ada perubahan yang belum disimpan
                     </span>
                 </div>
@@ -165,15 +163,14 @@
             gap: 1rem;
         }
 
-        /* Filter Bar Styles */
         .filter-bar {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr 1fr;
             gap: 1rem;
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(99,102,241,0.04);
             padding: 1.25rem;
             border-radius: 12px;
-            border: 1px solid var(--glass-border);
+            border: 1px solid var(--glass-border2);
             margin-bottom: 1rem;
         }
 
@@ -184,27 +181,28 @@
         }
 
         .filter-group label {
-            font-size: 0.75rem;
-            color: #94a3b8;
+            font-size: 0.72rem;
+            color: var(--text-muted);
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
         .filter-group input, .filter-group select {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
             padding: 0.6rem 0.8rem;
             border-radius: 8px;
-            color: white;
+            color: var(--text-main);
             font-size: 0.85rem;
             transition: all 0.2s;
+            font-family: 'Outfit', sans-serif;
         }
 
         .filter-group input:focus, .filter-group select:focus {
             outline: none;
             border-color: var(--primary);
-            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
         }
 
         .selection-controls {
@@ -217,14 +215,15 @@
 
         .stats-info {
             font-size: 0.85rem;
-            color: #94a3b8;
+            color: var(--text-muted);
         }
 
         .btn-sm {
             padding: 0.4rem 0.8rem;
             font-size: 0.75rem;
-            background: rgba(255, 255, 255, 0.05);
-            color: white;
+            background: rgba(99,102,241,0.08);
+            color: var(--text-main);
+            border: 1px solid var(--glass-border2);
         }
 
         .btn-bulk-select {
@@ -265,16 +264,17 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--glass-border);
-            padding: 1rem;
-            border-radius: 12px;
+            background: rgba(99,102,241,0.03);
+            border: 1px solid var(--glass-border2);
+            padding: 0.9rem 1rem;
+            border-radius: 10px;
             transition: all 0.2s;
             cursor: pointer;
         }
 
         .table-item:hover {
-            background: rgba(255, 255, 255, 0.06);
+            background: rgba(99,102,241,0.07);
+            border-color: rgba(99,102,241,0.2);
             transform: translateX(4px);
         }
 
@@ -321,8 +321,8 @@
 
         .table-name {
             font-weight: 600;
-            color: #f1f5f9;
-            font-size: 0.95rem;
+            color: var(--text-main);
+            font-size: 0.9rem;
         }
 
         .table-meta {
@@ -345,8 +345,8 @@
         .badge-type { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
 
         .table-description {
-            font-size: 0.8rem;
-            color: #64748b;
+            font-size: 0.75rem;
+            color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -361,10 +361,10 @@
             border: 2px solid #f59e0b !important;
         }
 
-        /* Modal responsive */
         .modal-content {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
+            border-radius: 18px;
         }
 
         @media (max-width: 1024px) {
@@ -492,7 +492,7 @@
                             <div class="table-main-info" style="gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                                 <span class="badge badge-db">${table.database_name}</span>
                                 <span class="badge badge-schema">${table.schema_name}</span>
-                                <span class="table-name">${table.table_name}</span>
+                                <div class="table-name" style="color:var(--text-main);">`, '${table.table_name}</div>${table.table_name}</span>
                                 <span class="badge badge-type" style="${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : 'background: rgba(148, 163, 184, 0.1); color: #94a3b8;'}">${table.table_type === 'view' ? 'VIEW' : 'TABLE'}</span>
                             </div>
                             <div class="table-description" style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${table.description || 'Tidak ada deskripsi'}</div>
