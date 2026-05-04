@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Darko AI</title>
+    <title>darkotech AI</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -733,6 +733,12 @@
                         <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4h6v2" />
                     </svg>
                 </button>
+                <!-- Theme Toggle Switch -->
+                <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme"
+                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-indigo-500/30 hover:text-indigo-500 transition-all">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                    <span class="btn-text" id="theme-toggle-label">Dark</span>
+                </button>
                 <form action="{{ route('logout') }}" method="POST" class="inline">
                     @csrf
                     <button type="submit" title="Keluar"
@@ -746,12 +752,6 @@
                         <span class="btn-text">Logout</span>
                     </button>
                 </form>
-                <!-- Theme Toggle Switch -->
-                <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme"
-                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-indigo-500/30 hover:text-indigo-500 transition-all">
-                    <i class="fas fa-moon" id="theme-icon"></i>
-                    <span class="btn-text" id="theme-toggle-label">Dark</span>
-                </button>
             </div>
         </div>
 
