@@ -464,12 +464,12 @@
             margin-bottom: 10px;
         }
         html.dark .chart-title {
-            color: #fff;
-            background: rgba(245,48,3,0.12);
+            color: #f1f5f9;
+            background: rgba(245,48,3,0.15);
             border-bottom-color: rgba(255,255,255,0.06);
         }
         .smart-table-info { font-size: 11px; color: #6d28d9; font-weight: 700; white-space: nowrap; }
-        html.dark .smart-table-info { color: #A1A09A; }
+        html.dark .smart-table-info { color: #a5b4fc; font-weight: 600; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
             flex: 1; min-width: 140px; max-width: 240px;
@@ -479,7 +479,7 @@
             transition: all 0.2s;
         }
         html.dark .smart-table-search {
-            background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #fff;
+            background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #f1f5f9;
         }
         .smart-table-search:focus {
             border-color: #6366f1;
@@ -528,11 +528,18 @@
             padding: 14px 18px !important; border-bottom: 1px solid rgba(99,102,241,0.07) !important;
             color: #1e293b !important; font-size: 13px !important;
         }
+        html.dark .smart-table-scroll td {
+            color: #e2e8f0 !important;
+            border-bottom-color: rgba(255,255,255,0.06) !important;
+        }
         .smart-table-scroll tbody tr:nth-child(even) {
             background: rgba(99,102,241,0.03);
         }
         .smart-table-scroll tbody tr:hover {
             background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(168,85,247,0.06));
+        }
+        html.dark .smart-table-scroll tbody tr:hover {
+            background: rgba(99,102,241,0.12);
         }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
@@ -546,7 +553,7 @@
             background: rgba(0,0,0,0.15);
         }
         .smart-table-page-info { font-size: 11px; color: #6d28d9; font-weight: 600; }
-        html.dark .smart-table-page-info { color: #706f6c; }
+        html.dark .smart-table-page-info { color: #a5b4fc; font-weight: 400; }
         .smart-table-btns { display: flex; gap: 4px; flex-wrap: wrap; }
         .st-btn {
             padding: 3px 9px; border-radius: 5px;
