@@ -216,11 +216,11 @@
             </div>
             <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
                 <input type="checkbox" name="analysis_scope_limited" id="userScopeLimited" value="1" checked>
-                <label for="userScopeLimited">Cakupan Analisis (Database &amp; ERP)</label>
+                <label for="userScopeLimited">Hanya dari database</label>
             </div>
             <p style="color: #64748b; font-size: 0.78rem; margin: -0.75rem 0 1rem 0; padding-left: 0.25rem;">
                 <i class="fas fa-info-circle" style="color:#6366f1"></i>
-                &#10003; Dicentang = AI hanya analisis database &amp; ERP &nbsp;|&nbsp; &#9744; Tidak dicentang = AI bebas menjawab umum
+                &#10003; Dicentang = Hanya dari database
             </p>
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
