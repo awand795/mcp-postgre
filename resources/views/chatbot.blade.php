@@ -20,6 +20,12 @@
                 style.id = 'fouc-fix';
                 style.innerHTML = 'html, body { background: #0b1120 !important; color: #f1f5f9 !important; }';
                 document.head.appendChild(style);
+            } else {
+                // Force light background immediately too
+                const style = document.createElement('style');
+                style.id = 'fouc-fix';
+                style.innerHTML = 'html, body { background: #eef0fb !important; }';
+                document.head.appendChild(style);
             }
         })();
     </script>
@@ -46,14 +52,20 @@
 
     <style>
         html {
-            background-color: #f3f4f6;
+            background-color: #eef0fb;
         }
         html.dark {
             background-color: #0b1120;
         }
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #f3f4f6, #e5e7eb);
+            /* Soft mesh gradient — white-dominant but with visible color tints */
+            background:
+                radial-gradient(ellipse at top left,    rgba(99,102,241,0.12) 0%, transparent 55%),
+                radial-gradient(ellipse at top right,   rgba(236,72,153,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom left, rgba(16,185,129,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right,rgba(245,158,11,0.06) 0%, transparent 50%),
+                linear-gradient(160deg, #f8f9ff 0%, #f3f0ff 40%, #fff5fb 100%);
             height: 100vh;
             overflow: hidden;
             color: #1f2937;
@@ -67,10 +79,14 @@
             color: #f1f5f9;
         }
         .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1.5px solid rgba(99,102,241,0.18);
+            box-shadow:
+                0 8px 40px 0 rgba(99,102,241,0.12),
+                0 2px 8px 0 rgba(168,85,247,0.08),
+                inset 0 1px 0 rgba(255,255,255,0.9);
         }
         html.dark .glass-panel {
             background: rgba(15,23,42,0.85);
@@ -83,11 +99,12 @@
             border-bottom-right-radius: 4px;
         }
         .chat-bubble-ai {
-            background: #ffffff;
+            /* Soft blue-tinted white — clearly light but not garing */
+            background: linear-gradient(145deg, #ffffff 0%, #fafbff 60%, #f8f6ff 100%);
             color: #1f2937;
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(99,102,241,0.14);
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            box-shadow: 0 2px 12px rgba(99,102,241,0.08), 0 1px 3px rgba(0,0,0,0.04);
             max-width: 100%;
             min-width: 0;
             overflow-x: auto;
@@ -112,9 +129,10 @@
 
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-track { background: rgba(99,102,241,0.04); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.25); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.45); }
+        html.dark ::-webkit-scrollbar-track { background: transparent; }
         html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
         html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
@@ -628,10 +646,10 @@
         
         /* Sidebar fixes */
         #chat-sidebar {
-            background-color: #ffffff !important;
+            background-color: #f8f9ff !important;
         }
         #chat-sidebar.open {
-            background-color: rgba(255, 255, 255, 0.98) !important;
+            background-color: rgba(248, 249, 255, 0.98) !important;
         }
         html.dark #chat-sidebar {
             background-color: #0a0a0a !important;
