@@ -40,6 +40,7 @@ class ForgotPasswordController extends Controller
                 $message->subject('Reset Password OTP - darkotech AI');
             });
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error sending OTP email: ' . $e->getMessage());
             return back()->withErrors(['email' => 'Gagal mengirim email. Pastikan konfigurasi SMTP benar.']);
         }
 
