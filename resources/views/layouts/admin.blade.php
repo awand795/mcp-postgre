@@ -475,6 +475,42 @@
             const foucFix = document.getElementById('fouc-fix');
             if (foucFix) foucFix.remove();
             updateThemeIcon();
+
+            // ── Flash Message Handler (SweetAlert2) ──────────────────────────
+            const isDark = document.documentElement.classList.contains('dark');
+            const toastBase = {
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000,
+                timerProgressBar: true,
+                background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                didOpen: (t) => {
+                    t.addEventListener('mouseenter', Swal.stopTimer);
+                    t.addEventListener('mouseleave', Swal.resumeTimer);
+                }
+            };
+
+            @if(session('success'))
+            Swal.fire({ ...toastBase, icon: 'success', title: @json(session('success')), iconColor: '#10b981' });
+            @endif
+
+            @if(session('error'))
+            Swal.fire({ ...toastBase, icon: 'error', title: @json(session('error')), iconColor: '#ef4444' });
+            @endif
+
+            @if(session('warning'))
+            Swal.fire({ ...toastBase, icon: 'warning', title: @json(session('warning')), iconColor: '#f59e0b' });
+            @endif
+
+            @if(session('info'))
+            Swal.fire({ ...toastBase, icon: 'info', title: @json(session('info')), iconColor: '#3b82f6' });
+            @endif
+
+            @if($errors->any())
+            Swal.fire({ ...toastBase, icon: 'error', title: @json($errors->first()), iconColor: '#ef4444', timer: 6000 });
+            @endif
         });
 
         function toggleSidebar(){
