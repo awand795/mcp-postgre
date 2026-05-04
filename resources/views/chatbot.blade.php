@@ -365,38 +365,43 @@
 
         /* ── Smart Table ── */
         .smart-table-wrap {
-            margin: 24px 0; border-radius: 14px;
-            border: 1px solid #fecaca;
+            margin: 24px 0; border-radius: 12px;
+            border: 1px solid #e2e8f0;
             overflow: hidden; background: #ffffff;
             max-width: 100%;
-            box-shadow: 0 20px 25px -5px rgba(245, 48, 3, 0.1), 0 10px 10px -5px rgba(245, 48, 3, 0.04);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
             display: flex; flex-direction: column; min-width: 0;
+            transition: all 0.3s ease;
+        }
+        .smart-table-wrap:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06);
+            border-color: #cbd5e1;
         }
         html.dark .smart-table-wrap {
             border-color: rgba(255,255,255,0.1);
-            background: rgba(0,0,0,0.2);
+            background: rgba(15, 23, 42, 0.6);
             box-shadow: none;
         }
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 12px 18px;
-            background: #fff7f5;
-            border-bottom: 1px solid #ffe4de; flex-wrap: wrap;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0; flex-wrap: wrap;
         }
         html.dark .smart-table-toolbar {
             background: rgba(245,48,3,0.08);
             border-bottom-color: rgba(255,255,255,0.08);
         }
         .smart-table-title {
-            padding: 15px 18px;
-            font-weight: 800;
-            font-size: 14px;
-            color: #ffffff;
+            padding: 14px 18px;
+            font-weight: 700;
+            font-size: 13px;
+            color: #1e293b;
             display: flex;
             align-items: center;
             gap: 10px;
-            background: linear-gradient(135deg, #f53003, #ff6b6b);
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
         }
         html.dark .smart-table-title {
             color: #fff;
@@ -411,7 +416,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(245,48,3,0.06);
+            background: rgba(245,48,3,0.04);
             border-bottom: 1px solid rgba(0,0,0,0.06);
             margin-bottom: 10px;
         }
@@ -420,45 +425,48 @@
             background: rgba(245,48,3,0.12);
             border-bottom-color: rgba(255,255,255,0.06);
         }
-        .smart-table-info { font-size: 11px; color: #6b7280; white-space: nowrap; }
+        .smart-table-info { font-size: 11px; color: #64748b; white-space: nowrap; }
         html.dark .smart-table-info { color: #A1A09A; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
             flex: 1; min-width: 120px; max-width: 220px;
-            background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1);
-            border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #1f2937;
+            background: #ffffff; border: 1px solid #e2e8f0;
+            border-radius: 8px; padding: 5px 12px; font-size: 11px; color: #1e293b;
             outline: none; font-family: 'Outfit', sans-serif;
+            transition: all 0.2s;
         }
         html.dark .smart-table-search {
             background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #fff;
         }
         .smart-table-export-btn {
-            background: rgba(34,197,94,0.15); color: #22c55e;
-            border: 1px solid rgba(34,197,94,0.3);
-            padding: 4px 10px; border-radius: 6px;
+            background: rgba(16, 185, 129, 0.08); color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 5px 12px; border-radius: 8px;
             font-size: 11px; cursor: pointer;
             transition: all 0.2s; font-family: 'Outfit', sans-serif;
             display: inline-flex; align-items: center; gap: 4px;
+            font-weight: 500;
         }
         .smart-table-export-btn:hover:not(:disabled) {
-            background: rgba(34,197,94,0.25); color: #4ade80; border-color: rgba(34,197,94,0.5);
+            background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);
         }
         .smart-table-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .smart-table-export-pdf-btn {
-            background: rgba(239,68,68,0.15); color: #ef4444;
-            border: 1px solid rgba(239,68,68,0.3);
-            padding: 4px 10px; border-radius: 6px;
+            background: rgba(239, 68, 68, 0.08); color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 5px 12px; border-radius: 8px;
             font-size: 11px; cursor: pointer;
             transition: all 0.2s; font-family: 'Outfit', sans-serif;
             display: inline-flex; align-items: center; gap: 4px;
+            font-weight: 500;
         }
         .smart-table-export-pdf-btn:hover:not(:disabled) {
-            background: rgba(239,68,68,0.25); color: #f87171; border-color: rgba(239,68,68,0.5);
+            background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3);
         }
         .smart-table-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .smart-table-search::placeholder { color: rgba(0,0,0,0.25); }
+        .smart-table-search::placeholder { color: #94a3b8; }
         html.dark .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
-        .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
+        .smart-table-search:focus { border-color: #6366f1; ring: 2px; ring-color: rgba(99, 102, 241, 0.1); }
         .smart-table-scroll { 
             overflow-x: auto; 
             width: 100%;
@@ -467,40 +475,40 @@
             min-width: 0;
         }
         .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: max-content; }
-        .smart-table-scroll thead tr { background: #1e293b; }
-        html.dark .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
+        .smart-table-scroll thead tr { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+        html.dark .smart-table-scroll thead tr { background: rgba(30, 41, 59, 0.5); }
         .smart-table-scroll th {
-            padding: 12px 16px; text-align: left; font-weight: 700; color: #ffffff;
+            padding: 12px 16px; text-align: left; font-weight: 600; color: #475569;
             white-space: nowrap; border: none;
-            cursor: pointer; user-select: none; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+            cursor: pointer; user-select: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
         }
-        html.dark .smart-table-scroll th { color: #fff; border-bottom: 2px solid rgba(245,48,3,0.35); }
-        .smart-table-scroll th:hover { background: #f1f5f9; }
-        html.dark .smart-table-scroll th:hover { background: rgba(245,48,3,0.25); }
+        html.dark .smart-table-scroll th { color: #cbd5e1; border-bottom: 2px solid rgba(255, 255, 255, 0.05); }
+        .smart-table-scroll th:hover { background: #f1f5f9; color: #1e293b; }
+        html.dark .smart-table-scroll th:hover { background: rgba(255,255,255,0.04); }
         .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
         .smart-table-scroll th.sort-asc .sort-icon,
-        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #fb7185; }
+        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #6366f1; }
         html.dark .smart-table-scroll th.sort-asc .sort-icon,
         html.dark .smart-table-scroll th.sort-desc .sort-icon { color: #f53003; }
         .smart-table-scroll td {
-            padding: 12px 18px !important; border-bottom: 1px solid #fff1f0 !important;
-            color: #374151 !important; max-width: 350px !important; font-size: 12px !important;
+            padding: 12px 16px !important; border-bottom: 1px solid #f1f5f9 !important;
+            color: #334155 !important; max-width: 350px !important; font-size: 12px !important;
             overflow: hidden !important; text-overflow: ellipsis !important;
             white-space: nowrap !important;
         }
         html.dark .smart-table-scroll td {
             border-bottom-color: rgba(255,255,255,0.05) !important;
-            color: #d4d4d0 !important;
+            color: #cbd5e1 !important;
         }
-        .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.4 !important; min-width: 200px !important; }
-        .smart-table-scroll tbody tr:hover { background: #fff8f7; }
-        html.dark .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.5 !important; min-width: 200px !important; }
+        .smart-table-scroll tbody tr:hover { background: #f8fafc; }
+        html.dark .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.02); }
         .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 14px 18px;
-            border-top: 1px solid #ffe4de;
-            background: #fff7f5; flex-wrap: wrap;
+            gap: 8px; padding: 12px 18px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc; flex-wrap: wrap;
         }
         html.dark .smart-table-pagination {
             border-top-color: rgba(255,255,255,0.07);
@@ -4063,82 +4071,128 @@
         function initChartWithConfig(canvas, config, container, chartId, currencyColumns = []) {
             if (!config || !canvas) return;
 
+            const isDark = document.documentElement.classList.contains('dark');
+            const theme = {
+                text: isDark ? '#94a3b8' : '#64748b',
+                grid: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+                legend: isDark ? '#f1f5f9' : '#1e293b',
+                tooltipBg: isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                tooltipText: isDark ? '#f1f5f9' : '#1e293b',
+                tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+            };
+
+            const premiumPalette = [
+                '#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#f43f5e', '#06b6d4', '#84cc16'
+            ];
+
+            // Apply premium colors to datasets if they don't have them or to enhance them
+            if (config.data && config.data.datasets) {
+                config.data.datasets.forEach((ds, i) => {
+                    const color = premiumPalette[i % premiumPalette.length];
+                    
+                    if (config.type === 'line') {
+                        ds.borderColor = ds.borderColor || color;
+                        ds.backgroundColor = ds.backgroundColor || (ds.fill ? `${color}20` : color);
+                        ds.pointBackgroundColor = ds.pointBackgroundColor || color;
+                        ds.pointBorderColor = '#fff';
+                    } else {
+                        // For bar, pie, doughnut, use sequential colors for single dataset items
+                        if (config.data.datasets.length === 1 && ds.data && ds.data.length > 1) {
+                            ds.backgroundColor = ds.data.map((_, j) => premiumPalette[j % premiumPalette.length]);
+                        } else {
+                            ds.backgroundColor = ds.backgroundColor || color;
+                        }
+                    }
+                });
+            }
+
             config.options = config.options || {};
             config.options.responsive = true;
             config.options.maintainAspectRatio = false;
 
-            // Tambahkan padding layout untuk memberi ruang label
             if (!config.options.layout) config.options.layout = {};
-            config.options.layout.padding = {
-                top: 10,
-                bottom: 15,
-                left: 5,
-                right: 5
+            config.options.layout.padding = { top: 10, bottom: 15, left: 5, right: 5 };
+
+            // Legend & Plugins
+            if (!config.options.plugins) config.options.plugins = {};
+            config.options.plugins.legend = {
+                display: config.options.plugins.legend?.display !== false,
+                position: config.options.plugins.legend?.position || 'top',
+                align: 'end',
+                labels: {
+                    color: theme.legend,
+                    usePointStyle: true,
+                    pointStyle: 'circle',
+                    padding: 15,
+                    font: { size: 10, weight: '500', family: "'Outfit', sans-serif" }
+                }
             };
 
-            // Pastikan warna tema gelap jika tidak diset AI
-            if (!config.options.plugins) config.options.plugins = {};
-            if (!config.options.plugins.legend) config.options.plugins.legend = { labels: { color: '#fff', font: { size: 10 } } };
+            // Tooltip Premium Styling
+            config.options.plugins.tooltip = {
+                enabled: true,
+                backgroundColor: theme.tooltipBg,
+                titleColor: theme.tooltipText,
+                bodyColor: theme.tooltipText,
+                borderColor: theme.tooltipBorder,
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                displayColors: true,
+                usePointStyle: true,
+                titleFont: { size: 12, weight: '700', family: "'Outfit', sans-serif" },
+                bodyFont: { size: 12, family: "'Outfit', sans-serif" },
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        let isMoney = false;
+                        if (currencyColumns && (currencyColumns.includes(label) || currencyColumns.includes(label.toLowerCase()))) {
+                            isMoney = true;
+                        } else {
+                            isMoney = isCurrencyColumn(label);
+                        }
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) {
+                            label += isMoney ? currencyFormatter.format(context.parsed.y) : context.parsed.y.toLocaleString('id-ID');
+                        }
+                        return label;
+                    }
+                }
+            };
 
+            // Scales
             if (!config.options.scales) config.options.scales = {};
             const scales = config.options.scales;
             ['x', 'y'].forEach(axis => {
                 if (!scales[axis]) scales[axis] = {};
-                if (!scales[axis].ticks) scales[axis].ticks = { color: '#A1A09A', font: { size: 9 } };
-                if (!scales[axis].grid) scales[axis].grid = { color: 'rgba(255,255,255,0.05)' };
+                scales[axis].grid = {
+                    color: theme.grid,
+                    drawBorder: false,
+                    display: true
+                };
+                scales[axis].ticks = {
+                    color: theme.text,
+                    font: { size: 9, family: "'Outfit', sans-serif" },
+                    padding: 8
+                };
 
-                // Format currency di ticks Y — angka penuh tanpa singkatan
                 if (axis === 'y') {
-                    // Batasi jumlah ticks agar label tidak tumpang tindih
-                    if (!scales[axis].ticks.maxTicksLimit) {
-                        scales[axis].ticks.maxTicksLimit = 8;
-                    }
-
+                    if (!scales[axis].ticks.maxTicksLimit) scales[axis].ticks.maxTicksLimit = 8;
                     scales[axis].ticks.callback = function(value) {
-                        // Check if ANY dataset in this chart is a currency column
                         let isCurrencyChart = false;
                         if (currencyColumns && currencyColumns.length > 0) {
                             isCurrencyChart = true;
                         } else {
-                            // Fallback: deteksi otomatis dari label dataset
                             const firstLabel = config.data?.datasets?.[0]?.label;
-                            if (firstLabel && isLikelyCurrencyLabel(firstLabel)) {
-                                isCurrencyChart = true;
-                            }
+                            if (firstLabel && isLikelyCurrencyLabel(firstLabel)) isCurrencyChart = true;
                         }
-
-                        // Selalu tampilkan angka PENUH — tidak disingkat (tidak ada 5.5M dll)
                         const numVal = typeof value === 'number' ? value : parseFloat(value);
                         if (isNaN(numVal)) return value;
-
-                        if (isCurrencyChart) {
-                            return 'Rp\u00a0' + numVal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
-                        }
+                        if (isCurrencyChart) return 'Rp\u00a0' + numVal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
                         return numVal.toLocaleString('id-ID', { maximumFractionDigits: 2 });
                     };
                 }
             });
-
-            // Format tooltips sebagai Rupiah
-            if (!config.options.plugins.tooltip) config.options.plugins.tooltip = {};
-            if (!config.options.plugins.tooltip.callbacks) config.options.plugins.tooltip.callbacks = {};
-            config.options.plugins.tooltip.callbacks.label = function(context) {
-                let label = context.dataset.label || '';
-                
-                // Priority Check: If AI explicitly listed this column or it matches general rules
-                let isMoney = false;
-                if (currencyColumns && (currencyColumns.includes(label) || currencyColumns.includes(label.toLowerCase()))) {
-                    isMoney = true;
-                } else {
-                    isMoney = isCurrencyColumn(label);
-                }
-
-                if (label) label += ': ';
-                if (context.parsed.y !== null) {
-                    label += isMoney ? currencyFormatter.format(context.parsed.y) : context.parsed.y.toLocaleString('id-ID');
-                }
-                return label;
-            };
 
             // Smooth line chart: tambahkan tension agar bergelombang
             if (config.type === 'line') {
