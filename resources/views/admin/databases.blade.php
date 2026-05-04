@@ -557,16 +557,16 @@
     flex-wrap: wrap;
 }
 .btn-cancel {
-    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    background: #fff1f2; color: #e11d48; border: 1px solid #fda4af;
     padding: 0.6rem 1.25rem; border-radius: 10px;
     font-weight: 600; cursor: pointer; transition: all 0.2s;
     font-family: inherit; font-size: 0.85rem;
 }
-.btn-cancel:hover { background: #e2e8f0; color: #1e293b; }
+.btn-cancel:hover { background: #ffe4e6; color: #be123c; border-color: #f43f5e; transform: translateY(-1px); }
 html.dark .btn-cancel {
-    background: rgba(255, 255, 255, 0.05); color: #94a3b8; border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(225, 29, 72, 0.1); color: #fb7185; border-color: rgba(225, 29, 72, 0.2);
 }
-html.dark .btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f1f5f9; }
+html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af; border-color: rgba(225, 29, 72, 0.3); }
 .modal-close { color: #ef4444 !important; }
 .toolbar-search {
     flex: 1;

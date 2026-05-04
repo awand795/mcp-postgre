@@ -448,16 +448,16 @@ html.dark .form-grp select option, html.dark #hcModelSelect option {
 .form-check input { width:auto; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:1.5rem; }
 .btn-modal-cancel {
-    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    background: #fff1f2; color: #e11d48; border: 1px solid #fda4af;
     padding: 8px 18px; border-radius: 9px;
     font-weight: 600; cursor: pointer; transition: all 0.2s;
     font-family: inherit; font-size: 0.85rem;
 }
-.btn-modal-cancel:hover { background: #e2e8f0; color: #1e293b; }
+.btn-modal-cancel:hover { background: #ffe4e6; color: #be123c; border-color: #f43f5e; transform: translateY(-1px); }
 html.dark .btn-modal-cancel {
-    background: rgba(255, 255, 255, 0.05); color: #94a3b8; border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(225, 29, 72, 0.1); color: #fb7185; border-color: rgba(225, 29, 72, 0.2);
 }
-html.dark .btn-modal-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f1f5f9; }
+html.dark .btn-modal-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af; border-color: rgba(225, 29, 72, 0.3); }
 .btn-modal-save {
     padding: 8px 22px; border-radius: 9px; border: none; cursor: pointer;
     background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;
