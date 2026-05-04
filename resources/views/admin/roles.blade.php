@@ -344,9 +344,9 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
-        .badge-db { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
-        .badge-schema { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-        .badge-type { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
+        .badge-db { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; border: none; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2); }
+        .badge-schema { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border: none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); }
+        .badge-type { background: linear-gradient(135deg, #ec4899, #d946ef); color: white; border: none; box-shadow: 0 2px 4px rgba(236, 72, 153, 0.2); }
 
         html.dark .badge { box-shadow: none; }
         html.dark .badge-db { color: #a5b4fc; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
