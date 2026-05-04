@@ -8,14 +8,20 @@
     <title>darkotech AI</title>
 
     <script>
-        // Pre-initialization theme to prevent FOUC
-        if (localStorage.getItem('theme') === 'dark') {
-            document.documentElement.classList.add('dark');
-        } else if (localStorage.getItem('theme') === 'light') {
-            document.documentElement.classList.remove('dark');
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
+        // Pre-initialization theme to prevent FOUC (Flash of Unstyled Content)
+        (function() {
+            const theme = localStorage.getItem('theme');
+            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                // Inject critical CSS to force dark background immediately
+                const style = document.createElement('style');
+                style.id = 'fouc-fix';
+                style.innerHTML = 'html, body { background: #0b1120 !important; color: #f1f5f9 !important; }';
+                document.head.appendChild(style);
+            }
+        })();
     </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,13 +45,22 @@
     </style>
 
     <style>
+        html {
+            background-color: #f3f4f6;
+        }
+        html.dark {
+            background-color: #0b1120;
+        }
         body {
             font-family: 'Outfit', sans-serif;
             background: radial-gradient(circle at top left, #f3f4f6, #e5e7eb);
             height: 100vh;
             overflow: hidden;
             color: #1f2937;
-            transition: background 0.3s ease;
+            /* Transition moved to separate class to prevent initial flash */
+        }
+        body.theme-ready {
+            transition: background 0.3s ease, color 0.3s ease;
         }
         html.dark body {
             background: linear-gradient(135deg, #0b1120 0%, #0f172a 60%, #111827 100%);
@@ -914,6 +929,11 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Remove FOUC fix and enable transitions
+            const foucFix = document.getElementById('fouc-fix');
+            if (foucFix) foucFix.remove();
+            document.body.classList.add('theme-ready');
+
             const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
             updateThemeToggle(currentTheme);
             
