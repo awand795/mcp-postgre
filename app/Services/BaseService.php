@@ -163,7 +163,7 @@ abstract class BaseService
                 $results = \Illuminate\Support\Facades\DB::connection($tempConn)->select("
                     SELECT DISTINCT table_schema, table_name 
                     FROM information_schema.view_table_usage 
-                    WHERE view_name = ? AND (view_schema = ? OR ? IS NULL)
+                    WHERE view_name = ? AND (view_schema = ? OR CAST(? AS TEXT) IS NULL)
                 ", [$table, $schema, $schema]);
 
                 \Illuminate\Support\Facades\DB::purge($tempConn);
