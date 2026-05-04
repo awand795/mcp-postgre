@@ -22,7 +22,7 @@ class ScrapeERP extends Command
      *
      * @var string
      */
-    protected $description = 'Scrape ERP documentation from http://74.48.112.31:6000/docs/ and update erp_guidance.json';
+    protected $description = 'Scrape ERP documentation from http://74.48.112.31:4000/docs/ and update erp_guidance.json';
 
     /**
      * Execute the console command.
