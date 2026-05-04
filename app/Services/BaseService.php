@@ -144,7 +144,7 @@ abstract class BaseService
             return [];
         }
 
-        $cacheKey = "view_deps_v1_{$databaseCode}_" . ($schema ?: 'any') . "_{$table}";
+        $cacheKey = "view_deps_v2_{$databaseCode}_" . ($schema ?: 'any') . "_{$table}";
         
         return cache()->remember($cacheKey, 3600, function () use ($databaseCode, $schema, $table) {
             try {
@@ -159,19 +159,34 @@ abstract class BaseService
                 $tempConn = 'temp_rbac_check_' . $databaseCode . '_' . uniqid();
                 config(["database.connections.{$tempConn}" => $connModel->getConnectionConfig()]);
 
-                // PostgreSQL view dependency query
+                \Illuminate\Support\Facades\Log::info("[BaseService] Checking dependencies for {$schema}.{$table} on {$databaseCode}");
+
+                // PostgreSQL raw catalog dependency query
                 $results = \Illuminate\Support\Facades\DB::connection($tempConn)->select("
-                    SELECT DISTINCT table_schema, table_name 
-                    FROM information_schema.view_table_usage 
-                    WHERE view_name = ? AND (view_schema = ? OR CAST(? AS TEXT) IS NULL)
-                ", [$table, $schema, $schema]);
+                    SELECT DISTINCT
+                        referenced_schema.nspname AS table_schema,
+                        referenced_table.relname AS table_name
+                    FROM pg_rewrite
+                    JOIN pg_class view_table ON pg_rewrite.ev_class = view_table.oid
+                    JOIN pg_namespace view_schema ON view_table.relnamespace = view_schema.oid
+                    JOIN pg_depend ON pg_rewrite.oid = pg_depend.objid
+                    JOIN pg_class referenced_table ON pg_depend.refobjid = referenced_table.oid
+                    JOIN pg_namespace referenced_schema ON referenced_table.relnamespace = referenced_schema.oid
+                    WHERE view_table.relname = ?
+                      AND referenced_table.relkind IN ('r', 'v', 'm')
+                      AND referenced_table.relname != ?
+                ", [$table, $table]);
 
                 \Illuminate\Support\Facades\DB::purge($tempConn);
 
-                return array_map(fn($r) => [
+                $mapped = array_map(fn($r) => [
                     'schema' => strtolower($r->table_schema),
                     'table' => strtolower($r->table_name)
                 ], $results);
+
+                \Illuminate\Support\Facades\Log::info("[BaseService] Dependencies found for {$table}: " . json_encode($mapped));
+
+                return $mapped;
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("[BaseService] Failed to fetch view dependencies for {$schema}.{$table} on {$databaseCode}: " . $e->getMessage());
                 return [];
