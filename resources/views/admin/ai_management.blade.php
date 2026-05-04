@@ -448,11 +448,16 @@ html.dark .form-grp select option, html.dark #hcModelSelect option {
 .form-check input { width:auto; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:1.5rem; }
 .btn-modal-cancel {
-    padding: 8px 18px; border-radius: 9px; border: 1px solid var(--aim-border);
-    background: rgba(0,0,0,.03); color: var(--aim-muted); font-family:inherit;
-    font-size: 0.85rem; cursor: pointer; transition: all .15s;
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    padding: 8px 18px; border-radius: 9px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    font-family: inherit; font-size: 0.85rem;
 }
-.btn-modal-cancel:hover { background: rgba(0,0,0,.08); color:var(--aim-text); }
+.btn-modal-cancel:hover { background: #e2e8f0; color: #1e293b; }
+html.dark .btn-modal-cancel {
+    background: rgba(255, 255, 255, 0.05); color: #94a3b8; border-color: rgba(255, 255, 255, 0.1);
+}
+html.dark .btn-modal-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f1f5f9; }
 .btn-modal-save {
     padding: 8px 22px; border-radius: 9px; border: none; cursor: pointer;
     background: linear-gradient(135deg, #6366f1, #4f46e5); color: white;

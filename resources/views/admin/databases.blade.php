@@ -556,6 +556,18 @@
     border-radius: 16px;
     flex-wrap: wrap;
 }
+.btn-cancel {
+    background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    padding: 0.6rem 1.25rem; border-radius: 10px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    font-family: inherit; font-size: 0.85rem;
+}
+.btn-cancel:hover { background: #e2e8f0; color: #1e293b; }
+html.dark .btn-cancel {
+    background: rgba(255, 255, 255, 0.05); color: #94a3b8; border-color: rgba(255, 255, 255, 0.1);
+}
+html.dark .btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f1f5f9; }
+.modal-close { color: #ef4444 !important; }
 .toolbar-search {
     flex: 1;
     min-width: 200px;
@@ -900,12 +912,12 @@
 }
 .modal-header h3 { font-size: 1.25rem; margin: 0; }
 .modal-close {
-    background: var(--input-bg); border: 1px solid var(--input-border);
-    color: var(--text-muted); width: 34px; height: 34px; border-radius: 10px;
+    background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #ef4444; width: 34px; height: 34px; border-radius: 10px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.2s;
 }
-.modal-close:hover { background: rgba(239,68,68,0.15); color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.modal-close:hover { background: #ef4444; color: white; border-color: #ef4444; }
 
 /* Wizard Steps */
 .wizard-steps {

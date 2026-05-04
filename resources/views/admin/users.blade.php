@@ -409,6 +409,18 @@
     .pagination-container { margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
     .pagination-info { color: var(--text-muted); font-size: 0.9rem; }
 
+    .btn-cancel {
+        background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+        padding: 0.6rem 1.25rem; border-radius: 10px;
+        font-weight: 600; cursor: pointer; transition: all 0.2s;
+        font-family: inherit; font-size: 0.85rem;
+    }
+    .btn-cancel:hover { background: #e2e8f0; color: #1e293b; }
+    html.dark .btn-cancel {
+        background: rgba(255, 255, 255, 0.05); color: #94a3b8; border-color: rgba(255, 255, 255, 0.1);
+    }
+    html.dark .btn-cancel:hover { background: rgba(255, 255, 255, 0.1); color: #f1f5f9; }
+
     /* ═══════════════════════════════════════════════════════════
        AI CONFIG MODAL — STYLES
        ═══════════════════════════════════════════════════════════ */
