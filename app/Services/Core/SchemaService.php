@@ -131,9 +131,16 @@ class SchemaService extends BaseService
                 $query = $adapter->describeTableWithKeysQuery();
                 $columns = DB::connection($useConn)->select($query, [$tableName, $schemaParam]);
 
+                $forbiddenCols = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+
                 foreach ($columns as $col) {
+                    $colName = $col->column_name;
+                    if (in_array(strtolower($colName), $forbiddenCols)) {
+                        continue;
+                    }
+
                     $item = [
-                        'column' => $col->column_name,
+                        'column' => $colName,
                         'type' => $col->data_type,
                         'nullable' => $col->is_nullable,
                         'notes' => $col->description ?? ''
