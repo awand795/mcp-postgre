@@ -365,59 +365,59 @@
 
         /* ── Smart Table ── */
         .smart-table-wrap {
-            margin: 24px 0; border-radius: 12px;
+            margin: 24px 0; border-radius: 16px;
             border: 1px solid #e2e8f0;
             overflow: hidden; background: #ffffff;
             max-width: 100%;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.02);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
             display: flex; flex-direction: column; min-width: 0;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .smart-table-wrap:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.06);
-            border-color: #cbd5e1;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-2px);
         }
         html.dark .smart-table-wrap {
             border-color: rgba(255,255,255,0.1);
-            background: rgba(15, 23, 42, 0.6);
+            background: rgba(15, 23, 42, 0.8);
             box-shadow: none;
         }
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 12px 18px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0; flex-wrap: wrap;
+            background: rgba(99, 102, 241, 0.03);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1); flex-wrap: wrap;
         }
         html.dark .smart-table-toolbar {
             background: rgba(245,48,3,0.08);
             border-bottom-color: rgba(255,255,255,0.08);
         }
         .smart-table-title {
-            padding: 14px 18px;
+            padding: 16px 20px;
+            font-weight: 800;
+            font-size: 14px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.1);
+        }
+        html.dark .smart-table-title {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .chart-title {
+            padding: 12px 14px 10px;
             font-weight: 700;
             font-size: 13px;
             color: #1e293b;
             display: flex;
             align-items: center;
-            gap: 10px;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        html.dark .smart-table-title {
-            color: #fff;
-            background: rgba(245,48,3,0.12);
-            border-bottom-color: rgba(255,255,255,0.06);
-        }
-        .chart-title {
-            padding: 12px 14px 10px;
-            font-weight: 600;
-            font-size: 13px;
-            color: #1f2937;
-            display: flex;
-            align-items: center;
             gap: 8px;
-            background: rgba(245,48,3,0.04);
-            border-bottom: 1px solid rgba(0,0,0,0.06);
+            background: rgba(99, 102, 241, 0.05);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.1);
             margin-bottom: 10px;
         }
         html.dark .chart-title {
@@ -425,88 +425,71 @@
             background: rgba(245,48,3,0.12);
             border-bottom-color: rgba(255,255,255,0.06);
         }
-        .smart-table-info { font-size: 11px; color: #64748b; white-space: nowrap; }
+        .smart-table-info { font-size: 11px; color: #4f46e5; font-weight: 600; white-space: nowrap; }
         html.dark .smart-table-info { color: #A1A09A; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
-            flex: 1; min-width: 120px; max-width: 220px;
-            background: #ffffff; border: 1px solid #e2e8f0;
-            border-radius: 8px; padding: 5px 12px; font-size: 11px; color: #1e293b;
+            flex: 1; min-width: 140px; max-width: 240px;
+            background: #ffffff; border: 1.5px solid #e2e8f0;
+            border-radius: 10px; padding: 6px 14px; font-size: 12px; color: #1e293b;
             outline: none; font-family: 'Outfit', sans-serif;
             transition: all 0.2s;
         }
         html.dark .smart-table-search {
             background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #fff;
         }
+        .smart-table-search:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
         .smart-table-export-btn {
-            background: rgba(16, 185, 129, 0.08); color: #059669;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            padding: 5px 12px; border-radius: 8px;
+            background: #ecfdf5; color: #059669;
+            border: 1px solid #10b981;
+            padding: 6px 14px; border-radius: 10px;
             font-size: 11px; cursor: pointer;
             transition: all 0.2s; font-family: 'Outfit', sans-serif;
-            display: inline-flex; align-items: center; gap: 4px;
-            font-weight: 500;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-weight: 600;
         }
         .smart-table-export-btn:hover:not(:disabled) {
-            background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);
+            background: #10b981; color: white;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
-        .smart-table-export-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .smart-table-export-pdf-btn {
-            background: rgba(239, 68, 68, 0.08); color: #dc2626;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 5px 12px; border-radius: 8px;
+            background: #fef2f2; color: #dc2626;
+            border: 1px solid #ef4444;
+            padding: 6px 14px; border-radius: 10px;
             font-size: 11px; cursor: pointer;
             transition: all 0.2s; font-family: 'Outfit', sans-serif;
-            display: inline-flex; align-items: center; gap: 4px;
-            font-weight: 500;
+            display: inline-flex; align-items: center; gap: 6px;
+            font-weight: 600;
         }
         .smart-table-export-pdf-btn:hover:not(:disabled) {
-            background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3);
+            background: #ef4444; color: white;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
         }
-        .smart-table-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .smart-table-search::placeholder { color: #94a3b8; }
-        html.dark .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
-        .smart-table-search:focus { border-color: #6366f1; ring: 2px; ring-color: rgba(99, 102, 241, 0.1); }
-        .smart-table-scroll { 
-            overflow-x: auto; 
-            width: 100%;
-            -webkit-overflow-scrolling: touch;
-            display: block;
-            min-width: 0;
+        .smart-table-scroll thead tr {
+            background: #f1f5f9;
+            border-bottom: 2px solid #e2e8f0;
         }
-        .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: max-content; }
-        .smart-table-scroll thead tr { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
-        html.dark .smart-table-scroll thead tr { background: rgba(30, 41, 59, 0.5); }
+        html.dark .smart-table-scroll thead tr { background: rgba(30, 41, 59, 0.8); }
         .smart-table-scroll th {
-            padding: 12px 16px; text-align: left; font-weight: 600; color: #475569;
+            padding: 14px 18px; text-align: left; font-weight: 700; color: #334155;
             white-space: nowrap; border: none;
-            cursor: pointer; user-select: none; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+            cursor: pointer; user-select: none; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
         }
-        html.dark .smart-table-scroll th { color: #cbd5e1; border-bottom: 2px solid rgba(255, 255, 255, 0.05); }
-        .smart-table-scroll th:hover { background: #f1f5f9; color: #1e293b; }
-        html.dark .smart-table-scroll th:hover { background: rgba(255,255,255,0.04); }
-        .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
-        .smart-table-scroll th.sort-asc .sort-icon,
-        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #6366f1; }
-        html.dark .smart-table-scroll th.sort-asc .sort-icon,
-        html.dark .smart-table-scroll th.sort-desc .sort-icon { color: #f53003; }
+        html.dark .smart-table-scroll th { color: #f1f5f9; border-bottom: 2px solid rgba(255, 255, 255, 0.1); }
+        .smart-table-scroll th:hover { background: #e2e8f0; }
         .smart-table-scroll td {
-            padding: 12px 16px !important; border-bottom: 1px solid #f1f5f9 !important;
-            color: #334155 !important; max-width: 350px !important; font-size: 12px !important;
-            overflow: hidden !important; text-overflow: ellipsis !important;
-            white-space: nowrap !important;
+            padding: 14px 18px !important; border-bottom: 1px solid #f1f5f9 !important;
+            color: #1e293b !important; font-size: 13px !important;
         }
-        html.dark .smart-table-scroll td {
-            border-bottom-color: rgba(255,255,255,0.05) !important;
-            color: #cbd5e1 !important;
+        .smart-table-scroll tbody tr:hover {
+            background: rgba(99, 102, 241, 0.04);
         }
-        .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.5 !important; min-width: 200px !important; }
-        .smart-table-scroll tbody tr:hover { background: #f8fafc; }
-        html.dark .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.02); }
-        .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 12px 18px;
+            gap: 8px; padding: 14px 20px;
             border-top: 1px solid #e2e8f0;
             background: #f8fafc; flex-wrap: wrap;
         }
