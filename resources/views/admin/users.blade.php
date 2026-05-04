@@ -134,7 +134,7 @@
                     </td>
                     <td>
                         @if($user->analysis_scope_limited)
-                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> DB &amp; ERP</span>
+                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> Database</span>
                         @else
                             <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
                         @endif
