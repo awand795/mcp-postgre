@@ -72,6 +72,14 @@ class SchemaService extends BaseService
             return $this->errorResponse("Access denied: You don't have access to table '{$schemaName}.{$tableName}' in database '{$databaseCode}'.");
         }
 
+        // ── DEEP RBAC: Check underlying tables ───────────────────────────────
+        $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
+        foreach ($underlying as $u) {
+            if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+            }
+        }
+
         $connName = "temp_conn_{$databaseCode}";
         try {
             $dbModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
@@ -229,6 +237,14 @@ class SchemaService extends BaseService
             return $this->errorResponse("Access denied.");
         }
 
+        // ── DEEP RBAC: Check underlying tables ───────────────────────────────
+        $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
+        foreach ($underlying as $u) {
+            if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+            }
+        }
+
         // OPT: Cek cache dulu — nilai kolom kategori/status jarang berubah
         $cacheKey = 'col_values_' . md5("{$databaseCode}_{$schemaName}_{$tableName}_{$columnName}");
         $cached = Cache::get($cacheKey);
@@ -308,6 +324,14 @@ class SchemaService extends BaseService
 
         if (!$this->isTableAllowed($databaseCode, $schemaName, $viewName, $allowedDbs)) {
             return $this->errorResponse("Access denied.");
+        }
+
+        // ── DEEP RBAC: Check underlying tables ───────────────────────────────
+        $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $viewName);
+        foreach ($underlying as $u) {
+            if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                return $this->errorResponse("Akses ditolak: View '{$viewName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+            }
         }
 
         $connName = "temp_conn_{$databaseCode}";
@@ -412,6 +436,14 @@ class SchemaService extends BaseService
 
         if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
             return $this->errorResponse("Access denied or table not found.");
+        }
+
+        // ── DEEP RBAC: Check underlying tables ───────────────────────────────
+        $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
+        foreach ($underlying as $u) {
+            if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+            }
         }
 
         $connName = "temp_conn_{$databaseCode}";

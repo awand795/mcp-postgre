@@ -276,6 +276,15 @@ class QueryService extends BaseService
                         ]),
                     ]);
                 }
+
+                // ── DEEP RBAC: Jika ini View, pastikan tabel dasarnya juga diizinkan ──
+                $underlying = $this->getUnderlyingTables($databaseCode, $schemaUsed, $tbl);
+                foreach ($underlying as $u) {
+                    if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                        Log::warning("[ToolCallExecutor] Deep RBAC Denied: View '{$tbl}' uses unauthorized table '{$u['table']}' for User " . Auth::id());
+                        return $this->errorResponse("Akses ditolak: View '{$tbl}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                    }
+                }
             }
         }
 

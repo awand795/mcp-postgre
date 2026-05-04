@@ -133,4 +133,49 @@ abstract class BaseService
         }
         return false;
     }
+
+    /**
+     * Get underlying physical tables for a VIEW (Deep RBAC).
+     */
+    protected function getUnderlyingTables(string $databaseCode, ?string $schema, string $table): array
+    {
+        // Don't check for admin (they have access anyway)
+        if (auth()->check() && auth()->user()->is_admin) {
+            return [];
+        }
+
+        $cacheKey = "view_deps_v1_{$databaseCode}_" . ($schema ?: 'any') . "_{$table}";
+        
+        return cache()->remember($cacheKey, 3600, function () use ($databaseCode, $schema, $table) {
+            try {
+                $connModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+                if (!$connModel) return [];
+
+                // Cek apakah driver PostgreSQL
+                if ($connModel->driver !== 'pgsql') {
+                    return []; // deep check saat ini hanya untuk pgsql
+                }
+
+                $tempConn = 'temp_rbac_check_' . $databaseCode . '_' . uniqid();
+                config(["database.connections.{$tempConn}" => $connModel->getConnectionConfig()]);
+
+                // PostgreSQL view dependency query
+                $results = \Illuminate\Support\Facades\DB::connection($tempConn)->select("
+                    SELECT DISTINCT table_schema, table_name 
+                    FROM information_schema.view_table_usage 
+                    WHERE view_name = ? AND (view_schema = ? OR ? IS NULL)
+                ", [$table, $schema, $schema]);
+
+                \Illuminate\Support\Facades\DB::purge($tempConn);
+
+                return array_map(fn($r) => [
+                    'schema' => strtolower($r->table_schema),
+                    'table' => strtolower($r->table_name)
+                ], $results);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("[BaseService] Failed to fetch view dependencies for {$schema}.{$table} on {$databaseCode}: " . $e->getMessage());
+                return [];
+            }
+        });
+    }
 }
