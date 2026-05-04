@@ -333,17 +333,22 @@
         }
 
         .badge {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
             text-transform: uppercase;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
-        .badge-db { background: rgba(99, 102, 241, 0.1); color: #4f46e5; border: 1px solid rgba(99, 102, 241, 0.2); }
-        .badge-schema { background: rgba(100, 116, 139, 0.1); color: #475569; border: 1px solid rgba(100, 116, 139, 0.2); }
-        .badge-type { background: rgba(168, 85, 247, 0.1); color: #7e22ce; border: 1px solid rgba(168, 85, 247, 0.2); }
+        .badge-db { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+        .badge-schema { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+        .badge-type { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
 
+        html.dark .badge { box-shadow: none; }
         html.dark .badge-db { color: #a5b4fc; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
         html.dark .badge-schema { color: #cbd5e1; background: rgba(148, 163, 184, 0.2); border-color: rgba(148, 163, 184, 0.3); }
         html.dark .badge-type { color: #c084fc; background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.3); }
