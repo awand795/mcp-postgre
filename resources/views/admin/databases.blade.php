@@ -85,8 +85,6 @@
             <option value="pgsql">PostgreSQL</option>
             <option value="mysql">MySQL</option>
             <option value="mariadb">MariaDB</option>
-            <option value="sqlsrv">SQL Server</option>
-            <option value="sqlite">SQLite</option>
         </select>
         <select id="filterStatus" onchange="filterDatabases()" class="filter-select">
             <option value="">Semua Status</option>
@@ -332,14 +330,6 @@
                         <div class="driver-option" data-driver="mariadb" onclick="selectDriver('mariadb')">
                             <div class="driver-opt-icon mariadb-icon"><i class="fas fa-database"></i></div>
                             <span>MariaDB</span>
-                        </div>
-                        <div class="driver-option" data-driver="sqlsrv" onclick="selectDriver('sqlsrv')">
-                            <div class="driver-opt-icon sqlsrv-icon"><i class="fas fa-server"></i></div>
-                            <span>SQL Server</span>
-                        </div>
-                        <div class="driver-option" data-driver="sqlite" onclick="selectDriver('sqlite')">
-                            <div class="driver-opt-icon sqlite-icon"><i class="fas fa-file-code"></i></div>
-                            <span>SQLite</span>
                         </div>
                     </div>
                     <input type="hidden" name="driver" id="dbDriverSelect" value="pgsql">
@@ -984,7 +974,7 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
 /* Driver Selector */
 .driver-selector {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 0.5rem;
     margin-bottom: 0.5rem;
 }
