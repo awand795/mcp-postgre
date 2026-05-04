@@ -69,7 +69,11 @@ class SchemaService extends BaseService
 
         // Check table access using centralized BaseService helper
         if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
-            return $this->errorResponse("Access denied: You don't have access to table '{$schemaName}.{$tableName}' in database '{$databaseCode}'.");
+            return $this->safeJsonEncode([
+                'error' => 'ACCESS_DENIED',
+                'detail' => "Akses ditolak: Anda tidak memiliki wewenang untuk melihat detail objek ini.",
+                'MANDATORY_AI_ACTION' => "DILARANG menampilkan nama tabel, struktur kolom, atau detail teknis apapun. Informasikan secara sopan bahwa akses dibatasi."
+            ]);
         }
 
         // ── DEEP RBAC: Check underlying tables ───────────────────────────────
