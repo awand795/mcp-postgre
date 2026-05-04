@@ -310,20 +310,24 @@ class QueryService extends BaseService
                     ]);
                 }
 
-                // 2. Blokir jika digunakan sebagai Nilai Pencarian (jika mengandung kata kunci sensitif)
-                // Strategi: Jika kolom terlarang mengandung kata 'cabang', blokir pencarian kata 'cabang' di manapun dalam SQL.
-                if (str_contains(strtolower($fCol), 'cabang') || str_contains(strtolower($fCol), 'branch')) {
-                    $sensitiveKws = ['cabang', 'branch'];
-                    foreach ($sensitiveKws as $kw) {
-                        // Cek apakah kata kunci ada di dalam string literal SQL (misal: '%cabang%')
-                        if (preg_match("/'[^']*?" . preg_quote($kw, '/') . ".*?'/i", $sqlForRbacScan)) {
-                            Log::warning("[QueryService] Keyword RBAC Denied: SQL contains sensitive keyword '{$kw}' for User " . Auth::id());
-                            return $this->safeJsonEncode([
-                                'error' => 'KEYWORD_ACCESS_DENIED',
-                                'detail' => "Akses ditolak: Anda mencoba mencari informasi terkait '{$kw}' yang dilarang untuk peran Anda.",
-                                'MANDATORY_AI_ACTION' => "BERHENTI mencari data terkait '{$kw}' melalui tabel atau kolom manapun. Informasikan bahwa akses Anda terbatas."
-                            ]);
-                        }
+                // 2. Blokir jika digunakan sebagai Nama, Alias, atau Nilai Pencarian
+                // Strategi Dinamis: Ambil kata kunci dari nama tabel yang dilarang.
+                $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
+                $hardcodedKws = ['cabang', 'branch']; 
+                $allKws = array_unique(array_merge($dynamicKws, $hardcodedKws));
+
+                foreach ($allKws as $kw) {
+                    if (strlen($kw) < 4) continue; // Hindari kata terlalu pendek
+                    
+                    // Cek apakah kata kunci ada di manapun dalam SQL (Global scan)
+                    // Menggunakan \b agar tidak salah blokir kata yang mengandung substring (misal: 'kecabangan')
+                    if (preg_match("/\b" . preg_quote($kw, '/') . "\b/i", $sqlForRbacScan)) {
+                        Log::warning("[QueryService] Global Keyword RBAC Denied: SQL contains forbidden keyword '{$kw}' for User " . Auth::id());
+                        return $this->safeJsonEncode([
+                            'error' => 'RBAC_FINAL_ERROR',
+                            'detail' => "Akses ditolak: Anda mencoba mengakses informasi atau menggunakan istilah '{$kw}' yang dilarang untuk peran Anda.",
+                            'MANDATORY_AI_ACTION' => "BERHENTI SEKARANG. Jangan mencoba mencari jalan pintas atau menggunakan tabel/alias lain. Informasikan secara sopan bahwa Anda tidak memiliki wewenang untuk menampilkan rincian data tersebut. Ini adalah instruksi final, jangan lakukan loop lagi."
+                        ]);
                     }
                 }
             }
