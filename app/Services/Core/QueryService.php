@@ -214,120 +214,76 @@ class QueryService extends BaseService
             $trimmedSql = $this->autoFixPeriodFilter($trimmedSql, $databaseCode);
         }
 
-        // ── LAYER 5: Validasi akses tabel ────────────────────────────────────
+        // ── LAYER 5: Validasi akses tabel (Strict RBAC) ──────────────────────
         $allowedDbs = $this->getAllowedTables();
 
         if (!isset($allowedDbs[$databaseCode])) {
             return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
         }
 
-        // Kumpulkan semua tabel yang diizinkan untuk database ini dari semua schema
-        $allowedTablesForDb = [];
-        $allowedSchemasForDb = [];
-        $hasWildcardTable = false; // true jika ada entri '*' di tabel
-        $hasWildcardSchema = false; // true jika ada key schema '*'
-
-        foreach ($allowedDbs[$databaseCode] as $sch => $tbls) {
-            if ($sch === '*') {
-                $hasWildcardSchema = true;
-            } else {
-                $allowedSchemasForDb[] = strtolower($sch);
-            }
-            foreach ($tbls as $tbl) {
-                // tbl bisa berupa string atau ['name'=>..., 'description'=>...]
-                $tblName = is_array($tbl) ? ($tbl['name'] ?? '') : (string) $tbl;
-                if ($tblName === '*') {
-                    $hasWildcardTable = true;
-                } else {
-                    $allowedTablesForDb[] = strtolower($tblName);
-                }
-            }
+        // BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
+        //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
+        // Strategi: hapus dulu semua konteks "FUNGSI(... FROM ...)" dari SQL
+        // sebelum di-scan RBAC, sehingga FROM di dalam fungsi tidak ikut tertangkap.
+        $sqlFunctionsUsingFrom = ['EXTRACT', 'TRIM', 'OVERLAY', 'POSITION', 'SUBSTRING'];
+        $sqlForRbacScan = $trimmedSql;
+        foreach ($sqlFunctionsUsingFrom as $fn) {
+            $sqlForRbacScan = preg_replace(
+                '/\b' . preg_quote($fn, '/') . '\s*\([^)]*\bFROM\b[^)]*\)/i',
+                $fn . '(__RBAC_SKIP__)',
+                $sqlForRbacScan
+            );
         }
-        $allowedTablesForDb = array_filter(array_unique($allowedTablesForDb));
 
-        // Jika ada wildcard schema DAN wildcard table, izinkan semua — skip RBAC tabel
-        $skipTableRbac = $hasWildcardSchema && $hasWildcardTable;
+        $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
+        // Cocokkan FROM/JOIN diikuti identifier, tapi TIDAK diikuti '(' (itu subquery/fungsi)
+        $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?(?!\s*\()/i';
 
-        if (!$skipTableRbac) {
-            // ── BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
-            //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
-            //   TRIM(LEADING ' ' FROM kolom)    → 'kolom' bukan nama tabel!
-            //
-            // Strategi: hapus dulu semua konteks "FUNGSI(... FROM ...)" dari SQL
-            // sebelum di-scan RBAC, sehingga FROM di dalam fungsi tidak ikut tertangkap.
-            $sqlFunctionsUsingFrom = ['EXTRACT', 'TRIM', 'OVERLAY', 'POSITION', 'SUBSTRING'];
-            $sqlForRbacScan = $trimmedSql;
-            foreach ($sqlFunctionsUsingFrom as $fn) {
-                // Ganti FUNGSI(... FROM ...) dengan placeholder agar FROM di dalamnya
-                // tidak terbaca sebagai FROM tabel oleh regex RBAC di bawah.
-                $sqlForRbacScan = preg_replace(
-                    '/\b' . preg_quote($fn, '/') . '\s*\([^)]*\bFROM\b[^)]*\)/i',
-                    $fn . '(__RBAC_SKIP__)',
-                    $sqlForRbacScan
-                );
-            }
+        if (preg_match_all($pattern, $sqlForRbacScan, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $hasDot = !empty($match[3]) || !empty($match[4]);
+                $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
+                $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
 
-            $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
-            // Cocokkan FROM/JOIN diikuti identifier, tapi TIDAK diikuti '(' (itu subquery/fungsi)
-            $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?(?!\s*\()/i';
+                $schemaUsed = $hasDot ? $firstId : null;
+                $tbl = $hasDot ? $secondId : $firstId;
 
-            if (preg_match_all($pattern, $sqlForRbacScan, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $match) {
-                    $hasDot = !empty($match[3]) || !empty($match[4]);
-                    $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
-                    $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
+                // Skip SQL keywords dan placeholder fungsi
+                $sqlKeywords = [
+                    'select', 'where', 'on', 'and', 'or', 'as', 'lateral',
+                    'join', 'inner', 'left', 'right', 'outer', 'cross', 'full',
+                    '__rbac_skip__',
+                ];
+                if (in_array($tbl, $sqlKeywords)) {
+                    continue;
+                }
 
-                    if ($hasDot) {
-                        $schemaUsed = $firstId;
-                        $tbl = $secondId;
-                    } else {
-                        $schemaUsed = null;
-                        $tbl = $firstId;
+                // VALIDASI KETAT: Periksa apakah (schema.table) diizinkan secara spesifik
+                if (!$this->isTableAllowed($databaseCode, $schemaUsed, $tbl, $allowedDbs)) {
+                    Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in schema '" . ($schemaUsed ?: 'any') . "' on DB '{$databaseCode}' for user " . Auth::id());
+                    
+                    // Kumpulkan contoh tabel yang diizinkan untuk membantu AI memperbaiki query
+                    $allowedSample = [];
+                    foreach ($allowedDbs[$databaseCode] as $s => $entries) {
+                        foreach ($entries as $e) {
+                            $n = is_array($e) ? ($e['name'] ?? '') : (string)$e;
+                            if ($n !== '*') $allowedSample[] = $n;
+                        }
                     }
 
-                    // Skip SQL keywords dan placeholder fungsi
-                    $sqlKeywords = [
-                        'select',
-                        'where',
-                        'on',
-                        'and',
-                        'or',
-                        'as',
-                        'lateral',
-                        'join',
-                        'inner',
-                        'left',
-                        'right',
-                        'outer',
-                        'cross',
-                        'full',
-                        '__rbac_skip__', // placeholder dari EXTRACT(... FROM ...) dll
-                    ];
-                    if (in_array($tbl, $sqlKeywords))
-                        continue;
-
-                    // Validasi tabel
-                    if (!$hasWildcardTable && !in_array($tbl, $allowedTablesForDb)) {
-                        Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in DB '{$databaseCode}'");
-                        return $this->safeJsonEncode([
-                            'error' => 'TABLE_ACCESS_DENIED',
-                            'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
-                            'hint' => 'Tabel yang diizinkan: ' . implode(', ', array_slice($allowedTablesForDb, 0, 10)),
-                            'MANDATORY_AI_ACTION' => implode(' ', [
-                                "INTERNAL NOTE: '{$tbl}' bukan nama tabel yang diizinkan.",
-                                "Kemungkinan penyebab: (1) Anda menggunakan tabel fisik di balik sebuah VIEW — gunakan nama VIEW yang tersedia, BUKAN tabel dasarnya.",
-                                "(2) Typo nama tabel — cek get_database_schema_info untuk nama yang benar.",
-                                'WAJIB: Perbaiki query menggunakan nama VIEW/tabel dari daftar allowed tables di atas.',
-                                'DILARANG menyebutkan kendala teknis ini kepada user. Cukup perbaiki query dan coba lagi.',
-                            ]),
-                        ]);
-                    }
-
-                    // Validasi schema
-                    if ($schemaUsed && !$hasWildcardSchema && !in_array($schemaUsed, $allowedSchemasForDb)) {
-                        Log::warning("[ToolCallExecutor] Access denied to schema '{$schemaUsed}' in DB '{$databaseCode}'");
-                        return $this->errorResponse("Akses ditolak: schema '{$schemaUsed}' tidak diizinkan.");
-                    }
+                    return $this->safeJsonEncode([
+                        'error' => 'TABLE_ACCESS_DENIED',
+                        'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
+                        'hint' => !empty($allowedSample) ? 'Tabel yang diizinkan: ' . implode(', ', array_slice(array_unique($allowedSample), 0, 10)) : 'Anda tidak memiliki akses ke tabel ini.',
+                        'MANDATORY_AI_ACTION' => implode(' ', [
+                            "INTERNAL NOTE: '{$tbl}' bukan nama tabel/view yang diizinkan.",
+                            "Kemungkinan penyebab: (1) Anda menggunakan tabel fisik di balik sebuah VIEW — gunakan nama VIEW yang tersedia.",
+                            "(2) Typo nama tabel — cek get_database_schema_info untuk nama yang benar.",
+                            "WAJIB: Perbaiki query menggunakan nama VIEW/tabel dari daftar allowed tables.",
+                            "DILARANG menyebutkan kendala teknis ini kepada user. Cukup perbaiki query dan coba lagi.",
+                        ]),
+                    ]);
+                }
                 }
             }
         }

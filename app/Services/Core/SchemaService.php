@@ -26,32 +26,6 @@ class SchemaService extends BaseService
     }
 
     /**
-     * Normalize a table entry from allowedDbs (may be string or ['name'=>...,'description'=>...]).
-     */
-    private function normalizeTableName(mixed $entry): string
-    {
-        if (is_array($entry)) {
-            return $entry['name'] ?? '';
-        }
-        return (string) $entry;
-    }
-
-    /**
-     * Check if a given tableName is allowed within a list of table entries.
-     * Supports wildcard '*' and both string and object entry formats.
-     */
-    private function isTableAllowed(string $tableName, array $tableEntries): bool
-    {
-        foreach ($tableEntries as $entry) {
-            $name = $this->normalizeTableName($entry);
-            if ($name === '*' || $name === $tableName) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
      * Get columns and data types for a specific table in a specific DB and schema.
      */
     public function describeTable(string $databaseCode, string $schemaName, string $tableName): string
@@ -93,26 +67,8 @@ class SchemaService extends BaseService
             return $this->errorResponse("Access denied: You don't have access to database '{$databaseCode}'.");
         }
 
-        // Check schema access: allow if schema key is '*' or matches exactly
-        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName])
-            || isset($allowedDbs[$databaseCode]['*']);
-
-        if (!$schemaAllowed) {
-            // FIX: Berikan daftar schema yang valid agar AI tahu harus pakai schema apa
-            $availableSchemas = array_keys($allowedDbs[$databaseCode]);
-            return $this->safeJsonEncode([
-                'error' => "Access denied: Schema '{$schemaName}' tidak ditemukan di database '{$databaseCode}'.",
-                'available_schemas' => $availableSchemas,
-                'MANDATORY_AI_ACTION' => "Gunakan salah satu schema dari 'available_schemas' di atas, bukan '{$schemaName}'. Kemudian panggil describe_table lagi dengan schema yang benar.",
-            ]);
-        }
-
-        // Resolve which table list to use (exact schema or wildcard)
-        $tableEntries = $allowedDbs[$databaseCode][$schemaName]
-            ?? $allowedDbs[$databaseCode]['*']
-            ?? [];
-
-        if (!$this->isTableAllowed($tableName, $tableEntries)) {
+        // Check table access using centralized BaseService helper
+        if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
             return $this->errorResponse("Access denied: You don't have access to table '{$schemaName}.{$tableName}' in database '{$databaseCode}'.");
         }
 
@@ -268,10 +224,8 @@ class SchemaService extends BaseService
         }
 
         $allowedDbs = $this->queryService->getAllowedTables();
-        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
-        if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
+        if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
             return $this->errorResponse("Access denied.");
         }
 
@@ -351,10 +305,8 @@ class SchemaService extends BaseService
         }
 
         $allowedDbs = $this->queryService->getAllowedTables();
-        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
-        if (!$schemaAllowed || !$this->isTableAllowed($viewName, $tableEntries)) {
+        if (!$this->isTableAllowed($databaseCode, $schemaName, $viewName, $allowedDbs)) {
             return $this->errorResponse("Access denied.");
         }
 
@@ -419,10 +371,7 @@ class SchemaService extends BaseService
                     $matchSchema = $match->table_schema;
                     $matchTable = $match->table_name;
 
-                    $schemaAllowed = isset($schemas[$matchSchema]) || isset($schemas['*']);
-                    $tableEntries = $schemas[$matchSchema] ?? $schemas['*'] ?? [];
-
-                    if ($schemaAllowed && $this->isTableAllowed($matchTable, $tableEntries)) {
+                    if ($this->isTableAllowed($dbCode, $matchSchema, $matchTable, $allowedDbs)) {
                         $results[] = [
                             'database' => $dbCode,
                             'schema' => $matchSchema,
@@ -460,10 +409,8 @@ class SchemaService extends BaseService
         }
 
         $allowedDbs = $this->queryService->getAllowedTables();
-        $schemaAllowed = isset($allowedDbs[$databaseCode][$schemaName]) || isset($allowedDbs[$databaseCode]['*']);
-        $tableEntries = $allowedDbs[$databaseCode][$schemaName] ?? $allowedDbs[$databaseCode]['*'] ?? [];
 
-        if (!$schemaAllowed || !$this->isTableAllowed($tableName, $tableEntries)) {
+        if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
             return $this->errorResponse("Access denied or table not found.");
         }
 

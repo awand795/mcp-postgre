@@ -79,4 +79,58 @@ abstract class BaseService
     {
         return json_decode($json, $associative);
     }
+
+    /**
+     * Check if a specific table in a database/schema is allowed by RBAC.
+     * $allowedDbs format: [ 'db_code' => [ 'schema_name' => [ 'table1', 'table2', '*' ] ] ]
+     */
+    protected function isTableAllowed(string $dbCode, ?string $schema, string $table, array $allowedDbs): bool
+    {
+        if (!isset($allowedDbs[$dbCode])) {
+            return false;
+        }
+
+        $dbPermissions = $allowedDbs[$dbCode];
+        $table = strtolower($table);
+        $schema = $schema ? strtolower($schema) : null;
+
+        // 1. Check wildcard schema permission (Schema='*')
+        if (isset($dbPermissions['*'])) {
+            if ($this->tableMatchesEntries($table, $dbPermissions['*'])) {
+                return true;
+            }
+        }
+
+        // 2. Check specific schema permission
+        if ($schema && isset($dbPermissions[$schema])) {
+            if ($this->tableMatchesEntries($table, $dbPermissions[$schema])) {
+                return true;
+            }
+        } elseif (!$schema) {
+            // If no schema prefix, we allow it if it's permitted in ANY specific schema.
+            // This is necessary since users/AI often omit schema names in their SQL.
+            foreach ($dbPermissions as $s => $entries) {
+                if ($s === '*') continue;
+                if ($this->tableMatchesEntries($table, $entries)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Helper to check if a table name matches a list of allowed entries (strings or objects).
+     */
+    private function tableMatchesEntries(string $tableName, array $entries): bool
+    {
+        foreach ($entries as $entry) {
+            $name = is_array($entry) ? ($entry['name'] ?? '') : (string) $entry;
+            if ($name === '*' || strtolower($name) === strtolower($tableName)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
