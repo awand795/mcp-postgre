@@ -23,6 +23,10 @@
     <!-- Client-Side Excel Generation with Styling -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
+    <style type="text/tailwindcss">
+        @custom-variant dark (&:where(.dark, .dark *));
+    </style>
+
     <style>
         body {
             font-family: 'Outfit', sans-serif;
