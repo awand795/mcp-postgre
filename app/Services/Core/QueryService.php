@@ -312,7 +312,11 @@ class QueryService extends BaseService
 
                 // 2. Blokir jika digunakan sebagai Nama, Alias, atau Nilai Pencarian
                 // Strategi Dinamis: Ambil kata kunci dari nama tabel yang dilarang.
-                $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
+                $dynamicKws = [];
+                if (method_exists($this, 'getForbiddenKeywords')) {
+                    $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
+                }
+                
                 $hardcodedKws = ['cabang', 'branch']; 
                 $allKws = array_unique(array_merge($dynamicKws, $hardcodedKws));
 

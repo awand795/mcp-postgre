@@ -203,6 +203,47 @@ abstract class BaseService
     }
 
     /**
+     * Get forbidden keywords based on unauthorized sensitive tables.
+     * Useful for blocking SQL value searches (e.g. LIKE '%keyword%').
+     */
+    public function getForbiddenKeywords(string $databaseCode, array $allowedDbs): array
+    {
+        if (auth()->check() && auth()->user()->is_admin) return [];
+
+        $connModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+        if (!$connModel) return [];
+
+        $allTables = $connModel->getTables();
+        $keywords = [];
+
+        foreach ($allTables as $tableInfo) {
+            $tableName = $tableInfo['table_name'];
+            $schema = $tableInfo['schema_name'];
+            
+            // Check if it's a sensitive table prefix
+            $isSensitive = false;
+            $lowTable = strtolower($tableName);
+            foreach (['view_master_', 'master_', 'mst_', 'm_'] as $prefix) {
+                if (str_starts_with($lowTable, $prefix)) {
+                    $isSensitive = true;
+                    break;
+                }
+            }
+
+            if ($isSensitive && !$this->isTableAllowed($databaseCode, $schema, $tableName, $allowedDbs)) {
+                // Extract keywords from table name (e.g. 'view_master_cabang_mbi' -> ['cabang'])
+                $clean = str_replace(['view_master_', 'master_', 'view_', 'mst_', 'm_', '_mbi'], '', $lowTable);
+                $parts = explode('_', $clean);
+                foreach ($parts as $p) {
+                    if (strlen($p) >= 4) $keywords[] = $p;
+                }
+            }
+        }
+
+        return array_unique($keywords);
+    }
+
+    /**
      * Helper to get column names for a specific table.
      */
     private function getTableColumns($connModel, $schema, $table): array
