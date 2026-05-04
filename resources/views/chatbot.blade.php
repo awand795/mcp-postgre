@@ -365,11 +365,11 @@
 
         /* ── Smart Table ── */
         .smart-table-wrap {
-            margin: 24px 0; border-radius: 12px;
-            border: 1px solid #e0e7ff;
+            margin: 24px 0; border-radius: 14px;
+            border: 1px solid #fecaca;
             overflow: hidden; background: #ffffff;
             max-width: 100%;
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.07), 0 4px 6px -2px rgba(99, 102, 241, 0.05);
+            box-shadow: 0 20px 25px -5px rgba(245, 48, 3, 0.1), 0 10px 10px -5px rgba(245, 48, 3, 0.04);
             display: flex; flex-direction: column; min-width: 0;
         }
         html.dark .smart-table-wrap {
@@ -379,24 +379,24 @@
         }
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 10px 16px;
-            background: #ffffff;
-            border-bottom: 1px solid #f1f5f9; flex-wrap: wrap;
+            gap: 8px; padding: 12px 18px;
+            background: #fff7f5;
+            border-bottom: 1px solid #ffe4de; flex-wrap: wrap;
         }
         html.dark .smart-table-toolbar {
             background: rgba(245,48,3,0.08);
             border-bottom-color: rgba(255,255,255,0.08);
         }
         .smart-table-title {
-            padding: 14px 16px 12px;
-            font-weight: 700;
+            padding: 15px 18px;
+            font-weight: 800;
             font-size: 14px;
-            color: #4338ca;
+            color: #ffffff;
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: linear-gradient(to right, #f5f3ff, #ffffff);
-            border-bottom: 1px solid #e0e7ff;
+            gap: 10px;
+            background: linear-gradient(135deg, #f53003, #ff6b6b);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         html.dark .smart-table-title {
             color: #fff;
@@ -467,7 +467,7 @@
             min-width: 0;
         }
         .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: max-content; }
-        .smart-table-scroll thead tr { background: linear-gradient(to right, #6366f1, #4f46e5); }
+        .smart-table-scroll thead tr { background: #1e293b; }
         html.dark .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
         .smart-table-scroll th {
             padding: 12px 16px; text-align: left; font-weight: 700; color: #ffffff;
@@ -479,11 +479,11 @@
         html.dark .smart-table-scroll th:hover { background: rgba(245,48,3,0.25); }
         .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
         .smart-table-scroll th.sort-asc .sort-icon,
-        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #3b82f6; }
+        .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #fb7185; }
         html.dark .smart-table-scroll th.sort-asc .sort-icon,
         html.dark .smart-table-scroll th.sort-desc .sort-icon { color: #f53003; }
         .smart-table-scroll td {
-            padding: 11px 16px !important; border-bottom: 1px solid #f0f4ff !important;
+            padding: 12px 18px !important; border-bottom: 1px solid #fff1f0 !important;
             color: #374151 !important; max-width: 350px !important; font-size: 12px !important;
             overflow: hidden !important; text-overflow: ellipsis !important;
             white-space: nowrap !important;
@@ -493,14 +493,14 @@
             color: #d4d4d0 !important;
         }
         .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.4 !important; min-width: 200px !important; }
-        .smart-table-scroll tbody tr:hover { background: #f5f8ff; }
+        .smart-table-scroll tbody tr:hover { background: #fff8f7; }
         html.dark .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
         .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
-            gap: 8px; padding: 12px 16px;
-            border-top: 1px solid #e0e7ff;
-            background: #f8faff; flex-wrap: wrap;
+            gap: 8px; padding: 14px 18px;
+            border-top: 1px solid #ffe4de;
+            background: #fff7f5; flex-wrap: wrap;
         }
         html.dark .smart-table-pagination {
             border-top-color: rgba(255,255,255,0.07);
