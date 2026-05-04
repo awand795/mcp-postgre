@@ -79,48 +79,40 @@ class QueryService extends BaseService
 
         // Admin sees all active databases
         if ($user->is_admin) {
-            return cache()->remember('agentic_all_dbs_admin_v3', 600, function () {
-                $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
-                $result = [];
-                foreach ($connections as $conn) {
-                    $tables = $conn->getTables();
-                    // Use $conn->database as the key — this is the identifier passed by AI
-                    // in tool calls (database_code). All service lookups use ->where('database', ...)
-                    $dbIdentifier = $conn->database;
-                    foreach ($tables as $t) {
-                        $sch = $t['schema_name'];
-                        $tbl = $t['table_name'];
-                        $desc = $t['description'] ?? '';
-                        $result[$dbIdentifier][$sch][] = [
-                            'name' => $tbl,
-                            'description' => $desc,
-                        ];
-                    }
+            $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
+            $result = [];
+            foreach ($connections as $conn) {
+                $tables = $conn->getTables();
+                $dbIdentifier = $conn->database;
+                foreach ($tables as $t) {
+                    $sch = $t['schema_name'];
+                    $tbl = $t['table_name'];
+                    $desc = $t['description'] ?? '';
+                    $result[$dbIdentifier][$sch][] = [
+                        'name' => $tbl,
+                        'description' => $desc,
+                    ];
                 }
-                return $result;
-            });
+            }
+            return $result;
         }
 
         $roleId = $user->role;
-        return cache()->remember("agentic_allowed_dbs_role_v2_{$roleId}", 600, function () use ($roleId, $user) {
-            $permissions = RolePermission::with('databaseConnection')->where('role_id', $roleId)->get();
-            $result = [];
-            foreach ($permissions as $p) {
-                $conn = $p->databaseConnection;
-                if (!$conn || !$conn->is_active)
-                    continue;
+        $permissions = RolePermission::with('databaseConnection')->where('role_id', $roleId)->get();
+        $result = [];
+        foreach ($permissions as $p) {
+            $conn = $p->databaseConnection;
+            if (!$conn || !$conn->is_active)
+                continue;
 
-                $dbCode = $conn->database;
+            $dbCode = $conn->database;
 
-                // To get description for regular roles, we might need a lookup,
-                // but for now let's at least structure it consistently.
-                $result[$dbCode][$p->schema_name][] = [
-                    'name' => $p->table_name,
-                    'description' => '' // Roles usually have predefined tables
-                ];
-            }
-            return $result;
-        });
+            $result[$dbCode][$p->schema_name][] = [
+                'name' => $p->table_name,
+                'description' => '' 
+            ];
+        }
+        return $result;
     }
 
     /**

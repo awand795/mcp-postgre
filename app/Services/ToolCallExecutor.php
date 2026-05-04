@@ -173,7 +173,7 @@ class ToolCallExecutor
                     'properties' => [
                         'database_code' => [
                             'type' => 'string',
-                            'description' => 'Kode database target (database name) di mana query akan dieksekusi. Gunakan nilai dari get_database_schema_info.',
+                            'description' => 'Nama database target (gunakan nilai dari get_database_schema_info).',
                         ],
                         'sql' => [
                             'type' => 'string',

@@ -140,7 +140,8 @@ class AgenticChatbotController extends Controller
 
                     if ($tbl && $tbl !== '*') {
                         $allowedDatabases[$db][$schemaKey][] = $tbl;
-                    } elseif ($schemaKey !== '*') {
+                    } else {
+                        // Table is '*'
                         $allowedDatabases[$db][$schemaKey][] = '*';
                     }
                 }
@@ -148,6 +149,8 @@ class AgenticChatbotController extends Controller
         } else {
             Log::warning("[Agentic] User ID {$user->id} has no roleModel and is not admin. allowedDatabases will be empty.");
         }
+
+        Log::info("[Agentic] Final allowedDatabases for User ID {$user->id}: " . json_encode($allowedDatabases));
 
         if ($chatSessionId) {
             $session = ChatSession::where('user_id', $user->id)->findOrFail($chatSessionId);
