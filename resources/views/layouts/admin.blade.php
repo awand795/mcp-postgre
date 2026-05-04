@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin Dashboard - darkotech AI</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                const s = document.createElement('style');
+                s.id = 'fouc-fix';
+                s.innerHTML = 'html,body{background:#0b1120!important;color:#f1f5f9!important;}';
+                document.head.appendChild(s);
+            }
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -440,15 +453,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @yield('scripts')
     <script>
-        // Init theme BEFORE render
-        (function(){
-            if(localStorage.getItem('theme')==='dark'){
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-
         function toggleTheme(){
             const dark=document.documentElement.classList.contains('dark');
             if(dark){
@@ -466,7 +470,12 @@
             const dark=document.documentElement.classList.contains('dark');
             icon.className=dark?'fas fa-moon':'fas fa-sun';
         }
-        document.addEventListener('DOMContentLoaded', updateThemeIcon);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Remove FOUC fix now that styles have loaded
+            const foucFix = document.getElementById('fouc-fix');
+            if (foucFix) foucFix.remove();
+            updateThemeIcon();
+        });
 
         function toggleSidebar(){
             document.getElementById('sidebar').classList.toggle('active');

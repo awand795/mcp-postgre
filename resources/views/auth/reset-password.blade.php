@@ -3,6 +3,19 @@
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Reset Password - darkotech AI</title>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                const s = document.createElement('style');
+                s.id = 'fouc-fix';
+                s.innerHTML = 'html,body{background:#0b1120!important;color:#f1f5f9!important;}';
+                document.head.appendChild(s);
+            }
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
