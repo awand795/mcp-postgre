@@ -105,22 +105,22 @@
 
     <!-- Role Modal -->
     <div id="roleModal"
-        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+        style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
         <div class="glass-card modal-content">
             <h3 id="roleModalTitle">Tambah Role</h3>
             <form id="roleForm" method="POST" style="margin-top: 1.5rem;">
                 @csrf
                 <input type="hidden" name="_method" id="roleFormMethod" value="POST">
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Nama Role</label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Nama Role</label>
                     <input type="text" name="name" id="roleNameInput"
-                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white;"
+                        style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); font-family: 'Outfit', sans-serif;"
                         required>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: #94a3b8;">Deskripsi</label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Deskripsi</label>
                     <textarea name="description" id="roleDescInput"
-                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.8rem; border-radius: 12px; color: white; resize: none;"
+                        style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); resize: none; font-family: 'Outfit', sans-serif;"
                         rows="3"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
