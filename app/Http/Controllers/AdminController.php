@@ -122,8 +122,14 @@ class AdminController extends Controller
 
         // Jika role user berubah, clear cache allowed tables user lama & baru
         if ($user->role != $request->role) {
-            cache()->forget("agentic_allowed_dbs_role_{$user->role}");    // correct key
-            cache()->forget("agentic_allowed_dbs_role_{$request->role}"); // correct key
+            // FIX: clear semua varian cache key (v1 dan v2) untuk role lama & baru
+            cache()->forget("agentic_allowed_dbs_role_v2_{$user->role}");
+            cache()->forget("agentic_allowed_dbs_role_v2_{$request->role}");
+            cache()->forget("agentic_allowed_dbs_role_{$user->role}");
+            cache()->forget("agentic_allowed_dbs_role_{$request->role}");
+            // FIX: invalidasi juga cache schema_info user ini (SchemaService men-cache per user)
+            cache()->forget('schema_info_' . md5("{$user->id}_"));
+            cache()->forget('schema_info_' . md5("{$user->id}_1"));
         }
 
         $user->update($data);
@@ -353,13 +359,15 @@ class AdminController extends Controller
             }
         }
 
-        // Clear SEMUA cache keys terkait role ini (harus konsisten dengan ToolCallExecutor)
-        cache()->forget("agentic_allowed_dbs_role_{$role->id}");      // key yg dipakai QueryService
-        cache()->forget("agentic_allowed_tables_role_{$role->id}");   // key lama (backward compat)
-        cache()->forget("allowed_tables_role_{$role->id}");           // key lama (backward compat)
-        // Clear cache admin juga agar sinkron
-        cache()->forget('agentic_all_dbs_admin');
-        cache()->forget('all_db_tables_admin');
+        // FIX: Gunakan clearTableCache() agar semua key (termasuk v2) dihapus secara konsisten
+        $this->clearTableCache();
+
+        // FIX: Invalidasi cache schema_info per user untuk semua user dengan role ini
+        // (SchemaService::getSchemaInfo() men-cache daftar tabel per user selama 10 menit)
+        User::where('role', $role->id)->each(function ($u) {
+            cache()->forget('schema_info_' . md5("{$u->id}_"));
+            cache()->forget('schema_info_' . md5("{$u->id}_1"));
+        });
 
         return response()->json(['success' => true]);
     }
