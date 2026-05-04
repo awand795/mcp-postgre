@@ -340,9 +340,13 @@
             text-transform: uppercase;
         }
 
-        .badge-db { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .badge-schema { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
-        .badge-type { background: rgba(168, 85, 247, 0.2); color: #c084fc; }
+        .badge-db { background: rgba(99, 102, 241, 0.1); color: #4f46e5; border: 1px solid rgba(99, 102, 241, 0.2); }
+        .badge-schema { background: rgba(100, 116, 139, 0.1); color: #475569; border: 1px solid rgba(100, 116, 139, 0.2); }
+        .badge-type { background: rgba(168, 85, 247, 0.1); color: #7e22ce; border: 1px solid rgba(168, 85, 247, 0.2); }
+
+        html.dark .badge-db { color: #a5b4fc; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
+        html.dark .badge-schema { color: #cbd5e1; background: rgba(148, 163, 184, 0.2); border-color: rgba(148, 163, 184, 0.3); }
+        html.dark .badge-type { color: #c084fc; background: rgba(168, 85, 247, 0.2); border-color: rgba(168, 85, 247, 0.3); }
 
         .table-description {
             font-size: 0.75rem;
