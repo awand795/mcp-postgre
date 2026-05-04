@@ -615,14 +615,6 @@ html.dark .limit-alert-bar { color: #f87171; }
 }
 </style>
 
-{{-- Flash messages --}}
-@if(session('success'))
-<div class="aim-alert success"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
-@endif
-@if(session('error'))
-<div class="aim-alert danger"><i class="fas fa-exclamation-circle"></i> {{ session('error') }}</div>
-@endif
-
 {{-- ── TOP BAR ────────────────────────────────────────────────── --}}
 <div class="aim-topbar">
     <h1 class="aim-topbar-title">

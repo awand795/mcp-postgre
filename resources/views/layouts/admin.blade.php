@@ -21,6 +21,7 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         /* ── Design Tokens ── */
         :root {
@@ -75,6 +76,11 @@
             --badge-bg:      rgba(99,102,241,0.15);
             --input-text:    #f1f5f9;
             --select-bg:     rgba(15,23,42,0.8);
+        }
+
+        /* Ensure SweetAlert2 is always on top of modals */
+        .swal2-container {
+            z-index: 11000 !important;
         }
 
         *{margin:0;padding:0;box-sizing:border-box;font-family:'Outfit',sans-serif;}
@@ -388,7 +394,7 @@
         <div class="sidebar-brand">
             <div class="sidebar-brand-icon"><i class="fas fa-robot"></i></div>
             <div class="sidebar-brand-text">
-                Darko AI<br>
+                darkotech AI<br>
                 <span class="sidebar-brand-sub">Admin Panel</span>
             </div>
         </div>
@@ -427,7 +433,7 @@
                 <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
                 <div class="top-header-title">
                     <h1>@yield('page-title', 'Admin Panel')</h1>
-                    <p>Darko AI Management System</p>
+                    <p>darkotech AI Management System</p>
                 </div>
             </div>
             <div class="top-header-right">
@@ -450,7 +456,6 @@
         @yield('content')
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @yield('scripts')
     <script>
         function toggleTheme(){
@@ -482,9 +487,9 @@
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
-                timer: 4000,
+                timer: 4500,
                 timerProgressBar: true,
-                background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+                background: isDark ? '#1e293b' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 didOpen: (t) => {
                     t.addEventListener('mouseenter', Swal.stopTimer);
@@ -492,24 +497,33 @@
                 }
             };
 
+            const fireToast = (icon, title, color) => {
+                Swal.fire({
+                    ...toastBase,
+                    icon: icon,
+                    title: title,
+                    iconColor: color
+                });
+            };
+
             @if(session('success'))
-            Swal.fire({ ...toastBase, icon: 'success', title: @json(session('success')), iconColor: '#10b981' });
+                fireToast('success', @json(session('success')), '#10b981');
             @endif
 
             @if(session('error'))
-            Swal.fire({ ...toastBase, icon: 'error', title: @json(session('error')), iconColor: '#ef4444' });
+                fireToast('error', @json(session('error')), '#ef4444');
             @endif
 
             @if(session('warning'))
-            Swal.fire({ ...toastBase, icon: 'warning', title: @json(session('warning')), iconColor: '#f59e0b' });
+                fireToast('warning', @json(session('warning')), '#f59e0b');
             @endif
 
             @if(session('info'))
-            Swal.fire({ ...toastBase, icon: 'info', title: @json(session('info')), iconColor: '#3b82f6' });
+                fireToast('info', @json(session('info')), '#3b82f6');
             @endif
 
             @if($errors->any())
-            Swal.fire({ ...toastBase, icon: 'error', title: @json($errors->first()), iconColor: '#ef4444', timer: 6000 });
+                fireToast('error', @json($errors->first()), '#ef4444');
             @endif
         });
 

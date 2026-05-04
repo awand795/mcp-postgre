@@ -770,7 +770,7 @@
                     </button>
                 </div>
                 
-                <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain ml-1">
+                <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain ml-1">
                 <div class="min-w-0">
                 <h1 class="text-gray-900 dark:text-white font-semibold text-base md:text-lg leading-tight truncate">darkotech AI</h1>
                     <div class="flex items-center gap-2 mt-0.5">

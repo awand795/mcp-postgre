@@ -17,23 +17,8 @@
     </div>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success">
-        <i class="fas fa-check-circle"></i> {{ session('success') }}
-    </div>
-@endif
 
-@if($errors->any())
-    <div class="alert alert-error">
-        <i class="fas fa-exclamation-circle"></i> <strong>Gagal!</strong>
-        <ul style="margin-top: 5px; margin-left: 20px;">
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
+<!-- Filter & Search -->
 <!-- Filter & Search -->
 <div class="glass-card filter-card">
     <form action="{{ route('admin.users') }}" method="GET" class="filter-form">
@@ -839,11 +824,24 @@
         })
         .then(async res => {
             const data = await res.json();
+            const isDark = document.documentElement.classList.contains('dark');
+            const toastBase = {
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+            };
+
             if (data.success) {
                 Swal.fire({
-                    icon: 'success', title: 'Berhasil',
+                    ...toastBase,
+                    icon: 'success',
+                    title: 'Berhasil',
                     text: 'Konfigurasi AI diperbarui!',
-                    timer: 1500, showConfirmButton: false
+                    iconColor: '#10b981'
                 }).then(() => location.reload());
             } else {
                 throw new Error(data.message || 'Gagal menyimpan konfigurasi');

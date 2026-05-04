@@ -25,26 +25,6 @@
     </div>
 </div>
 
-{{-- Alerts --}}
-@if(session('success'))
-    <div class="alert alert-success" id="flash-alert">
-        <i class="fas fa-check-circle"></i> {{ session('success') }}
-        <button class="alert-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-    </div>
-@endif
-@if(session('warning'))
-    <div class="alert alert-warning" id="flash-alert">
-        <i class="fas fa-exclamation-triangle"></i> {{ session('warning') }}
-        <button class="alert-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-    </div>
-@endif
-@if($errors->any())
-    <div class="alert alert-danger" id="flash-alert">
-        <i class="fas fa-times-circle"></i> {{ $errors->first() }}
-        <button class="alert-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-    </div>
-@endif
-
 {{-- ═══════════════════════════════════════════════════════
      HEALTH SUMMARY BAR (hidden by default, shown after test all)
 ═══════════════════════════════════════════════════════ --}}
