@@ -530,6 +530,11 @@
             background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
             box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
         }
+        .smart-table-scroll {
+            overflow-x: auto;
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+        }
         .smart-table-scroll thead tr {
             background: linear-gradient(90deg, #ede9fe 0%, #f3e8ff 50%, #fce7f3 100%);
             border-bottom: 2px solid rgba(99,102,241,0.2);
