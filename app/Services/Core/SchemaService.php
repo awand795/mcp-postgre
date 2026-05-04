@@ -162,12 +162,15 @@ class SchemaService extends BaseService
 
             // Apply Column-level RBAC: Redact forbidden columns
             $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
-            if (!empty($forbidden)) {
+            $hasForbiddenFilter = !empty($forbidden);
+            $originalCount = count($result);
+
+            if ($hasForbiddenFilter) {
                 $result = array_filter($result, function ($col) use ($forbidden) {
                     return !in_array(strtolower($col['column'] ?? $col['column_name']), $forbidden);
                 });
                 $result = array_values($result); // re-index
-                
+
                 $indexes = array_filter($indexes, function ($idx) use ($forbidden) {
                     return !in_array(strtolower($idx['column']), $forbidden);
                 });
@@ -175,6 +178,15 @@ class SchemaService extends BaseService
             }
 
             if (empty($result)) {
+                // If the table exists (originalCount > 0) but all columns are filtered out
+                if ($originalCount > 0 && $hasForbiddenFilter) {
+                    return $this->safeJsonEncode([
+                        'error' => 'COLUMN_ACCESS_DENIED',
+                        'detail' => "Akses ke seluruh kolom di tabel '{$tableName}' dibatasi untuk peran Anda.",
+                        'MANDATORY_AI_ACTION' => "Informasikan kepada user bahwa akses ke rincian data di tabel '{$tableName}' dibatasi sesuai kebijakan keamanan data. BERHENTI mencoba mencari rincian data ini di tabel lain.",
+                    ]);
+                }
+
                 // FIX: Jika tabel tidak ditemukan di schema itu, coba search schema lain
                 // dan berikan MANDATORY_AI_ACTION agar model tahu harus pakai schema apa
                 $alternativeSchema = null;
@@ -194,7 +206,6 @@ class SchemaService extends BaseService
                     'MANDATORY_AI_ACTION' => $hint,
                 ]);
             }
-
             $response = [
                 'database' => $databaseCode,
                 'table' => "{$schemaName}.{$tableName}",

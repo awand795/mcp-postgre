@@ -269,10 +269,10 @@ class QueryService extends BaseService
                         'hint' => !empty($allowedSample) ? 'Tabel yang diizinkan: ' . implode(', ', array_slice(array_unique($allowedSample), 0, 10)) : 'Anda tidak memiliki akses ke tabel ini.',
                         'MANDATORY_AI_ACTION' => implode(' ', [
                             "INTERNAL NOTE: '{$tbl}' bukan nama tabel/view yang diizinkan.",
-                            "Kemungkinan penyebab: (1) Anda menggunakan tabel fisik di balik sebuah VIEW — gunakan nama VIEW yang tersedia.",
-                            "(2) Typo nama tabel — cek get_database_schema_info untuk nama yang benar.",
-                            "WAJIB: Perbaiki query menggunakan nama VIEW/tabel dari daftar allowed tables.",
-                            "DILARANG menyebutkan kendala teknis ini kepada user. Cukup perbaiki query dan coba lagi.",
+                            "Langkah 1: Jika '{$tbl}' adalah typo dari tabel di daftar 'hint', perbaiki dan ulangi query (Maksimal 1x retry).",
+                            "Langkah 2: Jika user bertanya tentang data yang secara logika ada di '{$tbl}' namun tabel tersebut dibatasi (misal: data gaji, data rahasia), BERHENTI mencoba.",
+                            "Langkah 3: Informasikan kepada user secara sopan bahwa Anda tidak memiliki wewenang/akses untuk melihat rincian data tersebut.",
+                            "DILARANG menyebutkan nama tabel asli (misal: view_master_cabang) kepada user.",
                         ]),
                     ]);
                 }
@@ -282,7 +282,11 @@ class QueryService extends BaseService
                 foreach ($underlying as $u) {
                     if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
                         Log::warning("[ToolCallExecutor] Deep RBAC Denied: View '{$tbl}' uses unauthorized table '{$u['table']}' for User " . Auth::id());
-                        return $this->errorResponse("Akses ditolak: View '{$tbl}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                        return $this->safeJsonEncode([
+                            'error' => 'DEEP_RBAC_DENIED',
+                            'detail' => "Akses ditolak: View '{$tbl}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan.",
+                            'MANDATORY_AI_ACTION' => "Informasikan kepada Bapak/Ibu user bahwa Anda tidak memiliki wewenang/akses untuk menampilkan data tersebut karena kebijakan privasi data perusahaan. Jangan sebutkan nama tabel '{$u['table']}'."
+                        ]);
                     }
                 }
             }
@@ -297,7 +301,12 @@ class QueryService extends BaseService
                     return $this->safeJsonEncode([
                         'error' => 'COLUMN_ACCESS_DENIED',
                         'detail' => "Kolom '{$fCol}' tidak diizinkan untuk peran Anda.",
-                        'MANDATORY_AI_ACTION' => "Jangan gunakan kolom '{$fCol}' dalam query Anda. Hapus kolom tersebut dari SELECT, WHERE, GROUP BY, atau ORDER BY.",
+                        'MANDATORY_AI_ACTION' => implode(' ', [
+                            "Langkah 1: Jika kolom '{$fCol}' krusial untuk menjawab pertanyaan user (misal: user tanya spesifik tentang Cabang tapi kolom Cabang diblokir), BERHENTI mencoba.",
+                            "Langkah 2: Informasikan kepada Bapak/Ibu user bahwa Anda tidak memiliki akses untuk melihat rincian informasi tersebut (misal: rincian cabang) sesuai kebijakan keamanan data.",
+                            "Langkah 3: JANGAN mencoba mencari tabel lain yang mungkin punya data serupa jika Master-nya sudah diblokir.",
+                            "DILARANG memberikan jawaban 'Data tidak ada' — gunakan jawaban 'Akses Terbatas'."
+                        ]),
                     ]);
                 }
             }
