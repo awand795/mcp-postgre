@@ -241,6 +241,19 @@
         html.dark .markdown-body blockquote { color: #A1A09A; }
         .markdown-body hr { border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 12px 0; }
         html.dark .markdown-body hr { border-top-color: rgba(255,255,255,0.08); }
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            margin: 16px 0;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            display: block;
+        }
+        html.dark .markdown-body img {
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
 
         /* Chart Container */
         .chart-container {
@@ -1238,6 +1251,20 @@
                         }
                     }
 
+                    const erpImages = extractErpGuidanceImages(currentToolResults);
+                    if (erpImages && erpImages.length > 0) {
+                        const imageContainer = renderImageGallery(erpImages);
+                        const wrapper = bubble.closest('.flex.flex-col.gap-1\\.5');
+                        if (wrapper) {
+                            const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
+                            if (timeEl) {
+                                wrapper.insertBefore(imageContainer, timeEl);
+                            } else {
+                                wrapper.appendChild(imageContainer);
+                            }
+                        }
+                    }
+
                 } catch(err) {
                     console.error('[Agentic] Error:', err);
                     bubble.innerHTML = renderMarkdown('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.');
@@ -1447,11 +1474,17 @@
                     autoInjectSmartTableFromToolResults(bubble, toolResultsForInit);
                 }, 50);
 
-                // Check for ERP guidance video and add video player below
+                // Check for ERP guidance video and images
                 const videoUrl = extractErpGuidanceVideo(toolResultsForMsg);
                 if (videoUrl) {
                     const videoContainer = renderVideoPlayer(videoUrl);
                     wrap.appendChild(videoContainer);
+                }
+                
+                const erpImages = extractErpGuidanceImages(toolResultsForMsg);
+                if (erpImages && erpImages.length > 0) {
+                    const imageContainer = renderImageGallery(erpImages);
+                    wrap.appendChild(imageContainer);
                 }
             } else {
                 bubble.textContent = msg.content;
@@ -1486,6 +1519,88 @@
             }
 
             return wrap;
+        }
+
+        // Helper: Extract images from ERP guidance tool results
+        function extractErpGuidanceImages(toolResults) {
+            if (!Array.isArray(toolResults)) return [];
+
+            for (let i = 0; i < toolResults.length; i++) {
+                const tr = toolResults[i];
+                if (tr.tool_name === 'get_erp_guidance' || tr.tool === 'get_erp_guidance') {
+                    const data = tr.data || tr.result || tr;
+                    
+                    // Check direct images array
+                    if (data.images && Array.isArray(data.images)) {
+                        return data.images;
+                    }
+                    
+                    // Check guides array
+                    if (data.guides && Array.isArray(data.guides)) {
+                        let allImages = [];
+                        data.guides.forEach(g => {
+                            if (g.images && Array.isArray(g.images)) {
+                                allImages = allImages.concat(g.images);
+                            }
+                        });
+                        if (allImages.length > 0) return allImages;
+                    }
+                }
+                
+                if (tr.result && typeof tr.result === 'object') {
+                    const nestedImages = extractErpGuidanceImages([{...tr, tool_name: tr.tool_name || 'get_erp_guidance', data: tr.result}]);
+                    if (nestedImages && nestedImages.length > 0) return nestedImages;
+                }
+            }
+
+            return [];
+        }
+
+        // Helper: Render ERP guidance image gallery
+        function renderImageGallery(images) {
+            const container = document.createElement('div');
+            container.className = 'flex flex-col gap-3 items-start w-full max-w-[95%] erp-image-gallery mt-2';
+
+            const label = document.createElement('div');
+            label.className = 'flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-lg';
+            label.innerHTML = `
+                <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span class="text-xs font-medium text-blue-400">Gambar Panduan ERP</span>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-3 w-full';
+
+            images.forEach(img => {
+                const imgWrap = document.createElement('div');
+                imgWrap.className = 'relative group rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-md border border-slate-200 dark:border-white/10 cursor-pointer transition-all hover:scale-[1.02]';
+                
+                const image = document.createElement('img');
+                image.src = img.src || img.url || '';
+                image.alt = img.alt || 'Panduan ERP';
+                image.className = 'w-full h-auto object-cover min-h-[150px]';
+                image.loading = 'lazy';
+                
+                // Lightbox effect on click
+                imgWrap.onclick = () => window.open(image.src, '_blank');
+
+                const caption = document.createElement('div');
+                caption.className = 'absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity';
+                caption.innerHTML = `<span class="text-[10px] text-white truncate block">${image.alt}</span>`;
+
+                imgWrap.appendChild(image);
+                imgWrap.appendChild(caption);
+                grid.appendChild(imgWrap);
+            });
+
+            container.appendChild(label);
+            container.appendChild(grid);
+
+            return container;
         }
 
         // Helper: Extract video URL from ERP guidance tool results
