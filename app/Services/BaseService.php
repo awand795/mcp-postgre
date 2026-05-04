@@ -121,6 +121,116 @@ abstract class BaseService
     }
 
     /**
+     * Get forbidden columns for the current user in a specific database.
+     * 
+     * Dynamic RBAC: If a user is not allowed to access a "Master" table (e.g. view_master_cabang),
+     * we automatically identify its columns and block them globally across all other tables
+     * to prevent indirect data access (data leakage).
+     */
+    protected function getForbiddenColumns(string $databaseCode, array $allowedDbs): array
+    {
+        // Admin has no column restrictions
+        if (auth()->check() && auth()->user()->is_admin) {
+            return [];
+        }
+
+        if (!auth()->check()) {
+            return [];
+        }
+
+        $roleId = auth()->user()->role;
+        // Cache per database and role for 1 hour
+        $cacheKey = "rbac_forbidden_cols_{$databaseCode}_{$roleId}";
+
+        return cache()->remember($cacheKey, 3600, function () use ($databaseCode, $allowedDbs) {
+            $connModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
+            if (!$connModel) {
+                return [];
+            }
+
+            $allTables = $connModel->getTables();
+            $unauthorizedSensitiveTables = [];
+
+            // Sensitive tables are usually "Master" data or Views starting with specific prefixes
+            $sensitivePrefixes = ['view_master_', 'master_', 'mst_', 'm_'];
+            
+            foreach ($allTables as $tableInfo) {
+                $tableName = $tableInfo['table_name'];
+                $schema = $tableInfo['schema_name'];
+                
+                $isSensitive = false;
+                $lowTable = strtolower($tableName);
+                foreach ($sensitivePrefixes as $prefix) {
+                    if (str_starts_with($lowTable, $prefix)) {
+                        $isSensitive = true;
+                        break;
+                    }
+                }
+                
+                // If it's a sensitive table and NOT allowed, we must block its columns globally
+                if ($isSensitive && !$this->isTableAllowed($databaseCode, $schema, $tableName, $allowedDbs)) {
+                    $unauthorizedSensitiveTables[] = $tableInfo;
+                }
+            }
+
+            if (empty($unauthorizedSensitiveTables)) {
+                return [];
+            }
+
+            $forbiddenCols = [];
+            // We don't want to block common columns that might exist in many tables
+            $commonCols = [
+                'id', 'created_at', 'updated_at', 'deleted_at', 
+                'row_id', 'created_by', 'updated_by', 'is_active',
+                'version', 'timestamp'
+            ];
+
+            foreach ($unauthorizedSensitiveTables as $tableInfo) {
+                $cols = $this->getTableColumns($connModel, $tableInfo['schema_name'], $tableInfo['table_name']);
+                foreach ($cols as $colName) {
+                    $lowCol = strtolower($colName);
+                    if (!in_array($lowCol, $commonCols)) {
+                        $forbiddenCols[] = $lowCol;
+                    }
+                }
+            }
+
+            $result = array_unique($forbiddenCols);
+            Log::info("[BaseService] Dynamic RBAC: Found " . count($result) . " forbidden columns for DB {$databaseCode} due to unauthorized tables: " . implode(', ', array_column($unauthorizedSensitiveTables, 'table_name')));
+            
+            return $result;
+        });
+    }
+
+    /**
+     * Helper to get column names for a specific table.
+     */
+    private function getTableColumns($connModel, $schema, $table): array
+    {
+        $tempConn = 'temp_rbac_cols_' . uniqid();
+        try {
+            $config = $connModel->getConnectionConfig();
+            $adapter = $connModel->getAdapter();
+
+            config(["database.connections.{$tempConn}" => $config]);
+
+            $query = $adapter->describeTableQuery();
+            $params = $adapter->usesSchema()
+                ? [$table, $schema ?: $connModel->schema ?: 'public']
+                : [$table, $connModel->database];
+
+            $results = \Illuminate\Support\Facades\DB::connection($tempConn)->select($query, $params);
+            \Illuminate\Support\Facades\DB::purge($tempConn);
+
+            return array_map(fn($r) => $r->column_name, $results);
+        } catch (\Exception $e) {
+            \Log::error("[BaseService] Failed to fetch columns for RBAC check on {$schema}.{$table}: " . $e->getMessage());
+            \Illuminate\Support\Facades\DB::purge($tempConn);
+            return [];
+        }
+    }
+
+    /**
      * Helper to check if a table name matches a list of allowed entries (strings or objects).
      */
     private function tableMatchesEntries(string $tableName, array $entries): bool

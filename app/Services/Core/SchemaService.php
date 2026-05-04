@@ -156,9 +156,22 @@ class SchemaService extends BaseService
                 }
             }
 
-            // Hanya purge koneksi sementara, jangan purge persistent
             if ($useConn === $connName) {
                 DB::purge($connName);
+            }
+
+            // Apply Column-level RBAC: Redact forbidden columns
+            $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+            if (!empty($forbidden)) {
+                $result = array_filter($result, function ($col) use ($forbidden) {
+                    return !in_array(strtolower($col['column'] ?? $col['column_name']), $forbidden);
+                });
+                $result = array_values($result); // re-index
+                
+                $indexes = array_filter($indexes, function ($idx) use ($forbidden) {
+                    return !in_array(strtolower($idx['column']), $forbidden);
+                });
+                $indexes = array_values($indexes);
             }
 
             if (empty($result)) {
@@ -391,19 +404,29 @@ class SchemaService extends BaseService
 
                 $matches = DB::connection($connName)->select($query, $params);
 
+                $forbidden = $this->getForbiddenColumns($dbCode, $allowedDbs);
+
                 foreach ($matches as $match) {
                     $matchSchema = $match->table_schema;
                     $matchTable = $match->table_name;
+                    $matchColumn = $match->column_name;
 
-                    if ($this->isTableAllowed($dbCode, $matchSchema, $matchTable, $allowedDbs)) {
-                        $results[] = [
-                            'database' => $dbCode,
-                            'schema' => $matchSchema,
-                            'table' => $matchTable,
-                            'column' => $match->column_name,
-                            'notes' => $match->description ?? ''
-                        ];
+                    // Skip if table or column is not allowed
+                    if (!$this->isTableAllowed($dbCode, $matchSchema, $matchTable, $allowedDbs)) {
+                        continue;
                     }
+
+                    if (in_array(strtolower($matchColumn), $forbidden)) {
+                        continue;
+                    }
+
+                    $results[] = [
+                        'database' => $dbCode,
+                        'schema' => $matchSchema,
+                        'table' => $matchTable,
+                        'column' => $matchColumn,
+                        'notes' => $match->description ?? ''
+                    ];
                 }
                 DB::purge($connName);
             } catch (\Exception $e) {

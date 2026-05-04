@@ -288,6 +288,21 @@ class QueryService extends BaseService
             }
         }
 
+        // ── LAYER 5.5: Column-level RBAC (Forbidden Columns check) ───────────
+        $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+        if (!empty($forbidden)) {
+            foreach ($forbidden as $fCol) {
+                if (preg_match('/\b' . preg_quote($fCol, '/') . '\b/i', $sqlForRbacScan)) {
+                    Log::warning("[QueryService] Column RBAC Denied: SQL uses forbidden column '{$fCol}' for User " . Auth::id());
+                    return $this->safeJsonEncode([
+                        'error' => 'COLUMN_ACCESS_DENIED',
+                        'detail' => "Kolom '{$fCol}' tidak diizinkan untuk peran Anda.",
+                        'MANDATORY_AI_ACTION' => "Jangan gunakan kolom '{$fCol}' dalam query Anda. Hapus kolom tersebut dari SELECT, WHERE, GROUP BY, atau ORDER BY.",
+                    ]);
+                }
+            }
+        }
+
         // ── LAYER 6: Execute Query ────────────────────────────────────────────
         $cleanSql = $trimmedSql;
         Log::info("[ToolCallExecutor] Executing SQL on DB {$databaseCode}: " . substr($cleanSql, 0, 300));
@@ -452,8 +467,20 @@ class QueryService extends BaseService
             ]);
         }
 
-        $data = array_map(function ($row) {
+        // Apply Column-level RBAC: Redact forbidden columns from results
+        $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+
+        $data = array_map(function ($row) use ($forbidden) {
             $r = (array) $row;
+            
+            if (!empty($forbidden)) {
+                foreach ($forbidden as $col) {
+                    if (array_key_exists($col, $r)) {
+                        unset($r[$col]);
+                    }
+                }
+            }
+
             foreach ($r as $k => $v) {
                 if (is_string($v) && preg_match('/^-?\d+\.\d+$/', $v)) {
                     if (preg_match('/\.0+$/', $v)) {
