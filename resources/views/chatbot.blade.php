@@ -80,8 +80,10 @@
         /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+        html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+        html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
         /* Typing dots */
         .typing-indicator span {
@@ -233,10 +235,15 @@
 
         /* Chart Container */
         .chart-container {
-            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.08);
             border-radius: 12px; padding: 0 0 25px 0; margin: 24px 0;
             width: 100%; min-height: 400px; height: auto; position: relative;
             overflow: hidden;
+        }
+        html.dark .chart-container {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .chart-container canvas {
             position: relative; z-index: 1;
@@ -253,7 +260,10 @@
         .chart-toolbar {
             display: flex; justify-content: flex-end; gap: 8px;
             margin-bottom: 10px; padding: 0 15px 10px 15px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
+            border-bottom: 1px solid rgba(0,0,0,0.07);
+        }
+        html.dark .chart-toolbar {
+            border-bottom-color: rgba(255,255,255,0.08);
         }
         .chart-export-btn {
             background: rgba(34,197,94,0.15); color: #22c55e;
@@ -289,8 +299,8 @@
             width: 100%;
         }
         .metric-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0,0,0,0.03);
+            border: 1px solid rgba(0,0,0,0.08);
             border-radius: 16px;
             padding: 20px;
             display: flex;
@@ -298,23 +308,32 @@
             gap: 8px;
             transition: all 0.3s ease;
         }
+        html.dark .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
         .metric-card:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(0,0,0,0.05);
             border-color: rgba(245, 48, 3, 0.3);
             transform: translateY(-2px);
+        }
+        html.dark .metric-card:hover {
+            background: rgba(255, 255, 255, 0.05);
         }
         .metric-label {
             font-size: 11px;
             font-weight: 600;
-            color: #A1A09A;
+            color: #6b7280;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
+        html.dark .metric-label { color: #A1A09A; }
         .metric-value {
             font-size: 24px;
             font-weight: 700;
-            color: #fff;
+            color: #1f2937;
         }
+        html.dark .metric-value { color: #fff; }
         .metric-change {
             font-size: 12px;
             font-weight: 500;
@@ -338,46 +357,68 @@
         /* ── Smart Table ── */
         .smart-table-wrap {
             margin: 24px 0; border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden; background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(0,0,0,0.08);
+            overflow: hidden; background: rgba(0,0,0,0.02);
             max-width: 100%;
+        }
+        html.dark .smart-table-wrap {
+            border-color: rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
         }
         .smart-table-toolbar {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 8px 12px;
+            background: rgba(245,48,3,0.06);
+            border-bottom: 1px solid rgba(0,0,0,0.06); flex-wrap: wrap;
+        }
+        html.dark .smart-table-toolbar {
             background: rgba(245,48,3,0.08);
-            border-bottom: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap;
+            border-bottom-color: rgba(255,255,255,0.08);
         }
         .smart-table-title {
             padding: 12px 14px 10px;
             font-weight: 600;
             font-size: 13px;
-            color: #fff;
+            color: #1f2937;
             display: flex;
             align-items: center;
             gap: 8px;
+            background: rgba(245,48,3,0.06);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        html.dark .smart-table-title {
+            color: #fff;
             background: rgba(245,48,3,0.12);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom-color: rgba(255,255,255,0.06);
         }
         .chart-title {
             padding: 12px 14px 10px;
             font-weight: 600;
             font-size: 13px;
-            color: #fff;
+            color: #1f2937;
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(245,48,3,0.12);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(245,48,3,0.06);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
             margin-bottom: 10px;
         }
-        .smart-table-info { font-size: 11px; color: #A1A09A; white-space: nowrap; }
+        html.dark .chart-title {
+            color: #fff;
+            background: rgba(245,48,3,0.12);
+            border-bottom-color: rgba(255,255,255,0.06);
+        }
+        .smart-table-info { font-size: 11px; color: #6b7280; white-space: nowrap; }
+        html.dark .smart-table-info { color: #A1A09A; }
         .smart-table-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .smart-table-search {
             flex: 1; min-width: 120px; max-width: 220px;
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #fff;
+            background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1);
+            border-radius: 6px; padding: 4px 9px; font-size: 11px; color: #1f2937;
             outline: none; font-family: 'Outfit', sans-serif;
+        }
+        html.dark .smart-table-search {
+            background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: #fff;
         }
         .smart-table-export-btn {
             background: rgba(34,197,94,0.15); color: #22c55e;
@@ -403,7 +444,8 @@
             background: rgba(239,68,68,0.25); color: #f87171; border-color: rgba(239,68,68,0.5);
         }
         .smart-table-export-pdf-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
+        .smart-table-search::placeholder { color: rgba(0,0,0,0.25); }
+        html.dark .smart-table-search::placeholder { color: rgba(255,255,255,0.25); }
         .smart-table-search:focus { border-color: rgba(245,48,3,0.5); }
         .smart-table-scroll { 
             overflow-x: auto; 
@@ -411,39 +453,55 @@
             -webkit-overflow-scrolling: touch;
         }
         .smart-table-scroll table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 600px; table-layout: auto; }
-        .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
+        .smart-table-scroll thead tr { background: rgba(245,48,3,0.08); }
+        html.dark .smart-table-scroll thead tr { background: rgba(245,48,3,0.15); }
         .smart-table-scroll th {
-            padding: 8px 13px; text-align: left; font-weight: 600; color: #fff;
-            white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.35);
+            padding: 8px 13px; text-align: left; font-weight: 600; color: #1f2937;
+            white-space: nowrap; border-bottom: 2px solid rgba(245,48,3,0.2);
             cursor: pointer; user-select: none; font-size: 11px;
         }
+        html.dark .smart-table-scroll th { color: #fff; border-bottom-color: rgba(245,48,3,0.35); }
         .smart-table-scroll th:hover { background: rgba(245,48,3,0.25); }
         .smart-table-scroll th .sort-icon { margin-left: 4px; opacity: 0.4; font-size: 10px; }
         .smart-table-scroll th.sort-asc .sort-icon,
         .smart-table-scroll th.sort-desc .sort-icon { opacity: 1; color: #f53003; }
         .smart-table-scroll td {
-            padding: 7px 13px !important; border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-            color: #d4d4d0 !important; max-width: 400px !important; font-size: 11px !important;
+            padding: 7px 13px !important; border-bottom: 1px solid rgba(0,0,0,0.06) !important;
+            color: #374151 !important; max-width: 400px !important; font-size: 11px !important;
             overflow: hidden !important; text-overflow: ellipsis !important;
             white-space: nowrap !important;
         }
+        html.dark .smart-table-scroll td {
+            border-bottom-color: rgba(255,255,255,0.05) !important;
+            color: #d4d4d0 !important;
+        }
         .smart-table-scroll td.wrap { white-space: normal !important; line-height: 1.4 !important; min-width: 200px !important; }
-        .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
+        .smart-table-scroll tbody tr:hover { background: rgba(0,0,0,0.03); }
+        html.dark .smart-table-scroll tbody tr:hover { background: rgba(255,255,255,0.04); }
         .smart-table-scroll tbody tr:last-child td { border-bottom: none; }
         .smart-table-pagination {
             display: flex; align-items: center; justify-content: space-between;
             gap: 8px; padding: 7px 12px;
-            border-top: 1px solid rgba(255,255,255,0.07);
-            background: rgba(0,0,0,0.15); flex-wrap: wrap;
+            border-top: 1px solid rgba(0,0,0,0.07);
+            background: rgba(0,0,0,0.02); flex-wrap: wrap;
         }
-        .smart-table-page-info { font-size: 11px; color: #706f6c; }
+        html.dark .smart-table-pagination {
+            border-top-color: rgba(255,255,255,0.07);
+            background: rgba(0,0,0,0.15);
+        }
+        .smart-table-page-info { font-size: 11px; color: #6b7280; }
+        html.dark .smart-table-page-info { color: #706f6c; }
         .smart-table-btns { display: flex; gap: 4px; flex-wrap: wrap; }
         .st-btn {
             padding: 3px 9px; border-radius: 5px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.04); color: #A1A09A;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.04); color: #6b7280;
             font-size: 11px; cursor: pointer; transition: all 0.15s;
             font-family: 'Outfit', sans-serif;
+        }
+        html.dark .st-btn {
+            border-color: rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04); color: #A1A09A;
         }
         .st-btn:hover:not(:disabled) { background: rgba(245,48,3,0.15); color: #ff4433; border-color: rgba(245,48,3,0.3); }
         .st-btn:disabled { opacity: 0.3; cursor: default; }
@@ -618,22 +676,22 @@
         <div id="sidebar-overlay" class="absolute inset-0 bg-black/60 z-0 hidden backdrop-blur-sm transition-opacity opacity-0" style="pointer-events: none;"></div>
 
         <!-- Main Chat Area (flex-1, akan bergeser saat sidebar buka) -->
-        <div class="flex flex-col flex-1 min-w-0 h-full bg-black/10">
-        <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300">
+        <div class="flex flex-col flex-1 min-w-0 h-full">
+        <div class="p-4 md:p-5 border-b border-black/10 dark:border-white/10 flex items-center justify-between flex-shrink-0 transition-all duration-300 bg-white/60 dark:bg-black/20">
             <div class="flex items-center gap-2 md:gap-3 w-full max-w-full">
                 <!-- Hamburger and New Chat for Header -->
                 <div class="flex items-center">
-                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                    <button id="btn-open-sidebar" title="Toggle Sidebar" class="p-1.5 md:p-2 -ml-1 text-gray-500 dark:text-[#A1A09A] hover:text-gray-800 dark:hover:text-white rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer select-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                     </button>
-                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-[#A1A09A] hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none">
+                    <button id="btn-new-chat-header" title="Chat Baru" class="hidden p-1.5 md:p-2 text-gray-500 dark:text-[#A1A09A] hover:text-gray-800 dark:hover:text-white rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer select-none">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                     </button>
                 </div>
                 
                 <img src="{{ asset('logo_dmi.png') }}" alt="Darko AI Logo" class="w-8 h-8 md:w-10 md:h-10 object-contain ml-1">
                 <div class="min-w-0">
-                    <h1 class="text-white font-semibold text-base md:text-lg leading-tight truncate">darkotech AI</h1>
+                <h1 class="text-gray-900 dark:text-white font-semibold text-base md:text-lg leading-tight truncate">darkotech AI</h1>
                     <div class="flex items-center gap-2 mt-0.5">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                         <span class="text-[11px] md:text-xs text-[#A1A09A]">Online</span>
@@ -652,7 +710,7 @@
                     </a>
                 @endif
                 <button id="btn-clear-chat" title="Hapus riwayat obrolan ini"
-                    class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30 hover:bg-black/20 transition-all focus:ring-1 focus:ring-red-500/20">
+                    class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-red-500/30 hover:bg-black/10 dark:hover:bg-black/20 transition-all focus:ring-1 focus:ring-red-500/20">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6" />
@@ -662,7 +720,7 @@
                     <span class="btn-text">Hapus Riwayat</span>
                 </button>
                 <button id="btn-clear-chat-mobile" title="Hapus riwayat obrolan ini"
-                    class="btn-clear md:hidden flex items-center p-2 rounded-xl text-[#A1A09A] border border-transparent hover:border-red-500/30 hover:bg-black/20 hover:text-red-500 transition-all">
+                    class="btn-clear md:hidden flex items-center p-2 rounded-xl text-gray-500 dark:text-[#A1A09A] border border-transparent hover:border-red-500/30 hover:bg-black/10 dark:hover:bg-black/20 hover:text-red-500 transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4h6v2" />
                     </svg>
@@ -670,7 +728,7 @@
                 <form action="{{ route('logout') }}" method="POST" class="inline">
                     @csrf
                     <button type="submit" title="Keluar"
-                        class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-red-500/30 hover:text-red-500">
+                        class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-red-500/30 hover:text-red-500">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -680,8 +738,11 @@
                         <span class="btn-text">Logout</span>
                     </button>
                 </form>
-                <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme" class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#A1A09A] text-xs border border-white/10 hover:border-indigo-500/30 hover:text-indigo-500">
+                <!-- Theme Toggle Switch -->
+                <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme"
+                    class="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-indigo-500/30 hover:text-indigo-500 transition-all">
                     <i class="fas fa-moon" id="theme-icon"></i>
+                    <span class="btn-text" id="theme-toggle-label">Dark</span>
                 </button>
             </div>
         </div>
@@ -706,10 +767,10 @@
 
 
         <!-- Input -->
-        <div class="p-5 bg-black/20 border-t border-white/10 flex-shrink-0">
+        <div class="p-5 border-t border-black/10 dark:border-white/10 flex-shrink-0 bg-white/50 dark:bg-black/20">
             <div class="relative">
                 <input type="text" id="message-input" placeholder="Ketik pesan anda di sini..."
-                    class="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-white placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
+                    class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-gray-900 dark:text-white placeholder-black/25 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
                     autocomplete="off">
                 <button id="send-btn"
                     class="absolute right-2 top-1.5 bottom-1.5 w-10 bg-[#f53003] hover:bg-[#ff4433] disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all shadow-lg shadow-red-500/20">
@@ -814,12 +875,16 @@
 
         function updateThemeToggle(theme) {
             const icon = document.getElementById('theme-icon');
+            const label = document.getElementById('theme-toggle-label');
             if (icon) {
                 if (theme === 'dark') {
                     icon.className = 'fas fa-sun';
                 } else {
                     icon.className = 'fas fa-moon';
                 }
+            }
+            if (label) {
+                label.textContent = theme === 'dark' ? 'Light' : 'Dark';
             }
         }
 

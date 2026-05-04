@@ -12,21 +12,25 @@
         :root {
             --primary: #6366f1;
             --primary-dark: #4f46e5;
-            --bg-dark: #f3f4f6; /* Light bg */
-            --bg-secondary: #e5e7eb; /* Light bg 2 */
-            --card-bg: rgba(255, 255, 255, 0.9);
-            --glass-border: rgba(0, 0, 0, 0.1);
-            --text-main: #1f2937;
-            --text-muted: #4b5563;
+            --bg-main: #f0f2f8;
+            --bg-secondary: #e2e6f0;
+            --card-bg: rgba(255, 255, 255, 0.92);
+            --glass-border: rgba(99, 102, 241, 0.12);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-bg: rgba(255,255,255,0.97);
+            --input-bg: rgba(255,255,255,0.9);
         }
 
-        html.dark :root {
-            --bg-dark: #0f172a;
+        html.dark {
+            --bg-main: #0f172a;
             --bg-secondary: #1e293b;
             --card-bg: rgba(30, 41, 59, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-main: white;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f5f9;
             --text-muted: #94a3b8;
+            --sidebar-bg: rgba(15, 23, 42, 0.98);
+            --input-bg: rgba(15, 23, 42, 0.6);
         }
 
         * {
@@ -37,20 +41,20 @@
         }
 
         body {
-            background: radial-gradient(circle at top right, var(--bg-secondary), var(--bg-dark));
+            background: radial-gradient(135deg, var(--bg-secondary) 0%, var(--bg-main) 60%, var(--bg-secondary) 100%);
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
-            transition: background 0.3s ease, color 0.3s ease;
+            transition: background 0.4s ease, color 0.3s ease;
         }
 
         /* Sidebar */
         .sidebar {
             width: 260px;
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(16px);
             border-right: 1px solid var(--glass-border);
-            padding: 2rem 1.5rem;
+            padding: 1.5rem 1.25rem;
             display: flex;
             flex-direction: column;
             position: fixed;
@@ -58,6 +62,7 @@
             overflow-y: auto;
             transition: transform 0.3s ease;
             z-index: 1000;
+            box-shadow: 4px 0 24px rgba(99,102,241,0.06);
         }
 
         .logo {
@@ -133,12 +138,18 @@
             margin-bottom: 2rem;
             flex-wrap: wrap;
             gap: 1rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 12px rgba(99,102,241,0.06);
         }
 
         /* Mobile Menu Toggle */
         .mobile-menu-toggle {
             display: none;
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(99, 102, 241, 0.08);
             border: 1px solid var(--glass-border);
             color: var(--text-main);
             padding: 0.6rem 0.8rem;
@@ -149,7 +160,7 @@
         }
 
         .mobile-menu-toggle:hover {
-            background: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.15);
         }
 
         /* Overlay for mobile */
@@ -164,40 +175,63 @@
             z-index: 999;
         }
 
-        /* Floating Theme Toggle */
-        .floating-theme-toggle {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 50px;
-            height: 50px;
+        /* Theme Toggle Switch in header */
+        .theme-switch-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .theme-switch-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .theme-switch-track {
+            width: 44px;
+            height: 24px;
+            border-radius: 999px;
+            background: #cbd5e1;
+            border: 1px solid rgba(0,0,0,0.1);
+            position: relative;
+            transition: background 0.3s ease, border-color 0.3s;
+            flex-shrink: 0;
+        }
+        html.dark .theme-switch-track {
+            background: rgba(99,102,241,0.6);
+            border-color: rgba(99,102,241,0.3);
+        }
+        .theme-switch-thumb {
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            z-index: 1000;
+            font-size: 9px;
+            color: #f59e0b;
         }
-        .floating-theme-toggle:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--primary);
+        html.dark .theme-switch-thumb {
+            transform: translateX(20px);
+            color: #6366f1;
         }
 
         /* Global UI Elements */
         .glass-card {
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
+            border-radius: 20px;
             padding: 2rem;
+            box-shadow: 0 4px 20px rgba(99,102,241,0.06);
         }
 
         .btn {
@@ -374,7 +408,7 @@
 
         .filter-group input, .filter-group select {
             width: 100%;
-            background: var(--card-bg);
+            background: var(--input-bg);
             border: 1px solid var(--glass-border);
             padding: 0.8rem 1rem;
             border-radius: 12px;
@@ -386,7 +420,7 @@
         .filter-group input:focus, .filter-group select:focus {
             outline: none;
             border-color: var(--primary);
-            background: rgba(15, 23, 42, 0.5);
+            background: var(--input-bg);
             box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
         }
 
@@ -437,14 +471,6 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-            }
-
-            .floating-theme-toggle {
-                bottom: 20px;
-                right: 20px;
-                width: 45px;
-                height: 45px;
-                font-size: 1.1rem;
             }
 
             .sidebar-overlay.active {
@@ -518,11 +544,6 @@
 </head>
 
 <body>
-    <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
-        <i class="fas fa-bars"></i>
-    </button>
-
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
@@ -543,9 +564,7 @@
                         class="fas fa-user-shield"></i> <span>Management Role</span></a></li>
             <li><a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users') ? 'active' : '' }}"><i
                         class="fas fa-users"></i> <span>Management User</span></a></li>
-            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a>
-            </li>
-            <li><a href="#" onclick="toggleTheme()"><i class="fas fa-moon" id="theme-icon"></i> <span id="theme-text">Dark Mode</span></a></li>
+            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i> <span>Kembali ke Chatbot</span></a></li>
         </ul>
         <form action="{{ route('logout') }}" method="POST" id="logout-form">
             @csrf
@@ -555,13 +574,38 @@
     </div>
 
     <div class="main-content">
+        <!-- Header with page title + theme toggle -->
+        <div class="header" id="page-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <!-- Mobile Menu Toggle -->
+                <button class="mobile-menu-toggle" onclick="toggleSidebar()" style="display:none;">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div>
+                    <h1 style="font-size:1.4rem;font-weight:700;color:var(--text-main);" id="page-title">@yield('page-title', 'Admin Panel')</h1>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Darko AI Management System</p>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;">
+                <!-- Theme Toggle Switch -->
+                <div class="theme-switch-wrap" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+                    <span class="theme-switch-label" id="theme-label">Light</span>
+                    <div class="theme-switch-track">
+                        <div class="theme-switch-thumb" id="theme-thumb">
+                            <i class="fas fa-sun" id="theme-icon"></i>
+                        </div>
+                    </div>
+                    <span class="theme-switch-label" id="theme-label-dark">Dark</span>
+                </div>
+                <!-- User info -->
+                <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.15);border-radius:10px;">
+                    <i class="fas fa-user-circle" style="color:var(--primary);font-size:1rem;"></i>
+                    <span style="font-size:0.82rem;color:var(--text-main);font-weight:500;">{{ auth()->user()->name ?? 'Admin' }}</span>
+                </div>
+            </div>
+        </div>
         @yield('content')
     </div>
-
-    <!-- Floating Theme Toggle -->
-    <button class="floating-theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
-        <i class="fas fa-moon" id="floating-theme-icon"></i>
-    </button>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @yield('scripts')
@@ -588,30 +632,24 @@
 
         function updateThemeToggle(theme) {
             const icon = document.getElementById('theme-icon');
-            const text = document.getElementById('theme-text');
-            const floatingIcon = document.getElementById('floating-theme-icon');
-            
-            if (icon && text) {
-                if (theme === 'dark') {
-                    icon.className = 'fas fa-sun';
-                    text.innerText = 'Light Mode';
-                } else {
-                    icon.className = 'fas fa-moon';
-                    text.innerText = 'Dark Mode';
-                }
-            }
-            if (floatingIcon) {
-                if (theme === 'dark') {
-                    floatingIcon.className = 'fas fa-sun';
-                } else {
-                    floatingIcon.className = 'fas fa-moon';
-                }
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
             updateThemeToggle(currentTheme);
+
+            // Show mobile toggle on small screens
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            function checkMobile() {
+                if (mobileToggle) {
+                    mobileToggle.style.display = window.innerWidth <= 1024 ? 'flex' : 'none';
+                }
+            }
+            checkMobile();
+            window.addEventListener('resize', checkMobile);
         });
 
         function toggleSidebar() {
