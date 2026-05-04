@@ -27,7 +27,7 @@
     --aim-radius-sm:10px;
 }
 
-html.dark :root {
+html.dark {
     --aim-surface:  rgba(15,23,42,0.6);
     --aim-border:   rgba(255,255,255,0.07);
     --aim-border-h: rgba(99,102,241,0.35);
