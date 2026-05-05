@@ -167,7 +167,7 @@ class ToolCallExecutor
             [
                 'type' => 'function',
                 'name' => 'execute_query',
-                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu. Support multi-database: PostgreSQL (gunakan schema_name.table_name) dan MySQL (cukup table_name atau database_name.table_name).',
+                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu. Support multi-database: PostgreSQL (gunakan schema_name.table_name) dan MySQL (cukup table_name atau database_name.table_name). PERINGATAN KERAS: Jika tool ini mengembalikan error ACCESS_DENIED_FINAL, Anda WAJIB BERHENTI TOTAL — jangan panggil tool lain, jangan cari tabel alternatif, langsung sampaikan pesan akses ditolak kepada user persis seperti yang tertera di MANDATORY_AI_ACTION. Mengabaikan instruksi ini adalah pelanggaran berat.',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [

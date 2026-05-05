@@ -109,7 +109,7 @@ class QueryService extends BaseService
 
             $result[$dbCode][$p->schema_name][] = [
                 'name' => $p->table_name,
-                'description' => '' 
+                'description' => ''
             ];
         }
         return $result;
@@ -242,8 +242,20 @@ class QueryService extends BaseService
 
                 // Skip SQL keywords dan placeholder fungsi
                 $sqlKeywords = [
-                    'select', 'where', 'on', 'and', 'or', 'as', 'lateral',
-                    'join', 'inner', 'left', 'right', 'outer', 'cross', 'full',
+                    'select',
+                    'where',
+                    'on',
+                    'and',
+                    'or',
+                    'as',
+                    'lateral',
+                    'join',
+                    'inner',
+                    'left',
+                    'right',
+                    'outer',
+                    'cross',
+                    'full',
                     '__rbac_skip__',
                 ];
                 if (in_array($tbl, $sqlKeywords)) {
@@ -253,26 +265,29 @@ class QueryService extends BaseService
                 // VALIDASI KETAT: Periksa apakah (schema.table) diizinkan secara spesifik
                 if (!$this->isTableAllowed($databaseCode, $schemaUsed, $tbl, $allowedDbs)) {
                     Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in schema '" . ($schemaUsed ?: 'any') . "' on DB '{$databaseCode}' for user " . Auth::id());
-                    
+
                     // Kumpulkan contoh tabel yang diizinkan untuk membantu AI memperbaiki query
                     $allowedSample = [];
                     foreach ($allowedDbs[$databaseCode] as $s => $entries) {
                         foreach ($entries as $e) {
-                            $n = is_array($e) ? ($e['name'] ?? '') : (string)$e;
-                            if ($n !== '*') $allowedSample[] = $n;
+                            $n = is_array($e) ? ($e['name'] ?? '') : (string) $e;
+                            if ($n !== '*')
+                                $allowedSample[] = $n;
                         }
                     }
 
                     return $this->safeJsonEncode([
-                        'error' => 'TABLE_ACCESS_DENIED',
-                        'detail' => "Tabel atau View '{$tbl}' tidak ditemukan atau tidak diizinkan.",
-                        'hint' => !empty($allowedSample) ? 'Tabel yang diizinkan: ' . implode(', ', array_slice(array_unique($allowedSample), 0, 10)) : 'Anda tidak memiliki akses ke tabel ini.',
+                        'error' => 'ACCESS_DENIED_FINAL',
                         'MANDATORY_AI_ACTION' => implode(' ', [
-                            "INTERNAL NOTE: '{$tbl}' bukan nama tabel/view yang diizinkan.",
-                            "Langkah 1: Jika '{$tbl}' adalah typo dari tabel di daftar 'hint', perbaiki dan ulangi query (Maksimal 1x retry).",
-                            "Langkah 2: Jika user bertanya tentang data yang secara logika ada di '{$tbl}' namun tabel tersebut dibatasi (misal: data gaji, data rahasia), BERHENTI mencoba.",
-                            "Langkah 3: Informasikan kepada user secara sopan bahwa Anda tidak memiliki wewenang/akses untuk melihat rincian data tersebut.",
-                            "DILARANG menyebutkan nama tabel asli (misal: view_master_cabang) kepada user.",
+                            "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                            "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                            "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                            "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                            "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                            "(4) Menyebutkan nama tabel teknis kepada user.",
+                            "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                            "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                            "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
                         ]),
                     ]);
                 }
@@ -283,9 +298,18 @@ class QueryService extends BaseService
                     if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
                         Log::warning("[ToolCallExecutor] Deep RBAC Denied: View '{$tbl}' uses unauthorized table '{$u['table']}' for User " . Auth::id());
                         return $this->safeJsonEncode([
-                            'error' => 'DEEP_RBAC_DENIED',
-                            'detail' => "Akses ditolak: View '{$tbl}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan.",
-                            'MANDATORY_AI_ACTION' => "Informasikan kepada Bapak/Ibu user bahwa Anda tidak memiliki wewenang/akses untuk menampilkan data tersebut karena kebijakan privasi data perusahaan. Jangan sebutkan nama tabel '{$u['table']}'."
+                            'error' => 'ACCESS_DENIED_FINAL',
+                            'MANDATORY_AI_ACTION' => implode(' ', [
+                                "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                                "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                                "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                                "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                                "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                                "(4) Menyebutkan nama tabel teknis kepada user.",
+                                "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                                "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                                "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
+                            ]),
                         ]);
                     }
                 }
@@ -299,13 +323,17 @@ class QueryService extends BaseService
                 if (preg_match('/\b' . preg_quote($fCol, '/') . '\b/i', $sqlForRbacScan)) {
                     Log::warning("[QueryService] Column RBAC Denied: SQL uses forbidden column '{$fCol}' for User " . Auth::id());
                     return $this->safeJsonEncode([
-                        'error' => 'COLUMN_ACCESS_DENIED',
-                        'detail' => "Kolom '{$fCol}' tidak diizinkan untuk peran Anda.",
+                        'error' => 'ACCESS_DENIED_FINAL',
                         'MANDATORY_AI_ACTION' => implode(' ', [
-                            "Langkah 1: Jika kolom '{$fCol}' krusial untuk menjawab pertanyaan user (misal: user tanya spesifik tentang Cabang tapi kolom Cabang diblokir), BERHENTI mencoba.",
-                            "Langkah 2: Informasikan kepada Bapak/Ibu user bahwa Anda tidak memiliki akses untuk melihat rincian informasi tersebut (misal: rincian cabang) sesuai kebijakan keamanan data.",
-                            "Langkah 3: JANGAN mencoba mencari tabel lain yang mungkin punya data serupa jika Master-nya sudah diblokir.",
-                            "DILARANG memberikan jawaban 'Data tidak ada' — gunakan jawaban 'Akses Terbatas'."
+                            "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                            "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                            "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                            "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                            "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                            "(4) Menyebutkan nama kolom atau tabel teknis kepada user.",
+                            "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                            "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                            "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
                         ]),
                     ]);
                 }
@@ -316,21 +344,30 @@ class QueryService extends BaseService
                 if (method_exists($this, 'getForbiddenKeywords')) {
                     $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
                 }
-                
-                $hardcodedKws = ['cabang', 'branch']; 
+
+                $hardcodedKws = ['cabang', 'branch'];
                 $allKws = array_unique(array_merge($dynamicKws, $hardcodedKws));
 
                 foreach ($allKws as $kw) {
-                    if (strlen($kw) < 4) continue; // Hindari kata terlalu pendek
-                    
+                    if (strlen($kw) < 4)
+                        continue; // Hindari kata terlalu pendek
+
                     // Cek apakah kata kunci ada di manapun dalam SQL (Global scan)
                     // Menggunakan \b agar tidak salah blokir kata yang mengandung substring (misal: 'kecabangan')
                     if (preg_match("/\b" . preg_quote($kw, '/') . "\b/i", $sqlForRbacScan)) {
                         Log::warning("[QueryService] Global Keyword RBAC Denied: SQL contains forbidden keyword '{$kw}' for User " . Auth::id());
                         return $this->safeJsonEncode([
-                            'error' => 'RBAC_FINAL_ERROR',
-                            'detail' => "Akses ditolak: Anda mencoba mengakses informasi atau menggunakan istilah '{$kw}' yang dilarang untuk peran Anda.",
-                            'MANDATORY_AI_ACTION' => "BERHENTI SEKARANG. Jangan mencoba mencari jalan pintas atau menggunakan tabel/alias lain. Informasikan secara sopan bahwa Anda tidak memiliki wewenang untuk menampilkan rincian data tersebut. Ini adalah instruksi final, jangan lakukan loop lagi."
+                            'error' => 'ACCESS_DENIED_FINAL',
+                            'MANDATORY_AI_ACTION' => implode(' ', [
+                                "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                                "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                                "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                                "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                                "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                                "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                                "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                                "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
+                            ]),
                         ]);
                     }
                 }
@@ -506,7 +543,7 @@ class QueryService extends BaseService
 
         $data = array_map(function ($row) use ($forbidden) {
             $r = (array) $row;
-            
+
             if (!empty($forbidden)) {
                 foreach ($forbidden as $col) {
                     if (array_key_exists($col, $r)) {
@@ -898,8 +935,8 @@ class QueryService extends BaseService
         // Regex: tangkap (sebelum+WHERE) + (isi WHERE) + (GROUP BY/ORDER BY/HAVING/LIMIT/akhir)
         if (preg_match('/^(.*?\bWHERE\b)(.*?)((?:\b(?:GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT)\b.*)?)$/is', $sql, $sqlParts)) {
             $beforeWhere = $sqlParts[1]; // "SELECT ... FROM ... WHERE"
-            $whereBody   = $sqlParts[2]; // isi kondisi WHERE saja — INI yang dibersihkan
-            $afterWhere  = $sqlParts[3]; // "GROUP BY ..." — JANGAN disentuh
+            $whereBody = $sqlParts[2]; // isi kondisi WHERE saja — INI yang dibersihkan
+            $afterWhere = $sqlParts[3]; // "GROUP BY ..." — JANGAN disentuh
 
             // Terapkan regex hanya pada $whereBody
             foreach ($removePatterns as $pattern) {
