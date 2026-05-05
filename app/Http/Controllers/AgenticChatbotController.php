@@ -30,7 +30,7 @@ class AgenticChatbotController extends Controller
     {
         $this->toolExecutor = $toolExecutor;
         $this->queryService = $queryService;
-        $this->mcpClient    = new McpClientService();
+        $this->mcpClient = new McpClientService();
     }
 
     public function index()
@@ -221,7 +221,8 @@ class AgenticChatbotController extends Controller
         if (!$apiKey) {
             $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok.');
             echo "data: [DONE]\n\n";
-            if (ob_get_level() > 0) ob_flush();
+            if (ob_get_level() > 0)
+                ob_flush();
             flush();
             return;
         }
@@ -302,7 +303,8 @@ class AgenticChatbotController extends Controller
                             }
                             $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis hari ini. Silakan coba kembali besok atau hubungi Administrator Sistem.');
                             echo "data: [DONE]\n\n";
-                            if (ob_get_level() > 0) ob_flush();
+                            if (ob_get_level() > 0)
+                                ob_flush();
                             flush();
                             return;
                         }
@@ -319,7 +321,7 @@ class AgenticChatbotController extends Controller
                         $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
 
                         ApiKeyResolver::autoResetIfNeeded($apiKey);
-                        $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
+                        $apiKey->recordUsage((int) ($response['_tokens'] ?? 0));
 
                         if ($chatSessionId) {
                             $textContent = $this->injectSmartTableDataIntoContent($textContent, $allTurnToolResults);
@@ -356,7 +358,8 @@ class AgenticChatbotController extends Controller
                     }
                     $this->streamText('Mohon maaf, semua kuota API untuk layanan ini telah habis hari ini. Silakan coba kembali besok atau hubungi Administrator Sistem.');
                     echo "data: [DONE]\n\n";
-                    if (ob_get_level() > 0) ob_flush();
+                    if (ob_get_level() > 0)
+                        ob_flush();
                     flush();
                     return;
                 }
@@ -591,7 +594,7 @@ class AgenticChatbotController extends Controller
                     ]);
                 }
 
-                $apiKey->recordUsage((int)($response['_tokens'] ?? 0));
+                $apiKey->recordUsage((int) ($response['_tokens'] ?? 0));
 
                 $this->streamText($processedContent);
                 echo "data: [DONE]\n\n";
@@ -639,7 +642,8 @@ class AgenticChatbotController extends Controller
                     ]
                 ]) . "\n\n";
             }
-            if (ob_get_level() > 0) ob_flush();
+            if (ob_get_level() > 0)
+                ob_flush();
             flush();
 
             $executedResults = [];
@@ -685,6 +689,30 @@ class AgenticChatbotController extends Controller
                 $toolResult = $execItem['result'];
 
                 $decodedRes = json_decode($toolResult, true);
+
+                // ── HARD STOP: ACCESS_DENIED_FINAL ───────────────────────────
+                // Jika RBAC mengembalikan error ini, putus loop SEKARANG dari sisi PHP.
+                // Jangan kirim hasil ke AI untuk di-loop lagi — langsung stream pesan
+                // bisnis ke user dan hentikan seluruh agentic loop.
+                if (is_array($decodedRes) && ($decodedRes['error'] ?? '') === 'ACCESS_DENIED_FINAL') {
+                    $aksesTolakMsg = 'Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.';
+                    Log::warning("[Agentic] ACCESS_DENIED_FINAL detected on tool '{$toolName}' — breaking loop immediately for User " . \Illuminate\Support\Facades\Auth::id());
+                    echo "data: " . json_encode([
+                        'tool_call' => [
+                            'id' => $toolCallId,
+                            'name' => $toolName,
+                            'arguments' => $arguments,
+                            'status' => 'denied',
+                            'result' => ['message' => $aksesTolakMsg],
+                        ]
+                    ]) . "\n\n";
+                    echo "data: " . json_encode(['content' => $aksesTolakMsg]) . "\n\n";
+                    echo "data: " . json_encode(['done' => true]) . "\n\n";
+                    if (ob_get_level() > 0)
+                        ob_flush();
+                    flush();
+                    return; // Putus seluruh stream — tidak ada loop lagi
+                }
 
                 if (is_array($decodedRes) && $toolName === 'execute_query') {
                     $currencyCols = $decodedRes['currency_columns'] ?? [];
@@ -1016,12 +1044,12 @@ class AgenticChatbotController extends Controller
                     if (is_array($rawContent)) {
                         $rawContent = json_encode($rawContent);
                     }
-                    
+
                     if (!empty($m['decoded_data']) && is_array($m['decoded_data'])) {
                         $parsedContent = $m['decoded_data'];
                     } else {
                         $decoded = is_string($rawContent) ? json_decode($rawContent, true) : null;
-                        $parsedContent = is_array($decoded) ? $decoded : ['result' => (string)$rawContent];
+                        $parsedContent = is_array($decoded) ? $decoded : ['result' => (string) $rawContent];
                     }
 
                     $parts = [
@@ -1032,7 +1060,7 @@ class AgenticChatbotController extends Controller
                             ]
                         ]
                     ];
-                    
+
                     if ($prevRole === 'user' && !empty($geminiMessages)) {
                         $last = &$geminiMessages[count($geminiMessages) - 1];
                         $last['parts'] = array_merge($last['parts'], $parts);
@@ -1071,7 +1099,7 @@ class AgenticChatbotController extends Controller
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
                             if (!$argsArr || $argsArr === [])
                                 $argsArr = new \stdClass();
-                                
+
                             $parts[] = [
                                 'functionCall' => [
                                     'name' => $tc['function']['name'] ?? 'tool',
@@ -1368,10 +1396,10 @@ User adalah level eksekutif yang TIDAK mengerti database. DILARANG KERAS menyebu
 7. **BAHASA BISNIS UNTUK KENDALA TEKNIS**: Jika setelah semua upaya (retry) data tetap tidak ditemukan karena error sistem (timeout/bug), gunakan bahasa bisnis yang sangat sopan:
    - "Mohon maaf Bapak/Ibu, terjadi kendala teknis saat mencoba mengambil data. Saya sedang berkoordinasi dengan sistem untuk memastikan rincian data tersebut dapat ditampilkan kembali."
    - "Mohon maaf Bapak/Ibu, data yang diminta belum dapat kami sajikan saat ini karena terdapat pembaruan pada struktur informasi database. Kami akan segera memperbaikinya."
-8. **AKSES TERBATAS (RBAC — PENTING)**: Jika Anda mendapatkan error **'TABLE_ACCESS_DENIED'**, **'COLUMN_ACCESS_DENIED'**, atau **'DEEP_RBAC_DENIED'**, ini adalah **KEBIJAKAN KEAMANAN DATA**, bukan error teknis.
-   - **WAJIB**: BERHENTI mencoba memanggil tool untuk mencari data tersebut di tabel lain.
-   - **WAJIB**: Informasikan kepada Bapak/Ibu user bahwa akses ke rincian data tersebut (misal: rincian cabang, data sensitif) dibatasi sesuai dengan kewenangan peran Anda di dalam sistem.
-   - Gunakan kalimat: *"Mohon maaf Bapak/Ibu, sesuai dengan kebijakan keamanan data perusahaan, informasi rincian [Data Terkait] saat ini dibatasi untuk peran akses Anda. Saya dapat membantu menyajikan analisis data lainnya yang tersedia."*
+8. **AKSES TERBATAS (RBAC — PENTING)**: Jika Anda mendapatkan error **'ACCESS_DENIED_FINAL'**, **'TABLE_ACCESS_DENIED'**, **'COLUMN_ACCESS_DENIED'**, atau **'DEEP_RBAC_DENIED'**, ini adalah **KEBIJAKAN KEAMANAN DATA**, bukan error teknis.
+   - **WAJIB**: BERHENTI TOTAL — jangan panggil tool apapun lagi (termasuk describe_table, search_schema, get_database_schema_info).
+   - **WAJIB**: Sampaikan LANGSUNG kepada Bapak/Ibu user pesan berikut tanpa modifikasi: *"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya."*
+   - **DILARANG MUTLAK**: Mencari data yang sama di tabel/view lain, mengganti nama kolom, atau mencoba workaround apapun setelah error ini muncul.
 
 **CONTOH BAHASA BISNIS YANG BENAR:**
 - Salah (Teknis): "Query saya pada tabel view_xxx mengembalikan 0 baris untuk Sumatera Utara."
@@ -1955,18 +1983,20 @@ PROMPT;
             '/```smart_table\s*([\s\S]*?)```/m',
             function (array $matches) use ($toolResults) {
                 $rawJson = trim($matches[1]);
-                if (empty($rawJson)) return $matches[0];
+                if (empty($rawJson))
+                    return $matches[0];
 
                 try {
                     $params = json_decode($rawJson, true);
-                    if (!is_array($params)) return $matches[0];
+                    if (!is_array($params))
+                        return $matches[0];
 
                     // Skip if already has inline data
                     if (!empty($params['headers']) && !empty($params['rows'])) {
                         return $matches[0];
                     }
 
-                    $toolIdx = isset($params['tool_index']) ? (int)$params['tool_index'] : -1;
+                    $toolIdx = isset($params['tool_index']) ? (int) $params['tool_index'] : -1;
 
                     $toolRes = null;
                     if ($toolIdx >= 0 && !empty($toolResults[$toolIdx])) {
@@ -1981,22 +2011,27 @@ PROMPT;
                         }
                     }
 
-                    if (!$toolRes) return $matches[0];
+                    if (!$toolRes)
+                        return $matches[0];
 
                     $tableData = $toolRes['data'] ?? null;
                     if (is_string($tableData)) {
                         $tableData = json_decode($tableData, true) ?: null;
                     }
-                    if (!is_array($tableData)) return $matches[0];
+                    if (!is_array($tableData))
+                        return $matches[0];
 
                     $rawRows = $tableData['rows'] ?? [];
                     $columns = $tableData['columns'] ?? [];
 
-                    if (empty($rawRows) || empty($columns)) return $matches[0];
+                    if (empty($rawRows) || empty($columns))
+                        return $matches[0];
 
                     $normalizedRows = array_map(function ($row) use ($columns) {
-                        if (is_array($row) && array_values($row) === $row) return $row;
-                        if (is_array($row)) return array_map(fn($c) => $row[$c] ?? null, $columns);
+                        if (is_array($row) && array_values($row) === $row)
+                            return $row;
+                        if (is_array($row))
+                            return array_map(fn($c) => $row[$c] ?? null, $columns);
                         return [$row];
                     }, $rawRows);
 
@@ -2060,7 +2095,7 @@ PROMPT;
         if (strpos($content, '"headers"') !== false && strpos($content, '"rows"') !== false) {
             if (strpos($content, '```smart_table') === false) {
                 // Try to find raw JSON and wrap it
-                $content = preg_replace_callback('/\{\s*"title":\s*".*?"\s*,\s*"headers":\s*\[.*?\].*?\}/s', function($matches) {
+                $content = preg_replace_callback('/\{\s*"title":\s*".*?"\s*,\s*"headers":\s*\[.*?\].*?\}/s', function ($matches) {
                     return "```smart_table\n" . $matches[0] . "\n```";
                 }, $content);
             }
@@ -2072,7 +2107,8 @@ PROMPT;
     private function convertMarkdownToSmartTable(array $tableLines): string
     {
         // Need at least header and separator or header and data
-        if (count($tableLines) < 2) return implode("\n", $tableLines);
+        if (count($tableLines) < 2)
+            return implode("\n", $tableLines);
 
         $headers = [];
         $dataRows = [];
@@ -2081,9 +2117,11 @@ PROMPT;
         foreach ($tableLines as $idx => $line) {
             $cols = explode('|', $line);
             // Remove empty first/last elements from the | split
-            if (empty(trim($cols[0]))) array_shift($cols);
-            if (!empty($cols) && empty(trim($cols[count($cols)-1]))) array_pop($cols);
-            
+            if (empty(trim($cols[0])))
+                array_shift($cols);
+            if (!empty($cols) && empty(trim($cols[count($cols) - 1])))
+                array_pop($cols);
+
             $cols = array_map('trim', $cols);
 
             if ($idx === 0) {
@@ -2100,8 +2138,10 @@ PROMPT;
         }
 
         // If it wasn't really a table (no separator found and only 2 lines), return original
-        if (!$foundSeparator && count($tableLines) < 3) return implode("\n", $tableLines);
-        if (empty($headers) || empty($dataRows)) return implode("\n", $tableLines);
+        if (!$foundSeparator && count($tableLines) < 3)
+            return implode("\n", $tableLines);
+        if (empty($headers) || empty($dataRows))
+            return implode("\n", $tableLines);
 
         $json = [
             'title' => 'Ringkasan Data',
@@ -2253,7 +2293,7 @@ PROMPT;
             }
 
             $geminiUsage = $data['usageMetadata'] ?? [];
-            $geminiTokens = (int)($geminiUsage['totalTokenCount']
+            $geminiTokens = (int) ($geminiUsage['totalTokenCount']
                 ?? (($geminiUsage['promptTokenCount'] ?? 0) + ($geminiUsage['candidatesTokenCount'] ?? 0)));
 
             return [
@@ -2294,7 +2334,7 @@ PROMPT;
             }
 
             $claudeUsage = $data['usage'] ?? [];
-            $claudeTokens = (int)(($claudeUsage['input_tokens'] ?? 0) + ($claudeUsage['output_tokens'] ?? 0));
+            $claudeTokens = (int) (($claudeUsage['input_tokens'] ?? 0) + ($claudeUsage['output_tokens'] ?? 0));
 
             return [
                 '_tokens' => $claudeTokens,
@@ -2343,7 +2383,7 @@ PROMPT;
 
         if (!isset($data['_tokens'])) {
             $oaiUsage = $data['usage'] ?? [];
-            $data['_tokens'] = (int)($oaiUsage['total_tokens']
+            $data['_tokens'] = (int) ($oaiUsage['total_tokens']
                 ?? (($oaiUsage['prompt_tokens'] ?? 0) + ($oaiUsage['completion_tokens'] ?? 0)));
         }
 
@@ -2515,20 +2555,20 @@ PROMPT;
                         }
 
                         if (isset($parsed['usage']['total_tokens'])) {
-                            $totalTokens = (int)$parsed['usage']['total_tokens'];
+                            $totalTokens = (int) $parsed['usage']['total_tokens'];
                         } elseif (isset($parsed['usage']['prompt_tokens'])) {
-                            $totalTokens = (int)(($parsed['usage']['prompt_tokens'] ?? 0) + ($parsed['usage']['completion_tokens'] ?? 0));
+                            $totalTokens = (int) (($parsed['usage']['prompt_tokens'] ?? 0) + ($parsed['usage']['completion_tokens'] ?? 0));
                         }
                         if (isset($parsed['usageMetadata']['totalTokenCount'])) {
-                            $totalTokens = (int)$parsed['usageMetadata']['totalTokenCount'];
+                            $totalTokens = (int) $parsed['usageMetadata']['totalTokenCount'];
                         } elseif (isset($parsed['usageMetadata']['promptTokenCount'])) {
-                            $totalTokens = (int)(($parsed['usageMetadata']['promptTokenCount'] ?? 0) + ($parsed['usageMetadata']['candidatesTokenCount'] ?? 0));
+                            $totalTokens = (int) (($parsed['usageMetadata']['promptTokenCount'] ?? 0) + ($parsed['usageMetadata']['candidatesTokenCount'] ?? 0));
                         }
                         if (($parsed['type'] ?? '') === 'message_start') {
-                            $totalTokens += (int)($parsed['message']['usage']['input_tokens'] ?? 0);
+                            $totalTokens += (int) ($parsed['message']['usage']['input_tokens'] ?? 0);
                         }
                         if (($parsed['type'] ?? '') === 'message_delta') {
-                            $totalTokens += (int)($parsed['usage']['output_tokens'] ?? 0);
+                            $totalTokens += (int) ($parsed['usage']['output_tokens'] ?? 0);
                         }
 
                         $delta = $parsed['choices'][0]['delta'] ?? [];
@@ -2598,7 +2638,7 @@ PROMPT;
         }
 
         if ($totalTokens === 0 && strlen($fullText) > 0) {
-            $totalTokens = (int)ceil(strlen($fullText) / 4);
+            $totalTokens = (int) ceil(strlen($fullText) / 4);
         }
 
         Log::info("[StreamSSE] Done ({$providerCode}) http={$httpCode} text_len=" . strlen($fullText) . " tool_calls=" . count($toolCalls) . " tokens={$totalTokens}");
