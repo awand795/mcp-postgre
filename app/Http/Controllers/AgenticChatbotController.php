@@ -697,6 +697,8 @@ class AgenticChatbotController extends Controller
                 if (is_array($decodedRes) && ($decodedRes['error'] ?? '') === 'ACCESS_DENIED_FINAL') {
                     $aksesTolakMsg = 'Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.';
                     Log::warning("[Agentic] ACCESS_DENIED_FINAL detected on tool '{$toolName}' — breaking loop immediately for User " . \Illuminate\Support\Facades\Auth::id());
+
+                    // Update badge tool menjadi 'denied'
                     echo "data: " . json_encode([
                         'tool_call' => [
                             'id' => $toolCallId,
@@ -706,8 +708,21 @@ class AgenticChatbotController extends Controller
                             'result' => ['message' => $aksesTolakMsg],
                         ]
                     ]) . "\n\n";
-                    // Kirim teks via 'chunk' — format yang dikenali frontend untuk render ke bubble AI
-                    echo "data: " . json_encode(['chunk' => $aksesTolakMsg]) . "\n\n";
+                    if (ob_get_level() > 0)
+                        ob_flush();
+                    flush();
+
+                    // Stream kata per kata dengan delay agar terasa natural seperti AI mengetik
+                    $words = explode(' ', $aksesTolakMsg);
+                    foreach ($words as $i => $word) {
+                        $chunk = ($i === 0 ? '' : ' ') . $word;
+                        echo "data: " . json_encode(['chunk' => $chunk]) . "\n\n";
+                        if (ob_get_level() > 0)
+                            ob_flush();
+                        flush();
+                        usleep(30000); // 30ms per kata — terasa natural tanpa terlalu lambat
+                    }
+
                     echo "data: " . json_encode(['done' => true]) . "\n\n";
                     if (ob_get_level() > 0)
                         ob_flush();
