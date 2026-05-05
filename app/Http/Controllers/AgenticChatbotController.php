@@ -706,7 +706,8 @@ class AgenticChatbotController extends Controller
                             'result' => ['message' => $aksesTolakMsg],
                         ]
                     ]) . "\n\n";
-                    echo "data: " . json_encode(['content' => $aksesTolakMsg]) . "\n\n";
+                    // Kirim teks via 'chunk' — format yang dikenali frontend untuk render ke bubble AI
+                    echo "data: " . json_encode(['chunk' => $aksesTolakMsg]) . "\n\n";
                     echo "data: " . json_encode(['done' => true]) . "\n\n";
                     if (ob_get_level() > 0)
                         ob_flush();
