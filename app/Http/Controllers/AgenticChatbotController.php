@@ -743,14 +743,14 @@ class AgenticChatbotController extends Controller
                             'columns' => $decodedRes['columns'] ?? [],
                             'currency_columns' => $decodedRes['currency_columns'] ?? [],
                             'rows' => array_slice($decodedRes['rows'], 0, 100),
-                            'instruction' => "ANALYST NOTE: Results are truncated to 100 rows for prompt efficiency, but the UI will show the full list of " . $rowCount . " rows to the user. DO NOT run another query with LIMIT/OFFSET to fetch the remaining rows. The frontend already has the full data. ALWAYS use the columns and sample data from THIS detailed query to build your 'smart_table'. DO NOT use a 1-row COUNT result to build a 'smart_table'—put the count in your text summary instead."
+                            'instruction' => "ANALYST NOTE: Hasil ditampilkan terbatas (100 baris) untuk efisiensi, namun sistem sudah memproses total " . $rowCount . " baris. Gunakan data ini untuk menyusun ringkasan dan 'smart_table'. Tidak perlu melakukan query tambahan untuk baris sisanya karena data tersebut sudah tertangani oleh sistem frontend. Gunakan contoh data ini sebagai referensi struktur kolom Anda."
                         ]);
                     } elseif ($rowCount === 0 && $toolName === 'execute_query') {
                         $aiContent = json_encode([
                             'rows_returned' => 0,
                             'columns' => $decodedRes['columns'] ?? [],
                             'rows' => [],
-                            'instruction' => "ANALYST NOTE: Query mengembalikan 0 baris (kosong). ⚠️ PERINGATAN KERAS: Jika Anda baru saja mencari data untuk tanggal/periode tertentu (kemarin/hari ini/dsb), ANDA DILARANG mengeksekusi query lagi untuk mencari MAX() date atau tanggal lain. LANGSUNG laporkan ke user bahwa data untuk tanggal tersebut belum tersedia dan BERHENTI memanggil tool execute_query."
+                            'instruction' => "ANALYST NOTE: Query ini tidak menghasilkan data (0 baris). Jika Anda sedang mencari data untuk periode waktu tertentu, kemungkinan besar data memang belum tersedia di database. Silakan sampaikan temuan ini kepada Bapak/Ibu user secara profesional. Hindari melakukan perulangan query (loop) untuk mencari tanggal alternatif secara otomatis agar tidak terjadi disorientasi konteks waktu."
                         ]);
                     }
                 }
@@ -791,8 +791,14 @@ class AgenticChatbotController extends Controller
                         if ($isProbeLimitReached) {
                             Log::warning("[Agentic] PROBE LIMIT reached ({$probeQueryCount}/{$maxProbeQueries}). Injecting force-execute reminder.");
                             if (!empty($executedResults)) {
+                                // Extract column name from SELECT DISTINCT [col] FROM ...
+                                $probeColumn = 'data';
+                                if (preg_match('/SELECT\s+DISTINCT\s+([a-zA-Z0-9._"]+)/i', $lastExecutedSql, $m)) {
+                                    $probeColumn = str_replace(['"', '`'], '', $m[1]);
+                                }
+
                                 $lastIdx = count($executedResults) - 1;
-                                $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Limit query probe (SELECT DISTINCT) tercapai ({$probeQueryCount}/{$maxProbeQueries}). Anda DILARANG KERAS melakukan probe lagi. Ambil nilai eksak dari hasil probe di atas dan gunakan langsung untuk query utama dengan WHERE nama_kolom = 'NILAI_EKSAK'. Jangan ILIKE — pakai = (equals) dengan nilai persis dari hasil probe.";
+                                $executedResults[$lastIdx]['result'] .= "\n\n**MANDATORY_AI_ACTION**: Batas verifikasi data untuk kolom '{$probeColumn}' telah tercapai ({$probeQueryCount}/{$maxProbeQueries}). Informasi yang Anda peroleh dari probe sebelumnya sudah cukup. Segera susun query utama menggunakan nilai-nilai eksak yang sudah ditemukan agar jawaban dapat segera disajikan kepada Bapak/Ibu user. DILARANG melakukan probe lagi.";
                             }
                         }
                     }
@@ -1336,8 +1342,8 @@ Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:
 
 ## KONTEKS WAKTU (SANGAT PENTING):
 - **Tanggal Sekarang**: {$currentTime}
-- **Penting**: Hari ini adalah tahun 2026. Analisis data tahun 2025 adalah data historis.
-- ⚠️ **ATURAN TANGGAL KOSONG**: Jika user meminta data untuk tanggal tertentu (seperti "hari ini" atau "kemarin"), jalankan query HANYA untuk tanggal tersebut. Jika hasilnya kosong, **DILARANG KERAS** mencari tanggal terakhir (MAX date) dan mengubah definisi waktu. Langsung beritahu user bahwa data untuk tanggal tersebut belum tersedia.
+- **Penting**: Gunakan tanggal di atas sebagai referensi waktu utama untuk analisis data historis maupun terkini.
+- ⚠️ **ATURAN TANGGAL KOSONG**: Jika user meminta data untuk tanggal tertentu (seperti "hari ini" atau "kemarin"), jalankan query HANYA untuk tanggal tersebut. Jika hasilnya kosong, **DILARANG KERAS** mencari tanggal terakhir (MAX date) dan mengubah definisi waktu secara sepihak. Langsung beritahu user bahwa data untuk tanggal tersebut belum tersedia.
 
 ## DATABASE TERSEDIA UNTUK ANDA:
 {$dbSummaryText}
@@ -1403,8 +1409,8 @@ Jika Anda memanggil beberapa tool dan mendapatkan beberapa hasil (misal: satu ha
 
 ## 🔴 LARANGAN KERAS: JANGAN BOCORKAN "ISI DAPUR" TEKNIS
 User adalah level eksekutif yang TIDAK mengerti database. DILARANG KERAS menyebutkan hal berikut dalam jawaban Anda:
-1. **DILARANG** menyebut "nama tabel" (misal: view_data_penjualan_xxx).
-2. **DILARANG** menyebut "nama kolom" database (misal: nama_propinsi_cabang atau tgl_fak_jl).
+1. **DILARANG** menyebut "nama tabel" database secara eksplisit (seperti view_data_..., tabel_xxx).
+2. **DILARANG** menyebut "nama kolom" database secara teknis (seperti tgl_fak_jl, id_cab).
 3. **DILARANG** menyebut istilah teknis agentic (misal: "hasil probe", "query SQL", "menjalankan query", "mengecek database").
 4. **DILARANG** menyebut "0 baris" atau "query mengembalikan data kosong".
 5. **DILARANG** meminta izin untuk "melanjutkan pengecekan" atau "mencoba query lain". Lakukan saja secara mandiri selama masih dalam batas turn Anda.
@@ -1418,11 +1424,11 @@ User adalah level eksekutif yang TIDAK mengerti database. DILARANG KERAS menyebu
    - **DILARANG MUTLAK**: Mencari data yang sama di tabel/view lain, mengganti nama kolom, atau mencoba workaround apapun setelah error ini muncul.
 
 **CONTOH BAHASA BISNIS YANG BENAR:**
-- Salah (Teknis): "Query saya pada tabel view_xxx mengembalikan 0 baris untuk Sumatera Utara."
-- Benar (Bisnis): "Mohon maaf Bapak/Ibu, saat ini belum terdapat catatan transaksi penjualan untuk wilayah Sumatera Utara pada periode tersebut."
+- Salah (Teknis): "Query saya pada tabel database mengembalikan 0 baris."
+- Benar (Bisnis): "Mohon maaf Bapak/Ibu, saat ini belum terdapat catatan transaksi untuk kriteria tersebut pada periode yang dipilih."
 
-- Salah (Teknis): "Saya akan mencoba mengecek kota Medan untuk memverifikasi data karena kolom tgl_fak_jl tidak ditemukan."
-- Benar (Bisnis): "Saya akan melakukan penelusuran lebih mendalam pada tingkat kota untuk memastikan rincian datanya."
+- Salah (Teknis): "Saya akan mencoba mengecek kolom database untuk memverifikasi data."
+- Benar (Bisnis): "Saya akan melakukan penelusuran lebih mendalam untuk memastikan rincian datanya."
 
 ## 🔴 ATURAN TERPENTING #1 — JANGAN TEBAK NAMA KOLOM
 
@@ -1481,9 +1487,9 @@ Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
 3. **DILARANG KERAS** membelokkan jawaban ke data Nasional secara diam-diam jika data regional tidak ditemukan. Jika data regional benar-benar tidak ada setelah semua upaya (termasuk cek kota), laporkan dengan bahasa bisnis: "Berdasarkan data yang tersedia, belum ditemukan catatan aktivitas bisnis untuk wilayah [Wilayah] pada periode ini."
 
 - User tanya "cabang di Medan" / "cabang di Sumatera Utara" / "cabang di Jakarta" → **JANGAN resolve nama cabang**
-- Untuk pertanyaan berbasis wilayah: **LANGSUNG gunakan filter `ILIKE '%NAMA_WILAYAH%'`** pada kolom propinsi/kabupaten/kota.
-- Contoh: `WHERE nama_propinsi_cabang ILIKE '%SUMATERA UTARA%'` atau `WHERE nama_kota_cabang ILIKE '%MEDAN%'`
-- Nilai eksak wilayah didapat dari **1 query probe** `SELECT DISTINCT nama_propinsi_cabang ... LIMIT 20` **TANPA filter WHERE**
+- Untuk pertanyaan berbasis wilayah: **LANGSUNG gunakan filter `ILIKE '%NAMA_WILAYAH%'`** pada kolom wilayah/propinsi/kota yang sesuai.
+- Contoh: `WHERE nama_kolom_wilayah ILIKE '%MEDAN%'`
+- Nilai eksak wilayah didapat dari **1 query probe** `SELECT DISTINCT nama_kolom_wilayah ... LIMIT 20` **TANPA filter WHERE**
 - Setelah dapat nilai propinsi eksak → **LANGSUNG query utama**, JANGAN probe lagi
 
 **DILARANG** pakai `ILIKE` di query utama jika sudah mendapat nama eksak dari Langkah 1.
@@ -1706,7 +1712,7 @@ Your response MUST follow this exact structure regardless of language:
 4. `get_column_values` — **DILARANG untuk tabel/VIEW dengan nama mengandung "view_"**. Untuk VIEW, gunakan execute_query SELECT DISTINCT sebagai gantinya. Untuk tabel fisik kecil: ambil nilai unik dari kolom sebelum query utama.
 5. `get_view_definition` — Dapatkan DDL/logika di balik sebuah View.
 6. `get_table_preview` — Ambil 5 baris contoh data untuk memahami format.
-7. `execute_query` — Eksekusi SQL SELECT. Wajib prefix schema!
+7. `execute_query` — Eksekusi SQL SELECT. Wajib prefix schema jika menggunakan PostgreSQL!
 8. `get_erp_guidance` / `get_erp_menu_navigation` / `fetch_erp_guidance_from_web` — Panduan ERP.
 
 ## ERP GUIDANCE & NAVIGATION
@@ -1754,11 +1760,9 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 
 ## 🔴 PROTOKOL KHUSUS: FILTER NILAI KOLOM PADA VIEW
 
-Jika Anda perlu mengetahui nilai unik dari sebuah kolom di VIEW (misalnya `nama_propinsi_cabang`, `nama_cabang`, `status`, dll):
-
-**DILARANG**: Memanggil `get_column_values` — PASTI ERROR pada VIEW.
-**DILARANG**: Menebak nilai kolom (misal: langsung pakai `ILIKE '%medan%'` pada query probe).
-**DILARANG**: Menambahkan filter `WHERE` pada query probe — query probe HARUS tanpa filter agar mengembalikan semua nilai yang ada.
+- ❌ SALAH: `SELECT DISTINCT kolom_wilayah WHERE ILIKE '%medan%'` → kemungkinan besar KOSONG karena nilai aslinya mungkin berbeda (misal: 'SUMATERA UTARA').
+- ✅ BENAR: `SELECT DISTINCT kolom_wilayah FROM schema_name.table_name LIMIT 20` → tampil semua nilai wilayah yang tersedia.
+- ✅ BENAR: Dari hasil terlihat nilai eksak → gunakan nilai tersebut di query utama.
 
 **WAJIB LAKUKAN**: Eksekusi query probe TANPA FILTER untuk mendapatkan semua nilai valid:
 ```sql
@@ -1839,9 +1843,9 @@ Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan
 5. **Gunakan Agregasi Database**: Biarkan database yang menghitung (SUM, COUNT, AVG) daripada menarik data detail lalu menghitungnya sendiri.
 
 ## ATURAN SQL
-- **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sch_mbi.view_data_penjualan_rinci_mbi`)
-- **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja (contoh: `SELECT * FROM nama_tabel`). MySQL tidak punya konsep schema terpisah.
-- **POSTGRESQL STRUCTURE (CRITICAL)**: Hanya gunakan format 2 level: `schema.table` (contoh: `sch_mbi.view_penjualan`). **DILARANG KERAS** menggunakan format 3 level seperti `schema.table.column` di dalam klausa `FROM` atau `JOIN`. Kolom hanya boleh diletakkan di `SELECT`, `WHERE`, `GROUP BY`, dll.
+- **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sales.transactions`)
+- **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja.
+- **POSTGRESQL STRUCTURE (CRITICAL)**: Hanya gunakan format 2 level: `schema.table`. **DILARANG KERAS** menggunakan format 3 level seperti `schema.table.column` di dalam klausa `FROM` atau `JOIN`. Kolom hanya boleh diletakkan di `SELECT`, `WHERE`, `GROUP BY`, dll.
 - Cara mengetahui driver database: lihat info di bagian "DATABASE TERSEDIA" di atas — tercantum driver-nya.
 - SELECT only — no INSERT/UPDATE/DELETE/DROP
 - Filter tanggal: BETWEEN pada kolom DATE/TIMESTAMP dari describe_table

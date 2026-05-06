@@ -314,17 +314,6 @@ class ToolCallExecutor
         return (array) $value;
     }
 
-    // ── get_business_context ──────────────────────────────────────────────────
-    private function getBusinessContext(): string
-    {
-        $path = config_path('business_metrics.json');
-        if (!file_exists($path)) {
-            return json_encode(['error' => 'Business metrics configuration not found.']);
-        }
-
-        $content = file_get_contents($path);
-        return $content ?: json_encode(['error' => 'Failed to read business metrics config.']);
-    }
 
     // ── Logging helpers ───────────────────────────────────────────────────────
     private function logToolCall(string $toolName, array $arguments): void

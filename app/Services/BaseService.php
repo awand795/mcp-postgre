@@ -137,10 +137,8 @@ abstract class BaseService
             }
         }
 
-        // 2. Keyword-level RBAC
-        $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
-        $hardcodedKws = ['cabang', 'branch'];
-        $allKws = array_unique(array_merge($dynamicKws, $hardcodedKws));
+        // 2. Keyword-level RBAC (Dynamic from unauthorized tables)
+        $allKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
 
         foreach ($allKws as $kw) {
             if (strlen($kw) < 4) continue;
