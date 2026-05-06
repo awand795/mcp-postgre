@@ -40,6 +40,25 @@
         .form-input::placeholder{color:var(--muted);opacity:0.6;}
         .form-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(245,48,3,0.12);}
         .form-error{color:#ef4444;font-size:0.75rem;margin-top:4px;}
+        
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+            z-index: 10;
+            background: none;
+            border: none;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+        .toggle-password:hover { color: var(--primary); }
+
         .btn-submit{width:100%;background:linear-gradient(135deg,#f53003,#ff4433);color:#fff;border:none;border-radius:12px;padding:0.9rem;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.25s;margin-top:0.5rem;box-shadow:0 4px 16px rgba(245,48,3,0.3);font-family:'Outfit',sans-serif;}
         .btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,48,3,0.4);}
         .theme-btn{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.06);transition:all 0.2s;}
@@ -49,6 +68,21 @@
     <script>
         (function(){if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}})();
         function toggleTheme(){const d=document.documentElement.classList.contains('dark');document.documentElement.classList[d?'remove':'add']('dark');localStorage.setItem('theme',d?'light':'dark');document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';}
+        
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded',()=>{document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';});
     </script>
 </head>
@@ -68,8 +102,11 @@
                 <label class="form-label">Password Baru</label>
                 <div class="input-wrap">
                     <i class="fas fa-lock"></i>
-                    <input type="password" name="password" required autofocus
-                        class="form-input" placeholder="Min. 8 karakter">
+                    <input type="password" name="password" id="password" required autofocus
+                        class="form-input" placeholder="Min. 8 karakter" style="padding-right: 2.75rem;">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password', 'eye-icon-1')">
+                        <i id="eye-icon-1" class="fas fa-eye"></i>
+                    </button>
                 </div>
                 @error('password')<p class="form-error">{{ $message }}</p>@enderror
             </div>
@@ -77,8 +114,11 @@
                 <label class="form-label">Konfirmasi Password</label>
                 <div class="input-wrap">
                     <i class="fas fa-lock"></i>
-                    <input type="password" name="password_confirmation" required
-                        class="form-input" placeholder="Ulangi password">
+                    <input type="password" name="password_confirmation" id="password_confirmation" required
+                        class="form-input" placeholder="Ulangi password" style="padding-right: 2.75rem;">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password_confirmation', 'eye-icon-2')">
+                        <i id="eye-icon-2" class="fas fa-eye"></i>
+                    </button>
                 </div>
             </div>
             <button type="submit" class="btn-submit"><i class="fas fa-save" style="margin-right:8px;"></i>SIMPAN PASSWORD BARU</button>

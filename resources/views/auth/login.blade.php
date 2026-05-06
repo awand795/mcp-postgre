@@ -127,6 +127,24 @@
         html.dark .form-input { color: #f1f5f9; }
         .form-error { color:#ef4444; font-size:0.75rem; margin-top:4px; }
 
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+            z-index: 10;
+            background: none;
+            border: none;
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+        .toggle-password:hover { color: var(--primary); }
+
         .form-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
         .forgot-link { font-size:0.78rem; color:var(--primary); text-decoration:none; font-weight:500; transition:opacity 0.2s; }
         .forgot-link:hover { opacity:0.75; }
@@ -177,6 +195,21 @@
             localStorage.setItem('theme',d?'light':'dark');
             document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
         }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded',()=>{
             const d=document.documentElement.classList.contains('dark');
             document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
@@ -214,8 +247,11 @@
                 </div>
                 <div class="input-wrap" style="margin-top:0.5rem;">
                     <i class="fas fa-lock"></i>
-                    <input type="password" name="password" required
-                        class="form-input" placeholder="••••••••">
+                    <input type="password" name="password" id="password" required
+                        class="form-input" placeholder="••••••••" style="padding-right: 2.75rem;">
+                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password', 'eye-icon')">
+                        <i id="eye-icon" class="fas fa-eye"></i>
+                    </button>
                 </div>
                 @error('password')<p class="form-error">{{ $message }}</p>@enderror
             </div>
