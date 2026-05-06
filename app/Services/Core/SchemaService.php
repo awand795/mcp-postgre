@@ -69,18 +69,21 @@ class SchemaService extends BaseService
 
         // Check table access using centralized BaseService helper
         if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
-            return $this->safeJsonEncode([
-                'error' => 'ACCESS_DENIED',
-                'detail' => "Akses ditolak: Anda tidak memiliki wewenang untuk melihat detail objek ini.",
-                'MANDATORY_AI_ACTION' => "DILARANG menampilkan nama tabel, struktur kolom, atau detail teknis apapun. Informasikan secara sopan bahwa akses dibatasi."
-            ]);
+            return $this->getAccessDeniedFinalResponse();
+        }
+
+        // ── Security Policy Check (Keywords & Columns) ───────────────────
+        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $tableName);
+        if ($policyViolation) {
+            return $policyViolation;
         }
 
         // ── DEEP RBAC: Check underlying tables ───────────────────────────────
         $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
         foreach ($underlying as $u) {
             if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
-                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                Log::warning("[SchemaService] Deep RBAC Denied: View '{$tableName}' uses unauthorized table '{$u['table']}'");
+                return $this->getAccessDeniedFinalResponse();
             }
         }
 
@@ -269,14 +272,21 @@ class SchemaService extends BaseService
         $allowedDbs = $this->queryService->getAllowedTables();
 
         if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
-            return $this->errorResponse("Access denied.");
+            return $this->getAccessDeniedFinalResponse();
+        }
+
+        // ── Security Policy Check (Keywords & Columns) ───────────────────
+        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $tableName . '.' . $columnName);
+        if ($policyViolation) {
+            return $policyViolation;
         }
 
         // ── DEEP RBAC: Check underlying tables ───────────────────────────────
         $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
         foreach ($underlying as $u) {
             if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
-                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                Log::warning("[SchemaService] Deep RBAC Denied: View '{$tableName}' uses unauthorized table '{$u['table']}'");
+                return $this->getAccessDeniedFinalResponse();
             }
         }
 
@@ -358,14 +368,21 @@ class SchemaService extends BaseService
         $allowedDbs = $this->queryService->getAllowedTables();
 
         if (!$this->isTableAllowed($databaseCode, $schemaName, $viewName, $allowedDbs)) {
-            return $this->errorResponse("Access denied.");
+            return $this->getAccessDeniedFinalResponse();
+        }
+
+        // ── Security Policy Check (Keywords & Columns) ───────────────────
+        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $viewName);
+        if ($policyViolation) {
+            return $policyViolation;
         }
 
         // ── DEEP RBAC: Check underlying tables ───────────────────────────────
         $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $viewName);
         foreach ($underlying as $u) {
             if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
-                return $this->errorResponse("Akses ditolak: View '{$viewName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                Log::warning("[SchemaService] Deep RBAC Denied (getViewDefinition): View '{$viewName}' uses unauthorized table '{$u['table']}'");
+                return $this->getAccessDeniedFinalResponse();
             }
         }
 
@@ -438,6 +455,11 @@ class SchemaService extends BaseService
                         continue;
                     }
 
+                    // ── Security Policy Check (Keywords & Columns) ───────────────────
+                    if ($this->validateSecurityPolicy($dbCode, $allowedDbs, $matchTable . '.' . $matchColumn)) {
+                        continue;
+                    }
+
                     if (in_array(strtolower($matchColumn), $forbidden)) {
                         continue;
                     }
@@ -480,14 +502,21 @@ class SchemaService extends BaseService
         $allowedDbs = $this->queryService->getAllowedTables();
 
         if (!$this->isTableAllowed($databaseCode, $schemaName, $tableName, $allowedDbs)) {
-            return $this->errorResponse("Access denied or table not found.");
+            return $this->getAccessDeniedFinalResponse();
+        }
+
+        // ── Security Policy Check (Keywords & Columns) ───────────────────
+        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $tableName);
+        if ($policyViolation) {
+            return $policyViolation;
         }
 
         // ── DEEP RBAC: Check underlying tables ───────────────────────────────
         $underlying = $this->getUnderlyingTables($databaseCode, $schemaName, $tableName);
         foreach ($underlying as $u) {
             if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
-                return $this->errorResponse("Akses ditolak: View '{$tableName}' menggunakan data dari tabel '{$u['table']}' yang tidak diizinkan untuk peran Anda.");
+                Log::warning("[SchemaService] Deep RBAC Denied: View '{$tableName}' uses unauthorized table '{$u['table']}'");
+                return $this->getAccessDeniedFinalResponse();
             }
         }
 
@@ -596,6 +625,13 @@ class SchemaService extends BaseService
 
                 foreach ($tables as $t) {
                     $tableName = is_array($t) ? ($t['name'] ?? '') : $t;
+
+                    // ── Security Policy Check (Keywords & Columns) ───────────────────
+                    // Filter out tables that violate global security policy (e.g. contains 'cabang')
+                    if ($this->validateSecurityPolicy($dbCode, $allowedDbs, $tableName)) {
+                        continue;
+                    }
+
                     $tableObj = ['table_name' => $tableName];
 
                     if ($isSmallSchema) {

@@ -121,6 +121,60 @@ abstract class BaseService
     }
 
     /**
+     * Validate global security policy (columns and keywords).
+     * Returns a JSON error response if violation found, null otherwise.
+     */
+    protected function validateSecurityPolicy(string $databaseCode, array $allowedDbs, string $textToScan): ?string
+    {
+        // 1. Column-level RBAC (Forbidden Columns check)
+        $forbiddenCols = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+        if (!empty($forbiddenCols)) {
+            foreach ($forbiddenCols as $fCol) {
+                if (preg_match('/\b' . preg_quote($fCol, '/') . '\b/i', $textToScan)) {
+                    \Illuminate\Support\Facades\Log::warning("[SecurityPolicy] Forbidden column '{$fCol}' detected in text scan.");
+                    return $this->getAccessDeniedFinalResponse();
+                }
+            }
+        }
+
+        // 2. Keyword-level RBAC
+        $dynamicKws = $this->getForbiddenKeywords($databaseCode, $allowedDbs);
+        $hardcodedKws = ['cabang', 'branch'];
+        $allKws = array_unique(array_merge($dynamicKws, $hardcodedKws));
+
+        foreach ($allKws as $kw) {
+            if (strlen($kw) < 4) continue;
+            if (preg_match("/\b" . preg_quote($kw, '/') . "\b/i", $textToScan)) {
+                \Illuminate\Support\Facades\Log::warning("[SecurityPolicy] Forbidden keyword '{$kw}' detected in text scan.");
+                return $this->getAccessDeniedFinalResponse();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Standard response for ACCESS_DENIED_FINAL that triggers hard-stop in controller.
+     */
+    protected function getAccessDeniedFinalResponse(): string
+    {
+        return $this->safeJsonEncode([
+            'error' => 'ACCESS_DENIED_FINAL',
+            'MANDATORY_AI_ACTION' => implode(' ', [
+                "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                "(4) Menyebutkan nama tabel atau kolom teknis kepada user.",
+                "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
+            ]),
+        ]);
+    }
+
+    /**
      * Get forbidden columns for the current user in a specific database.
      * 
      * Dynamic RBAC: If a user is not allowed to access a "Master" table (e.g. view_master_cabang),
