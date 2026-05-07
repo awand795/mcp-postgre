@@ -64,7 +64,10 @@
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->email }}</td>
                     <td>
-                        <span class="role-badge">{{ $user->roleModel->name ?? 'No Role' }}</span>
+                        <span class="role-badge">
+                            <i class="fas fa-user-tag"></i>
+                            {{ $user->roleModel->name ?? 'No Role' }}
+                        </span>
                     </td>
                     <td>
                         @if($user->is_admin)

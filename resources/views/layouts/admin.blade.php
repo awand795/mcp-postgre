@@ -298,7 +298,19 @@
         .status-yes, .status-success { background: rgba(16,185,129,0.12); color: #059669; padding: 0.3rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid rgba(16,185,129,0.3); }
         .status-no, .status-error, .status-failed { background: rgba(239,68,68,0.1); color: #dc2626; padding: 0.3rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid rgba(239,68,68,0.3); }
         .status-pending, .status-warning { background: rgba(245,158,11,0.1); color: #d97706; padding: 0.3rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; border: 1.5px solid rgba(245,158,11,0.3); }
-        .role-badge { background: rgba(99,102,241,0.12); color: #4338ca; padding: 0.3rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 700; border: 1.5px solid rgba(99,102,241,0.25); }
+        .role-badge { 
+            background: rgba(99,102,241,0.12); 
+            color: #4338ca; 
+            padding: 0.3rem 0.75rem; 
+            border-radius: 8px; 
+            font-size: 0.8rem; 
+            font-weight: 700; 
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1.5px solid rgba(99,102,241,0.25);
+            white-space: nowrap;
+        }
         html.dark .status-yes, html.dark .status-success { color: #10b981; border-color: rgba(16,185,129,0.2); }
         html.dark .status-no, html.dark .status-error, html.dark .status-failed { color: #ef4444; border-color: rgba(239,68,68,0.2); }
         html.dark .status-pending, html.dark .status-warning { color: #f59e0b; border-color: rgba(245,158,11,0.2); }
