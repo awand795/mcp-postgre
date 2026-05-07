@@ -24,7 +24,7 @@
                 // Force light background immediately too
                 const style = document.createElement('style');
                 style.id = 'fouc-fix';
-                style.innerHTML = 'html, body { background: #eef0fb !important; }';
+                style.innerHTML = 'html, body { background: #f8faff !important; }';
                 document.head.appendChild(style);
             }
         })();
@@ -52,7 +52,7 @@
 
     <style>
         html {
-            background-color: #eef0fb;
+            background-color: #f8faff;
         }
 
         html.dark {
