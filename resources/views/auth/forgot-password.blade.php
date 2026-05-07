@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Lupa Password - darkotech AI</title>
+    <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function() {
             const theme = localStorage.getItem('theme');
