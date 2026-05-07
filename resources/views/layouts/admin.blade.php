@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Admin Dashboard - darkotech AI</title>
+    <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function() {
             const theme = localStorage.getItem('theme');

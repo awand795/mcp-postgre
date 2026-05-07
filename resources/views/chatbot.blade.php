@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>darkotech AI</title>
+    <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
 
     <script>
         // Pre-initialization theme to prevent FOUC (Flash of Unstyled Content)
@@ -85,14 +86,14 @@
         }
 
         .glass-panel {
-            background: rgba(252, 253, 255, 0.82);
+            background: rgba(252, 253, 255, 0.75);
             backdrop-filter: blur(25px) saturate(200%);
             -webkit-backdrop-filter: blur(25px) saturate(200%);
-            border: 1.5px solid rgba(99, 102, 241, 0.18);
+            border: 1.5px solid rgba(99, 102, 241, 0.22);
             box-shadow:
-                0 8px 40px 0 rgba(99, 102, 241, 0.12),
-                0 2px 8px 0 rgba(168, 85, 247, 0.08),
-                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+                0 10px 40px -10px rgba(99, 102, 241, 0.15),
+                0 2px 10px rgba(168, 85, 247, 0.1),
+                inset 0 1px 1px rgba(255, 255, 255, 0.9);
         }
 
         html.dark .glass-panel {
@@ -102,23 +103,45 @@
         }
 
         .chat-bubble-user {
-            background: linear-gradient(135deg, #f53003, #ff4433);
+            background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+            background-size: 200% 200%;
+            animation: gradient-move 5s ease infinite;
             color: white;
             border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+        }
+
+        @keyframes gradient-move {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
         .chat-bubble-ai {
-            /* Pearlescent white — soft multi-color tint */
-            background: linear-gradient(135deg, #ffffff 0%, #eff2ff 50%, #f9f7ff 100%);
+            /* Soft Aurora/Pearlescent look */
+            background: linear-gradient(135deg, #ffffff 0%, #f4f6ff 50%, #fdf5ff 100%);
             color: #1f2937;
-            border: 1px solid rgba(99, 102, 241, 0.12);
+            border: 1.2px solid rgba(99, 102, 241, 0.15);
             border-bottom-left-radius: 4px;
             box-shadow: 
-                0 4px 15px rgba(99, 102, 241, 0.05),
-                0 1px 2px rgba(0, 0, 0, 0.02);
-            max-width: 100%;
-            min-width: 0;
-            overflow-x: auto;
+                0 10px 20px -5px rgba(99, 102, 241, 0.1),
+                0 4px 6px -2px rgba(0, 0, 0, 0.02),
+                inset 0 0 10px rgba(168, 85, 247, 0.03);
+            position: relative;
+        }
+
+        .chat-bubble-ai::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.15));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0.6;
         }
 
         html.dark .chat-bubble-ai {
