@@ -84,14 +84,11 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.15);
         }
         .login-header { text-align:center; margin-bottom:2rem; }
-        .brand-icon {
-            width: 60px; height: 60px; border-radius: 18px;
-            background: linear-gradient(135deg, #f53003, #ff4433);
-            display: inline-flex; align-items: center; justify-content: center;
-            box-shadow: 0 8px 24px rgba(245,48,3,0.3);
-            margin-bottom: 1rem;
+        .brand-logo {
+            width: 70px; height: 70px; object-fit: contain;
+            margin-bottom: 1.25rem;
+            filter: drop-shadow(0 8px 16px rgba(245,48,3,0.15));
         }
-        .brand-icon i { color:#fff; font-size:1.5rem; }
         .login-header h1 { font-size:1.5rem; font-weight:700; color:var(--text); margin-bottom:4px; }
         .login-header p { font-size:0.85rem; color:var(--muted); }
 
@@ -223,7 +220,7 @@
 
     <div class="login-card">
         <div class="login-header">
-            <div class="brand-icon"><i class="fas fa-robot"></i></div>
+            <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
             <h1>Selamat Datang</h1>
             <p>Masuk untuk mengakses darkotech AI</p>
         </div>

@@ -28,8 +28,7 @@
         .auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:2.5rem 2.25rem;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.08);position:relative;z-index:1;transition:background 0.4s,border-color 0.4s;}
         html.dark .auth-card{box-shadow:0 20px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(99,102,241,0.15);}
         .auth-header{text-align:center;margin-bottom:2rem;}
-        .brand-icon{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#f53003,#ff4433);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(245,48,3,0.3);margin-bottom:1rem;}
-        .brand-icon i{color:#fff;font-size:1.3rem;}
+        .brand-logo{width:70px;height:70px;object-fit:contain;margin-bottom:1.25rem;filter:drop-shadow(0 8px 16px rgba(245,48,3,0.15));}
         .auth-header h1{font-size:1.4rem;font-weight:700;color:var(--text);margin-bottom:4px;}
         .auth-header p{font-size:0.85rem;color:var(--muted);}
         .form-group{margin-bottom:1.25rem;}
@@ -90,7 +89,7 @@
     <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme"><i id="ti" class="fas fa-sun"></i></button>
     <div class="auth-card">
         <div class="auth-header">
-            <div class="brand-icon"><i class="fas fa-lock-open"></i></div>
+            <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
             <h1>Buat Password Baru</h1>
             <p>Masukkan password baru untuk akun Anda.</p>
         </div>

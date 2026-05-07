@@ -123,13 +123,9 @@
             gap: 10px;
             padding: 0.5rem 0.75rem 2rem;
         }
-        .sidebar-brand-icon {
-            width: 36px; height: 36px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 1rem;
-            box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+        .sidebar-brand-logo {
+            width: 42px; height: 42px; object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(99,102,241,0.25));
             flex-shrink: 0;
         }
         .sidebar-brand-text {
@@ -392,7 +388,7 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <div class="sidebar-brand-icon"><i class="fas fa-robot"></i></div>
+            <img src="{{ asset('logo_dmi.png') }}" alt="Logo" class="sidebar-brand-logo">
             <div class="sidebar-brand-text">
                 darkotech AI<br>
                 <span class="sidebar-brand-sub">Admin Panel</span>
