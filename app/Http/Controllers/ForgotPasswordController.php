@@ -7,7 +7,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
+
 use Illuminate\Validation\Rules;
 
 class ForgotPasswordController extends Controller
@@ -20,6 +23,17 @@ class ForgotPasswordController extends Controller
     public function sendResetLinkEmail(Request $request)
     {
         $request->validate(['email' => 'required|email|exists:users,email']);
+
+        // Rate Limiting: 3 attempts per minute per email/IP
+        $throttleKey = Str::lower($request->email) . '|' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'email' => "Terlalu banyak permintaan OTP. Silakan coba lagi dalam $seconds detik."
+            ]);
+        }
+
+        RateLimiter::hit($throttleKey, 60);
 
         // Generate 6-digit OTP
         $otp = sprintf("%06d", mt_rand(1, 999999));
@@ -62,6 +76,17 @@ class ForgotPasswordController extends Controller
             'email' => 'required|email|exists:users,email',
             'otp' => 'required|numeric|digits:6',
         ]);
+
+        // Rate Limiting: 5 attempts per minute per IP to prevent brute-forcing
+        $throttleKey = 'verify-otp|' . $request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'otp' => "Terlalu banyak percobaan. Silakan coba lagi dalam $seconds detik."
+            ]);
+        }
+
+        RateLimiter::hit($throttleKey, 60);
 
         $reset = DB::table('password_reset_tokens')->where('email', $request->email)->first();
 
