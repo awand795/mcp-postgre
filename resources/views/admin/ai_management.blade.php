@@ -69,8 +69,12 @@ html.dark .aim-alert.danger { color: #f87171; }
     color: var(--aim-text);
 }
 .aim-topbar-title .t-logo {
-    width: 44px; height: 44px; object-fit: contain;
-    filter: drop-shadow(0 4px 10px rgba(99,102,241,0.25));
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--aim-indigo), #8b5cf6);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; color: white;
+    box-shadow: 0 4px 15px rgba(99,102,241,0.35);
     flex-shrink: 0;
 }
 
@@ -616,7 +620,9 @@ html.dark .limit-alert-bar { color: #f87171; }
 {{-- ── TOP BAR ────────────────────────────────────────────────── --}}
 <div class="aim-topbar">
     <h1 class="aim-topbar-title">
-        <img src="{{ asset('logo_dmi.png') }}" alt="Logo" class="t-logo">
+        <div class="t-logo">
+            <i class="fas fa-robot"></i>
+        </div>
         AI Management
     </h1>
     <button class="aim-btn-primary" type="button"
