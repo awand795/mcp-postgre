@@ -24,7 +24,7 @@
                 // Force light background immediately too
                 const style = document.createElement('style');
                 style.id = 'fouc-fix';
-                style.innerHTML = 'html, body { background: #f8faff !important; }';
+                style.innerHTML = 'html, body { background: #fcfdff !important; }';
                 document.head.appendChild(style);
             }
         })();
@@ -52,7 +52,7 @@
 
     <style>
         html {
-            background-color: #f8faff;
+            background-color: #fcfdff;
         }
 
         html.dark {
@@ -61,14 +61,14 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            /* Enhanced premium mesh gradient */
+            /* More vibrant premium mesh gradient */
             background:
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.12) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-                radial-gradient(at 0% 100%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
-                radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
-                #f8faff;
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.22) 0%, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.18) 0%, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(245, 158, 11, 0.15) 0%, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                #fcfdff;
             height: 100vh;
             overflow: hidden;
             color: #1f2937;
@@ -109,7 +109,7 @@
 
         .chat-bubble-ai {
             /* Pearlescent white — soft multi-color tint */
-            background: linear-gradient(135deg, #ffffff 0%, #f5f7ff 50%, #fdfdff 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #eff2ff 50%, #f9f7ff 100%);
             color: #1f2937;
             border: 1px solid rgba(99, 102, 241, 0.12);
             border-bottom-left-radius: 4px;
