@@ -61,13 +61,14 @@
 
         body {
             font-family: 'Outfit', sans-serif;
-            /* Soft mesh gradient — white-dominant but with visible color tints */
+            /* Enhanced premium mesh gradient */
             background:
-                radial-gradient(ellipse at top left, rgba(99, 102, 241, 0.12) 0%, transparent 55%),
-                radial-gradient(ellipse at top right, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom left, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
-                radial-gradient(ellipse at bottom right, rgba(245, 158, 11, 0.06) 0%, transparent 50%),
-                linear-gradient(160deg, #f8f9ff 0%, #f3f0ff 40%, #fff5fb 100%);
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(245, 158, 11, 0.1) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+                #f8faff;
             height: 100vh;
             overflow: hidden;
             color: #1f2937;
@@ -84,9 +85,9 @@
         }
 
         .glass-panel {
-            background: rgba(255, 255, 255, 0.78);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(252, 253, 255, 0.82);
+            backdrop-filter: blur(25px) saturate(200%);
+            -webkit-backdrop-filter: blur(25px) saturate(200%);
             border: 1.5px solid rgba(99, 102, 241, 0.18);
             box-shadow:
                 0 8px 40px 0 rgba(99, 102, 241, 0.12),
@@ -107,12 +108,14 @@
         }
 
         .chat-bubble-ai {
-            /* Soft blue-tinted white — clearly light but not garing */
-            background: linear-gradient(145deg, #ffffff 0%, #fafbff 60%, #f8f6ff 100%);
+            /* Pearlescent white — soft multi-color tint */
+            background: linear-gradient(135deg, #ffffff 0%, #f5f7ff 50%, #fdfdff 100%);
             color: #1f2937;
-            border: 1px solid rgba(99, 102, 241, 0.14);
+            border: 1px solid rgba(99, 102, 241, 0.12);
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+            box-shadow: 
+                0 4px 15px rgba(99, 102, 241, 0.05),
+                0 1px 2px rgba(0, 0, 0, 0.02);
             max-width: 100%;
             min-width: 0;
             overflow-x: auto;
