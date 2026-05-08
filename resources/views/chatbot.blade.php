@@ -3189,7 +3189,7 @@
 
                 Swal.fire({
                     title: 'Menyiapkan Export Excel',
-                    html: 'Sedang memproses data grafik...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar.</small>',
+                    html: 'Sedang memproses grafik untuk Excel...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, file akan otomatis terunduh.</small>',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -3203,201 +3203,99 @@
                     exportBtn.innerHTML = `<svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Memproses...`;
                 }
 
-                // Small delay for UI update
-                await new Promise(resolve => setTimeout(resolve, 300));
-
                 try {
-                    // Extract chart data EXACTLY as displayed
                     const labels = chartConfig.data?.labels || [];
                     const datasets = chartConfig.data?.datasets || [];
                     const chartType = chartConfig.type || 'bar';
-                    const chartContainer = document.querySelector(`#${chartId}`)?.closest('.chart-container');
                     const chartTitle = chartContainer?.getAttribute('data-title')
                         || chartConfig.data?.datasets?.[0]?.label
-                        || chartConfig.options?.plugins?.title?.text
-                        || chartConfig.title
                         || 'Grafik Data';
 
-                    // Get currencyColumns from container (stored during chart init)
                     let currencyColumns = [];
                     try {
                         const storedCols = chartContainer?.getAttribute('data-currency-columns');
-                        if (storedCols) {
-                            currencyColumns = JSON.parse(storedCols);
-                        }
-                    } catch (e) {
-                        console.warn('[Chart Export] Failed to parse currencyColumns:', e);
-                    }
+                        if (storedCols) currencyColumns = JSON.parse(storedCols);
+                    } catch (e) {}
 
-                    // Prepare data for Excel - EXACT data from chart
+                    // Build headers & rows for server-side
+                    const headers = ['No', 'Label', ...datasets.map((d, i) => d.label || `${chartType} ${i + 1}`)];
                     const rows = [];
-                    const headers = ['No', 'Label', ...datasets.map((d, i) => {
-                        // Use actual dataset label, or generate meaningful name
-                        if (d.label) return d.label;
-                        const typeLabel = chartType.charAt(0).toUpperCase() + chartType.slice(1);
-                        return `${typeLabel} ${i + 1}`;
-                    })];
+                    const maxLength = Math.max(labels.length, ...datasets.map(d => d.data?.length || 0));
 
-                    // AI-detect currency columns untuk chart export:
-                    // Cocokan nama dataset dengan currencyColumns (DB name) atau deteksi dari label
-                    const detectedChartCurrencyCols = datasets.map((d, i) => {
-                        const dsLabel = d.label || `${chartType} ${i + 1}`;
-                        // Cek apakah dataset ini cocok dengan currencyColumns dari AI
-                        if (isColumnCurrencyByAI(dsLabel, currencyColumns)) return dsLabel;
-                        // Fallback: deteksi dari nama label
-                        if (isLikelyCurrencyLabel(dsLabel)) return dsLabel;
-                        return null;
-                    }).filter(Boolean);
-
-                    // Gabungkan dengan currencyColumns yang ada
-                    const finalCurrencyCols = [...new Set([...currencyColumns, ...detectedChartCurrencyCols])];
-
-
-                    // Find max length
-                    const maxLength = Math.max(
-                        labels.length,
-                        ...datasets.map(d => d.data?.length || 0)
-                    );
-
-                    // Build rows with EXACT values from chart
                     for (let i = 0; i < maxLength; i++) {
-                        const row = [
-                            i + 1,  // No
-                            labels[i] || '-'  // Label
-                        ];
-
-                        // Add data for each dataset - use RAW numeric values
+                        const row = [i + 1, labels[i] || '-'];
                         datasets.forEach(d => {
-                            let value = d.data?.[i];
-                            if (value === null || value === undefined || value === '') {
-                                row.push(0);  // Excel treats 0 as empty for calculations
-                            } else {
-                                // Ensure numeric value for Excel calculations
-                                const numValue = parseFloat(value);
-                                row.push(isNaN(numValue) ? value : numValue);
-                            }
+                            const val = d.data?.[i];
+                            const num = parseAnyNumber(val);
+                            row.push(num);
                         });
-
                         rows.push(row);
                     }
 
-                    // Add summary statistics row
-                    if (rows.length > 0) {
-                        rows.push([]); // Empty row
-
-                        const summaryRow = ['Summary', '', ''];
-                        datasets.forEach((d, idx) => {
-                            const values = d.data || [];
-                            const numericValues = values
-                                .map(v => parseFloat(v))
-                                .filter(v => !isNaN(v));
-
-                            if (numericValues.length > 0) {
-                                const sum = numericValues.reduce((a, b) => a + b, 0);
-                                const avg = sum / numericValues.length;
-                                const min = Math.min(...numericValues);
-                                const max = Math.max(...numericValues);
-
-                                // Add summary: Sum | Avg | Min | Max
-                                summaryRow.push(`Σ:${sum.toLocaleString('id-ID')} | Avg:${avg.toLocaleString('id-ID', { maximumFractionDigits: 1 })} | Min:${min.toLocaleString('id-ID')} | Max:${max.toLocaleString('id-ID')}`);
-                            } else {
-                                summaryRow.push('No data');
-                            }
-                        });
-
-                        rows.push(summaryRow);
-                    }
-
-                    // Generate filename with timestamp
-                    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                    const safeTitle = chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20);
-                    const filename = `chart-${safeTitle || 'export'}-${timestamp}.xlsx`;
-
-                    // Client-side Excel Generation (SheetJS)
-                    const wsData = [];
-
-                    // 1. Report Title (A1)
-                    const reportTitle = (chartTitle || 'MBI CHART REPORT').toUpperCase();
-                    wsData.push([reportTitle]);
-
-                    // 2. Metadata (A2, A3)
-                    wsData.push([`Generated on: ${new Date().toLocaleString('id-ID')}`]);
-                    wsData.push(['Generated by DarkoTech AI']);
-                    wsData.push([]); // Empty row
-
-                    // 3. Headers
-                    wsData.push(headers);
-
-                    // 4. Data Rows
-                    wsData.push(...rows);
-
-                    // Create Worksheet
-                    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-                    // Merge Title Cells
-                    ws['!merges'] = [
-                        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } },
-                        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } },
-                        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } }
-                    ];
-
-                    // --- Apply Premium Styling ---
-
-                    const range = XLSX.utils.decode_range(ws['!ref']);
-                    const borderStyle = {
-                        top: { style: "thin", color: { rgb: "CCCCCC" } },
-                        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                        left: { style: "thin", color: { rgb: "CCCCCC" } },
-                        right: { style: "thin", color: { rgb: "CCCCCC" } }
+                    // Prepare chart info for server-side
+                    const chartInfo = {
+                        type: chartType,
+                        title: chartTitle,
+                        dataPoints: rows.length,
+                        datasetCount: datasets.length
                     };
 
-                    for (let R = 4; R <= range.e.r; ++R) {
-                        for (let C = 0; C <= range.e.c; ++C) {
-                            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                            if (!ws[cellRef]) {
-                                ws[cellRef] = { t: 's', v: '' }; // Create empty cell to hold border
-                            }
+                    const filename = `chart-${chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}-${new Date().getTime()}.xlsx`;
 
-                            ws[cellRef].s = ws[cellRef].s || {};
-                            ws[cellRef].s.border = borderStyle;
-                            ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
+                    // Call Server-Side Export
+                    const response = await fetch('/chatbot/export/excel', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            headers: headers,
+                            rows: rows,
+                            title: chartTitle,
+                            currency_columns: currencyColumns,
+                            chart_info: chartInfo,
+                            filename: filename
+                        })
+                    });
 
-                            // If it's the header row (R === 4)
-                            if (R === 4) {
-                                ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
-                                ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" };
-                                ws[cellRef].s.alignment.horizontal = "center";
-                            }
-
-                            // Apply Currency Formatting for Data Rows (R > 4)
-                            if (R > 4) {
-                                const header = headers[C];
-                                if (isCurrencyColumn(header, null)) { // tableId null for chart data fallback
-                                    ws[cellRef].z = '"Rp" #,##0'; // Excel currency format
-                                    ws[cellRef].s.alignment = ws[cellRef].s.alignment || {};
-                                    ws[cellRef].s.alignment.horizontal = "right";
-                                }
-                            }
-                        }
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Gagal export Excel');
                     }
 
-                    if (ws['A1']) {
-                        ws['A1'].s = { font: { bold: true, sz: 16, color: { rgb: "333333" } }, alignment: { horizontal: "center", vertical: "center" } };
-                    }
-                    if (ws['A2']) {
-                        ws['A2'].s = { font: { italic: true, sz: 10, color: { rgb: "666666" } }, alignment: { horizontal: "center", vertical: "center" } };
-                    }
-                    if (ws['A3']) {
-                        ws['A3'].s = { font: { italic: true, sz: 8, color: { rgb: "999999" } }, alignment: { horizontal: "center", vertical: "center" } };
-                    }
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
 
-                    // 3. Auto-size Columns & Row Heights
-                    ws['!cols'] = headers.map(h => ({ wch: Math.max(15, h.length + 5) }));
-                    ws['!rows'] = [
-                        { hpt: 35 }, // Row 1 (Title)
-                        { hpt: 20 }, // Row 2
-                        { hpt: 15 }, // Row 3
-                        { hpt: 10 }, // Row 4 (Empty)
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'success',
+                        title: '✅ Excel berhasil diunduh',
+                        showConfirmButton: false, timer: 3000, timerProgressBar: true,
+                    });
+
+                } catch (error) {
+                    console.error('[Chart Excel Export Error]', error);
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'error',
+                        title: `❌ Gagal export Excel: ${error.message}`,
+                        showConfirmButton: false, timer: 4000, timerProgressBar: true,
+                    });
+                } finally {
+                    if (exportBtn) {
+                        exportBtn.disabled = false;
+                        exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg> Export Excel`;
+                    }
+                }
+            }
                         { hpt: 25 }  // Row 5 (Header)
                     ];
 

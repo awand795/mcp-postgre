@@ -916,19 +916,21 @@ class AgenticChatbotController extends Controller
             'title' => 'nullable|string|max:100',
             'currencyColumns' => 'nullable|array',
             'currency_columns' => 'nullable|array',
+            'chart_info' => 'nullable|array',
         ]);
 
         $headers = $request->input('headers', []);
         $rows = $request->input('rows', []);
         $title = $request->input('title', 'Data Export');
         $currencyColumns = $request->input('currencyColumns') ?? $request->input('currency_columns', []);
+        $chartInfo = $request->input('chart_info');
         $filename = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
 
         $normalizedRows = array_map(function ($row) {
             return is_array($row) ? array_values($row) : (array) $row;
         }, $rows);
 
-        $export = new \App\Exports\ChatTableExport($headers, $normalizedRows, $title, null, $currencyColumns);
+        $export = new \App\Exports\ChatTableExport($headers, $normalizedRows, $title, $chartInfo, $currencyColumns);
 
         return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
     }
