@@ -708,9 +708,10 @@
         }
 
         html.dark .chart-container {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: none;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
         }
 
         .chart-container canvas {
@@ -739,7 +740,7 @@
         }
 
         html.dark .chart-toolbar {
-            border-bottom-color: rgba(255, 255, 255, 0.08);
+            border-bottom-color: rgba(255, 255, 255, 0.15);
         }
 
         .chart-export-btn {
@@ -4927,12 +4928,12 @@
 
                 const isDark = document.documentElement.classList.contains('dark');
                 const theme = {
-                    text: isDark ? '#cbd5e1' : '#475569',   // axis tick labels — bright slate in dark
-                    grid: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)', // grid lines — visible in dark
-                    legend: isDark ? '#f1f5f9' : '#1e293b',  // legend labels
+                    text: isDark ? '#f1f5f9' : '#475569',   // axis tick labels — brighter in dark
+                    grid: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.06)', // grid lines — more visible in dark
+                    legend: isDark ? '#f8fafc' : '#1e293b',  // legend labels
                     tooltipBg: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)',
                     tooltipText: isDark ? '#f1f5f9' : '#1e293b',
-                    tooltipBorder: isDark ? 'rgba(148,163,184,0.25)' : 'rgba(0,0,0,0.06)'
+                    tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0,0,0,0.06)'
                 };
 
                 const premiumPalette = [
