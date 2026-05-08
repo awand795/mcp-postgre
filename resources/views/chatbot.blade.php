@@ -2357,6 +2357,13 @@
                         const videoContainer = renderVideoPlayer(videoUrl);
                         wrap.appendChild(videoContainer);
                     }
+
+                    // Check for ERP guidance images and add gallery
+                    const guidanceImages = extractErpGuidanceImages(toolResultsForMsg);
+                    if (guidanceImages && guidanceImages.length > 0) {
+                        const galleryContainer = renderImageGallery(guidanceImages);
+                        wrap.appendChild(galleryContainer);
+                    }
                 } else {
                     bubble.textContent = msg.content;
                 }
@@ -2456,6 +2463,124 @@
                 videoWrap.appendChild(video);
                 container.appendChild(videoLabel);
                 container.appendChild(videoWrap);
+
+                return container;
+            }
+
+            // Helper: Extract images from ERP guidance tool results
+            function extractErpGuidanceImages(toolResults) {
+                if (!Array.isArray(toolResults)) return [];
+                let allImages = [];
+
+                for (let i = 0; i < toolResults.length; i++) {
+                    const tr = toolResults[i];
+
+                    if (tr.tool_name === 'get_erp_guidance' || tr.tool === 'get_erp_guidance') {
+                        const data = tr.data || tr.result || tr;
+
+                        // Check if data has guides array
+                        if (data.guides && Array.isArray(data.guides)) {
+                            data.guides.forEach(guide => {
+                                if (guide.images && Array.isArray(guide.images)) {
+                                    guide.images.forEach(img => {
+                                        if (img.src || img.url) {
+                                            allImages.push({
+                                                url: img.src || img.url,
+                                                alt: img.alt || 'Langkah Panduan',
+                                                caption: img.caption || ''
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
+                        // Check direct images field
+                        if (data.images && Array.isArray(data.images)) {
+                            data.images.forEach(img => {
+                                if (img.src || img.url) {
+                                    allImages.push({
+                                        url: img.src || img.url,
+                                        alt: img.alt || 'Langkah Panduan',
+                                        caption: img.caption || ''
+                                    });
+                                }
+                            });
+                        }
+                    }
+
+                    // Also check nested result/data
+                    if (tr.result && typeof tr.result === 'object') {
+                        const nestedImages = extractErpGuidanceImages([{ ...tr, tool_name: tr.tool_name || 'get_erp_guidance', data: tr.result }]);
+                        if (nestedImages.length > 0) allImages = allImages.concat(nestedImages);
+                    }
+                }
+
+                // De-duplicate images by URL
+                const seen = new Set();
+                return allImages.filter(img => {
+                    if (seen.has(img.url)) return false;
+                    seen.add(img.url);
+                    return true;
+                });
+            }
+
+            // Helper: Render ERP guidance image gallery
+            function renderImageGallery(images) {
+                const container = document.createElement('div');
+                container.className = 'flex flex-col gap-3 items-start w-full max-w-[95%] erp-image-gallery-container mt-2';
+
+                const galleryLabel = document.createElement('div');
+                galleryLabel.className = 'flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/20 rounded-lg';
+                galleryLabel.innerHTML = `
+                    <svg class="w-4 h-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <span class="text-xs font-medium text-blue-400">Langkah Visual / Screenshots</span>
+                `;
+
+                const galleryWrap = document.createElement('div');
+                galleryWrap.className = 'flex gap-4 overflow-x-auto pb-4 w-full scrollbar-hide snap-x';
+
+                images.forEach(img => {
+                    const imgItem = document.createElement('div');
+                    imgItem.className = 'flex-shrink-0 w-64 snap-start group cursor-pointer';
+                    imgItem.innerHTML = `
+                        <div class="relative aspect-video rounded-xl overflow-hidden bg-black/20 border border-white/5 transition-all group-hover:border-blue-500/30">
+                            <img src="${img.url}" alt="${img.alt}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                                <span class="text-[10px] text-white/90 truncate">${img.alt}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Click to expand image
+                    imgItem.addEventListener('click', () => {
+                        Swal.fire({
+                            imageUrl: img.url,
+                            imageAlt: img.alt,
+                            title: img.alt,
+                            text: img.caption,
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            color: '#f1f5f9',
+                            backdrop: 'rgba(0,0,0,0.8)',
+                            showCloseButton: true,
+                            showConfirmButton: false,
+                            width: 'auto',
+                            padding: '1em',
+                            customClass: {
+                                image: 'rounded-xl shadow-2xl border border-white/10'
+                            }
+                        });
+                    });
+
+                    galleryWrap.appendChild(imgItem);
+                });
+
+                container.appendChild(galleryLabel);
+                container.appendChild(galleryWrap);
 
                 return container;
             }

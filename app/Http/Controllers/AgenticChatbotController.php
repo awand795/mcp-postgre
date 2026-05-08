@@ -259,6 +259,8 @@ class AgenticChatbotController extends Controller
             'fetch_erp_guidance_from_web',
         ];
 
+        $terminalToolCallsCount = []; // Track calls to terminal tools
+
         $executeQueryCount = 0;
         $lastExecutedSql = '';
 
@@ -825,6 +827,33 @@ class AgenticChatbotController extends Controller
                     ];
                 }
             }
+
+            // --- TERMINAL TOOL GUARD & LOOP REDUCTION ---
+            $hasTerminalToolThisTurn = false;
+            foreach ($processedCalls as $pc) {
+                if (in_array($pc['name'], $terminalTools)) {
+                    $hasTerminalToolThisTurn = true;
+                    $tName = $pc['name'];
+                    $terminalToolCallsCount[$tName] = ($terminalToolCallsCount[$tName] ?? 0) + 1;
+
+                    // Bedakan limit antara ERP (statis) dan Query (analitis)
+                    $limit = str_contains($tName, 'erp') ? 3 : 8;
+
+                    if ($terminalToolCallsCount[$tName] >= $limit) {
+                        Log::warning("[Agentic] Terminal tool '{$tName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
+                        $loopCount = $this->maxToolLoops; // Break on next iteration check
+                    }
+                }
+            }
+
+            if ($hasTerminalToolThisTurn && $loopCount < $this->maxToolLoops) {
+                Log::info("[Agentic] Terminal tool detected. Injecting final response reminder.");
+                $messages[] = [
+                    'role' => 'user',
+                    'content' => "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'.",
+                ];
+            }
+
             if (ob_get_level() > 0)
                 ob_flush();
             flush();
