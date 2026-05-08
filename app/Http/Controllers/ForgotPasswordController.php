@@ -24,12 +24,12 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email|exists:users,email']);
 
-        // Rate Limiting: 3 attempts per minute per email/IP
+        // Rate Limiting: 1 attempt per minute per email/IP to protect SMTP
         $throttleKey = Str::lower($request->email) . '|' . $request->ip();
-        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+        if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
             $seconds = RateLimiter::availableIn($throttleKey);
             return back()->withErrors([
-                'email' => "Terlalu banyak permintaan OTP. Silakan coba lagi dalam $seconds detik."
+                'email' => "Silakan tunggu $seconds detik sebelum meminta OTP baru."
             ])->with('throttle_seconds', $seconds);
         }
 
