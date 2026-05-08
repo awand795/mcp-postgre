@@ -3604,22 +3604,20 @@
 
             function isCurrencyColumn(header, tableId = null) {
                 if (!header) return false;
-                const h = header.toLowerCase();
 
                 // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
                 if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
-                    const aiCols = smartTables[tableId].currencyColumns.map(c => c.toLowerCase());
-                    if (aiCols.includes(h)) {
-                        return true;
-                    }
-                    // Jika AI sudah set currencyColumns eksplisit tapi header ini tidak ada di dalamnya,
-                    // jangan fallback agar tidak false positive pada kolom qty/count/dll.
-                    if (aiCols.length > 0) return false;
+                    return isColumnCurrencyByAI(header, smartTables[tableId].currencyColumns);
                 }
 
-                // 1. Fallback: deteksi otomatis dari nama header
-                // Berlaku untuk tabel dari markdown/auto-convert yang tidak punya metadata AI.
-                return isLikelyCurrencyLabel(h);
+                // User wants NO fallback at all for AI-driven detection.
+                // However, for markdown tables that might not have AI metadata, 
+                // we'll keep a very basic check ONLY if no tableId is provided.
+                if (!tableId) {
+                    return isLikelyCurrencyLabel(header.toLowerCase());
+                }
+                
+                return false;
             }
 
             // Deteksi otomatis apakah label kemungkinan kolom currency
@@ -3739,15 +3737,18 @@
                 // Format as standard number with thousands separator if it's numeric
                 if (typeof val === 'number') {
                     if (isNonNumericStyled) return String(val);
-                    return val.toLocaleString('id-ID');
+                    return val.toLocaleString('id-ID', { maximumFractionDigits: 0 });
                 }
 
                 // Standard number parsing for non-money columns
                 const numVal = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
 
                 // If string looks like a pure number and is long, format it ONLY if not an ID/Code/Ref
-                if (!isNaN(numVal) && /^-?\d+$/.test(strVal) && strVal.length > 3 && !isNonNumericStyled) {
-                    return numVal.toLocaleString('id-ID');
+                // Round values for display as requested
+                if (!isNaN(numVal) && !isNonNumericStyled) {
+                    if ((strVal.length > 3 && /^-?\d+(\.\d+)?$/.test(strVal))) {
+                        return numVal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
+                    }
                 }
 
                 return val;

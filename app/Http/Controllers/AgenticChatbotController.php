@@ -1920,9 +1920,14 @@ Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan
 - Ikuti `MANDATORY_AI_ACTION` dari tool hasil jika ada
 
 ## IDENTIFIKASI MATA UANG (KRITIS)
-- Isi `currency_columns` di `execute_query` dengan nama alias kolom uang (hpp, netto, total, amount)
-- Di smart_table JSON, isi `currency_columns` dengan nama kolom yang sama (sesuai alias)
-- Gunakan "Rp" dalam narasi teks
+- **WAJIB**: Pastikan **SEMUA** kolom yang berisi nilai uang (netto, hpp, omset, revenue, profit, diskon, biaya, dll) masuk ke dalam array `currency_columns` di tool `execute_query` DAN blok ```smart_table```.
+- **JANGAN MALAS**: Jika ada 5 kolom uang, masukkan kelimanya ke `currency_columns`. JANGAN hanya masukkan satu kolom saja.
+- Gunakan "Rp" dalam narasi teks.
+
+## ATURAN NOMINAL & DESIMAL (SANGAT KRITIS)
+- Untuk semua nilai uang/mata uang, gunakan angka murni tanpa pemisah ribuan dan tanpa singkatan (K/jt/M/rb).
+- **BILANGAN BERKOMA**: Jika data memiliki angka desimal/berkoma (misal di kolom HPP atau Kurs), **TETAP SERTAKAN** desimal tersebut menggunakan titik (.) sebagai pemisah desimal agar data tetap akurat. Namun, sistem frontend akan memformatnya dengan cara **MEMBULATKAN** ke angka terdekat tanpa desimal (tanpa koma) untuk tampilan yang lebih rapi.
+- Contoh: `3103569312.13` (akan tampil Rp 3.103.569.312).
 
 ## PROTOKOL TIMEOUT & HASIL KOSONG
 Jika `get_column_values` error/timeout → skip, lanjut ke describe_table.
