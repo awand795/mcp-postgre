@@ -700,7 +700,7 @@
             padding: 0 0 25px 0;
             margin: 24px 0;
             width: 100%;
-            min-height: 400px;
+            min-height: 450px;
             height: auto;
             position: relative;
             overflow: hidden;
@@ -717,8 +717,8 @@
         .chart-container canvas {
             position: relative;
             z-index: 1;
-            max-height: 330px;
-            padding: 0 15px;
+            max-height: 380px;
+            padding: 10px 20px 0 20px;
         }
 
         .chart-container .chart-toolbar {
@@ -4928,12 +4928,12 @@
 
                 const isDark = document.documentElement.classList.contains('dark');
                 const theme = {
-                    text: isDark ? '#f1f5f9' : '#475569',   // axis tick labels — brighter in dark
-                    grid: isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.06)', // grid lines — more visible in dark
+                    text: isDark ? '#f8fafc' : '#475569',   // axis tick labels — brighter (Slate 50)
+                    grid: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.06)', // grid lines — more visible
                     legend: isDark ? '#f8fafc' : '#1e293b',  // legend labels
                     tooltipBg: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)',
-                    tooltipText: isDark ? '#f1f5f9' : '#1e293b',
-                    tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0,0,0,0.06)'
+                    tooltipText: isDark ? '#f8fafc' : '#1e293b',
+                    tooltipBorder: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0,0,0,0.06)'
                 };
 
                 const premiumPalette = [
@@ -4978,8 +4978,8 @@
                         color: theme.legend,
                         usePointStyle: true,
                         pointStyle: 'circle',
-                        padding: 15,
-                        font: { size: 10, weight: '500', family: "'Outfit', sans-serif" }
+                        padding: 20,
+                        font: { size: 12, weight: '600', family: "'Outfit', sans-serif" }
                     }
                 };
 
@@ -5023,12 +5023,13 @@
                     scales[axis].grid = {
                         color: theme.grid,
                         drawBorder: false,
-                        display: true
+                        display: true,
+                        lineWidth: isDark ? 1.2 : 1
                     };
                     scales[axis].ticks = {
                         color: theme.text,
-                        font: { size: 9, family: "'Outfit', sans-serif" },
-                        padding: 8
+                        font: { size: 11, weight: '500', family: "'Outfit', sans-serif" },
+                        padding: 10
                     };
 
                     if (axis === 'y') {
