@@ -1635,23 +1635,19 @@ GROUP BY [kolom_identitas_dari_describe_table]
 
 **Contoh — User minta: "tampilkan Netto, Total Netto, HPP, Total HPP, Diskon, dan Profit":**
 
-Ini berarti query WAJIB menghasilkan **6 kolom terpisah** dengan alias yang sesuai:
+Ini berarti query WAJIB menghasilkan **6 kolom terpisah**. Tentukan sendiri rumus tiap kolom berdasarkan hasil `describe_table` dan `get_table_preview` — jangan terpaku pada contoh di bawah:
 ```sql
--- Berdasarkan pemetaan kolom internal:
--- hrg_jual = harga jual satuan (PERLU dikali qty_jual)
--- total_netto = sudah total (langsung SUM)
--- hrg_pokok = harga pokok satuan (PERLU dikali qty_jual)
--- total_disc = diskon sudah total (langsung SUM)
-SELECT [kolom_cabang] AS "Cabang",
-       SUM([kolom_hrg_jual] * [kolom_qty])       AS "Netto",
-       SUM([kolom_total_netto])                  AS "Total Netto",
-       SUM([kolom_hrg_pokok] * [kolom_qty])      AS "HPP",
-       SUM([kolom_total_netto])                  AS "Total HPP",
-       SUM([kolom_total_disc])                   AS "Diskon",
-       SUM([kolom_total_netto]) - SUM([kolom_hrg_pokok] * [kolom_qty]) AS "Profit"
+-- Setelah describe_table & get_table_preview: tentukan sendiri kolom dan rumus yang tepat
+SELECT [kolom_identitas_dari_describe_table]  AS "Cabang",
+       [ekspresi_netto_dari_describe_table]    AS "Netto",
+       [ekspresi_total_netto]                  AS "Total Netto",
+       [ekspresi_hpp]                          AS "HPP",
+       [ekspresi_total_hpp]                    AS "Total HPP",
+       [ekspresi_diskon]                       AS "Diskon",
+       [ekspresi_profit]                       AS "Profit"
 FROM [schema].[table]
 WHERE ...
-GROUP BY [kolom_cabang]
+GROUP BY [kolom_identitas_dari_describe_table]
 ```
 
 **ATURAN KRITIS ALIAS:**
@@ -1661,7 +1657,18 @@ GROUP BY [kolom_cabang]
 - Jangan pernah menghilangkan satu pun istilah yang user minta dari SELECT.
 - Jika ada istilah yang tidak dapat dipenuhi dari data (kolom tidak ada), nyatakan dengan jelas di narasi — JANGAN diam-diam menghilangkan kolom tersebut.
 
-**WAJIB**: Ganti semua `[placeholder]` dengan nama kolom eksak dari hasil `describe_table`. JANGAN gunakan nama kolom contoh dari prompt ini.
+**DEFINISI PERBEDAAN ISTILAH BERPASANGAN (KRITIS — JANGAN SAMAKAN):**
+
+Saat user meminta istilah yang tampak mirip secara berpasangan, keduanya HARUS muncul sebagai kolom terpisah di tabel:
+
+| Istilah User | Makna Bisnis |
+|---|---|
+| **Netto** | Nilai penjualan kotor — harga jual sebelum dikurangi diskon |
+| **Total Netto** | Nilai penjualan bersih — sudah dikurangi diskon |
+| **HPP** | Harga pokok penjualan (bisa satuan × qty) |
+| **Total HPP** | Total harga pokok keseluruhan (bisa berbeda dengan HPP jika skema memisahkan satuan dan total) |
+
+**Prinsip utama: Jika user minta N kolom, tampilkan N kolom.** Jangan kurangi, jangan gabung. Jika setelah query dijalankan dua kolom ternyata bernilai sama, itu adalah hasil data yang valid — bukan alasan untuk menghapus salah satunya. Tentukan rumus tiap kolom sendiri berdasarkan hasil `describe_table` dan `get_table_preview`.
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
 
