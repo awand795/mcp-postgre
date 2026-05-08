@@ -61,8 +61,8 @@
             <tbody>
                 @forelse($users as $user)
                 <tr>
-                    <td>{{ $user->name }}</td>
-                    <td>{{ $user->email }}</td>
+                    <td class="td-name">{{ $user->name }}</td>
+                    <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
                     <td>
                         <span class="role-badge">
                             <i class="fas fa-user-tag"></i>
@@ -346,12 +346,12 @@
     .action-buttons { display: flex; gap: 8px; }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
-    .ai-pill-group { display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px; }
+    .ai-pill-group { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
     .ai-pill {
         display: inline-flex; align-items: center;
-        padding: 3px 9px; border-radius: 20px;
-        font-size: 0.72rem; font-weight: 700;
-        white-space: nowrap; max-width: 140px;
+        padding: 2px 7px; border-radius: 20px;
+        font-size: 0.68rem; font-weight: 700;
+        white-space: nowrap; max-width: 120px;
         overflow: hidden; text-overflow: ellipsis; cursor: default;
     }
     .ai-pill-model { background: rgba(99,102,241,0.13); color: #4338ca; border: 1.5px solid rgba(99,102,241,0.3); }
@@ -370,17 +370,29 @@
         box-shadow: 0 8px 24px rgba(0,0,0,0.15); line-height: 1.6;
     }
     .ai-none { color: var(--text-muted); font-size: 0.85rem; }
-    .scope-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+    .scope-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
     .scope-limited { background: rgba(99,102,241,0.12); color: #4338ca; border: 1.5px solid rgba(99,102,241,0.28); }
     .scope-free    { background: rgba(16,185,129,0.12); color: #047857; border: 1.5px solid rgba(16,185,129,0.28); }
     html.dark .scope-limited { color: #818cf8; border-color: rgba(99,102,241,0.2); background: rgba(99,102,241,0.15); }
     html.dark .scope-free    { color: #34d399; border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.15); }
+
+    .role-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; background: rgba(99,102,241,0.1); color: #4338ca; border: 1.5px solid rgba(99,102,241,0.2); font-size: 0.72rem; font-weight: 700; }
+    html.dark .role-badge { color: #a5b4fc; border-color: rgba(99,102,241,0.25); background: rgba(99,102,241,0.15); }
+    
+    .status-yes, .status-no { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+    .status-yes { background: rgba(16,185,129,0.1); color: #047857; border: 1.5px solid rgba(16,185,129,0.2); }
+    .status-no { background: rgba(239,68,68,0.1); color: #b91c1c; border: 1.5px solid rgba(239,68,68,0.2); }
+    html.dark .status-yes { color: #6ee7b7; border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.13); }
+    html.dark .status-no { color: #f87171; border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.13); }
+
+    .td-email { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .td-name { font-weight: 600; color: var(--text-main); }
     .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .table-card { padding: 0; overflow: visible; margin-top: 1rem; }
     .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { width: 100%; min-width: 900px; border-collapse: collapse; color: var(--text-main); }
-    th { padding: 1rem 1.25rem; text-align: left; color: var(--table-head-color); background: var(--table-head-bg); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; border-bottom: 2px solid var(--glass-border); }
-    td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--table-border); font-size: 0.92rem; color: var(--text-main); }
+    table { width: 100%; min-width: auto; border-collapse: collapse; color: var(--text-main); table-layout: auto; }
+    th { padding: 0.75rem 0.6rem; text-align: left; color: var(--table-head-color); background: var(--table-head-bg); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; border-bottom: 2px solid var(--glass-border); }
+    td { padding: 0.75rem 0.6rem; border-bottom: 1px solid var(--table-border); font-size: 0.82rem; color: var(--text-main); }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--table-row-hover); }
     .th-sticky { position: sticky; right: 0; z-index: 3; background: var(--table-head-bg); box-shadow: -3px 0 8px rgba(99,102,241,0.08); }
