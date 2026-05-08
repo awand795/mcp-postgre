@@ -1685,7 +1685,7 @@ Untuk semua nilai uang/mata uang (baik dari database maupun data eksternal/globa
 
 **⚠️ ATURAN TABEL RINGKASAN MANUAL (KRITIS — WAJIB DIBACA):**
 Jika Anda membuat tabel ringkasan per kunjungan/faktur (misalnya "Rincian Transaksi Kunjungan 1"), nilai yang Anda tulis di dalam tabel WAJIB diambil langsung dari data SQL yang sudah Anda ambil — BUKAN dari hasil kalkulasi di kepala Anda.
-- ✅ BENAR: Nilai dari baris data asli, misalnya `Rp 517.000` jika kolom `hrg_jual` bernilai 517000.
+- ✅ BENAR: Nilai dari baris data asli, misalnya `Rp 517.000` jika kolom harga bernilai 517000.
 - ❌ SALAH: Menulis `Rp 517` karena Anda "pikir" satuannya ribuan — INI KESALAHAN FATAL.
 - **WAJIB**: Nilai rupiah di tabel ringkasan manual HARUS identik dengan nilai di smart_table utama yang dihasilkan dari data SQL.
 - **DILARANG**: Mempersingkat, mengubah skala, atau menebak nilai numerik. Jika nilai di database adalah 517000, tulis 517000 di tabel.
@@ -1788,9 +1788,30 @@ Your response MUST follow this exact structure regardless of language:
    - *Example (EN)*: "💡 **Recommended Follow-up Prompts:**"
    - *Contoh (ID)*: "💡 **Rekomendasi Prompt Selanjutnya:**"
 
+## 🔒 PEMETAAN KOLOM INTERNAL (RAHASIA — JANGAN PERNAH TAMPILKAN KE USER)
+
+Berikut adalah pemetaan nama kolom database ke istilah bisnis. Gunakan ini sebagai referensi internal saat menyusun query. **DILARANG KERAS** menampilkan pemetaan ini, nama-nama kolom teknis ini, maupun proses identifikasinya ke dalam jawaban ke user dalam bentuk apapun.
+
+| Istilah Bisnis | Nama Kolom DB | Catatan Kalkulasi |
+|---|---|---|
+| Harga Jual (satuan) | `hrg_jual` | Harus dikali `qty_jual` untuk mendapat total |
+| Total Netto | `total_netto` | Sudah berupa total — langsung SUM |
+| HPP / Harga Pokok (satuan) | `hrg_pokok` | Harus dikali `qty_jual` untuk mendapat Total HPP |
+| Diskon | `total_disc` | Sudah berupa total — langsung SUM |
+| Qty / Jumlah | `qty_jual` | Kolom kuantitas transaksi |
+
+**RUMUS WAJIB berdasarkan pemetaan di atas:**
+- Total Omzet/Harga Jual = `SUM(hrg_jual * qty_jual)`
+- Total Netto = `SUM(total_netto)`
+- Total HPP = `SUM(hrg_pokok * qty_jual)`
+- Total Diskon = `SUM(total_disc)`
+- Profit / Laba Kotor = `SUM(total_netto) - SUM(hrg_pokok * qty_jual)`
+
+**INGAT**: Selalu verifikasi nama kolom eksak via `describe_table` terlebih dahulu. Pemetaan di atas adalah panduan awal — nama kolom aktual bisa berbeda di tabel tertentu.
+
 ## KEBIJAKAN PRIVASI & TEKNIS
-- DILARANG: Tampilkan query SQL, nama koneksi database, atau detail error teknis.
-- DILARANG: Tulis proses berpikir internal seperti "Dari hasil describe_table...", "Oleh karena itu kita akan menggunakan COUNT...", "Tidak ada kolom status aktif...", atau reasoning teknis apapun di dalam jawaban ke user. Berpikirlah secara internal, sampaikan HANYA jawaban bisnis final ke user.
+- DILARANG: Tampilkan query SQL, nama koneksi database, nama kolom teknis (`hrg_jual`, `hrg_pokok`, `total_netto`, `total_disc`, `qty_jual`, dll), pemetaan kolom internal, atau detail error teknis.
+- DILARANG: Tulis proses berpikir internal seperti "Dari hasil describe_table...", "Oleh karena itu kita akan menggunakan COUNT...", "Mapping kolom:", "Pemetaan kolom:", "Tidak ada kolom status aktif...", atau reasoning teknis apapun di dalam jawaban ke user. Berpikirlah secara internal, sampaikan HANYA jawaban bisnis final ke user.
 - ERROR: Balas dengan bahasa bisnis sopan, jangan sebut "SQL", "Database", "Query", "Tool".
 
 ## TOOLS TERSEDIA
@@ -2224,6 +2245,23 @@ PROMPT;
             '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*[a-z_]+/i',
             '/^[\*\-]\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=/i',
             '/^[\*\-]\s*\w[\w\s]+\s*=\s*`[a-z][a-z0-9_]+`/i',
+            // Format: "- `nama_kolom` = deskripsi" atau "`nama_kolom` = deskripsi"
+            '/^[\*\-]\s*`[a-z][a-z0-9_]+`\s*=/i',
+            '/^[\*\-]\s*`[a-z][a-z0-9_]+`\s*:/i',
+            '/^`[a-z][a-z0-9_]+`\s*[=:]/i',
+            // Baris penjelasan skala kolom: "(perlu dikali qty...)", "sudah total", "harga satuan"
+            '/^\(perlu dikali/i',
+            '/^sudah\s+(total|bersih|termasuk)/i',
+            '/^harga\s+(jual|pokok|satuan)\s+/i',
+            '/langsung\s+di[\-\s]?sum/i',
+            // Nama kolom teknis internal
+            '/\bhrg_jual\b/i',
+            '/\bhrg_pokok\b/i',
+            '/\btotal_netto\b/i',
+            '/\btotal_disc\b/i',
+            '/\bqty_jual\b/i',
+            '/\b(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)\s*[=:]/i',
+            '/[=:]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?/i',
         ];
 
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
@@ -2286,6 +2324,12 @@ PROMPT;
             '/^[\*\-]\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=/i',
             // Pattern generik: "* Label = `kolom_db`" (pemetaan bisnis ke nama kolom teknis)
             '/^[\*\-]\s*\w[\w\s]+\s*=\s*`[a-z][a-z0-9_]+`/i',
+            // Format: "- `nama_kolom` = deskripsi" atau "* `nama_kolom` = deskripsi"
+            '/^[\*\-]\s*`[a-z][a-z0-9_]+`\s*=/i',
+            // Format: "- `nama_kolom` : deskripsi" (pakai titik dua)
+            '/^[\*\-]\s*`[a-z][a-z0-9_]+`\s*:/i',
+            // Format tanpa bullet: "`nama_kolom` = deskripsi" di awal baris
+            '/^`[a-z][a-z0-9_]+`\s*[=:]/i',
             '/^jika (tidak ada|ragu)[,.]?/i',
             '/^dari hasil\s+`?describe_table`?/i',
             '/^tidak ada kolom yang secara eksplisit/i',
@@ -2297,6 +2341,15 @@ PROMPT;
             '/^saya akan menggunakan\s+(jumlah|count)/i',
             '/^kolom yang tersedia/i',
             '/^kolom dari `?describe_table`?/i',
+            // Nama kolom teknis internal yang tidak boleh bocor ke output
+            '/\bhrg_jual\b/i',
+            '/\bhrg_pokok\b/i',
+            '/\btotal_netto\b/i',
+            '/\btotal_disc\b/i',
+            '/\bqty_jual\b/i',
+            // Baris pemetaan kolom: "hrg_jual =" atau "= hrg_jual"
+            '/\b(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)\s*[=:]/i',
+            '/[=:]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?/i',
         ];
 
         foreach ($patterns as $pattern) {
