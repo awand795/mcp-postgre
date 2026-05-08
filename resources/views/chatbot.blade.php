@@ -1713,14 +1713,20 @@
     <script>
         function toggleTheme() {
             const isDark = document.documentElement.classList.contains('dark');
+            const newTheme = isDark ? 'light' : 'dark';
+            
             if (isDark) {
                 document.documentElement.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-                updateThemeToggle('light');
             } else {
                 document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                updateThemeToggle('dark');
+            }
+            
+            localStorage.setItem('theme', newTheme);
+            updateThemeToggle(newTheme);
+            
+            // Re-render all charts with new theme colors
+            if (window.updateAllChartsTheme) {
+                window.updateAllChartsTheme(newTheme === 'dark');
             }
         }
 
@@ -1738,6 +1744,48 @@
                 label.textContent = theme === 'dark' ? 'Light' : 'Dark';
             }
         }
+
+        // Helper to update all Chart.js instances on theme change
+        window.updateAllChartsTheme = function(isDark) {
+            if (typeof Chart === 'undefined' || !Chart.instances) return;
+            
+            const theme = {
+                text: isDark ? '#f8fafc' : '#475569',
+                grid: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.06)',
+                legend: isDark ? '#f8fafc' : '#1e293b',
+                tooltipBg: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.97)',
+                tooltipText: isDark ? '#f8fafc' : '#1e293b'
+            };
+
+            Object.values(Chart.instances).forEach(chart => {
+                // Update Scales
+                if (chart.options.scales) {
+                    ['x', 'y'].forEach(axis => {
+                        if (chart.options.scales[axis]) {
+                            if (chart.options.scales[axis].ticks) {
+                                chart.options.scales[axis].ticks.color = theme.text;
+                            }
+                            if (chart.options.scales[axis].grid) {
+                                chart.options.scales[axis].grid.color = theme.grid;
+                                chart.options.scales[axis].grid.lineWidth = isDark ? 1.2 : 1;
+                            }
+                        }
+                    });
+                }
+                // Update Legend
+                if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                    chart.options.plugins.legend.labels.color = theme.legend;
+                }
+                // Update Tooltip
+                if (chart.options.plugins && chart.options.plugins.tooltip) {
+                    chart.options.plugins.tooltip.backgroundColor = theme.tooltipBg;
+                    chart.options.plugins.tooltip.titleColor = theme.tooltipText;
+                    chart.options.plugins.tooltip.bodyColor = theme.tooltipText;
+                }
+                
+                chart.update('none'); // Update without animation for performance
+            });
+        };
 
         document.addEventListener('DOMContentLoaded', function () {
             // Remove FOUC fix and enable transitions
