@@ -691,14 +691,10 @@ class AgenticChatbotController extends Controller
                 $decodedRes = json_decode($toolResult, true);
 
                 // ── HARD STOP: ACCESS_DENIED_FINAL ───────────────────────────
-                // Jika RBAC mengembalikan error ini, putus loop SEKARANG dari sisi PHP.
-                // Jangan kirim hasil ke AI untuk di-loop lagi — langsung stream pesan
-                // bisnis ke user dan hentikan seluruh agentic loop.
                 if (is_array($decodedRes) && ($decodedRes['error'] ?? '') === 'ACCESS_DENIED_FINAL') {
                     $aksesTolakMsg = 'Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.';
                     Log::warning("[Agentic] ACCESS_DENIED_FINAL detected on tool '{$toolName}' — breaking loop immediately for User " . \Illuminate\Support\Facades\Auth::id());
 
-                    // Update badge tool menjadi 'denied'
                     echo "data: " . json_encode([
                         'tool_call' => [
                             'id' => $toolCallId,
@@ -712,7 +708,6 @@ class AgenticChatbotController extends Controller
                         ob_flush();
                     flush();
 
-                    // Stream kata per kata dengan delay agar terasa natural seperti AI mengetik
                     $words = explode(' ', $aksesTolakMsg);
                     foreach ($words as $i => $word) {
                         $chunk = ($i === 0 ? '' : ' ') . $word;
@@ -720,14 +715,14 @@ class AgenticChatbotController extends Controller
                         if (ob_get_level() > 0)
                             ob_flush();
                         flush();
-                        usleep(30000); // 30ms per kata — terasa natural tanpa terlalu lambat
+                        usleep(30000);
                     }
 
                     echo "data: " . json_encode(['done' => true]) . "\n\n";
                     if (ob_get_level() > 0)
                         ob_flush();
                     flush();
-                    return; // Putus seluruh stream — tidak ada loop lagi
+                    return;
                 }
 
                 if (is_array($decodedRes) && $toolName === 'execute_query') {
@@ -791,7 +786,6 @@ class AgenticChatbotController extends Controller
                         if ($isProbeLimitReached) {
                             Log::warning("[Agentic] PROBE LIMIT reached ({$probeQueryCount}/{$maxProbeQueries}). Injecting force-execute reminder.");
                             if (!empty($executedResults)) {
-                                // Extract column name from SELECT DISTINCT [col] FROM ...
                                 $probeColumn = 'data';
                                 if (preg_match('/SELECT\s+DISTINCT\s+([a-zA-Z0-9._"]+)/i', $lastExecutedSql, $m)) {
                                     $probeColumn = str_replace(['"', '`'], '', $m[1]);
@@ -1115,7 +1109,6 @@ class AgenticChatbotController extends Controller
                             ];
                         }
                     } elseif (!$isLive && !empty($m['tool_calls'])) {
-                        // For history assistant messages, also include functionCalls so tool responses have context
                         foreach ($m['tool_calls'] as $tc) {
                             $args = $tc['function']['arguments'] ?? '{}';
                             $argsArr = is_string($args) ? json_decode($args, false) : $args;
@@ -1924,19 +1917,6 @@ Jawab SEPENUHNYA dalam bahasa yang sama dengan bahasa user. TIDAK BOLEH CAMPUR.
 PROMPT;
     }
 
-    /**
-     * Inject actual rows+headers data into smart_table blocks before saving to DB.
-     *
-     * Problem: AI emits ```smart_table {"tool_index": 0, "title": "..."}``` blocks.
-     * At stream-time the frontend JS has data in RAM (currentToolResults).
-     * But when history is reloaded, that RAM is gone. The DB-stored content still
-     * has {"tool_index": 0} with NO rows/headers, so the table can't render.
-     *
-     * Solution: Before saving to DB, replace every tool_index reference with the
-     * actual headers+rows data embedded inline inside the JSON block.
-     * On reload, initSmartTablesInBubble reads data-headers-b64 / data-rows-b64
-     * directly from DOM attributes — no RAM dependency.
-     */
     private function injectSmartTableDataIntoContent(string $content, array $toolResults): string
     {
         if (empty($toolResults) || strpos($content, 'smart_table') === false) {
@@ -1955,7 +1935,6 @@ PROMPT;
                     if (!is_array($params))
                         return $matches[0];
 
-                    // Skip if already has inline data
                     if (!empty($params['headers']) && !empty($params['rows'])) {
                         return $matches[0];
                     }
@@ -2026,7 +2005,6 @@ PROMPT;
 
     private function processContentForCharts(string $content, array $toolResults): string
     {
-        // 1. Convert Markdown tables to smart_table JSON blocks
         if (strpos($content, '|') !== false) {
             $lines = explode("\n", $content);
             $newLines = [];
@@ -2035,13 +2013,11 @@ PROMPT;
 
             foreach ($lines as $line) {
                 $trimmed = trim($line);
-                // Simple regex for markdown table row
                 if (preg_match('/^\|.*\|$/', $trimmed)) {
                     $isInsideTable = true;
                     $currentTable[] = $trimmed;
                 } else {
                     if ($isInsideTable) {
-                        // Process the collected table
                         $newLines[] = $this->convertMarkdownToSmartTable($currentTable);
                         $currentTable = [];
                         $isInsideTable = false;
@@ -2055,10 +2031,8 @@ PROMPT;
             $content = implode("\n", $newLines);
         }
 
-        // 2. Fix missing backticks for smart_table JSON if AI output raw JSON
         if (strpos($content, '"headers"') !== false && strpos($content, '"rows"') !== false) {
             if (strpos($content, '```smart_table') === false) {
-                // Try to find raw JSON and wrap it
                 $content = preg_replace_callback('/\{\s*"title":\s*".*?"\s*,\s*"headers":\s*\[.*?\].*?\}/s', function ($matches) {
                     return "```smart_table\n" . $matches[0] . "\n```";
                 }, $content);
@@ -2070,7 +2044,6 @@ PROMPT;
 
     private function convertMarkdownToSmartTable(array $tableLines): string
     {
-        // Need at least header and separator or header and data
         if (count($tableLines) < 2)
             return implode("\n", $tableLines);
 
@@ -2080,7 +2053,6 @@ PROMPT;
 
         foreach ($tableLines as $idx => $line) {
             $cols = explode('|', $line);
-            // Remove empty first/last elements from the | split
             if (empty(trim($cols[0])))
                 array_shift($cols);
             if (!empty($cols) && empty(trim($cols[count($cols) - 1])))
@@ -2094,14 +2066,12 @@ PROMPT;
                 $foundSeparator = true;
                 continue;
             } else {
-                // Ensure row has same number of columns as header
                 if (count($cols) >= count($headers)) {
                     $dataRows[] = array_slice($cols, 0, count($headers));
                 }
             }
         }
 
-        // If it wasn't really a table (no separator found and only 2 lines), return original
         if (!$foundSeparator && count($tableLines) < 3)
             return implode("\n", $tableLines);
         if (empty($headers) || empty($dataRows))
@@ -2117,8 +2087,24 @@ PROMPT;
         return "\n```smart_table\n" . json_encode($json, JSON_PRETTY_PRINT) . "\n```\n";
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PERUBAHAN 1: stripThinkingLeakage yang diperkuat
+    // Sekarang juga membersihkan blok "Mapping kolom (internal):",
+    // "Nama eksak ... ditemukan:", dan baris reasoning teknis lainnya
+    // yang bocor ke output user saat streaming aktif.
+    // ─────────────────────────────────────────────────────────────────────────
     private function stripThinkingLeakage(string $content): string
     {
+        // ── Strip blok "Nama eksak ... ditemukan: ..." ────────────────────────
+        $content = preg_replace('/Nama eksak [^\n]+ ditemukan[^\n]*\n?/i', '', $content);
+
+        // ── Strip "Sekarang saya akan menjalankan query..." ───────────────────
+        $content = preg_replace('/Sekarang saya akan menjalankan query[^\n]*\n?/i', '', $content);
+
+        // ── Strip seluruh blok "Mapping kolom (internal):" beserta isinya ─────
+        // Pola: baris yang dimulai "Mapping kolom" diikuti baris-baris non-kosong
+        $content = preg_replace('/^Mapping kolom\s*\(internal\)[^\n]*\n(?:[^\n]+\n)*/mi', '', $content);
+
         $thinkingLinePatterns = [
             '/^jika (tidak ada|ragu)[,.]?/i',
             '/^dari hasil\s+`?describe_table`?/i',
@@ -2135,6 +2121,16 @@ PROMPT;
             '/^asumsikan semua data adalah aktif/i',
             '/^kolom dari `?describe_table`?/i',
             '/^kolom yang tersedia/i',
+            // ── Tambahan untuk leakage yang sering bocor ─────────────────────
+            '/^mapping kolom/i',
+            '/^nama eksak\b/i',
+            '/^sekarang saya akan menjalankan/i',
+            '/^saya menyimpulkan bahwa/i',
+            '/^probe query/i',
+            '/^hasil probe/i',
+            '/^query utama\s*:/i',
+            // Baris berisi pemetaan kolom: "Netto = hrg_jual"
+            '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*[a-z_]+/i',
         ];
 
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
@@ -2175,6 +2171,51 @@ PROMPT;
 
         $result = ltrim($result, "\n");
         return $result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // PERUBAHAN 2: Method baru isThinkingLeakageLine()
+    // Digunakan oleh curlStreamSse untuk filter real-time per baris
+    // SEBELUM chunk dikirim ke user, sehingga thinking tidak pernah tampil.
+    // ─────────────────────────────────────────────────────────────────────────
+    private function isThinkingLeakageLine(string $line): bool
+    {
+        $trimmed = trim($line);
+        if (empty($trimmed)) return false;
+
+        $patterns = [
+            '/^nama eksak [a-zA-Z ]+ ditemukan/i',
+            '/^sekarang saya akan menjalankan query/i',
+            '/^mapping kolom\s*\(internal\)/i',
+            // Baris pemetaan: "Netto = hrg_jual (harga satuan)"
+            '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*\w+/i',
+            '/^jika (tidak ada|ragu)[,.]?/i',
+            '/^dari hasil\s+`?describe_table`?/i',
+            '/^tidak ada kolom yang secara eksplisit/i',
+            '/^oleh karena itu[,]?\s+(kita|saya) akan/i',
+            '/^saya menyimpulkan bahwa/i',
+            '/^probe query/i',
+            '/^hasil probe/i',
+            '/^query utama\s*:/i',
+            '/^saya akan menggunakan\s+(jumlah|count)/i',
+            '/^kolom yang tersedia/i',
+            '/^kolom dari `?describe_table`?/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $trimmed)) {
+                Log::info('[StreamFilter] Blocked leakage line: ' . substr($trimmed, 0, 100));
+                return true;
+            }
+        }
+
+        // Cek list kolom teknis berurutan (lebih dari 3 backtick kolom)
+        if (preg_match('/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i', $trimmed)) {
+            Log::info('[StreamFilter] Blocked column list leak: ' . substr($trimmed, 0, 100));
+            return true;
+        }
+
+        return false;
     }
 
     private function streamText(string $text): void
@@ -2473,12 +2514,18 @@ PROMPT;
         return $this->curlStreamSse($url, $headers, $payload, 'gemini');
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PERUBAHAN 3: curlStreamSse dengan real-time line buffer filter
+    // Token dikumpulkan per baris, lalu dicek via isThinkingLeakageLine()
+    // SEBELUM dikirim ke user. Thinking tidak akan pernah bocor lagi.
+    // ─────────────────────────────────────────────────────────────────────────
     private function curlStreamSse(string $url, array $headers, array $payload, string $providerCode): array
     {
         $fullText = '';
         $sseBuffer = '';
         $toolCallsRaw = [];
         $totalTokens = 0;
+        $sseLineBuffer = ''; // Buffer per-baris untuk filter real-time
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -2491,7 +2538,7 @@ PROMPT;
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode, &$sseLineBuffer) {
                 $sseBuffer .= $data;
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
                     $line = substr($sseBuffer, 0, $pos);
@@ -2512,10 +2559,32 @@ PROMPT;
                         $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
                         if ($token !== '') {
                             $fullText .= $token;
-                            echo "data: " . json_encode(['chunk' => $token]) . "\n\n";
-                            if (ob_get_level() > 0)
-                                ob_flush();
-                            flush();
+
+                            // ── Real-time filter: buffer per baris ────────────
+                            $sseLineBuffer .= $token;
+
+                            // Flush baris-baris yang sudah ada newline-nya
+                            while (($nlPos = strpos($sseLineBuffer, "\n")) !== false) {
+                                $completeLine = substr($sseLineBuffer, 0, $nlPos + 1);
+                                $sseLineBuffer = substr($sseLineBuffer, $nlPos + 1);
+
+                                if (!$this->isThinkingLeakageLine($completeLine)) {
+                                    echo "data: " . json_encode(['chunk' => $completeLine]) . "\n\n";
+                                    if (ob_get_level() > 0)
+                                        ob_flush();
+                                    flush();
+                                }
+                            }
+
+                            // Flush buffer sisa jika sudah cukup panjang (mid-sentence)
+                            // dan bukan thinking leakage — agar tetap real-time
+                            if (strlen($sseLineBuffer) > 50 && !$this->isThinkingLeakageLine($sseLineBuffer)) {
+                                echo "data: " . json_encode(['chunk' => $sseLineBuffer]) . "\n\n";
+                                if (ob_get_level() > 0)
+                                    ob_flush();
+                                flush();
+                                $sseLineBuffer = '';
+                            }
                         }
 
                         if (isset($parsed['usage']['total_tokens'])) {
@@ -2581,6 +2650,15 @@ PROMPT;
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
+
+        // Flush sisa line buffer setelah streaming selesai
+        if (!empty($sseLineBuffer) && !$this->isThinkingLeakageLine($sseLineBuffer)) {
+            echo "data: " . json_encode(['chunk' => $sseLineBuffer]) . "\n\n";
+            if (ob_get_level() > 0)
+                ob_flush();
+            flush();
+            $sseLineBuffer = '';
+        }
 
         if ($curlError) {
             Log::error("[StreamSSE] curl error ({$providerCode}): {$curlError}");
@@ -2734,7 +2812,6 @@ PROMPT;
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
-            // Hanya paksa tool call di loop pertama (ANY), loop selanjutnya biarkan AI memilih (AUTO)
             $toolMode = ($loopCount === 1) ? 'ANY' : 'AUTO';
             $payload['toolConfig'] = [
                 'functionCallingConfig' => ['mode' => $toolMode],
