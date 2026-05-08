@@ -2919,6 +2919,39 @@
                 maximumFractionDigits: 0
             });
 
+            const stripHtmlTags = (str) => {
+                if (str === null || str === undefined) return '';
+                if (typeof str !== 'string') return String(str);
+                if (!str.includes('<')) return str.trim();
+                return str.replace(/<[^>]*>?/gm, '').trim();
+            };
+
+            const parseAnyNumber = (s) => {
+                if (typeof s === 'number') return s;
+                let v = String(s || '').toLowerCase().replace(/rp\s?/g, '').replace(/\s/g, '').trim();
+                if (v === '' || v === '-') return 0;
+                
+                // Indonesia: "1.500.000,50" -> "1500000.50"
+                if (v.includes(',') && v.includes('.')) {
+                    v = v.replace(/\./g, '').replace(',', '.');
+                } 
+                // Multiple dots: "1.500.000" -> "1500000"
+                else if ((v.match(/\./g) || []).length > 1) {
+                    v = v.replace(/\./g, '');
+                } 
+                // Single dot followed by 3 digits: "517.000" -> "517000"
+                else if (/\.\d{3}$/.test(v)) {
+                    v = v.replace(/\./g, '');
+                } 
+                // Single comma as decimal: "500,50" -> "500.50"
+                else if (v.includes(',')) {
+                    v = v.replace(',', '.');
+                }
+                
+                const num = parseFloat(v.replace(/[^0-9.-]/g, ''));
+                return isNaN(num) ? 0 : num;
+            };
+
             // ── Export Table to Excel ─────────────────────────────────────────────
             async function exportTableToExcel(tableId, headers, rows) {
                 const exportBtn = document.querySelector(`#${tableId} .smart-table-export-btn`);
@@ -2944,13 +2977,6 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
 
                 try {
-                    const stripHtmlTags = (str) => {
-                        if (str === null || str === undefined) return '';
-                        if (typeof str !== 'string') return String(str);
-                        if (!str.includes('<')) return str;
-                        return str.replace(/<[^>]*>?/gm, '').trim();
-                    };
-
                     // Clean data: remove HTML tags only AND force string format for large numbers
                     const cleanRows = rows.map(row =>
                         row.map(cell => {
@@ -2959,33 +2985,16 @@
                             // 1. Handle already numeric values first
                             if (typeof cell === 'number') return cell;
 
-                            // 2. Remove HTML tags with fast regex (instead of slow DOM manipulation)
                             let value = stripHtmlTags(cell);
-                            // 3. Smart Cleanup for Currency & Numbers
-                            // If it contains 'Rp' or looks like a formatted number
-                            let cleanValue = value.replace(/Rp\s?/g, '').replace(/\s/g, '');
                             
-                            // Handle Indonesia format: "1.500.000,00" or "517.000"
-                            if (cleanValue.includes(',') && cleanValue.includes('.')) {
-                                // Assume dot is thousands, comma is decimal
-                                cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                            } else if ((cleanValue.match(/\./g) || []).length > 1) {
-                                // Multiple dots: definitely thousands separators
-                                cleanValue = cleanValue.replace(/\./g, '');
-                            } else if (/\.\d{3}$/.test(cleanValue)) {
-                                // Single dot followed by 3 digits: likely thousands separator (e.g. 517.000)
-                                cleanValue = cleanValue.replace(/\./g, '');
-                            } else if (cleanValue.includes(',')) {
-                                // Single comma: likely decimal separator in ID format
-                                cleanValue = cleanValue.replace(',', '.');
+                            // Check if it's a number (including currency strings)
+                            const vLower = value.toLowerCase();
+                            if (vLower.includes('rp') || /^-?[\d.,]+$/.test(value.replace(/\s/g, ''))) {
+                                const num = parseAnyNumber(value);
+                                return num;
                             }
 
-                            // 4. Final attempt to get a clean number
-                            if (/^-?\d+(\.\d+)?$/.test(cleanValue)) {
-                                return parseFloat(cleanValue);
-                            }
-
-                            return value.trim();
+                            return value;
                         })
                     );
                     const cleanHeaders = headers.map(h => {
@@ -3462,22 +3471,15 @@
                     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                     const filename = `${safeLabel || 'table-export'}-${timestamp}.pdf`;
 
-                    const stripHtmlTags = (str) => {
-                        if (str === null || str === undefined) return '';
-                        if (typeof str !== 'string') return String(str);
-                        if (!str.includes('<')) return str;
-                        return str.replace(/<[^>]*>?/gm, '').trim();
-                    };
-
                     const cleanHeaders = headers.map(h => {
                         const rawLabel = stripHtmlTags(h);
                         return typeof toHumanLabel === 'function' ? toHumanLabel(rawLabel) : rawLabel;
                     });
 
-                    // Identify currency columns to format them properly
+                    // Identify currency columns
                     const currencyColsIdx = [];
                     headers.forEach((h, i) => {
-                        if (typeof isCurrencyColumn === 'function' && isCurrencyColumn(h, tableId)) {
+                        if (isCurrencyColumn(h, tableId)) {
                             currencyColsIdx.push(i);
                         }
                     });
@@ -3488,35 +3490,17 @@
                             let value = stripHtmlTags(cell);
 
                             if (currencyColsIdx.includes(i)) {
-                                // 1. Smart Cleanup for Currency (Same as Excel logic)
-                                let cleanValue = value.replace(/Rp\s?/g, '').replace(/\s/g, '');
-                                
-                                // Handle Indonesia format: "1.500.000,00" or "517.000"
-                                if (cleanValue.includes(',') && cleanValue.includes('.')) {
-                                    cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
-                                } else if ((cleanValue.match(/\./g) || []).length > 1) {
-                                    cleanValue = cleanValue.replace(/\./g, '');
-                                } else if (/\.\d{3}$/.test(cleanValue)) {
-                                    cleanValue = cleanValue.replace(/\./g, '');
-                                } else if (cleanValue.includes(',')) {
-                                    cleanValue = cleanValue.replace(',', '.');
-                                }
-
-                                const num = parseFloat(cleanValue);
-                                if (!isNaN(num) && typeof currencyFormatter !== 'undefined') {
+                                const num = parseAnyNumber(value);
+                                if (typeof currencyFormatter !== 'undefined') {
                                     return currencyFormatter.format(num);
                                 }
                                 return value;
                             } else if (/^-?\d+(\.\d+)?$/.test(value.replace(/\./g, '').replace(',', '.'))) {
-                                // General number formatting for non-currency numeric strings
                                 const h = headers[i] || '';
                                 const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
                                 if (!isNonNumericStyled) {
-                                    const cleanNum = value.replace(/\./g, '').replace(',', '.');
-                                    const num = parseFloat(cleanNum);
-                                    if (!isNaN(num)) {
-                                        return num.toLocaleString('id-ID');
-                                    }
+                                    const num = parseAnyNumber(value);
+                                    return num.toLocaleString('id-ID');
                                 }
                             }
                             return value;
@@ -3649,20 +3633,23 @@
                         const row = [i + 1, labels[i] || '-'];
                         datasets.forEach((d, dsIdx) => {
                             let value = d.data?.[i];
-                            const isCurrency = finalPdfCurrencyCols.includes(d.label || `${chartType} ${dsIdx + 1}`);
+                            const dsLabel = d.label || `${chartType} ${dsIdx + 1}`;
+                            const isCurrency = finalPdfCurrencyCols.includes(dsLabel);
                             
                             if (value === null || value === undefined || value === '') {
                                 row.push(0);
                             } else {
-                                const num = parseFloat(value);
-                                if (!isNaN(num)) {
-                                    if (isCurrency && typeof currencyFormatter !== 'undefined') {
-                                        row.push(currencyFormatter.format(num));
+                                const num = parseAnyNumber(value);
+                                if (isCurrency && typeof currencyFormatter !== 'undefined') {
+                                    row.push(currencyFormatter.format(num));
+                                } else {
+                                    // Check if it's a non-numeric styled column like years or IDs
+                                    const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(dsLabel);
+                                    if (isNonNumericStyled) {
+                                        row.push(value);
                                     } else {
                                         row.push(num.toLocaleString('id-ID'));
                                     }
-                                } else {
-                                    row.push(value);
                                 }
                             }
                         });
@@ -3773,25 +3760,20 @@
 
                 // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
                 if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
-                    return isColumnCurrencyByAI(header, smartTables[tableId].currencyColumns);
+                    if (isColumnCurrencyByAI(header, smartTables[tableId].currencyColumns)) return true;
                 }
 
-                // User wants NO fallback at all for AI-driven detection.
-                // However, for markdown tables that might not have AI metadata, 
-                // we'll keep a very basic check ONLY if no tableId is provided.
-                if (!tableId) {
-                    return isLikelyCurrencyLabel(header.toLowerCase());
-                }
-                
-                return false;
+                // 1. Fallback to keyword-based detection (Very robust)
+                return isLikelyCurrencyLabel(header);
             }
 
             // Deteksi otomatis apakah label kemungkinan kolom currency
             // Digunakan untuk grafik yang tidak memiliki currencyColumns metadata
             function isLikelyCurrencyLabel(label) {
                 if (!label) return false;
-                const h = label.toLowerCase();
-                return /(sales|amount|harga|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/.test(h);
+                const h = String(label).toLowerCase();
+                // Extended keywords for better detection
+                return /(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/.test(h);
             }
 
             // Smart match: cocokkan currencyColumns (nama DB) dengan nama header/dataset (nama display)
