@@ -1076,7 +1076,7 @@ html.dark .chip-pending { color: #f59e0b; border-color: rgba(245,158,11,0.2); }
     pointer-events: none;
 }
 .toast {
-    background: rgba(30,41,59,0.95);
+    background: var(--card-bg);
     border: 1px solid var(--glass-border);
     padding: 0.75rem 1.25rem;
     border-radius: 12px;
@@ -1088,7 +1088,10 @@ html.dark .chip-pending { color: #f59e0b; border-color: rgba(245,158,11,0.2); }
     backdrop-filter: blur(10px);
     pointer-events: all;
     animation: toastIn 0.3s ease;
+    color: var(--text-main);
+    box-shadow: var(--shadow-lg);
 }
+html.dark .toast { background: rgba(30,41,59,0.95); }
 @keyframes toastIn { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:translateX(0); } }
 .toast.toast-success { border-color: rgba(16,185,129,0.3); }
 .toast.toast-success i { color: #10b981; }
@@ -1484,6 +1487,7 @@ window.testAllConnections = async function() {
 // DELETE
 // ═══════════════════════════════════════
 window.deleteDatabase = function(dbId, dbName) {
+    const isDark = document.documentElement.classList.contains('dark');
     Swal.fire({
         title: 'Hapus Database?',
         html: `Koneksi <strong>${dbName}</strong> akan dihapus.<br><small style="color:#64748b;">Data pada database tidak akan terpengaruh.</small>`,
@@ -1493,8 +1497,8 @@ window.deleteDatabase = function(dbId, dbName) {
         cancelButtonColor: '#475569',
         confirmButtonText: 'Ya, Hapus',
         cancelButtonText: 'Batal',
-        background: '#1e293b',
-        color: '#e2e8f0',
+        background: isDark ? '#1e293b' : '#ffffff',
+        color: isDark ? '#e2e8f0' : '#0f172a',
     }).then(result => {
         if (result.isConfirmed) {
             const f = document.createElement('form');
