@@ -1501,9 +1501,9 @@ Anda adalah AI Data Scientist yang ahli dalam akuntansi. Jangan menunggu instruk
 
 1.  **Analisis Hubungan & Skala Data**: Setelah `describe_table`, Anda **WAJIB** memverifikasi hubungan antar kolom menggunakan `get_table_preview`. 
     - *Tujuan*: Memastikan apakah kolom harga bernilai Satuan atau sudah Total. Jika Satuan, Anda **WAJIB** mengalikannya dengan Qty dalam SQL.
-2.  **Verbalisasi Rumus Mandiri (INTERNAL ONLY)**: Sebelum memanggil `execute_query`, Anda **WAJIB** menuliskan rumus hasil deduksi Anda **HANYA** di dalam blok proses berpikir internal (thought process). 
-    - **PENTING**: Anda **DILARANG KERAS** menampilkan nama kolom teknis (seperti `hrg_jual`, `total_netto`) atau rincian pemetaan metrik ini di dalam jawaban akhir kepada Bapak/Ibu user. Gunakan hanya istilah bisnis yang sopan dalam jawaban Anda.
-    - *Format Internal*: "Saya menyimpulkan bahwa Profit untuk tabel ini adalah `SUM(total_netto - total_hpp)` karena kolom fisik profit tidak tersedia."
+2.  **Verbalisasi Rumus Mandiri (INTERNAL ONLY)**: Sebelum memanggil `execute_query`, Anda **WAJIB** menentukan rumus hasil deduksi Anda **HANYA** di dalam proses berpikir internal — JANGAN ditulis di output teks kepada user. 
+    - **PENTING**: Anda **DILARANG KERAS** menampilkan nama kolom teknis (seperti `hrg_jual`, `total_netto`), label pemetaan metrik (seperti "Netto = `hrg_jual`"), atau rincian apapun tentang mapping kolom database di dalam jawaban akhir kepada Bapak/Ibu user. Gunakan hanya istilah bisnis yang sopan dalam jawaban Anda.
+    - Proses deduksi rumus adalah aktivitas **INTERNAL SEPENUHNYA** — tidak ada satu kata pun tentang nama kolom atau mapping yang boleh muncul di teks yang dikirim ke user.
 3.  **Kreativitas SQL & Derivasi Metrik**: Gunakan operasi matematika (`+`, `-`, `*`, `/`) dan fungsi agregasi untuk **menciptakan** kolom yang diminta user. Jika data pendukung (misal: HPP) tidak ada di tabel utama, lakukan `JOIN` ke tabel master yang relevan secara mandiri.
 4.  **DILARANG MENYERAH**: Apapun metrik yang diminta user, Anda **WAJIB** menampilkannya di hasil akhir. Jika kolom fisiknya tidak ada, "ciptakan" kolom tersebut di SQL sebagai kolom kalkulasi dengan alias yang sesuai (contoh: `AS "Profit"`).
 5.  **Self-Audit**: Sebelum eksekusi, tanyakan pada diri sendiri: "Apakah rumus ini secara akuntansi sudah benar (Netto - HPP)? Apakah saya sudah menghindari kesalahan penggandaan Qty?"
@@ -2129,8 +2129,10 @@ PROMPT;
             '/^probe query/i',
             '/^hasil probe/i',
             '/^query utama\s*:/i',
-            // Baris berisi pemetaan kolom: "Netto = hrg_jual"
+            // Baris berisi pemetaan kolom: "Netto = hrg_jual" atau "* Netto = `hrg_jual`"
             '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*[a-z_]+/i',
+            '/^[\*\-]\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=/i',
+            '/^[\*\-]\s*\w[\w\s]+\s*=\s*`[a-z][a-z0-9_]+`/i',
         ];
 
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
@@ -2186,9 +2188,13 @@ PROMPT;
         $patterns = [
             '/^nama eksak [a-zA-Z ]+ ditemukan/i',
             '/^sekarang saya akan menjalankan query/i',
-            '/^mapping kolom\s*\(internal\)/i',
-            // Baris pemetaan: "Netto = hrg_jual (harga satuan)"
-            '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*\w+/i',
+            '/^mapping kolom/i',
+            // Baris pemetaan biasa: "Netto = hrg_jual"
+            '/^(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=/i',
+            // Baris pemetaan format bullet: "* Netto = `hrg_jual`" atau "- Netto = ..."
+            '/^[\*\-]\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=/i',
+            // Pattern generik: "* Label = `kolom_db`" (pemetaan bisnis ke nama kolom teknis)
+            '/^[\*\-]\s*\w[\w\s]+\s*=\s*`[a-z][a-z0-9_]+`/i',
             '/^jika (tidak ada|ragu)[,.]?/i',
             '/^dari hasil\s+`?describe_table`?/i',
             '/^tidak ada kolom yang secara eksplisit/i',
