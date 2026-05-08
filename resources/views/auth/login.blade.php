@@ -192,6 +192,9 @@
             document.documentElement.classList[d?'remove':'add']('dark');
             localStorage.setItem('theme',d?'light':'dark');
             document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
+            // Remove FOUC fix if it exists
+            const f = document.getElementById('fouc-fix');
+            if (f) f.remove();
         }
 
         function togglePasswordVisibility(inputId, iconId) {
@@ -211,6 +214,9 @@
         document.addEventListener('DOMContentLoaded',()=>{
             const d=document.documentElement.classList.contains('dark');
             document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
+            // Remove FOUC fix after load
+            const f = document.getElementById('fouc-fix');
+            if (f) f.remove();
         });
     </script>
 </head>

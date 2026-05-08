@@ -67,7 +67,14 @@
     </style>
     <script>
         (function(){if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}})();
-        function toggleTheme(){const d=document.documentElement.classList.contains('dark');document.documentElement.classList[d?'remove':'add']('dark');localStorage.setItem('theme',d?'light':'dark');document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';}
+        function toggleTheme(){
+            const d=document.documentElement.classList.contains('dark');
+            document.documentElement.classList[d?'remove':'add']('dark');
+            localStorage.setItem('theme',d?'light':'dark');
+            document.getElementById('ti').className=d?'fas fa-moon':'fas fa-sun';
+            const f = document.getElementById('fouc-fix');
+            if (f) f.remove();
+        }
         
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
@@ -83,7 +90,11 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded',()=>{document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';});
+        document.addEventListener('DOMContentLoaded',()=>{
+            document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';
+            const f = document.getElementById('fouc-fix');
+            if (f) f.remove();
+        });
     </script>
 </head>
 <body>
