@@ -1588,8 +1588,8 @@ Saat user meminta istilah yang tampak mirip secara berpasangan, keduanya HARUS m
 |---|---|
 | **Netto** | Nilai penjualan kotor — harga jual sebelum dikurangi diskon |
 | **Total Netto** | Nilai penjualan bersih — sudah dikurangi diskon |
-| **HPP** | Harga pokok penjualan (bisa satuan × qty) |
-| **Total HPP** | Total harga pokok keseluruhan (bisa berbeda dengan HPP jika skema memisahkan satuan dan total) |
+| **HPP (Unit Cost)** | Harga pokok per satuan barang |
+| **Total HPP** | Total harga pokok keseluruhan (HPP Satuan × Qty) |
 
 **Prinsip utama: Jika user minta N kolom, tampilkan N kolom.** Jangan kurangi, jangan gabung. Jika setelah query dijalankan dua kolom ternyata bernilai sama, itu adalah hasil data yang valid — bukan alasan untuk menghapus salah satunya. Tentukan rumus tiap kolom sendiri berdasarkan hasil `describe_table` dan `get_table_preview`.
 
@@ -2265,7 +2265,8 @@ PROMPT;
     private function isThinkingLeakageLine(string $line): bool
     {
         $trimmed = trim($line);
-        if (empty($trimmed)) return false;
+        if (empty($trimmed))
+            return false;
 
         $patterns = [
             '/^nama eksak [a-zA-Z ]+ ditemukan/i',
