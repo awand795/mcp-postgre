@@ -3484,22 +3484,42 @@
 
                     const cleanRows = rows.map(row =>
                         row.map((cell, i) => {
-                            let val = stripHtmlTags(cell);
+                            if (cell === null || cell === undefined) return '';
+                            let value = stripHtmlTags(cell);
+
                             if (currencyColsIdx.includes(i)) {
-                                // Format as currency if it's a valid number
-                                const num = parseFloat(String(val).replace(/[^0-9.-]/g, ''));
-                                if (!isNaN(num) && typeof currencyFormatter !== 'undefined') {
-                                    val = currencyFormatter.format(num);
+                                // 1. Smart Cleanup for Currency (Same as Excel logic)
+                                let cleanValue = value.replace(/Rp\s?/g, '').replace(/\s/g, '');
+                                
+                                // Handle Indonesia format: "1.500.000,00" or "517.000"
+                                if (cleanValue.includes(',') && cleanValue.includes('.')) {
+                                    cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                                } else if ((cleanValue.match(/\./g) || []).length > 1) {
+                                    cleanValue = cleanValue.replace(/\./g, '');
+                                } else if (/\.\d{3}$/.test(cleanValue)) {
+                                    cleanValue = cleanValue.replace(/\./g, '');
+                                } else if (cleanValue.includes(',')) {
+                                    cleanValue = cleanValue.replace(',', '.');
                                 }
-                            } else if (/^-?\d+(\.\d+)?$/.test(val)) {
-                                // General number formatting
+
+                                const num = parseFloat(cleanValue);
+                                if (!isNaN(num) && typeof currencyFormatter !== 'undefined') {
+                                    return currencyFormatter.format(num);
+                                }
+                                return value;
+                            } else if (/^-?\d+(\.\d+)?$/.test(value.replace(/\./g, '').replace(',', '.'))) {
+                                // General number formatting for non-currency numeric strings
                                 const h = headers[i] || '';
                                 const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
                                 if (!isNonNumericStyled) {
-                                    val = parseFloat(val).toLocaleString('id-ID');
+                                    const cleanNum = value.replace(/\./g, '').replace(',', '.');
+                                    const num = parseFloat(cleanNum);
+                                    if (!isNaN(num)) {
+                                        return num.toLocaleString('id-ID');
+                                    }
                                 }
                             }
-                            return val;
+                            return value;
                         })
                     );
 
@@ -3627,9 +3647,24 @@
 
                     for (let i = 0; i < maxLength; i++) {
                         const row = [i + 1, labels[i] || '-'];
-                        datasets.forEach(d => {
+                        datasets.forEach((d, dsIdx) => {
                             let value = d.data?.[i];
-                            row.push(value === null || value === undefined || value === '' ? 0 : (parseFloat(value) || value));
+                            const isCurrency = finalPdfCurrencyCols.includes(d.label || `${chartType} ${dsIdx + 1}`);
+                            
+                            if (value === null || value === undefined || value === '') {
+                                row.push(0);
+                            } else {
+                                const num = parseFloat(value);
+                                if (!isNaN(num)) {
+                                    if (isCurrency && typeof currencyFormatter !== 'undefined') {
+                                        row.push(currencyFormatter.format(num));
+                                    } else {
+                                        row.push(num.toLocaleString('id-ID'));
+                                    }
+                                } else {
+                                    row.push(value);
+                                }
+                            }
                         });
                         rows.push(row);
                     }
