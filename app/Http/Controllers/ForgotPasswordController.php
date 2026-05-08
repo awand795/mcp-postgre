@@ -30,7 +30,7 @@ class ForgotPasswordController extends Controller
             $seconds = RateLimiter::availableIn($throttleKey);
             return back()->withErrors([
                 'email' => "Terlalu banyak permintaan OTP. Silakan coba lagi dalam $seconds detik."
-            ]);
+            ])->with('throttle_seconds', $seconds);
         }
 
         RateLimiter::hit($throttleKey, 60);

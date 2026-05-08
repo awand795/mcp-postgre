@@ -51,6 +51,7 @@
         .theme-btn:hover{border-color:var(--primary);color:var(--primary);}
         @media(max-width:480px){body{padding:0;align-items:flex-start;}.auth-card{border-radius:0;min-height:100vh;padding:2rem 1.5rem;display:flex;flex-direction:column;justify-content:center;}}
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         (function(){if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}})();
         function toggleTheme(){
@@ -61,11 +62,80 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
         }
+
+        function startCountdown(seconds) {
+            const btn = document.getElementById('btn-submit');
+            const btnText = btn.querySelector('.btn-text');
+            const btnIcon = btn.querySelector('i');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            btn.style.cursor = 'not-allowed';
+            
+            let remaining = seconds;
+            const originalIconClass = btnIcon.className;
+            btnIcon.className = 'fas fa-clock animate-pulse';
+
+            const interval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btnText.innerText = 'KIRIM KODE OTP';
+                    btnIcon.className = originalIconClass;
+                } else {
+                    btnText.innerText = `COBA LAGI (${remaining}s)`;
+                }
+            }, 1000);
+        }
+
         document.addEventListener('DOMContentLoaded',()=>{
             document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
+
+            // Handle Throttle
+            @if(session('throttle_seconds'))
+                startCountdown({{ session('throttle_seconds') }});
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Batas Permintaan Tercapai',
+                    text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                    confirmButtonColor: '#f53003'
+                });
+            @elseif($errors->has('email'))
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Kesalahan',
+                    text: '{{ $errors->first('email') }}',
+                    confirmButtonColor: '#f53003'
+                });
+            @endif
+
+            @if(session('status'))
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: '{{ session('status') }}',
+                    confirmButtonColor: '#10b981'
+                });
+            @endif
         });
+
+        function handleSubmit(form) {
+            const btn = document.getElementById('btn-submit');
+            const btnText = btn.querySelector('.btn-text');
+            const btnIcon = btn.querySelector('i');
+            
+            if (btn.disabled) return false;
+            
+            btn.disabled = true;
+            btnText.innerText = 'MEMPROSES...';
+            btnIcon.className = 'fas fa-spinner fa-spin';
+            return true;
+        }
     </script>
 </head>
 <body>
@@ -77,11 +147,7 @@
             <p>Masukkan email Anda untuk menerima kode OTP reset password.</p>
         </div>
 
-        @if(session('status'))
-            <div class="alert-success"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>
-        @endif
-
-        <form action="{{ route('password.email') }}" method="POST">
+        <form action="{{ route('password.email') }}" method="POST" onsubmit="return handleSubmit(this)">
             @csrf
             <div class="form-group">
                 <label class="form-label">Alamat Email</label>
@@ -90,9 +156,11 @@
                     <input type="email" name="email" value="{{ old('email') }}" required autofocus
                         class="form-input" placeholder="email@contoh.com">
                 </div>
-                @error('email')<p class="form-error">{{ $message }}</p>@enderror
             </div>
-            <button type="submit" class="btn-submit"><i class="fas fa-paper-plane" style="margin-right:8px;"></i>KIRIM KODE OTP</button>
+            <button type="submit" id="btn-submit" class="btn-submit">
+                <i class="fas fa-paper-plane" style="margin-right:8px;"></i>
+                <span class="btn-text">KIRIM KODE OTP</span>
+            </button>
         </form>
 
         <div class="auth-footer">Ingat password? <a href="{{ route('login') }}">Masuk sekarang</a></div>

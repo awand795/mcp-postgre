@@ -277,6 +277,7 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         (function () { if (localStorage.getItem('theme') === 'dark') { document.documentElement.classList.add('dark'); } })();
         function toggleTheme() { 
@@ -287,11 +288,71 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
         }
+
+        function startResendCountdown(seconds) {
+            const btn = document.getElementById('resend-btn');
+            if (!btn) return;
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            
+            let remaining = seconds;
+            const originalText = 'Kirim Ulang';
+
+            const interval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.innerText = originalText;
+                } else {
+                    btn.innerText = `Kirim Ulang (${remaining}s)`;
+                }
+            }, 1000);
+        }
+
         document.addEventListener('DOMContentLoaded', () => { 
             document.getElementById('ti').className = document.documentElement.classList.contains('dark') ? 'fas fa-moon' : 'fas fa-sun'; 
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
+
+            @if(session('throttle_seconds'))
+                startResendCountdown({{ session('throttle_seconds') }});
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Batas Permintaan Tercapai',
+                    text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                    confirmButtonColor: '#f53003'
+                });
+            @elseif($errors->any())
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Terjadi Kesalahan',
+                    text: '{{ $errors->first() }}',
+                    confirmButtonColor: '#f53003'
+                });
+            @endif
+
+            @if(session('status'))
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: '{{ session('status') }}',
+                    confirmButtonColor: '#10b981'
+                });
+            @endif
         });
+
+        function handleResend(form) {
+            const btn = document.getElementById('resend-btn');
+            if (btn.disabled) return false;
+            btn.disabled = true;
+            btn.innerText = 'Mengirim...';
+            return true;
+        }
     </script>
 </head>
 
@@ -303,8 +364,7 @@
             <h1>Verifikasi OTP</h1>
             <p>Masukkan 6 digit kode yang dikirim ke<br><strong>{{ $email }}</strong></p>
         </div>
-        @if(session('status'))
-        <div class="alert-success"><i class="fas fa-check-circle"></i> {{ session('status') }}</div>@endif
+        
         <form action="{{ route('password.verify.post') }}" method="POST">
             @csrf
             <input type="hidden" name="email" value="{{ $email }}">
@@ -315,20 +375,18 @@
                     <input type="text" name="otp" required autofocus maxlength="6" class="form-input"
                         placeholder="000000" style="text-align:center;">
                 </div>
-                @error('otp')<p class="form-error" style="text-align:center;">{{ $message }}</p>@enderror
             </div>
             <button type="submit" class="btn-submit"><i class="fas fa-check-circle"
                     style="margin-right:8px;"></i>VERIFIKASI SEKARANG</button>
         </form>
         <div class="auth-footer">
             Belum menerima email?
-            <form action="{{ route('password.email') }}" method="POST" style="display:inline;">
+            <form action="{{ route('password.email') }}" method="POST" style="display:inline;" onsubmit="return handleResend(this)">
                 @csrf
                 <input type="hidden" name="email" value="{{ $email }}">
-                <button type="submit" class="resend-btn">Kirim Ulang</button>
+                <button type="submit" id="resend-btn" class="resend-btn">Kirim Ulang</button>
             </form>
         </div>
     </div>
 </body>
-
 </html>
