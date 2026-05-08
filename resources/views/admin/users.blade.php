@@ -133,7 +133,7 @@
                                 <i class="fas fa-robot"></i>
                             </button>
                             <button class="btn btn-edit" onclick="showModal('edit', {{ json_encode($user) }})"><i class="fas fa-edit"></i></button>
-                            <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" onsubmit="return confirm('Hapus user ini?')">
+                            <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" onsubmit="confirmDelete(event, 'Hapus User?', 'Akses user ini ke sistem akan segera dicabut.')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-delete"><i class="fas fa-trash"></i></button>
@@ -798,6 +798,30 @@
             }
         });
         updateAicStats();
+    }
+    /* ── Global Delete Confirmation ───────────────────────────── */
+    function confirmDelete(e, title, text) {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const isDark = document.documentElement.classList.contains('dark');
+        
+        Swal.fire({
+            title: title || 'Hapus data?',
+            text: text || 'Tindakan ini tidak dapat dibatalkan.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+            color: isDark ? '#f1f5f9' : '#1e293b',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
     }
 
     function toggleProviderAll(btn, inputName) {

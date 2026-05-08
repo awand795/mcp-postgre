@@ -720,7 +720,7 @@ html.dark .limit-alert-bar { color: #f87171; }
             @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
             <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
                   style="display:inline"
-                  onsubmit="return confirm('Hapus provider \'{{ $provider->name }}\' beserta semua data-nya?')">
+                  onsubmit="confirmDelete(event, 'Hapus Provider?', 'Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.')">
                 @csrf @method('DELETE')
                 <button type="submit" class="mb mb-del" title="Hapus provider">
                     <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
@@ -819,7 +819,7 @@ html.dark .limit-alert-bar { color: #f87171; }
                 </button>
 
                 <form action="{{ route('admin.ai_management.delete_key', $key->id) }}" method="POST" style="display:inline"
-                      onsubmit="return confirm('Hapus key ini?')">
+                      onsubmit="confirmDelete(event, 'Hapus API Key?', 'Key ini tidak akan bisa digunakan lagi untuk request AI.')">
                     @csrf @method('DELETE')
                     <button type="submit" class="mb mb-del" title="Hapus key">
                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
@@ -842,7 +842,7 @@ html.dark .limit-alert-bar { color: #f87171; }
                     {{ $model->display_name }}
                     <form action="{{ route('admin.ai_management.delete_model', $model->id) }}" method="POST"
                           style="display:inline"
-                          onsubmit="event.stopPropagation(); return confirm('Hapus model ini?')">
+                          onsubmit="event.stopPropagation(); confirmDelete(event, 'Hapus Model AI?', 'Model ini akan dihapus dari daftar pilihan user.')">
                         @csrf @method('DELETE')
                         <button type="submit" class="mc-del" title="Hapus">&times;</button>
                     </form>
@@ -1064,6 +1064,31 @@ html.dark .limit-alert-bar { color: #f87171; }
 
 
 <script>
+/* ── Global Delete Confirmation ───────────────────────────── */
+function confirmDelete(e, title, text) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    Swal.fire({
+        title: title || 'Hapus data?',
+        text: text || 'Tindakan ini tidak dapat dibatalkan.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'Ya, Hapus',
+        cancelButtonText: 'Batal',
+        background: isDark ? '#1e293b' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.submit();
+        }
+    });
+    return false;
+}
+
 /* ── Tab switching ───────────────────────────────────────── */
 function switchTab(btn, panelId, provId) {
     const card = document.getElementById('pcard-' + provId);
