@@ -153,23 +153,26 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
      */
     private function isCurrencyCol(string $headerName, array $normalizedCurrencyCols): bool
     {
-        if (empty($normalizedCurrencyCols)) return false;
-
-        $normalizedHeader = $this->normalizeLabel($headerName);
-        
-        // 1. Exact match after normalization
-        if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
-            return true;
-        }
-
-        // 2. Partial match (to handle "Total Netto (Rp)" vs "total_netto")
-        foreach ($normalizedCurrencyCols as $nc) {
-            if (!empty($nc) && (strpos($normalizedHeader, $nc) !== false || strpos($nc, $normalizedHeader) !== false)) {
+        // 1. Check against AI-provided currency columns
+        if (!empty($normalizedCurrencyCols)) {
+            $normalizedHeader = $this->normalizeLabel($headerName);
+            
+            // Exact match after normalization
+            if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
                 return true;
+            }
+
+            // Partial match (to handle "Total Netto (Rp)" vs "total_netto")
+            foreach ($normalizedCurrencyCols as $nc) {
+                if (!empty($nc) && (strpos($normalizedHeader, $nc) !== false || strpos($nc, $normalizedHeader) !== false)) {
+                    return true;
+                }
             }
         }
 
-        return false;
+        // 2. Fallback to keyword-based detection (Very robust)
+        $h = strtolower($headerName);
+        return (bool) preg_match('/(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/i', $h);
     }
 
     /**

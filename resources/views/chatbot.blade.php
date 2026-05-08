@@ -2997,6 +2997,14 @@
                             return value;
                         })
                     );
+                    // Identify currency columns for Excel formatting
+                    const currencyColsIdx = [];
+                    headers.forEach((h, i) => {
+                        if (isCurrencyColumn(h, tableId)) {
+                            currencyColsIdx.push(i);
+                        }
+                    });
+
                     const cleanHeaders = headers.map(h => {
                         const rawLabel = stripHtmlTags(h);
                         return toHumanLabel(rawLabel);
@@ -3056,6 +3064,13 @@
                             ws[cellRef].s = ws[cellRef].s || {};
                             ws[cellRef].s.border = borderStyle;
                             ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
+
+                            // Apply currency format (z) if it's a data row and a currency column
+                            if (R > 4 && currencyColsIdx.includes(C)) {
+                                // Excel format for Rupiah: "Rp" #,##0
+                                ws[cellRef].z = '"Rp" #,##0';
+                                ws[cellRef].s.alignment.horizontal = "right";
+                            }
 
                             // If it's the header row (R === 4)
                             if (R === 4) {
