@@ -1628,6 +1628,39 @@ SELECT [kolom_identitas_dari_describe_table] AS "Cabang",
 FROM [schema].[table]
 GROUP BY [kolom_identitas_dari_describe_table]
 ```
+
+## 🔴 ATURAN TERPENTING #1B — SATU ISTILAH USER = SATU ALIAS KOLOM SQL
+
+**WAJIB DIBACA**: Jika user menyebut beberapa istilah bisnis sekaligus, **SETIAP istilah harus muncul sebagai kolom tersendiri** dalam SELECT dengan alias yang PERSIS sama dengan istilah user.
+
+**Contoh — User minta: "tampilkan Netto, Total Netto, HPP, Total HPP, Diskon, dan Profit":**
+
+Ini berarti query WAJIB menghasilkan **6 kolom terpisah** dengan alias yang sesuai:
+```sql
+-- Berdasarkan pemetaan kolom internal:
+-- hrg_jual = harga jual satuan (PERLU dikali qty_jual)
+-- total_netto = sudah total (langsung SUM)
+-- hrg_pokok = harga pokok satuan (PERLU dikali qty_jual)
+-- total_disc = diskon sudah total (langsung SUM)
+SELECT [kolom_cabang] AS "Cabang",
+       SUM([kolom_hrg_jual] * [kolom_qty])       AS "Netto",
+       SUM([kolom_total_netto])                  AS "Total Netto",
+       SUM([kolom_hrg_pokok] * [kolom_qty])      AS "HPP",
+       SUM([kolom_total_netto])                  AS "Total HPP",
+       SUM([kolom_total_disc])                   AS "Diskon",
+       SUM([kolom_total_netto]) - SUM([kolom_hrg_pokok] * [kolom_qty]) AS "Profit"
+FROM [schema].[table]
+WHERE ...
+GROUP BY [kolom_cabang]
+```
+
+**ATURAN KRITIS ALIAS:**
+- Alias kolom di SELECT WAJIB identik dengan istilah yang user minta (misal user minta "Total Netto" → alias harus `AS "Total Netto"`, bukan `AS "Netto"` atau `AS "netto"`).
+- Jika user minta "Netto" DAN "Total Netto" sebagai dua hal terpisah → buat DUA kolom berbeda di SELECT.
+- Jangan pernah menggabungkan dua istilah user menjadi satu kolom.
+- Jangan pernah menghilangkan satu pun istilah yang user minta dari SELECT.
+- Jika ada istilah yang tidak dapat dipenuhi dari data (kolom tidak ada), nyatakan dengan jelas di narasi — JANGAN diam-diam menghilangkan kolom tersebut.
+
 **WAJIB**: Ganti semua `[placeholder]` dengan nama kolom eksak dari hasil `describe_table`. JANGAN gunakan nama kolom contoh dari prompt ini.
 
 ## 🔴 ATURAN TERPENTING #3 — SMART TABLE
@@ -2254,14 +2287,11 @@ PROMPT;
             '/^sudah\s+(total|bersih|termasuk)/i',
             '/^harga\s+(jual|pokok|satuan)\s+/i',
             '/langsung\s+di[\-\s]?sum/i',
-            // Nama kolom teknis internal
-            '/\bhrg_jual\b/i',
-            '/\bhrg_pokok\b/i',
-            '/\btotal_netto\b/i',
-            '/\btotal_disc\b/i',
-            '/\bqty_jual\b/i',
-            '/\b(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)\s*[=:]/i',
-            '/[=:]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?/i',
+            // Pemetaan kolom teknis internal: hanya blokir format pemetaan eksplisit,
+            // BUKAN narasi biasa yang menyebut nama kolom
+            '/^`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
+            '/^[\*\-]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
+            '/=\s*`(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`/i',
         ];
 
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
@@ -2341,15 +2371,13 @@ PROMPT;
             '/^saya akan menggunakan\s+(jumlah|count)/i',
             '/^kolom yang tersedia/i',
             '/^kolom dari `?describe_table`?/i',
-            // Nama kolom teknis internal yang tidak boleh bocor ke output
-            '/\bhrg_jual\b/i',
-            '/\bhrg_pokok\b/i',
-            '/\btotal_netto\b/i',
-            '/\btotal_disc\b/i',
-            '/\bqty_jual\b/i',
-            // Baris pemetaan kolom: "hrg_jual =" atau "= hrg_jual"
-            '/\b(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)\s*[=:]/i',
-            '/[=:]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?/i',
+            // Baris pemetaan kolom teknis internal: hanya blokir jika formatnya adalah
+            // pemetaan eksplisit seperti "Netto = hrg_jual" atau "hrg_jual = ..."
+            // BUKAN baris narasi biasa yang kebetulan menyebut nama kolom
+            '/^`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
+            '/^[\*\-]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
+            // Format: "Label bisnis = `kolom_teknis`" atau "Label bisnis : `kolom_teknis`"
+            '/=\s*`(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`/i',
         ];
 
         foreach ($patterns as $pattern) {
