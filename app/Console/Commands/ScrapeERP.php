@@ -591,8 +591,10 @@ class ScrapeERP extends Command
             $keys[] = 'ar';
         if (str_contains(strtolower($title), 'hutang'))
             $keys[] = 'ap';
-        if (str_contains(strtolower($title), 'tanda terima barang'))
+        if (str_contains(strtolower($title), 'tanda terima barang')) {
             $keys[] = 'ttb';
+            $keys[] = 'penerimaan barang';
+        }
 
         return array_unique($keys);
     }
