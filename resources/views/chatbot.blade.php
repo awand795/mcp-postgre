@@ -3296,60 +3296,7 @@
                     }
                 }
             }
-                        { hpt: 25 }  // Row 5 (Header)
-                    ];
 
-                    // Create Workbook
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, 'Chart Data');
-
-                    // Download
-                    XLSX.writeFile(wb, filename);
-
-                    // Close loading modal
-                    Swal.close();
-
-                    // Show success toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: `✅ Export grafik berhasil! Data telah diunduh.`,
-                        showConfirmButton: false,
-                        timer: 3000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
-
-                } catch (error) {
-                    console.error('[Chart Export Error]', error);
-
-                    // Show error toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'error',
-                        title: `❌ Gagal export grafik: ${error.message}`,
-                        showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
-                } finally {
-                    if (exportBtn) {
-                        exportBtn.disabled = false;
-                        exportBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg> Export Excel`;
-                    }
-                }
-            }
 
             // ── Export Table to PDF ──────────────────────────────────────────────
             async function exportTableToPdf(tableId, headers, rows) {
