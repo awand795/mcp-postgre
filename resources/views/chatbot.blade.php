@@ -2836,29 +2836,26 @@
 
                             // 2. Remove HTML tags with fast regex (instead of slow DOM manipulation)
                             let value = stripHtmlTags(cell);
-
-                            // 3. Smart Cleanup for Currency
-                            // If it contains 'Rp', it's definitely a formatted Indonesian currency string.
-                            // Support format Indonesia: titik=ribuan, koma=desimal
-                            if (value.includes('Rp')) {
-                                value = value.replace(/Rp\s?/g, '');
-                                // Jika ada koma → koma desimal, titik ribuan: "1.500.000,50"
-                                if (value.includes(',')) {
-                                    value = value.replace(/\./g, '').replace(',', '.');
-                                }
-                                // Jika lebih dari satu titik → semua titik ribuan: "1.500.000"
-                                else if ((value.match(/\./g) || []).length > 1) {
-                                    value = value.replace(/\./g, '');
-                                }
-                                // Satu titik diikuti tepat 3 digit → titik ribuan: "517.000"
-                                else if (/\.\d{3}$/.test(value)) {
-                                    value = value.replace(/\./g, '');
-                                }
+                            // 3. Smart Cleanup for Currency & Numbers
+                            // If it contains 'Rp' or looks like a formatted number
+                            let cleanValue = value.replace(/Rp\s?/g, '').replace(/\s/g, '');
+                            
+                            // Handle Indonesia format: "1.500.000,00" or "517.000"
+                            if (cleanValue.includes(',') && cleanValue.includes('.')) {
+                                // Assume dot is thousands, comma is decimal
+                                cleanValue = cleanValue.replace(/\./g, '').replace(',', '.');
+                            } else if ((cleanValue.match(/\./g) || []).length > 1) {
+                                // Multiple dots: definitely thousands separators
+                                cleanValue = cleanValue.replace(/\./g, '');
+                            } else if (/\.\d{3}$/.test(cleanValue)) {
+                                // Single dot followed by 3 digits: likely thousands separator (e.g. 517.000)
+                                cleanValue = cleanValue.replace(/\./g, '');
+                            } else if (cleanValue.includes(',')) {
+                                // Single comma: likely decimal separator in ID format
+                                cleanValue = cleanValue.replace(',', '.');
                             }
 
                             // 4. Final attempt to get a clean number
-                            // If it looks like a number now, convert it to float for proper Excel handling
-                            const cleanValue = value.replace(/\s/g, '');
                             if (/^-?\d+(\.\d+)?$/.test(cleanValue)) {
                                 return parseFloat(cleanValue);
                             }
@@ -2866,7 +2863,6 @@
                             return value.trim();
                         })
                     );
-
                     const cleanHeaders = headers.map(h => {
                         const rawLabel = stripHtmlTags(h);
                         return toHumanLabel(rawLabel);
@@ -3222,6 +3218,16 @@
                                 ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                                 ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" };
                                 ws[cellRef].s.alignment.horizontal = "center";
+                            }
+
+                            // Apply Currency Formatting for Data Rows (R > 4)
+                            if (R > 4) {
+                                const header = headers[C];
+                                if (isCurrencyColumn(header, null)) { // tableId null for chart data fallback
+                                    ws[cellRef].z = '"Rp" #,##0'; // Excel currency format
+                                    ws[cellRef].s.alignment = ws[cellRef].s.alignment || {};
+                                    ws[cellRef].s.alignment.horizontal = "right";
+                                }
                             }
                         }
                     }
@@ -3629,13 +3635,21 @@
             }
 
             // Smart match: cocokkan currencyColumns (nama DB) dengan nama header/dataset (nama display)
-            // Contoh: 'total_netto' cocok dengan 'Total Netto' atau 'Total Netto (Rp)'
             function isColumnCurrencyByAI(colName, currencyColumns) {
                 if (!colName || !currencyColumns || currencyColumns.length === 0) return false;
-                const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const normalizedCol = normalize(colName);
+                
+                const stripHtml = (str) => {
+                    if (!str || typeof str !== 'string' || !str.includes('<')) return str;
+                    return str.replace(/<[^>]*>?/gm, '').trim();
+                };
+
+                const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                const cleanColName = stripHtml(colName);
+                const normalizedCol = normalize(cleanColName);
+                
                 return currencyColumns.some(c => {
-                    const nc = normalize(c);
+                    const nc = normalize(stripHtml(c));
                     return nc === normalizedCol || normalizedCol.includes(nc) || nc.includes(normalizedCol);
                 });
             }

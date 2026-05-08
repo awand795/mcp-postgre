@@ -47,7 +47,9 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         $this->title = substr($this->fullTitle, 0, 31); // Excel sheet title max 31 chars
         $this->chartInfo = $chartInfo;
         $this->isLargeData = count($rows) > 1000;
-        $this->currencyColumns = array_map('strtolower', $currencyColumns);
+        
+        // Support both snake_case and camelCase from controller
+        $this->currencyColumns = is_array($currencyColumns) ? $currencyColumns : [];
     }
 
     /**
@@ -147,20 +149,22 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
 
     /**
      * Check if a column should be treated as currency.
-     * Supports both exact match (after normalization) and keyword fallback.
+     * Supports both exact match (after normalization) and partial match.
      */
     private function isCurrencyCol(string $headerName, array $normalizedCurrencyCols): bool
     {
-        $normalizedHeader = $this->normalizeLabel($headerName);
+        if (empty($normalizedCurrencyCols)) return false;
 
+        $normalizedHeader = $this->normalizeLabel($headerName);
+        
         // 1. Exact match after normalization
         if (in_array($normalizedHeader, $normalizedCurrencyCols)) {
             return true;
         }
 
-        // 2. Partial match: apakah header mengandung salah satu currency col atau sebaliknya
-        foreach ($normalizedCurrencyCols as $col) {
-            if (!empty($col) && (str_contains($normalizedHeader, $col) || str_contains($col, $normalizedHeader))) {
+        // 2. Partial match (to handle "Total Netto (Rp)" vs "total_netto")
+        foreach ($normalizedCurrencyCols as $nc) {
+            if (!empty($nc) && (strpos($normalizedHeader, $nc) !== false || strpos($nc, $normalizedHeader) !== false)) {
                 return true;
             }
         }

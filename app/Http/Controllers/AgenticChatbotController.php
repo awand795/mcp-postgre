@@ -886,12 +886,13 @@ class AgenticChatbotController extends Controller
             'rows' => 'required|array',
             'title' => 'nullable|string|max:100',
             'currencyColumns' => 'nullable|array',
+            'currency_columns' => 'nullable|array',
         ]);
 
         $headers = $request->input('headers', []);
         $rows = $request->input('rows', []);
         $title = $request->input('title', 'Data Export');
-        $currencyColumns = $request->input('currencyColumns', []);
+        $currencyColumns = $request->input('currencyColumns') ?? $request->input('currency_columns', []);
         $filename = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.xlsx');
 
         $normalizedRows = array_map(function ($row) {
@@ -913,12 +914,13 @@ class AgenticChatbotController extends Controller
             'rows' => 'required|array',
             'title' => 'nullable|string|max:100',
             'currencyColumns' => 'nullable|array',
+            'currency_columns' => 'nullable|array',
         ]);
 
         $headers = $request->input('headers', []);
         $rows = $request->input('rows', []);
         $title = $request->input('title', 'Data Export');
-        $currencyColumns = $request->input('currencyColumns', []);
+        $currencyColumns = $request->input('currencyColumns') ?? $request->input('currency_columns', []);
         $filename = $request->input('filename', 'export-' . now()->format('Ymd-His') . '.pdf');
 
         $normalizedRows = array_map(function ($row) {
