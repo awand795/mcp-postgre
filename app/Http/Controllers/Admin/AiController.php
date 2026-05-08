@@ -14,7 +14,16 @@ class AiController extends Controller
 {
     public function index()
     {
-        $providers = AiProvider::with(['models', 'apiKeys'])->get();
+        $providers = AiProvider::with(['models', 'apiKeys'])
+            ->orderByRaw("CASE 
+                WHEN code = 'openai' THEN 1 
+                WHEN code = 'gemini' THEN 2 
+                WHEN code = 'claude' THEN 3 
+                WHEN code = 'mistral' THEN 4 
+                ELSE 5 END")
+            ->orderBy('name')
+            ->get();
+
         return view('admin.ai_management', compact('providers'));
     }
 
