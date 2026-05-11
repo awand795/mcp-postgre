@@ -96,8 +96,23 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
 
-            // Handle Throttle
-            @if(session('throttle_seconds'))
+            // Handle Hard Block
+            @if(session('hard_block'))
+                const btn = document.getElementById('btn-submit');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                    btn.querySelector('.btn-text').innerText = 'AKSES DIBATASI';
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Batas Permintaan Terlampaui',
+                    html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                    confirmButtonColor: '#f53003',
+                    confirmButtonText: 'Saya Mengerti'
+                });
+            @elseif(session('throttle_seconds'))
                 startCountdown({{ session('throttle_seconds') }});
                 Swal.fire({
                     icon: 'warning',

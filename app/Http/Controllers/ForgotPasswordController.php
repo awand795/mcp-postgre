@@ -24,6 +24,14 @@ class ForgotPasswordController extends Controller
     {
         $request->validate(['email' => 'required|email|exists:users,email']);
 
+        // Hard Limit: 3 attempts per 24 hours per email
+        $hardLimitKey = 'otp_hard_limit:' . Str::lower($request->email);
+        $requestCount = \Illuminate\Support\Facades\Cache::get($hardLimitKey, 0);
+
+        if ($requestCount >= 3) {
+            return back()->with('hard_block', true);
+        }
+
         // Rate Limiting: 1 attempt per minute per email/IP to protect SMTP
         $throttleKey = Str::lower($request->email) . '|' . $request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
@@ -34,6 +42,7 @@ class ForgotPasswordController extends Controller
         }
 
         RateLimiter::hit($throttleKey, 60);
+        \Illuminate\Support\Facades\Cache::put($hardLimitKey, $requestCount + 1, now()->addDay());
 
         // Generate 6-digit OTP
         $otp = sprintf("%06d", mt_rand(1, 999999));
