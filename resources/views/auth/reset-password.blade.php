@@ -43,21 +43,30 @@
         
         .toggle-password {
             position: absolute;
-            right: 14px;
+            right: 8px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--muted);
             cursor: pointer;
-            font-size: 0.85rem;
-            transition: color 0.2s;
-            z-index: 10;
-            background: none;
-            border: none;
-            padding: 0;
+            width: 34px;
+            height: 34px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            z-index: 10;
         }
-        .toggle-password:hover { color: var(--primary); }
+        .toggle-password:hover { 
+            color: var(--primary);
+            background: rgba(245,48,3,0.05);
+            transform: translateY(-50%) scale(1.1);
+        }
+        html.dark .toggle-password:hover {
+            background: rgba(245,48,3,0.1);
+        }
 
         .btn-submit{width:100%;background:linear-gradient(135deg,#f53003,#ff4433);color:#fff;border:none;border-radius:12px;padding:0.9rem;font-size:0.9rem;font-weight:700;letter-spacing:0.04em;cursor:pointer;transition:all 0.25s;margin-top:0.5rem;box-shadow:0 4px 16px rgba(245,48,3,0.3);font-family:'Outfit',sans-serif;}
         .btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,48,3,0.4);}

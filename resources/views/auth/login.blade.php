@@ -127,21 +127,30 @@
 
         .toggle-password {
             position: absolute;
-            right: 14px;
+            right: 8px;
             top: 50%;
             transform: translateY(-50%);
             color: var(--muted);
             cursor: pointer;
-            font-size: 0.85rem;
-            transition: color 0.2s;
-            z-index: 10;
-            background: none;
-            border: none;
-            padding: 0;
+            width: 34px;
+            height: 34px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            z-index: 10;
         }
-        .toggle-password:hover { color: var(--primary); }
+        .toggle-password:hover { 
+            color: var(--primary);
+            background: rgba(245,48,3,0.05);
+            transform: translateY(-50%) scale(1.1);
+        }
+        html.dark .toggle-password:hover {
+            background: rgba(245,48,3,0.1);
+        }
 
         .form-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
         .forgot-link { font-size:0.78rem; color:var(--primary); text-decoration:none; font-weight:500; transition:opacity 0.2s; }
