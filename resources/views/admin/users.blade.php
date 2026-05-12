@@ -134,6 +134,9 @@
                         <div class="metadata-wrap">
                             <span class="metadata-user"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
                             <span class="metadata-date"><i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/y') }}</span>
+                            <span class="metadata-time" style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; opacity: 0.8;">
+                                <i class="far fa-clock"></i> {{ $user->created_at->format('H:i') }}
+                            </span>
                         </div>
                     </td>
                     <td class="td-sticky">
