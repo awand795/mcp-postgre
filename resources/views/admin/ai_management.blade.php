@@ -1192,8 +1192,8 @@ function openAddKey(providerId, providerName) {
     document.getElementById('keyHint').style.display     = 'none';
     document.getElementById('keyActiveGrp').style.display = 'none';
     
-    document.getElementById('keyValue').type = 'password';
-    document.getElementById('keyEyeIcon').className = 'fas fa-eye';
+    document.getElementById('keyValue').type = 'text';
+    document.getElementById('keyEyeIcon').className = 'fas fa-eye-slash';
     
     m.style.display = 'flex';
 }
@@ -1214,8 +1214,8 @@ function openEditKey(key) {
     document.getElementById('keyActiveGrp').style.display = 'flex';
     document.getElementById('keyIsActive').checked       = !!key.is_active;
 
-    document.getElementById('keyValue').type = 'password';
-    document.getElementById('keyEyeIcon').className = 'fas fa-eye';
+    document.getElementById('keyValue').type = 'text';
+    document.getElementById('keyEyeIcon').className = 'fas fa-eye-slash';
 
     m.style.display = 'flex';
 }
