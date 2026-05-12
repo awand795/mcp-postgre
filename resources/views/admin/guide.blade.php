@@ -19,7 +19,7 @@ $guideData = [
                     ['no' => 2, 'text' => 'Mengetik email — sorot merah field Email yang sudah diisi', 'desc' => 'Pastikan format email valid.', 'real_img' => 'real_login_email.png', 'img_text' => 'Step 2: Isi Email\nSorot Merah Email'],
                     ['no' => 3, 'text' => 'Mengetik password — sorot merah field Password', 'desc' => 'Field Password: masukkan password akun.', 'real_img' => 'real_login_password.png', 'img_text' => 'Step 3: Isi Password\nSorot Merah Password'],
                     ['no' => 4, 'text' => 'Tombol "Login" — sorot merah lingkaran besar di tombol Login', 'desc' => 'Klik tombol untuk masuk.', 'real_img' => 'real_login_button.png', 'img_text' => 'Step 4: Klik Login\nLingkaran Merah Tombol'],
-                    ['no' => 5, 'text' => 'Setelah login berhasil', 'desc' => 'Sistem akan me-redirect Anda ke halaman Chatbot atau Dashboard.', 'img_text' => 'Step 5: Login Sukses\nRedirect Dashboard'],
+                    ['no' => 5, 'text' => 'Setelah login berhasil', 'desc' => 'Sistem akan me-redirect Anda ke halaman Chatbot atau Dashboard.', 'real_img' => 'real_login_success.png', 'img_text' => 'Step 5: Login Sukses\nRedirect Dashboard'],
                 ]
             ]
         ]
@@ -74,7 +74,7 @@ $guideData = [
                     ['no' => 13, 'text' => 'Field Password', 'desc' => 'Minimal 8 karakter.', 'real_img' => 'real_user_tambah_modal2.png', 'img_text' => 'Step 13: Field Password\nSorot Input Password'],
                     ['no' => 14, 'text' => 'Dropdown Role', 'desc' => 'Pilihan role yang tersedia.', 'real_img' => 'real_user_tambah_modal2.png', 'img_text' => 'Step 14: Dropdown Role\nSorot Select Role'],
                     ['no' => 15, 'text' => 'Checkbox Is Admin', 'desc' => 'Jelaskan kapan dicentang.', 'real_img' => 'real_user_tambah_modal2.png', 'img_text' => 'Step 15: Is Admin\nSorot Checkbox'],
-                    ['no' => 16, 'text' => 'Tombol Simpan di modal', 'desc' => 'Menyimpan data.', 'img_text' => 'Step 16: Tombol Simpan\nLingkaran Besar', 'real_img' => 'user_add.png'],
+                    ['no' => 16, 'text' => 'Tombol Simpan di modal', 'desc' => 'Menyimpan data.', 'real_img' => 'real_user_save_btn.png', 'img_text' => 'Step 16: Tombol Simpan\nLingkaran Besar'],
                     ['no' => 17, 'text' => 'Tombol Batal di modal', 'desc' => 'Membatalkan aksi.', 'real_img' => 'real_user_tambah_modal2.png', 'img_text' => 'Step 17: Tombol Batal\nSorot Batal'],
                     ['no' => 18, 'text' => 'Notifikasi sukses', 'desc' => 'User berhasil dibuat.', 'real_img' => 'real_user_list.png', 'img_text' => 'Step 18: Notifikasi Sukses\nSorot Toast/Alert'],
                 ]
@@ -248,7 +248,7 @@ $guideData = [
                     ['no' => 18, 'text' => 'Field Schema', 'desc' => 'Untuk PostgreSQL, default: public.', 'real_img' => 'real_db_tambah_modal_s3.png', 'img_text' => 'Step 18: Field Schema\nSorot Input'],
                     ['no' => 19, 'text' => 'Tombol Test Connection (di dalam modal)', 'desc' => 'Test sebelum simpan.', 'real_img' => 'real_db_tambah_modal_s3.png', 'img_text' => 'Step 19: Test Koneksi\nSorot Tombol Test'],
                     ['no' => 20, 'text' => 'Hasil test connection', 'desc' => 'Sukses/Gagal notifikasi.', 'real_img' => 'real_db_tambah_modal_s3.png', 'img_text' => 'Step 20: Hasil Test\nSorot Alert Box'],
-                    ['no' => 21, 'text' => 'Tombol Simpan', 'desc' => 'Lingkaran besar.', 'img_text' => 'Step 21: Tombol Simpan\nLingkaran Besar', 'real_img' => 'db_add.png'],
+                    ['no' => 21, 'text' => 'Tombol Simpan', 'desc' => 'Lingkaran besar.', 'real_img' => 'real_db_save_btn.png', 'img_text' => 'Step 21: Tombol Simpan\nLingkaran Besar'],
                     ['no' => 22, 'text' => 'Database baru muncul di grid', 'desc' => 'Card baru.', 'real_img' => 'real_db_list.png', 'img_text' => 'Step 22: DB Baru Tampil\nSorot Grid Baru'],
                 ]
             ],
@@ -340,7 +340,7 @@ $guideData = [
                 'id' => 'ai-provider-delete',
                 'title' => '6E. Hapus Provider',
                 'steps' => [
-                    ['no' => 15, 'text' => 'Tombol hapus (ikon tempat sampah)', 'desc' => 'Di header card.', 'img_text' => 'Step 15: Tombol Hapus\nSorot Ikon Sampah'],
+                    ['no' => 15, 'text' => 'Tombol hapus (ikon tempat sampah)', 'desc' => 'Di header card.', 'real_img' => 'real_ai_delete_provider_btn.png', 'img_text' => 'Step 15: Tombol Hapus\nSorot Ikon Sampah'],
                     ['no' => 16, 'text' => 'Provider built-in terkunci (🔒)', 'desc' => 'OpenAI, Gemini tidak bisa dihapus.', 'real_img' => 'real_ai_management.png', 'img_text' => 'Step 16: Ikon Gembok\nSorot Ikon 🔒'],
                     ['no' => 17, 'text' => 'Dialog konfirmasi Hapus', 'desc' => 'Ya, Hapus.', 'real_img' => 'real_ai_management.png', 'img_text' => 'Step 17: Konfirmasi Hapus\nSorot Tombol Ya'],
                     ['no' => 18, 'text' => 'Provider berhasil dihapus', 'desc' => 'Layar setelah card hilang.', 'real_img' => 'real_ai_management.png', 'img_text' => 'Step 18: Provider Hilang\nSorot Grid'],
