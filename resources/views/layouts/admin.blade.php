@@ -338,7 +338,7 @@
 
         /* ── Tables ── */
         .table-responsive { overflow-x: auto; border-radius: 12px; }
-        table.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        table.data-table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 0.875rem; }
         table.data-table thead tr { background: var(--table-head-bg); }
         table.data-table th { padding: 0.85rem 1rem; text-align: left; font-weight: 700; color: var(--table-head-color); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid var(--glass-border); white-space: nowrap; }
         table.data-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--table-border); color: var(--text-main); vertical-align: middle; }
