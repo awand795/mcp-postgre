@@ -460,42 +460,165 @@ $guideData = [
 @endphp
 
 <style>
-    .guide-container { max-width: 1400px; margin: 0 auto; font-family: 'Outfit', sans-serif; position: relative; }
-    .progress-container { width: 100%; height: 6px; background: var(--glass-border); position: fixed; top: 0; left: 0; z-index: 9999; }
-    .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.1s; }
-    
-    .sidebar-guide { width: 280px; position: sticky; top: 90px; height: calc(100vh - 120px); overflow-y: auto; background: var(--card-bg); border-right: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 12px; box-shadow: var(--shadow-sm); }
-    .sidebar-guide::-webkit-scrollbar { width: 6px; }
-    .sidebar-guide::-webkit-scrollbar-thumb { background: var(--glass-border2); border-radius: 10px; }
-    .nav-pills .nav-link { color: var(--text-muted); padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500; font-size: 0.95rem; margin-bottom: 0.25rem; }
-    .nav-pills .nav-link.active { background-color: rgba(99, 102, 241, 0.15); color: var(--primary); font-weight: 600; }
-    .nav-pills .nav-link:hover { background-color: var(--glass-border); color: var(--text-main); }
-    
-    .content-guide { flex: 1; padding: 1rem 2rem; }
-    .menu-section { background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 2.5rem; margin-bottom: 3rem; box-shadow: var(--shadow-md); scroll-margin-top: 100px; }
-    .menu-title { font-size: 1.8rem; font-weight: 700; color: var(--primary); margin-bottom: 1rem; display: flex; align-items: center; gap: 15px; }
-    .subsection { scroll-margin-top: 120px; }
-    .subsection h4 { color: var(--text-main); font-weight: 600; padding-bottom: 0.5rem; margin-top: 3rem; border-bottom: 2px dashed var(--glass-border2); }
-    
-    .guide-step { display: flex; gap: 24px; padding: 2rem 0; border-bottom: 1px solid var(--glass-border2); align-items: flex-start; }
+    /* ===== GUIDE PAGE LAYOUT ===== */
+    .guide-wrap { display: flex; gap: 0; align-items: flex-start; width: 100%; }
+    .guide-toc {
+        width: 260px;
+        min-width: 260px;
+        position: sticky;
+        top: 80px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 14px;
+        padding: 1.25rem;
+        box-shadow: var(--shadow-sm);
+        margin-right: 1.5rem;
+        flex-shrink: 0;
+    }
+    .guide-toc::-webkit-scrollbar { width: 4px; }
+    .guide-toc::-webkit-scrollbar-thumb { background: var(--glass-border2); border-radius: 10px; }
+    .guide-toc .toc-link {
+        display: block;
+        color: var(--text-muted);
+        padding: 5px 10px;
+        border-radius: 7px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        text-decoration: none;
+        line-height: 1.4;
+        white-space: normal;
+        word-break: break-word;
+        transition: all 0.2s;
+        margin-bottom: 2px;
+    }
+    .guide-toc .toc-link:hover { background: var(--glass-border); color: var(--text-main); }
+    .guide-toc .toc-link.active { background: rgba(99,102,241,0.15); color: var(--primary); font-weight: 700; }
+    .guide-toc .toc-menu-link {
+        display: block;
+        color: var(--text-main);
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-decoration: none;
+        margin-top: 8px;
+        margin-bottom: 2px;
+        transition: all 0.2s;
+    }
+    .guide-toc .toc-menu-link:hover { background: rgba(99,102,241,0.1); }
+    .guide-toc .toc-sub { padding-left: 8px; border-left: 2px solid var(--glass-border2); margin-left: 6px; margin-bottom: 4px; }
+
+    /* ===== MAIN CONTENT ===== */
+    .guide-content { flex: 1; min-width: 0; }
+    .menu-section {
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 2rem 2.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: var(--shadow-md);
+        scroll-margin-top: 90px;
+    }
+    .menu-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .subsection { scroll-margin-top: 100px; }
+    .subsection-title {
+        color: var(--text-main);
+        font-weight: 700;
+        font-size: 1rem;
+        padding: 8px 14px;
+        margin-top: 2rem;
+        margin-bottom: 1.25rem;
+        background: rgba(99,102,241,0.08);
+        border-left: 4px solid var(--primary);
+        border-radius: 0 8px 8px 0;
+    }
+
+    /* ===== STEP CARD ===== */
+    .guide-step {
+        display: flex;
+        gap: 18px;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--glass-border2);
+        align-items: flex-start;
+    }
     .guide-step:last-child { border-bottom: none; padding-bottom: 0; }
-    .step-number { width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
-    .step-title { font-size: 1.25rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem; }
-    
-    .screenshot-wrapper { margin-top: 1.5rem; border-radius: 12px; overflow: hidden; border: 3px solid rgba(239, 68, 68, 0.6); box-shadow: 0 8px 25px rgba(0,0,0,0.15); position: relative; background: #1e293b; text-align: center; }
-    .mockup-img { width: 100%; max-height: 500px; object-fit: contain; background: #1e293b; display: block; transition: transform 0.3s ease; }
-    .screenshot-wrapper:hover .mockup-img { transform: scale(1.02); }
-    
-    .print-btn { position: fixed; bottom: 30px; right: 30px; z-index: 1000; border-radius: 50px; padding: 12px 24px; font-weight: bold; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.5); }
-    
-    .highlight-search { background-color: rgba(234, 179, 8, 0.4); padding: 0 4px; border-radius: 4px; }
+    .step-number {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .step-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; }
+    .step-desc { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+
+    /* ===== SCREENSHOT ===== */
+    .screenshot-wrapper {
+        margin-top: 1.25rem;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 3px solid rgba(239, 68, 68, 0.6);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        position: relative;
+        background: #1e293b;
+    }
+    .screenshot-wrapper.real-shot { border-color: rgba(34, 197, 94, 0.7); }
+    .mockup-img { width: 100%; max-height: 480px; object-fit: contain; display: block; transition: transform 0.3s ease; cursor: zoom-in; }
+    .screenshot-wrapper:hover .mockup-img { transform: scale(1.01); }
+    .screenshot-badge {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 6px 14px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-align: center;
+        color: white;
+    }
+    .badge-real { background: rgba(22,163,74,0.85); }
+    .badge-mockup { background: rgba(239,68,68,0.7); }
+
+    /* ===== PROGRESS ===== */
+    .progress-container { width: 100%; height: 5px; background: var(--glass-border); position: fixed; top: 0; left: 0; z-index: 9999; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 0.15s; }
+
+    /* ===== TOOLS ===== */
+    .guide-search { border-radius: 8px !important; font-size: 0.85rem !important; }
     .d-none-search { display: none !important; }
-    
+    .print-btn { position: fixed; bottom: 28px; right: 28px; z-index: 1000; border-radius: 50px; padding: 10px 22px; font-weight: 700; box-shadow: 0 8px 20px rgba(99,102,241,0.45); }
+
+    /* ===== IMAGE LIGHTBOX ===== */
+    .img-lightbox { display:none; position:fixed; z-index:99999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); align-items:center; justify-content:center; cursor:zoom-out; }
+    .img-lightbox.show { display:flex; }
+    .img-lightbox img { max-width:95vw; max-height:95vh; border-radius:8px; box-shadow:0 0 60px rgba(0,0,0,0.8); }
+
+    @media (max-width: 1024px) {
+        .guide-toc { display: none; }
+    }
     @media print {
-        .sidebar-guide, .progress-container, .print-btn, header, footer, .navbar { display: none !important; }
-        .content-guide { width: 100%; padding: 0; }
-        .menu-section { break-inside: avoid; border: none; box-shadow: none; margin-bottom: 2rem; padding: 0; }
-        .guide-step { break-inside: avoid; }
+        .guide-toc, .progress-container, .print-btn, .img-lightbox { display: none !important; }
+        .guide-content { width: 100%; }
+        .menu-section { break-inside: avoid; border: none; box-shadow: none; }
     }
 </style>
 
@@ -503,178 +626,152 @@ $guideData = [
     <div class="progress-bar" id="progressBar"></div>
 </div>
 
-<div class="guide-container">
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <a href="{{ route('chatbot') }}" class="btn btn-secondary btn-sm mb-2"><i class="fas fa-arrow-left"></i> Kembali ke Chatbot</a>
-            <h1 style="color: var(--text-main); font-weight: 800; font-size: 2.2rem;">Panduan Administrator Lengkap</h1>
-            <p class="text-muted">Dokumentasi Exhaustive 193 Langkah (Terkait Screenshot Asli & Mockup)</p>
-        </div>
-        <div>
-            <button onclick="window.print()" class="btn btn-primary print-btn">
-                <i class="fas fa-print"></i> Cetak PDF
-            </button>
-        </div>
-    </div>
+<!-- LIGHTBOX -->
+<div class="img-lightbox" id="imgLightbox" onclick="this.classList.remove('show')">
+    <img id="lightboxImg" src="" alt="Screenshot">
+</div>
 
-    <div class="d-flex" style="gap: 2.5rem;">
-        <!-- SIDEBAR NAVIGATION -->
-        <div class="sidebar-guide d-none d-lg-block">
-            <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.8rem; letter-spacing: 1px;">Navigasi Panduan</h6>
-            <div class="input-group mb-4 shadow-sm">
-                <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fas fa-search"></i></span>
-                <input type="text" id="guideSearch" class="form-control border-start-0" placeholder="Cari langkah..." style="font-size: 0.9rem;">
+<div class="mb-4">
+    <a href="{{ route('chatbot') }}" class="btn btn-secondary btn-sm mb-2"><i class="fas fa-arrow-left"></i> Kembali ke Chatbot</a>
+    <h1 style="color: var(--text-main); font-weight: 800; font-size: 1.9rem;">Panduan Administrator Lengkap</h1>
+    <p class="text-muted mb-0">Dokumentasi Exhaustive — 193 Langkah dengan Screenshot Asli dari Admin Panel Langsung</p>
+</div>
+
+<div class="guide-wrap">
+    <!-- TABLE OF CONTENTS SIDEBAR -->
+    <nav class="guide-toc" id="guideToc">
+        <p class="text-uppercase fw-bold mb-2" style="font-size:0.75rem; letter-spacing:1px; color:var(--text-muted);">Navigasi Panduan</p>
+        <input type="text" id="guideSearch" class="form-control guide-search mb-3" placeholder="&#128269; Cari langkah...">
+
+        @foreach($guideData as $menu)
+            <a class="toc-menu-link" href="#{{ $menu['id'] }}">
+                <i class="{{ $menu['icon'] }} me-1 opacity-75"></i> {{ explode('(', $menu['title'])[0] }}
+            </a>
+            <div class="toc-sub">
+                @foreach($menu['sections'] as $sec)
+                    <a class="toc-link" href="#{{ $sec['id'] }}">{{ $sec['title'] }}</a>
+                @endforeach
             </div>
-            
-            <nav id="navbar-guide" class="nav flex-column nav-pills" style="font-size: 0.95rem;">
-                @foreach($guideData as $menu)
-                    <a class="nav-link fw-bold mb-1 mt-2 text-wrap" href="#{{ $menu['id'] }}">
-                        <i class="{{ $menu['icon'] }} w-20px text-center me-1"></i> {{ explode('(', $menu['title'])[0] }}
-                    </a>
-                    <div class="ps-3 border-start border-2 ms-2 mb-2" style="border-color: var(--glass-border) !important;">
-                        @foreach($menu['sections'] as $sec)
-                            <a class="nav-link py-1 text-wrap" style="font-size: 0.85rem;" href="#{{ $sec['id'] }}">{{ $sec['title'] }}</a>
+        @endforeach
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="guide-content" id="mainGuideContent">
+        @foreach($guideData as $menu)
+            <section id="{{ $menu['id'] }}" class="menu-section searchable-section">
+                <h2 class="menu-title border-bottom pb-3" style="border-color:var(--glass-border)!important;">
+                    <i class="{{ $menu['icon'] }}"></i> {{ $menu['title'] }}
+                </h2>
+                <p class="text-muted mb-4">{!! $menu['desc'] !!}</p>
+
+                @foreach($menu['sections'] as $sec)
+                    <div id="{{ $sec['id'] }}" class="subsection searchable-subsection">
+                        <div class="subsection-title">
+                            <i class="fas fa-layer-group me-2 opacity-75"></i>{{ $sec['title'] }}
+                        </div>
+
+                        @foreach($sec['steps'] as $step)
+                            <div class="guide-step searchable-step">
+                                <div class="step-number">{{ $step['no'] }}</div>
+                                <div class="flex-grow-1" style="min-width:0;">
+                                    <div class="step-title">{{ $step['text'] }}</div>
+                                    <div class="step-desc">{!! $step['desc'] !!}</div>
+
+                                    @if(isset($step['real_img']) && $step['real_img'] != '')
+                                        <div class="screenshot-wrapper real-shot" onclick="openLightbox('{{ asset('admin_guide/' . $step['real_img']) }}')">
+                                            <img src="{{ asset('admin_guide/' . $step['real_img']) }}" class="mockup-img" alt="Step {{ $step['no'] }}" loading="lazy">
+                                            <div class="screenshot-badge badge-real">
+                                                <i class="fas fa-check-circle me-1"></i> SCREENSHOT ASLI — Klik untuk perbesar
+                                            </div>
+                                        </div>
+                                    @else
+                                        @php
+                                            $mockupUrl = "https://placehold.co/1280x720/1e293b/ef4444?text=" . urlencode($step['img_text']);
+                                        @endphp
+                                        <div class="screenshot-wrapper">
+                                            <img src="{{ $mockupUrl }}" class="mockup-img" alt="Step {{ $step['no'] }}" loading="lazy">
+                                            <div class="screenshot-badge badge-mockup">
+                                                <i class="fas fa-image me-1"></i> MOCKUP — Screenshot menyusul
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 @endforeach
-            </nav>
-        </div>
+            </section>
+        @endforeach
 
-        <!-- MAIN CONTENT -->
-        <div class="content-guide flex-grow-1" id="mainGuideContent">
-            @foreach($guideData as $menu)
-                <section id="{{ $menu['id'] }}" class="menu-section searchable-section">
-                    <h2 class="menu-title border-bottom border-light pb-3">
-                        <i class="{{ $menu['icon'] }} text-primary"></i> {{ $menu['title'] }}
-                    </h2>
-                    <p class="text-muted mb-4 fs-5">{{ $menu['desc'] }}</p>
-
-                    @foreach($menu['sections'] as $sec)
-                        <div id="{{ $sec['id'] }}" class="subsection mb-5 searchable-subsection">
-                            <h4 class="mb-4 text-info"><i class="fas fa-bookmark me-2 fs-6"></i>{{ $sec['title'] }}</h4>
-                            
-                            @foreach($sec['steps'] as $step)
-                                <div class="guide-step searchable-step">
-                                    <div class="step-number">{{ $step['no'] }}</div>
-                                    <div class="step-details flex-grow-1 w-100">
-                                        <h5 class="step-title">{{ $step['text'] }}</h5>
-                                        <p class="text-muted" style="font-size: 1.05rem;">{!! $step['desc'] !!}</p>
-                                        
-                                        <div class="screenshot-wrapper" style="border-color: {{ isset($step['real_img']) ? '#22c55e' : '#ef4444' }};">
-                                            @if(isset($step['real_img']) && $step['real_img'] != '')
-                                                <img src="{{ asset('admin_guide/' . $step['real_img']) }}" class="mockup-img" alt="Step {{ $step['no'] }}" loading="lazy">
-                                                <div class="position-absolute bottom-0 start-0 w-100 bg-success text-white text-center py-2 opacity-90" style="font-size: 0.85rem; font-weight: bold; letter-spacing: 2px;">
-                                                    <i class="fas fa-check-circle me-2"></i> SCREENSHOT ASLI APLIKASI TERLAMPIR
-                                                </div>
-                                            @else
-                                                @php
-                                                    $encodedText = urlencode($step['img_text']);
-                                                    $mockupUrl = "https://placehold.co/1280x720/1e293b/ef4444?text=" . $encodedText;
-                                                @endphp
-                                                <img src="{{ $mockupUrl }}" class="mockup-img" alt="Step {{ $step['no'] }}" loading="lazy">
-                                                <div class="position-absolute bottom-0 start-0 w-100 bg-danger text-white text-center py-2 opacity-75" style="font-size: 0.85rem; font-weight: bold; letter-spacing: 2px;">
-                                                    <i class="fas fa-crosshairs fa-spin me-2"></i> MOCKUP: SCREENSHOT BELUM TERSEDIA
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endforeach
-                </section>
-            @endforeach
-            
-            <div class="text-center py-5 mt-5 border-top" style="border-color: var(--glass-border) !important;">
-                <h3 class="text-success mb-3"><i class="fas fa-check-circle fa-2x"></i></h3>
-                <h4>Panduan Selesai</h4>
-                <p class="text-muted">Anda telah membaca seluruh dokumentasi Exhaustive (193 Langkah).</p>
-                <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="btn btn-outline-primary mt-3">
-                    <i class="fas fa-arrow-up"></i> Kembali ke Atas
-                </button>
-            </div>
+        <div class="text-center py-5 mt-3 border-top" style="border-color: var(--glass-border)!important;">
+            <i class="fas fa-check-circle fa-2x text-success mb-3 d-block"></i>
+            <h4 style="color:var(--text-main);">Panduan Selesai</h4>
+            <p class="text-muted">Seluruh 193 langkah panduan telah tersaji lengkap dengan screenshot asli.</p>
+            <button onclick="window.scrollTo({top:0,behavior:'smooth'})" class="btn btn-outline-primary mt-2">
+                <i class="fas fa-arrow-up me-1"></i> Kembali ke Atas
+            </button>
         </div>
     </div>
 </div>
 
+<button onclick="window.print()" class="btn btn-primary print-btn">
+    <i class="fas fa-print me-1"></i> Cetak PDF
+</button>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    window.addEventListener('scroll', function() {
-        let winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-        let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-        let scrolled = (winScroll / height) * 100;
-        document.getElementById("progressBar").style.width = scrolled + "%";
+function openLightbox(src) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('imgLightbox').classList.add('show');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Progress bar
+    window.addEventListener('scroll', function () {
+        const scrolled = (document.documentElement.scrollTop / (document.documentElement.scrollHeight - document.documentElement.clientHeight)) * 100;
+        document.getElementById('progressBar').style.width = scrolled + '%';
     });
 
-    const sections = document.querySelectorAll('.subsection, .menu-section');
-    const navLinks = document.querySelectorAll('.nav-pills .nav-link');
-    
-    window.addEventListener('scroll', function() {
+    // Scrollspy
+    const toc = document.getElementById('guideToc');
+    const sections = document.querySelectorAll('.subsection[id], .menu-section[id]');
+    const tocLinks = document.querySelectorAll('.guide-toc .toc-link, .guide-toc .toc-menu-link');
+
+    window.addEventListener('scroll', function () {
         let current = '';
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop;
-            const sectionHeight = section.clientHeight;
-            if (pageYOffset >= (sectionTop - 200)) {
-                current = section.getAttribute('id');
-            }
+        sections.forEach(sec => {
+            if (window.scrollY >= sec.offsetTop - 140) current = sec.id;
         });
-
-        navLinks.forEach(link => {
+        tocLinks.forEach(link => {
             link.classList.remove('active');
-            if (link.getAttribute('href').substring(1) === current) {
+            if (link.getAttribute('href') === '#' + current) {
                 link.classList.add('active');
-                const sidebar = document.querySelector('.sidebar-guide');
-                const activeRect = link.getBoundingClientRect();
-                const sidebarRect = sidebar.getBoundingClientRect();
-                if (activeRect.top < sidebarRect.top || activeRect.bottom > sidebarRect.bottom) {
-                    sidebar.scrollTop = link.offsetTop - sidebarRect.height / 2;
+                // Auto-scroll toc
+                const linkRect = link.getBoundingClientRect();
+                const tocRect = toc.getBoundingClientRect();
+                if (linkRect.top < tocRect.top + 20 || linkRect.bottom > tocRect.bottom - 20) {
+                    toc.scrollTop += linkRect.top - tocRect.top - tocRect.height / 2;
                 }
             }
         });
     });
 
-    const searchInput = document.getElementById('guideSearch');
-    const allSteps = document.querySelectorAll('.searchable-step');
-    const allSubsections = document.querySelectorAll('.searchable-subsection');
-    const allSections = document.querySelectorAll('.searchable-section');
-
-    searchInput.addEventListener('input', function(e) {
-        const term = e.target.value.toLowerCase().trim();
-        if (term === '') {
-            allSteps.forEach(el => el.classList.remove('d-none-search'));
-            allSubsections.forEach(el => el.classList.remove('d-none-search'));
-            allSections.forEach(el => el.classList.remove('d-none-search'));
-            return;
-        }
-
-        allSections.forEach(section => {
-            let sectionHasMatch = false;
-            const subsections = section.querySelectorAll('.searchable-subsection');
-            subsections.forEach(sub => {
-                let subHasMatch = false;
-                const steps = sub.querySelectorAll('.searchable-step');
-                steps.forEach(step => {
-                    const text = step.querySelector('.step-title').textContent.toLowerCase() + 
-                                 ' ' + step.querySelector('.text-muted').textContent.toLowerCase();
-                    if (text.includes(term)) {
-                        step.classList.remove('d-none-search');
-                        subHasMatch = true;
-                        sectionHasMatch = true;
-                    } else {
-                        step.classList.add('d-none-search');
-                    }
+    // Live search
+    const search = document.getElementById('guideSearch');
+    search.addEventListener('input', function () {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.searchable-section').forEach(sec => {
+            let secMatch = false;
+            sec.querySelectorAll('.searchable-subsection').forEach(sub => {
+                let subMatch = false;
+                sub.querySelectorAll('.searchable-step').forEach(step => {
+                    const txt = step.innerText.toLowerCase();
+                    const match = !q || txt.includes(q);
+                    step.classList.toggle('d-none-search', !match);
+                    if (match) subMatch = secMatch = true;
                 });
-                if (subHasMatch) {
-                    sub.classList.remove('d-none-search');
-                } else {
-                    sub.classList.add('d-none-search');
-                }
+                sub.classList.toggle('d-none-search', !subMatch && q);
             });
-            if (sectionHasMatch) {
-                section.classList.remove('d-none-search');
-            } else {
-                section.classList.add('d-none-search');
-            }
+            sec.classList.toggle('d-none-search', !secMatch && q);
         });
     });
 });
