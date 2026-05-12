@@ -277,18 +277,25 @@ html.dark .sw-track { background: rgba(255,255,255,.1); }
 }
 html.dark .key-row { border-bottom-color: rgba(255,255,255,.03); }
 .key-row:last-child { border-bottom: none; }
-.key-top-row { display: flex; align-items: center; gap: 7px; width: 100%; }
+.key-top-row { display: flex; align-items: flex-start; gap: 7px; width: 100%; padding-bottom: 2px; }
 .key-bottom-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 33px; }
 
 .key-ico {
     width: 26px; height: 26px; border-radius: 7px;
     background: rgba(0,0,0,.04); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
+    margin-top: -2px;
 }
 html.dark .key-ico { background: rgba(255,255,255,.04); }
 .key-ico svg { width: 12px; height: 12px; stroke: var(--aim-muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.key-name { font-size: 0.85rem; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aim-text); }
-.key-when { font-size: 0.67rem; color: var(--aim-dim); white-space: nowrap; margin-left: auto; }
+.key-name { 
+    font-size: 0.85rem; font-weight: 600; flex: 1; min-width: 0; 
+    color: var(--aim-text); 
+    word-break: break-all;
+    white-space: normal;
+    line-height: 1.4;
+}
+.key-when { font-size: 0.67rem; color: var(--aim-dim); white-space: nowrap; margin-left: auto; padding-top: 2px; }
 .key-added-by { font-size: 0.65rem; color: var(--aim-dim); background: rgba(0,0,0,.03); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
 html.dark .key-added-by { background: rgba(255,255,255,.04); }
 
