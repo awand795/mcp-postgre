@@ -138,8 +138,11 @@
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)">
+                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'has-active-filters' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)" style="position: relative;">
                                 <i class="fas fa-filter"></i>
+                                @if($user->tableFilters->count() > 0)
+                                    <span class="filter-count-badge">{{ $user->tableFilters->count() }}</span>
+                                @endif
                             </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
@@ -441,7 +444,23 @@
 <style>
     /* ── Existing styles (unchanged) ─────────────────────────────────── */
     .filter-group select option { background: var(--select-bg); color: var(--input-text); }
-    .action-buttons { display: flex; gap: 8px; }
+    .action-buttons { display: flex; gap: 8px; flex-wrap: nowrap; }
+    td.td-sticky { white-space: nowrap; }
+    .filter-count-badge {
+        position: absolute; top: -6px; right: -6px;
+        background: #ef4444; color: white;
+        font-size: 0.6rem; font-weight: 800;
+        min-width: 16px; height: 16px; padding: 0 4px;
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        border: 2px solid var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .btn-filter.has-active-filters {
+        background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3);
+    }
+    html.dark .btn-filter.has-active-filters {
+        background: rgba(16,185,129,0.25); color: #34d399; border-color: rgba(16,185,129,0.4);
+    }
+    .filter-count-badge { z-index: 2; }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
     .ai-pill-group { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }

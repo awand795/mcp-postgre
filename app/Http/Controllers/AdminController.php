@@ -29,7 +29,7 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $query = User::with(['roleModel', 'aiModels', 'aiKeys', 'addedBy']);
+        $query = User::with(['roleModel', 'aiModels', 'aiKeys', 'addedBy', 'tableFilters']);
         
         // Visibility filter: Admins see only users they added, Super Admins see all
         if (!auth()->user()->is_super_admin) {
