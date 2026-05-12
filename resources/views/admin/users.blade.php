@@ -138,10 +138,10 @@
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS) {{ $user->tableFilters->count() > 0 ? '— ' . $user->tableFilters->count() . ' filter aktif' : '' }}" style="position:relative;">
+                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)" style="position:relative;">
                                 <i class="fas fa-filter"></i>
                                 @if($user->tableFilters->count() > 0)
-                                    <span class="filter-dot"></span>
+                                    <span class="filter-count-badge">{{ $user->tableFilters->count() }}</span>
                                 @endif
                             </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
@@ -456,17 +456,15 @@
         background: rgba(16,185,129,0.25) !important; color: #34d399 !important;
         border-color: rgba(16,185,129,0.4) !important;
     }
-    /* Green dot indicator */
-    .filter-dot {
-        position: absolute; top: -3px; right: -3px;
-        width: 10px; height: 10px; border-radius: 50%;
-        background: #10b981; border: 2px solid var(--card-bg);
-        box-shadow: 0 0 0 1px rgba(16,185,129,0.3);
-        animation: filter-dot-pulse 2s ease-in-out infinite;
-    }
-    @keyframes filter-dot-pulse {
-        0%, 100% { box-shadow: 0 0 0 1px rgba(16,185,129,0.3); }
-        50% { box-shadow: 0 0 0 4px rgba(16,185,129,0.15); }
+    /* Number badge indicator */
+    .filter-count-badge {
+        position: absolute; top: -6px; right: -6px;
+        min-width: 16px; height: 16px; padding: 0 4px;
+        border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        background: #10b981; color: white;
+        font-size: 0.58rem; font-weight: 800; line-height: 1;
+        border: 2px solid var(--card-bg);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
@@ -896,7 +894,17 @@
         transition: all 0.2s; flex-shrink: 0;
     }
     .tf-rule-del:hover { background: rgba(239,68,68,0.18); }
-    .tf-rule-and { font-size: 0.65rem; font-weight: 700; color: #6366f1; text-transform: uppercase; margin: -4px 0 4px 12px; }
+    .tf-rule-logic {
+        display: flex; align-items: center; justify-content: center;
+        margin: -2px 0 2px 0; padding: 2px 0;
+    }
+    .tf-logic-select {
+        padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.2);
+        background: rgba(99,102,241,0.06); color: #6366f1; font-size: 0.68rem; font-weight: 800;
+        text-transform: uppercase; cursor: pointer; outline: none;
+        font-family: 'Outfit', sans-serif; text-align: center;
+    }
+    .tf-logic-select:focus { border-color: #6366f1; }
     
     .tf-help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
     
@@ -1289,13 +1297,13 @@
         const container = document.getElementById('tfRulesContainer');
         container.innerHTML = '';
         if (rules.length === 0) {
-            // Show empty state hint
             container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
             return;
         }
         rules.forEach((rule, i) => {
             if (i > 0) {
-                container.insertAdjacentHTML('beforeend', '<div class="tf-rule-and">AND</div>');
+                const logic = rule.logic || 'AND';
+                appendLogicSelector(logic);
             }
             appendRuleRow(rule.column, rule.operator, rule.value);
         });
@@ -1303,16 +1311,27 @@
 
     function addRuleRow() {
         const container = document.getElementById('tfRulesContainer');
-        // Remove empty state hint if present
         const hint = container.querySelector('[style*="dashed"]');
         if (hint) hint.remove();
 
-        // Add AND label if not the first rule
         const existingRows = container.querySelectorAll('.tf-rule-row');
         if (existingRows.length > 0) {
-            container.insertAdjacentHTML('beforeend', '<div class="tf-rule-and">AND</div>');
+            appendLogicSelector('AND');
         }
         appendRuleRow('', '=', '');
+    }
+
+    function appendLogicSelector(selected) {
+        const container = document.getElementById('tfRulesContainer');
+        const div = document.createElement('div');
+        div.className = 'tf-rule-logic';
+        div.innerHTML = `
+            <select class="tf-logic-select">
+                <option value="AND" ${selected === 'AND' ? 'selected' : ''}>AND</option>
+                <option value="OR" ${selected === 'OR' ? 'selected' : ''}>OR</option>
+            </select>
+        `;
+        container.appendChild(div);
     }
 
     function appendRuleRow(column, operator, value) {
@@ -1339,30 +1358,42 @@
 
     function removeRuleRow(btn) {
         const row = btn.closest('.tf-rule-row');
-        const andLabel = row.previousElementSibling;
-        if (andLabel && andLabel.classList.contains('tf-rule-and')) andLabel.remove();
+        const prev = row.previousElementSibling;
+        const next = row.nextElementSibling;
+        // Remove associated logic selector (before or after)
+        if (prev && prev.classList.contains('tf-rule-logic')) {
+            prev.remove();
+        } else if (next && next.classList.contains('tf-rule-logic')) {
+            next.remove();
+        }
         row.remove();
 
-        // Fix: if first row was removed, remove leading AND label
         const container = document.getElementById('tfRulesContainer');
+        // Fix leading logic selector
         const firstChild = container.firstElementChild;
-        if (firstChild && firstChild.classList.contains('tf-rule-and')) firstChild.remove();
+        if (firstChild && firstChild.classList.contains('tf-rule-logic')) firstChild.remove();
 
-        // Show empty state if no rules left
         if (container.querySelectorAll('.tf-rule-row').length === 0) {
             container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
         }
     }
 
     function collectRulesFromUI() {
-        const rows = document.querySelectorAll('#tfRulesContainer .tf-rule-row');
+        const container = document.getElementById('tfRulesContainer');
+        const children = Array.from(container.children);
         const rules = [];
-        rows.forEach(row => {
-            const col = row.querySelector('.tf-rule-col').value;
-            const op = row.querySelector('.tf-rule-op').value;
-            const val = row.querySelector('.tf-rule-val').value.trim();
-            if (col && val) {
-                rules.push({ column: col, operator: op, value: val });
+        let nextLogic = 'AND';
+        children.forEach(el => {
+            if (el.classList.contains('tf-rule-logic')) {
+                nextLogic = el.querySelector('.tf-logic-select').value;
+            } else if (el.classList.contains('tf-rule-row')) {
+                const col = el.querySelector('.tf-rule-col').value;
+                const op = el.querySelector('.tf-rule-op').value;
+                const val = el.querySelector('.tf-rule-val').value.trim();
+                if (col && val) {
+                    rules.push({ column: col, operator: op, value: val, logic: rules.length === 0 ? 'AND' : nextLogic });
+                }
+                nextLogic = 'AND';
             }
         });
         return rules;

@@ -1084,12 +1084,17 @@ class QueryService extends BaseService
         if (empty($rules)) return '';
 
         $parts = [];
+        $logics = [];
         foreach ($rules as $rule) {
             $col = preg_replace('/[^a-zA-Z0-9_]/', '', $rule['column'] ?? '');
             $op = strtoupper($rule['operator'] ?? '=');
             $val = $rule['value'] ?? '';
+            $logic = strtoupper($rule['logic'] ?? 'AND');
+            if (!in_array($logic, ['AND', 'OR'])) $logic = 'AND';
 
             if (empty($col) || empty($val)) continue;
+
+            $escaped = str_replace("'", "''", $val);
 
             if ($op === 'IN' || $op === 'NOT IN') {
                 $vals = array_map(function($v) {
@@ -1098,14 +1103,24 @@ class QueryService extends BaseService
                 }, explode(',', $val));
                 $parts[] = "{$col} {$op} (" . implode(', ', $vals) . ")";
             } elseif ($op === 'LIKE' || $op === 'ILIKE') {
-                $escaped = str_replace("'", "''", $val);
                 $parts[] = "{$col} {$op} '{$escaped}'";
             } else {
-                $escaped = str_replace("'", "''", $val);
                 $parts[] = "{$col} {$op} '{$escaped}'";
+            }
+
+            if (count($parts) > 1) {
+                $logics[] = $logic;
             }
         }
 
-        return implode(' AND ', $parts);
+        if (empty($parts)) return '';
+
+        $result = $parts[0];
+        for ($i = 1; $i < count($parts); $i++) {
+            $logic = $logics[$i - 1] ?? 'AND';
+            $result .= " {$logic} {$parts[$i]}";
+        }
+
+        return $result;
     }
 }
