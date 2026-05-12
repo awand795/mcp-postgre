@@ -168,8 +168,12 @@ class AdminController extends Controller
 
         $user->update($data);
 
-        $user->aiModels()->sync($request->ai_models ?? []);
-        $user->aiKeys()->sync($request->ai_keys ?? []);
+        if ($request->has('ai_models')) {
+            $user->aiModels()->sync($request->ai_models);
+        }
+        if ($request->has('ai_keys')) {
+            $user->aiKeys()->sync($request->ai_keys);
+        }
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
         return $redirect->with('success', 'User berhasil diperbarui.');
