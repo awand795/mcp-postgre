@@ -62,16 +62,7 @@
             <tbody>
                 @forelse($users as $user)
                 <tr>
-                    <td class="td-name">
-                        <div>
-                            {{ $user->name }}
-                            @if($user->tableFilters->count() > 0)
-                                <div class="user-filter-indicator">
-                                    <i class="fas fa-shield-halved"></i> {{ $user->tableFilters->count() }} filter aktif
-                                </div>
-                            @endif
-                        </div>
-                    </td>
+                    <td class="td-name">{{ $user->name }}</td>
                     <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
                     <td>
                         <span class="role-badge">
@@ -140,13 +131,14 @@
                         @endif
                     </td>
                     <td>
-                        <span class="metadata-compact" title="Oleh: {{ $user->addedBy->name ?? 'System' }} — {{ $user->created_at->format('d/m/Y H:i') }}">
-                            <i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/y') }}
-                        </span>
+                        <div class="metadata-wrap">
+                            <span class="metadata-user"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
+                            <span class="metadata-date"><i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/y') }}</span>
+                        </div>
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)">
+                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS) {{ $user->tableFilters->count() > 0 ? '— ' . $user->tableFilters->count() . ' filter aktif' : '' }}">
                                 <i class="fas fa-filter"></i>
                             </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
@@ -452,23 +444,14 @@
     .action-buttons { display: flex; gap: 6px; flex-wrap: nowrap; }
     td.td-sticky { white-space: nowrap; }
 
-    /* Filter indicator under user name */
-    .user-filter-indicator {
-        display: inline-flex; align-items: center; gap: 4px;
-        margin-top: 4px; padding: 2px 8px; border-radius: 6px;
-        font-size: 0.65rem; font-weight: 700;
-        background: rgba(245,158,11,0.12); color: #d97706;
-        border: 1px solid rgba(245,158,11,0.25);
+    /* Active filter button — green when user has RLS rules */
+    .btn-filter-active {
+        background: rgba(16,185,129,0.18) !important; color: #059669 !important;
+        border-color: rgba(16,185,129,0.35) !important;
     }
-    .user-filter-indicator i { font-size: 0.6rem; }
-    html.dark .user-filter-indicator {
-        background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3);
-    }
-
-    /* Compact metadata */
-    .metadata-compact {
-        display: inline-flex; align-items: center; gap: 5px;
-        font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; cursor: default;
+    html.dark .btn-filter-active {
+        background: rgba(16,185,129,0.25) !important; color: #34d399 !important;
+        border-color: rgba(16,185,129,0.4) !important;
     }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
