@@ -789,6 +789,7 @@
     }
 </style>
 
+<style>
     /* ── Table Filter Modal (TF) — Visual Rule Builder ── */
     .tf-modal { 
         width: 100%; max-width: 920px; height: 650px; 
