@@ -40,21 +40,21 @@ class SSOController extends Controller
         $user = User::where('email', $email)->first();
 
         if (!$user) {
-            // Get default role for new ERP users (usually 'User Biasa' or first non-admin role)
-            $defaultRole = Role::where('name', 'LIKE', '%User%')->first() ?: Role::first();
+            // NEW USER: We do NOT assign a role or database access automatically.
+            // They will be registered but "Locked" until Admin configures them.
             
             $user = User::create([
                 'name' => $request->name,
                 'email' => $email,
-                'password' => Hash::make(Str::random(32)), // Random password, not used for SSO
-                'role' => $defaultRole ? $defaultRole->id : null,
+                'password' => Hash::make(Str::random(32)),
+                'role' => null, // NO ROLE: Admin must manually assign one
                 'is_admin' => false,
                 'is_super_admin' => false,
-                'analysis_scope_limited' => true, // Default to restricted scope
-                'max_tokens' => 32768,
+                'analysis_scope_limited' => true, 
+                'max_tokens' => 4096, // Give very small limit initially
             ]);
 
-            Log::info("[SSO] Auto-registered user: {$email}");
+            Log::info("[SSO] Auto-registered user (PENDING ADMIN APPROVAL): {$email}");
         } else {
             // Update name if changed in ERP
             $user->update(['name' => $request->name]);
