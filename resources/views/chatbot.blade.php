@@ -481,9 +481,21 @@
             overflow-x: hidden;
         }
 
-        /* Markdown styles */
-        .markdown-body {
-            line-height: 1.6;
+        /* Constrain AI bubbles to prevent stretching */
+        .chat-bubble-ai {
+            /* Soft Aurora/Pearlescent look */
+            background: linear-gradient(135deg, #ffffff 0%, #f4f6ff 50%, #fdf5ff 100%);
+            color: #1f2937;
+            border: 1.2px solid rgba(99, 102, 241, 0.15);
+            border-bottom-left-radius: 4px;
+            box-shadow: 
+                0 10px 20px -5px rgba(99, 102, 241, 0.1),
+                0 4px 6px -2px rgba(0, 0, 0, 0.02),
+                inset 0 0 10px rgba(168, 85, 247, 0.03);
+            position: relative;
+            max-width: 100%;
+            min-width: 0; /* Crucial for flexbox children to shrink */
+            overflow: hidden; /* Contain scrolling elements */
         }
 
         .markdown-body p {
@@ -700,6 +712,8 @@
             padding: 0 0 25px 0;
             margin: 24px 0;
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
             min-height: 450px;
             height: auto;
             position: relative;
@@ -886,6 +900,7 @@
             border: 1.5px solid rgba(99, 102, 241, 0.2);
             overflow: hidden;
             background: linear-gradient(160deg, #f5f3ff 0%, #fdf4ff 40%, #fff0f9 100%);
+            width: 100%;
             max-width: 100%;
             box-shadow: 0 12px 30px -5px rgba(99, 102, 241, 0.15), 0 4px 10px -3px rgba(168, 85, 247, 0.1);
             display: flex;
