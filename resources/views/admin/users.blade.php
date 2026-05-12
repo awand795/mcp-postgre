@@ -466,7 +466,7 @@
         border: 2px solid var(--card-bg);
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
-    .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
+    .btn-edit, .btn-delete, .btn-info, .btn-filter { padding: 8px 10px; font-size: 0.8rem; border-radius: 8px; }
 
     .ai-pill-group { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
     .ai-pill {
