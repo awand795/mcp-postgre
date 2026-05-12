@@ -316,6 +316,12 @@ class QueryService extends BaseService
             }
         }
 
+        // ── LAYER 5.5: Global Security Policy (Columns & Keywords) ───────────
+        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $sqlForRbacScan);
+        if ($policyViolation) {
+            return $policyViolation;
+        }
+
         // ── LAYER 5.8: Inject User Table Filters (Row Level Security) ────────
         // Jika user bukan super admin, periksa apakah ada filter khusus untuk tabel ini.
         $user = Auth::user();
@@ -327,11 +333,17 @@ class QueryService extends BaseService
             if ($tableFilters->count() > 0) {
                 foreach ($tableFilters as $tf) {
                     $tbl = $tf->table_name;
-                    $cond = $tf->filter_condition;
+                    $rawCondition = $tf->filter_condition;
+                    if (empty($rawCondition)) continue;
+
+                    // Parse JSON rules and build WHERE clause
+                    $rules = json_decode($rawCondition, true);
+                    if (!is_array($rules) || empty($rules)) continue;
+
+                    $cond = $this->buildWhereFromRules($rules);
                     if (empty($cond)) continue;
 
                     // Strategi: Bungkus tabel dengan subquery yang sudah difilter
-                    // Hal ini memastikan filter berlaku bahkan jika AI tidak menambahkan WHERE sendiri.
                     
                     // 1. Handle FROM
                     $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
@@ -346,6 +358,8 @@ class QueryService extends BaseService
                         $schema = !empty($m[1]) ? $m[1] . "." : "";
                         return "JOIN (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
                     }, $trimmedSql);
+
+                    Log::info("[QueryService] RLS filter injected for user {$user->id} on table {$tbl}: {$cond}");
                 }
             }
         }
@@ -1059,5 +1073,43 @@ class QueryService extends BaseService
             Log::warning('[QueryService] detectDateColumn failed: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Build WHERE clause from structured JSON rules.
+     * Used by RLS injection and AdminController preview.
+     */
+    private function buildWhereFromRules(array $rules): string
+    {
+        if (empty($rules)) return '';
+
+        $parts = [];
+        foreach ($rules as $rule) {
+            $col = preg_replace('/[^a-zA-Z0-9_]/', '', $rule['column'] ?? '');
+            $op = strtoupper($rule['operator'] ?? '=');
+            $val = $rule['value'] ?? '';
+
+            if (empty($col) || empty($val)) continue;
+
+            if ($op === 'IN' || $op === 'NOT IN') {
+                $vals = array_map(function($v) {
+                    $v = trim($v, " \t\n\r\"");
+                    return "'" . str_replace("'", "''", trim($v)) . "'";
+                }, explode(',', $val));
+                $parts[] = "{$col} {$op} (" . implode(', ', $vals) . ")";
+            } elseif ($op === 'LIKE' || $op === 'ILIKE') {
+                $escaped = str_replace("'", "''", $val);
+                $parts[] = "{$col} {$op} '{$escaped}'";
+            } else {
+                $escaped = str_replace("'", "''", $val);
+                if (is_numeric($val)) {
+                    $parts[] = "{$col} {$op} {$val}";
+                } else {
+                    $parts[] = "{$col} {$op} '{$escaped}'";
+                }
+            }
+        }
+
+        return implode(' AND ', $parts);
     }
 }

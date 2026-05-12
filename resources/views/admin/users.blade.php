@@ -361,7 +361,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     TABLE FILTER MODAL (RLS) — NEW
+     TABLE FILTER MODAL (RLS) — VISUAL RULE BUILDER
      ═══════════════════════════════════════════════════════════ -->
 <div id="tableFilterModal" class="modal-overlay">
     <div class="tf-modal glass-card">
@@ -374,9 +374,14 @@
                     <h3 class="tf-username" id="tfUserName">—</h3>
                 </div>
             </div>
-            <button class="tf-close-btn" onclick="hideTableFilters()" title="Tutup">
-                <i class="fas fa-times"></i>
-            </button>
+            <div class="tf-header-actions">
+                <button class="tf-copy-btn" onclick="showCopyFilterModal()" title="Salin Filter dari User Lain">
+                    <i class="fas fa-copy"></i> Salin
+                </button>
+                <button class="tf-close-btn" onclick="hideTableFilters()" title="Tutup">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
 
         <div class="tf-body">
@@ -384,9 +389,7 @@
                 <div class="tf-sidebar-header">
                     <i class="fas fa-database"></i> <span>Tabel Terdeteksi</span>
                 </div>
-                <div class="tf-table-list" id="tfTableList">
-                    <!-- Tables will be loaded here -->
-                </div>
+                <div class="tf-table-list" id="tfTableList"></div>
             </div>
 
             <div class="tf-content">
@@ -401,25 +404,26 @@
                         <span id="tfActiveDbName" class="tf-db-badge">Database Name</span>
                     </div>
 
-                    <div class="tf-form-area">
-                        <label class="tf-input-label">
-                            <i class="fas fa-filter"></i> Kondisi WHERE (SQL)
-                        </label>
-                        <div class="tf-input-wrapper">
-                            <textarea id="tfFilterInput" placeholder="Contoh: kode_cabang = 'B282' OR region = 'Pusat'"></textarea>
+                    <!-- Rule Builder -->
+                    <div class="tf-rules-area">
+                        <div class="tf-rules-header">
+                            <label class="tf-input-label"><i class="fas fa-filter"></i> Aturan Filter</label>
+                            <button type="button" class="tf-add-rule-btn" onclick="addRuleRow()">
+                                <i class="fas fa-plus"></i> Tambah Kondisi
+                            </button>
                         </div>
+                        <div id="tfRulesContainer"></div>
                         <p class="tf-help-text">
-                            <i class="fas fa-info-circle"></i> Gunakan sintaks SQL murni. Kosongkan jika ingin mengizinkan semua data.
+                            <i class="fas fa-info-circle"></i> Kosongkan semua untuk mengizinkan akses ke seluruh data tabel ini.
                         </p>
                     </div>
 
-                    <div class="tf-examples">
-                        <h5>Contoh Penulisan:</h5>
-                        <ul>
-                            <li><code>kode_cabang = 'B282'</code></li>
-                            <li><code>wilayah IN ('JATIM', 'JATENG')</code></li>
-                            <li><code>tgl_faktur >= '2024-01-01'</code></li>
-                        </ul>
+                    <!-- Preview -->
+                    <div class="tf-preview-area">
+                        <button type="button" class="tf-preview-btn" onclick="previewFilter()">
+                            <i class="fas fa-eye"></i> Preview Data (5 Baris)
+                        </button>
+                        <div id="tfPreviewResult" style="display:none;"></div>
                     </div>
                 </div>
             </div>
@@ -785,63 +789,104 @@
     }
 </style>
 
-    /* ── Table Filter Modal (TF) ── */
+    /* ── Table Filter Modal (TF) — Visual Rule Builder ── */
     .tf-modal { 
-        width: 100%; max-width: 850px; height: 600px; 
+        width: 100%; max-width: 920px; height: 650px; 
         display: flex; flex-direction: column; overflow: hidden; border-radius: 20px;
     }
     .tf-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--glass-border2); display: flex; justify-content: space-between; align-items: center; }
     .tf-header-left { display: flex; align-items: center; gap: 1rem; }
+    .tf-header-actions { display: flex; align-items: center; gap: 8px; }
     .tf-icon-circle { width: 42px; height: 42px; border-radius: 12px; background: rgba(99,102,241,0.1); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
     .tf-label { font-size: 0.72rem; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
     .tf-username { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
-    .tf-close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; }
+    .tf-close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; padding: 6px; }
+    .tf-copy-btn { 
+        padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.2);
+        background: rgba(99,102,241,0.08); color: #818cf8; font-size: 0.75rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;
+    }
+    .tf-copy-btn:hover { background: rgba(99,102,241,0.18); }
     
     .tf-body { display: flex; flex: 1; overflow: hidden; }
-    .tf-sidebar { width: 280px; border-right: 1px solid var(--glass-border2); background: rgba(0,0,0,0.02); display: flex; flex-direction: column; }
-    .tf-sidebar-header { padding: 1rem 1.25rem; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border2); }
+    .tf-sidebar { width: 260px; border-right: 1px solid var(--glass-border2); background: rgba(0,0,0,0.02); display: flex; flex-direction: column; flex-shrink: 0; }
+    .tf-sidebar-header { padding: 1rem 1.25rem; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border2); flex-shrink: 0; }
     .tf-table-list { flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 4px; }
     
     .tf-table-item { 
-        padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer; transition: all 0.2s;
-        display: flex; flex-direction: column; gap: 2px; border: 1px solid transparent;
+        padding: 0.65rem 0.9rem; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+        display: flex; align-items: center; gap: 10px; border: 1px solid transparent; position: relative;
     }
     .tf-table-item:hover { background: rgba(99,102,241,0.05); }
     .tf-table-item.active { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.2); }
-    .tf-ti-name { font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
-    .tf-ti-db { font-size: 0.68rem; color: var(--text-muted); }
-    .tf-table-item.has-filter::after { 
-        content: '\f0b0'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
-        position: absolute; right: 10px; top: 15px; font-size: 0.7rem; color: #10b981;
+    .tf-ti-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+    .tf-ti-name { font-size: 0.8rem; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tf-ti-db { font-size: 0.65rem; color: var(--text-muted); }
+    .tf-ti-badge { 
+        padding: 2px 6px; border-radius: 5px; font-size: 0.6rem; font-weight: 700;
+        background: rgba(16,185,129,0.15); color: #10b981; flex-shrink: 0;
     }
-    .tf-table-item { position: relative; }
 
-    .tf-content { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); position: relative; }
+    .tf-content { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); }
     .tf-empty-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center; padding: 2rem; }
     .tf-empty-panel i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; }
     
-    .tf-config-panel { flex: 1; display: flex; flex-direction: column; padding: 2rem; overflow-y: auto; }
-    .tf-table-header-info { margin-bottom: 2rem; }
-    .tf-table-header-info h4 { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; }
+    .tf-config-panel { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; overflow-y: auto; }
+    .tf-table-header-info { margin-bottom: 1.25rem; }
+    .tf-table-header-info h4 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; }
     .tf-db-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; background: rgba(99,102,241,0.1); color: #6366f1; font-size: 0.7rem; font-weight: 600; }
     
-    .tf-form-area { margin-bottom: 2rem; }
-    .tf-input-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.75rem; }
-    .tf-input-wrapper textarea { 
-        width: 100%; height: 120px; border-radius: 12px; border: 1.5px solid var(--input-border);
-        background: var(--input-bg); color: var(--text-main); padding: 1rem; font-family: 'Consolas', monospace;
-        font-size: 0.9rem; resize: none; transition: all 0.3s;
+    /* Rule Builder */
+    .tf-rules-area { margin-bottom: 1.25rem; }
+    .tf-rules-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .tf-input-label { font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin: 0; }
+    .tf-add-rule-btn { 
+        padding: 5px 12px; border-radius: 8px; border: 1px dashed rgba(99,102,241,0.3);
+        background: transparent; color: #818cf8; font-size: 0.75rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;
     }
-    .tf-input-wrapper textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.1); outline: none; }
+    .tf-add-rule-btn:hover { background: rgba(99,102,241,0.08); border-style: solid; }
+    
+    .tf-rule-row {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+        padding: 8px 10px; border-radius: 10px; background: var(--input-bg);
+        border: 1px solid var(--glass-border2); transition: all 0.2s;
+    }
+    .tf-rule-row:hover { border-color: rgba(99,102,241,0.2); }
+    .tf-rule-row select, .tf-rule-row input {
+        padding: 6px 10px; border-radius: 8px; border: 1px solid var(--input-border);
+        background: var(--card-bg); color: var(--text-main); font-size: 0.8rem;
+        font-family: 'Outfit', sans-serif; outline: none; transition: border-color 0.2s;
+    }
+    .tf-rule-row select:focus, .tf-rule-row input:focus { border-color: #6366f1; }
+    .tf-rule-col { flex: 2; min-width: 0; }
+    .tf-rule-op { width: 90px; flex-shrink: 0; }
+    .tf-rule-val { flex: 2; min-width: 0; }
+    .tf-rule-del {
+        width: 30px; height: 30px; border-radius: 8px; border: none;
+        background: rgba(239,68,68,0.08); color: #ef4444; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
+        transition: all 0.2s; flex-shrink: 0;
+    }
+    .tf-rule-del:hover { background: rgba(239,68,68,0.18); }
+    .tf-rule-and { font-size: 0.65rem; font-weight: 700; color: #6366f1; text-transform: uppercase; margin: -4px 0 4px 12px; }
+    
     .tf-help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
     
-    .tf-examples h5 { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.75rem; }
-    .tf-examples ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .tf-examples li { font-size: 0.8rem; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
-    .tf-examples code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #4338ca; }
-    html.dark .tf-examples code { background: rgba(255,255,255,0.05); color: #a5b4fc; }
+    /* Preview */
+    .tf-preview-area { margin-top: auto; padding-top: 1rem; }
+    .tf-preview-btn {
+        padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(16,185,129,0.2);
+        background: rgba(16,185,129,0.08); color: #10b981; font-size: 0.8rem; font-weight: 600;
+        cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .tf-preview-btn:hover { background: rgba(16,185,129,0.15); }
+    .tf-preview-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
+    .tf-preview-table th { background: rgba(99,102,241,0.08); color: #6366f1; font-weight: 700; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--glass-border2); }
+    .tf-preview-table td { padding: 5px 8px; border-bottom: 1px solid var(--glass-border2); color: var(--text-main); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tf-preview-total { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
 
-    .tf-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 10px; }
+    .tf-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
     
     .btn-filter { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
     .btn-filter:hover { background: rgba(16,185,129,0.2); }
@@ -850,7 +895,9 @@
     @media (max-width: 768px) {
         .tf-modal { height: 95vh; max-height: 95vh; }
         .tf-body { flex-direction: column; }
-        .tf-sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid var(--glass-border2); }
+        .tf-sidebar { width: 100%; height: 180px; border-right: none; border-bottom: 1px solid var(--glass-border2); }
+        .tf-rule-row { flex-wrap: wrap; }
+        .tf-rule-col, .tf-rule-val { flex-basis: 100%; }
     }
 </style>
 <script>
@@ -1136,18 +1183,20 @@
             hideModal(); hideImportModal(); hideAiConfig();
         }
     }
-    /* ── TABLE FILTER (RLS) LOGIC ── */
+    /* ── TABLE FILTER (RLS) — VISUAL RULE BUILDER LOGIC ── */
     let _tfTargetUser = null;
     let _tfTables = [];
     let _tfActiveTableIdx = -1;
+    let _tfColumns = []; // columns for active table
 
     async function showTableFilters(user) {
         _tfTargetUser = user;
         document.getElementById('tfUserName').innerText = user.name;
-        document.getElementById('tfTableList').innerHTML = '<div class="tf-empty" style="padding:1rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat tabel...</div>';
+        document.getElementById('tfTableList').innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat tabel...</div>';
         document.getElementById('tfEmptyState').style.display = 'flex';
         document.getElementById('tfConfigPanel').style.display = 'none';
         document.getElementById('tableFilterModal').style.display = 'flex';
+        _tfActiveTableIdx = -1;
 
         try {
             const res = await fetch(`/admin/users/${user.id}/table-filters`);
@@ -1162,22 +1211,29 @@
     function renderTfTableList() {
         const list = document.getElementById('tfTableList');
         if (_tfTables.length === 0) {
-            list.innerHTML = '<div class="tf-empty" style="padding:1rem; font-size:0.8rem; color:var(--text-muted);">Tidak ada tabel yang diizinkan untuk role ini.</div>';
+            list.innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);">Tidak ada tabel yang diizinkan untuk role ini.</div>';
             return;
         }
 
-        list.innerHTML = _tfTables.map((t, idx) => `
-            <div class="tf-table-item ${idx === _tfActiveTableIdx ? 'active' : ''} ${t.current_filter ? 'has-filter' : ''}" onclick="selectTfTable(${idx})">
-                <span class="tf-ti-name">${t.table_name}</span>
-                <span class="tf-ti-db">${t.db_name}</span>
-            </div>
-        `).join('');
+        list.innerHTML = _tfTables.map((t, idx) => {
+            const hasRules = t.rules && t.rules.length > 0;
+            const badge = hasRules ? `<span class="tf-ti-badge">${t.rules.length} filter</span>` : '';
+            return `
+                <div class="tf-table-item ${idx === _tfActiveTableIdx ? 'active' : ''}" onclick="selectTfTable(${idx})">
+                    <div class="tf-ti-info">
+                        <span class="tf-ti-name">${t.table_name}</span>
+                        <span class="tf-ti-db">${t.db_name}</span>
+                    </div>
+                    ${badge}
+                </div>
+            `;
+        }).join('');
     }
 
-    function selectTfTable(idx) {
-        // Save current filter before switching
+    async function selectTfTable(idx) {
+        // Save current rules before switching
         if (_tfActiveTableIdx !== -1) {
-            _tfTables[_tfActiveTableIdx].current_filter = document.getElementById('tfFilterInput').value.trim();
+            _tfTables[_tfActiveTableIdx].rules = collectRulesFromUI();
         }
 
         _tfActiveTableIdx = idx;
@@ -1185,18 +1241,152 @@
 
         document.getElementById('tfActiveTableName').innerText = table.table_name;
         document.getElementById('tfActiveDbName').innerText = table.db_name;
-        document.getElementById('tfFilterInput').value = table.current_filter || '';
-        
         document.getElementById('tfEmptyState').style.display = 'none';
         document.getElementById('tfConfigPanel').style.display = 'flex';
-        
+        document.getElementById('tfPreviewResult').style.display = 'none';
+
+        // Load columns for dropdown
+        _tfColumns = [];
+        try {
+            const res = await fetch(`/admin/users/table-columns?db_id=${table.db_id}&table_name=${table.table_name}&schema=${table.schema || 'public'}`);
+            const data = await res.json();
+            _tfColumns = data.columns || [];
+        } catch(e) { /* silent */ }
+
+        // Render existing rules
+        renderRulesUI(table.rules || []);
         renderTfTableList();
     }
 
+    function renderRulesUI(rules) {
+        const container = document.getElementById('tfRulesContainer');
+        container.innerHTML = '';
+        if (rules.length === 0) {
+            // Show empty state hint
+            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
+            return;
+        }
+        rules.forEach((rule, i) => {
+            if (i > 0) {
+                container.insertAdjacentHTML('beforeend', '<div class="tf-rule-and">AND</div>');
+            }
+            appendRuleRow(rule.column, rule.operator, rule.value);
+        });
+    }
+
+    function addRuleRow() {
+        const container = document.getElementById('tfRulesContainer');
+        // Remove empty state hint if present
+        const hint = container.querySelector('[style*="dashed"]');
+        if (hint) hint.remove();
+
+        // Add AND label if not the first rule
+        const existingRows = container.querySelectorAll('.tf-rule-row');
+        if (existingRows.length > 0) {
+            container.insertAdjacentHTML('beforeend', '<div class="tf-rule-and">AND</div>');
+        }
+        appendRuleRow('', '=', '');
+    }
+
+    function appendRuleRow(column, operator, value) {
+        const container = document.getElementById('tfRulesContainer');
+        const colOptions = _tfColumns.map(c =>
+            `<option value="${c.name}" ${c.name === column ? 'selected' : ''}>${c.name} (${c.type})</option>`
+        ).join('');
+
+        const ops = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'ILIKE', 'IN', 'NOT IN'];
+        const opOptions = ops.map(o =>
+            `<option value="${o}" ${o === operator ? 'selected' : ''}>${o}</option>`
+        ).join('');
+
+        const row = document.createElement('div');
+        row.className = 'tf-rule-row';
+        row.innerHTML = `
+            <select class="tf-rule-col">${colOptions.length ? colOptions : `<option value="${column}">${column || '-- Pilih Kolom --'}</option>`}</select>
+            <select class="tf-rule-op">${opOptions}</select>
+            <input class="tf-rule-val" type="text" placeholder="Nilai (misal: B282)" value="${value || ''}">
+            <button class="tf-rule-del" onclick="removeRuleRow(this)" title="Hapus kondisi"><i class="fas fa-trash-alt"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    function removeRuleRow(btn) {
+        const row = btn.closest('.tf-rule-row');
+        const andLabel = row.previousElementSibling;
+        if (andLabel && andLabel.classList.contains('tf-rule-and')) andLabel.remove();
+        row.remove();
+
+        // Fix: if first row was removed, remove leading AND label
+        const container = document.getElementById('tfRulesContainer');
+        const firstChild = container.firstElementChild;
+        if (firstChild && firstChild.classList.contains('tf-rule-and')) firstChild.remove();
+
+        // Show empty state if no rules left
+        if (container.querySelectorAll('.tf-rule-row').length === 0) {
+            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
+        }
+    }
+
+    function collectRulesFromUI() {
+        const rows = document.querySelectorAll('#tfRulesContainer .tf-rule-row');
+        const rules = [];
+        rows.forEach(row => {
+            const col = row.querySelector('.tf-rule-col').value;
+            const op = row.querySelector('.tf-rule-op').value;
+            const val = row.querySelector('.tf-rule-val').value.trim();
+            if (col && val) {
+                rules.push({ column: col, operator: op, value: val });
+            }
+        });
+        return rules;
+    }
+
+    async function previewFilter() {
+        const rules = collectRulesFromUI();
+        if (rules.length === 0) {
+            Swal.fire('Info', 'Tambahkan minimal 1 kondisi untuk preview.', 'info');
+            return;
+        }
+
+        const table = _tfTables[_tfActiveTableIdx];
+        const resultDiv = document.getElementById('tfPreviewResult');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="padding:0.75rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat preview...</div>';
+
+        try {
+            const res = await fetch('/admin/users/preview-filter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({ db_id: table.db_id, table_name: table.table_name, schema: table.schema || 'public', rules })
+            });
+            const data = await res.json();
+            if (data.success && data.rows.length > 0) {
+                const cols = Object.keys(data.rows[0]);
+                let html = `<p class="tf-preview-total"><strong>${data.total}</strong> baris cocok dengan filter ini</p>`;
+                html += '<div style="overflow-x:auto;"><table class="tf-preview-table"><thead><tr>';
+                cols.forEach(c => html += `<th>${c}</th>`);
+                html += '</tr></thead><tbody>';
+                data.rows.forEach(row => {
+                    html += '<tr>';
+                    cols.forEach(c => html += `<td title="${row[c] ?? ''}">${row[c] ?? '-'}</td>`);
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                resultDiv.innerHTML = html;
+            } else if (data.success) {
+                resultDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">⚠ Tidak ada data yang cocok dengan filter ini.</p>';
+            } else {
+                resultDiv.innerHTML = `<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">Error: ${data.error}</p>`;
+            }
+        } catch(e) {
+            resultDiv.innerHTML = `<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">Error: ${e.message}</p>`;
+        }
+    }
+
     async function saveTableFilters() {
-        // Save current filter in memory first
+        // Save current rules in memory first
         if (_tfActiveTableIdx !== -1) {
-            _tfTables[_tfActiveTableIdx].current_filter = document.getElementById('tfFilterInput').value.trim();
+            _tfTables[_tfActiveTableIdx].rules = collectRulesFromUI();
         }
 
         const btn = document.getElementById('btnSaveTableFilters');
@@ -1208,17 +1398,14 @@
             filters: _tfTables.map(t => ({
                 db_id: t.db_id,
                 table_name: t.table_name,
-                condition: t.current_filter
+                rules: t.rules || []
             }))
         };
 
         try {
             const res = await fetch(`/admin/users/${_tfTargetUser.id}/table-filters`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -1239,6 +1426,34 @@
     function hideTableFilters() {
         document.getElementById('tableFilterModal').style.display = 'none';
         _tfActiveTableIdx = -1;
+    }
+
+    function showCopyFilterModal() {
+        document.getElementById('copyFilterModal').style.display = 'flex';
+    }
+
+    async function executeCopyFilter() {
+        const sourceId = document.getElementById('copySourceUser').value;
+        if (!sourceId) { Swal.fire('Info', 'Pilih user sumber terlebih dahulu.', 'info'); return; }
+
+        try {
+            const res = await fetch(`/admin/users/${_tfTargetUser.id}/copy-filters`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                body: JSON.stringify({ source_user_id: sourceId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('copyFilterModal').style.display = 'none';
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: `${data.copied} filter berhasil disalin!`, timer: 2000, showConfirmButton: false });
+                // Reload filter data
+                showTableFilters(_tfTargetUser);
+            } else {
+                throw new Error(data.error || 'Gagal menyalin.');
+            }
+        } catch(e) {
+            Swal.fire('Gagal', e.message, 'error');
+        }
     }
 
     document.getElementById('btnSaveTableFilters').onclick = saveTableFilters;

@@ -67,6 +67,9 @@ Route::middleware('auth')->group(function () {
         // User Table Filters (Row Level Security)
         Route::get('/users/{user}/table-filters', [AdminController::class, 'getTableFilters'])->name('users.table_filters');
         Route::post('/users/{user}/table-filters', [AdminController::class, 'updateTableFilters'])->name('users.table_filters.update');
+        Route::get('/users/table-columns', [AdminController::class, 'getTableColumns'])->name('users.table_columns');
+        Route::post('/users/preview-filter', [AdminController::class, 'previewTableFilter'])->name('users.preview_filter');
+        Route::post('/users/{user}/copy-filters', [AdminController::class, 'copyUserFilters'])->name('users.copy_filters');
 
         // User Import/Export
         Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');

@@ -785,25 +785,23 @@ class AdminController extends Controller
      */
     public function getTableFilters(User $user)
     {
-        // Security: Admin only sees users they added
         if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        // Get allowed tables based on user's role
         $role = $user->roleModel;
-        if (!$role) return response()->json(['tables' => []]);
+        if (!$role) return response()->json(['tables' => [], 'filter_count' => 0]);
 
         $permissions = \App\Models\RolePermission::with('databaseConnection')
             ->where('role_id', $role->id)
             ->get();
 
         $allowedTables = [];
+        $filterCount = 0;
         foreach ($permissions as $p) {
             $conn = $p->databaseConnection;
             if (!$conn) continue;
 
-            // Security: Admin only sees databases they added (if not super admin)
             if (!auth()->user()->is_super_admin && $conn->added_by !== auth()->id()) {
                 continue;
             }
@@ -813,42 +811,221 @@ class AdminController extends Controller
                 ->where('table_name', $p->table_name)
                 ->first();
 
+            $rules = [];
+            if ($existingFilter && $existingFilter->filter_condition) {
+                $decoded = json_decode($existingFilter->filter_condition, true);
+                $rules = is_array($decoded) ? $decoded : [];
+            }
+
+            if (!empty($rules)) $filterCount++;
+
             $allowedTables[] = [
                 'db_id' => $conn->id,
                 'db_name' => $conn->name,
+                'db_code' => $conn->database,
                 'table_name' => $p->table_name,
                 'schema' => $p->schema_name,
-                'current_filter' => $existingFilter ? $existingFilter->filter_condition : ''
+                'rules' => $rules
             ];
         }
 
-        return response()->json(['tables' => $allowedTables]);
+        return response()->json(['tables' => $allowedTables, 'filter_count' => $filterCount]);
     }
 
     /**
-     * Update table filters for a user.
+     * Get columns for a specific table (for dropdown in rule builder).
+     */
+    public function getTableColumns(Request $request)
+    {
+        $dbId = $request->input('db_id');
+        $tableName = $request->input('table_name');
+        $schema = $request->input('schema', 'public');
+
+        $conn = DatabaseConnection::find($dbId);
+        if (!$conn) return response()->json(['columns' => []]);
+
+        if (!auth()->user()->is_super_admin && $conn->added_by !== auth()->id()) {
+            return response()->json(['columns' => []], 403);
+        }
+
+        $tempConn = 'temp_cols_' . $conn->code;
+        try {
+            DB::purge($tempConn);
+            config(["database.connections.{$tempConn}" => $conn->getConnectionConfig()]);
+
+            $driver = $conn->driver;
+            if ($driver === 'pgsql') {
+                $columns = DB::connection($tempConn)->select(
+                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
+                    [$schema, $tableName]
+                );
+            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+                $columns = DB::connection($tempConn)->select(
+                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
+                    [$conn->database, $tableName]
+                );
+            } else {
+                $columns = DB::connection($tempConn)->select(
+                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+                    [$tableName]
+                );
+            }
+
+            DB::purge($tempConn);
+
+            return response()->json([
+                'columns' => array_map(fn($c) => [
+                    'name' => $c->column_name,
+                    'type' => $c->data_type
+                ], $columns)
+            ]);
+        } catch (\Exception $e) {
+            DB::purge($tempConn);
+            return response()->json(['columns' => [], 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Preview data with applied filter rules.
+     */
+    public function previewTableFilter(Request $request)
+    {
+        $dbId = $request->input('db_id');
+        $tableName = $request->input('table_name');
+        $schema = $request->input('schema', 'public');
+        $rules = $request->input('rules', []);
+
+        $conn = DatabaseConnection::find($dbId);
+        if (!$conn) return response()->json(['error' => 'Database not found'], 404);
+
+        if (!auth()->user()->is_super_admin && $conn->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $whereClause = $this->buildWhereFromRules($rules);
+        $fullTable = $conn->driver === 'pgsql' ? "\"{$schema}\".\"{$tableName}\"" : "`{$tableName}`";
+        $sql = "SELECT * FROM {$fullTable}";
+        if ($whereClause) {
+            $sql .= " WHERE {$whereClause}";
+        }
+        $sql .= " LIMIT 5";
+
+        $tempConn = 'temp_preview_' . $conn->code;
+        try {
+            DB::purge($tempConn);
+            config(["database.connections.{$tempConn}" => $conn->getConnectionConfig()]);
+            $rows = DB::connection($tempConn)->select($sql);
+            DB::purge($tempConn);
+
+            $totalSql = "SELECT COUNT(*) as total FROM {$fullTable}";
+            DB::purge($tempConn);
+            config(["database.connections.{$tempConn}" => $conn->getConnectionConfig()]);
+            if ($whereClause) {
+                $totalSql .= " WHERE {$whereClause}";
+            }
+            $totalResult = DB::connection($tempConn)->select($totalSql);
+            $total = $totalResult[0]->total ?? 0;
+            DB::purge($tempConn);
+
+            return response()->json([
+                'success' => true,
+                'total' => $total,
+                'rows' => array_map(fn($r) => (array) $r, array_slice($rows, 0, 5)),
+                'sql_preview' => "WHERE {$whereClause}"
+            ]);
+        } catch (\Exception $e) {
+            DB::purge($tempConn);
+            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Copy filters from one user to another.
+     */
+    public function copyUserFilters(Request $request, User $targetUser)
+    {
+        if (!auth()->user()->is_super_admin && $targetUser->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $sourceUserId = $request->input('source_user_id');
+        $sourceUser = User::find($sourceUserId);
+        if (!$sourceUser) return response()->json(['error' => 'Source user not found'], 404);
+
+        if (!auth()->user()->is_super_admin && $sourceUser->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $sourceFilters = \App\Models\UserTableFilter::where('user_id', $sourceUserId)->get();
+
+        foreach ($sourceFilters as $sf) {
+            \App\Models\UserTableFilter::updateOrCreate(
+                [
+                    'user_id' => $targetUser->id,
+                    'database_connection_id' => $sf->database_connection_id,
+                    'table_name' => $sf->table_name,
+                ],
+                ['filter_condition' => $sf->filter_condition]
+            );
+        }
+
+        return response()->json(['success' => true, 'copied' => $sourceFilters->count()]);
+    }
+
+    /**
+     * Update table filters for a user (with structured rules + sanitization).
      */
     public function updateTableFilters(Request $request, User $user)
     {
-        // Security: Admin only edits users they added
         if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
         $filters = $request->input('filters', []);
+        $dangerousKeywords = ['drop', 'delete', 'update', 'insert', 'alter', 'truncate', 'create', 'grant', 'revoke', 'exec', 'execute'];
 
         foreach ($filters as $f) {
             $dbId = $f['db_id'];
             $tableName = $f['table_name'];
-            $condition = $f['condition'] ?? null;
+            $rules = $f['rules'] ?? [];
 
-            // Security check for DB access
             if (!auth()->user()->is_super_admin) {
                 $conn = DatabaseConnection::find($dbId);
                 if (!$conn || $conn->added_by !== auth()->id()) continue;
             }
 
-            if (empty($condition)) {
+            // Sanitize each rule
+            $cleanRules = [];
+            foreach ($rules as $rule) {
+                $col = trim($rule['column'] ?? '');
+                $op = trim($rule['operator'] ?? '=');
+                $val = trim($rule['value'] ?? '');
+
+                if (empty($col) || empty($val)) continue;
+
+                // Sanitize: reject dangerous keywords in value
+                $valLower = strtolower($val);
+                $dangerous = false;
+                foreach ($dangerousKeywords as $kw) {
+                    if (preg_match('/\b' . preg_quote($kw, '/') . '\b/', $valLower)) {
+                        $dangerous = true;
+                        break;
+                    }
+                }
+                if ($dangerous) continue;
+
+                // Whitelist operators
+                $allowedOps = ['=', '!=', '<>', '>', '<', '>=', '<=', 'LIKE', 'ILIKE', 'IN', 'NOT IN'];
+                if (!in_array(strtoupper($op), $allowedOps)) $op = '=';
+
+                $cleanRules[] = [
+                    'column' => preg_replace('/[^a-zA-Z0-9_]/', '', $col),
+                    'operator' => strtoupper($op),
+                    'value' => $val
+                ];
+            }
+
+            if (empty($cleanRules)) {
                 \App\Models\UserTableFilter::where('user_id', $user->id)
                     ->where('database_connection_id', $dbId)
                     ->where('table_name', $tableName)
@@ -860,12 +1037,49 @@ class AdminController extends Controller
                         'database_connection_id' => $dbId,
                         'table_name' => $tableName
                     ],
-                    ['filter_condition' => $condition]
+                    ['filter_condition' => json_encode($cleanRules)]
                 );
             }
         }
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * Build WHERE clause from structured rules array.
+     */
+    private function buildWhereFromRules(array $rules): string
+    {
+        if (empty($rules)) return '';
+
+        $parts = [];
+        foreach ($rules as $rule) {
+            $col = preg_replace('/[^a-zA-Z0-9_]/', '', $rule['column'] ?? '');
+            $op = strtoupper($rule['operator'] ?? '=');
+            $val = $rule['value'] ?? '';
+
+            if (empty($col) || empty($val)) continue;
+
+            if ($op === 'IN' || $op === 'NOT IN') {
+                $vals = array_map(function($v) {
+                    $v = trim($v, " \t\n\r\"");
+                    return "'" . str_replace("'", "''", trim($v)) . "'";
+                }, explode(',', $val));
+                $parts[] = "{$col} {$op} (" . implode(', ', $vals) . ")";
+            } elseif ($op === 'LIKE' || $op === 'ILIKE') {
+                $escaped = str_replace("'", "''", $val);
+                $parts[] = "{$col} {$op} '{$escaped}'";
+            } else {
+                $escaped = str_replace("'", "''", $val);
+                if (is_numeric($val)) {
+                    $parts[] = "{$col} {$op} {$val}";
+                } else {
+                    $parts[] = "{$col} {$op} '{$escaped}'";
+                }
+            }
+        }
+
+        return implode(' AND ', $parts);
     }
 
     /**
