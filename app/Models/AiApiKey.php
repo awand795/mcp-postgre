@@ -9,8 +9,7 @@ class AiApiKey extends Model
 {
     protected $fillable = [
         'provider_id', 'key_name', 'api_key',
-        'is_active', 'limit_reached',
-        'last_used_at', 'usage_count', 'token_count',
+        'last_used_at', 'usage_count', 'token_count', 'added_by'
     ];
 
     protected $casts = [
@@ -24,6 +23,11 @@ class AiApiKey extends Model
     public function provider()
     {
         return $this->belongsTo(AiProvider::class, 'provider_id');
+    }
+
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by');
     }
 
     public function users()

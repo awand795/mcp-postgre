@@ -9,7 +9,12 @@ class Role extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'description'];
+    protected $fillable = ['name', 'description', 'added_by'];
+
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
 
     public function permissions()
     {

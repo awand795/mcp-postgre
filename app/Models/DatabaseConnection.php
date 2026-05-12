@@ -31,6 +31,7 @@ class DatabaseConnection extends Model
         'is_default',
         'last_tested_at',
         'test_status',
+        'added_by',
     ];
 
     protected $casts = [
@@ -46,6 +47,11 @@ class DatabaseConnection extends Model
     protected $hidden = [
         'password',
     ];
+
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by');
+    }
 
     /**
      * Get the driver adapter for this connection

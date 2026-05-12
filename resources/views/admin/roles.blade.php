@@ -20,7 +20,12 @@
                         <button class="btn role-item {{ $loop->first ? 'active' : '' }}"
                             style="width:100%;justify-content:space-between;background:rgba(99,102,241,0.05);text-align:left;border:1px solid var(--glass-border2);border-radius:10px;padding:0.65rem 0.9rem;color:var(--text-main);font-weight:500;font-size:0.85rem;"
                             onclick="selectRole({{ $role->id }}, this)">
-                            <span style="font-size:0.85rem;"><i class="fas fa-user-shield" style="margin-right:8px;color:var(--primary);"></i>{{ $role->name }}</span>
+                            <div>
+                                <span style="font-size:0.85rem;"><i class="fas fa-user-shield" style="margin-right:8px;color:var(--primary);"></i>{{ $role->name }}</span>
+                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">
+                                    <i class="fas fa-user" style="margin-right: 4px;"></i> {{ $role->addedBy->name ?? 'System' }} | {{ $role->created_at->format('d M Y') }}
+                                </div>
+                            </div>
                             <div style="display:flex;gap:6px;">
                                 <i class="fas fa-edit" onclick="event.stopPropagation();showRoleModal('edit',{{ json_encode($role) }})" style="font-size:0.8rem;padding:5px;border-radius:6px;cursor:pointer;color:#f59e0b;" title="Edit"></i>
                                 <i class="fas fa-trash" onclick="event.stopPropagation();deleteRole({{ $role->id }})" style="font-size:0.8rem;padding:5px;cursor:pointer;color:#ef4444;" title="Hapus"></i>

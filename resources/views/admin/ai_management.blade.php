@@ -271,12 +271,15 @@ html.dark .sw-track { background: rgba(255,255,255,.1); }
 
 /* Key row */
 .key-row {
-    display: flex; align-items: center; gap: 7px;
-    padding: 7px 0;
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 0;
     border-bottom: 1px solid rgba(0,0,0,.03);
 }
 html.dark .key-row { border-bottom-color: rgba(255,255,255,.03); }
 .key-row:last-child { border-bottom: none; }
+.key-top-row { display: flex; align-items: center; gap: 7px; width: 100%; }
+.key-bottom-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 33px; }
+
 .key-ico {
     width: 26px; height: 26px; border-radius: 7px;
     background: rgba(0,0,0,.04); flex-shrink: 0;
@@ -284,8 +287,10 @@ html.dark .key-row { border-bottom-color: rgba(255,255,255,.03); }
 }
 html.dark .key-ico { background: rgba(255,255,255,.04); }
 .key-ico svg { width: 12px; height: 12px; stroke: var(--aim-muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.key-name { font-size: 0.8rem; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aim-text); }
-.key-when { font-size: 0.67rem; color: var(--aim-dim); white-space: nowrap; }
+.key-name { font-size: 0.85rem; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--aim-text); }
+.key-when { font-size: 0.67rem; color: var(--aim-dim); white-space: nowrap; margin-left: auto; }
+.key-added-by { font-size: 0.65rem; color: var(--aim-dim); background: rgba(0,0,0,.03); padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; }
+html.dark .key-added-by { background: rgba(255,255,255,.04); }
 
 /* Health check dot — kecil di sebelah key-name */
 .health-dot {
@@ -756,75 +761,87 @@ html.dark .limit-alert-bar { color: #f87171; }
             @endif
             @forelse($providerKeys as $key)
             <div class="key-row" id="krow-{{ $key->id }}">
-                <div class="key-ico">
-                    <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                <div class="key-top-row">
+                    <div class="key-ico">
+                        <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    </div>
+
+                    {{-- Health dot (status terakhir dicek) --}}
+                    <span class="health-dot" id="hdot-{{ $key->id }}"
+                          title="Belum dicek — klik ikon health check untuk cek kesehatan key ini"></span>
+
+                    <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
+
+                    <span class="key-when" id="kwhen-{{ $key->id }}">
+                        <i class="far fa-clock"></i> {{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never used' }}
+                    </span>
+
+                    <div style="display:flex;gap:4px; margin-left: 8px;">
+                        <button type="button" class="mb mb-edit" title="Edit key"
+                                onclick="openEditKey({{ json_encode(['id'=>$key->id,'key_name'=>$key->key_name,'is_active'=>$key->is_active,'api_key'=>$key->api_key]) }})">
+                            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        
+                        {{-- Health Check Button --}}
+                        <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
+                                onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}', {{ json_encode($provider->models->where('is_active', true)->pluck('model_name')->values()) }})">  
+                            <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </button>
+
+                        @if($key->limit_reached)
+                        <form action="{{ route('admin.ai_management.reset_limit', $key->id) }}" method="POST" style="display:inline" onsubmit="return confirm('Reset status limit?');">
+                            @csrf
+                            <button type="submit" class="mb mb-warn" title="Reset limit flag">
+                                <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                            </button>
+                        </form>
+                        @endif
+
+                        <form action="{{ route('admin.ai_management.delete_key', $key->id) }}" method="POST" style="margin:0"
+                              onsubmit="confirmDelete(event, 'Hapus API Key?', 'Key yang dihapus tidak bisa dikembalikan.')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="mb mb-del" title="Hapus">
+                                <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
-                {{-- Health dot (status terakhir dicek) --}}
-                <span class="health-dot" id="hdot-{{ $key->id }}"
-                      title="Belum dicek — klik ikon health check untuk cek kesehatan key ini"></span>
+                <div class="key-bottom-row">
+                    @if($key->limit_reached)
+                        <span class="key-status ks-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
+                            ⚠ LIMIT
+                        </span>
+                    @elseif(!$key->is_active)
+                        <span class="key-status ks-off kpill" id="kpill-{{ $key->id }}">● OFF</span>
+                    @else
+                        <span class="key-status ks-ok kpill" id="kpill-{{ $key->id }}">● OK</span>
+                    @endif
 
-                <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
-
-                @if($key->limit_reached)
-                    <span class="key-status ks-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
-                        ⚠ LIMIT
+                    {{-- Usage count badge --}}
+                    <span class="key-usage {{ $key->usage_count > 0 ? 'ku-used' : '' }}"
+                          id="kusage-{{ $key->id }}"
+                          title="Dipakai {{ $key->usage_count }} kali">  
+                        <span class="ku-icon">↗</span>{{ $key->usage_count }}×
                     </span>
-                @elseif(!$key->is_active)
-                    <span class="key-status ks-off kpill" id="kpill-{{ $key->id }}">● OFF</span>
-                @else
-                    <span class="key-status ks-ok kpill" id="kpill-{{ $key->id }}">● OK</span>
-                @endif
 
-                {{-- Usage count badge --}}
-                <span class="key-usage {{ $key->usage_count > 0 ? 'ku-used' : '' }}"
-                      id="kusage-{{ $key->id }}"
-                      title="Dipakai {{ $key->usage_count }} kali">  
-                    <span class="ku-icon">↗</span>{{ $key->usage_count }}×
-                </span>
-
-                {{-- Token count badge --}}
-                @php
-                    $tc = $key->token_count ?? 0;
-                    if ($tc >= 1000000)      $tcLabel = number_format($tc/1000000, 1) . 'M';
-                    elseif ($tc >= 1000)     $tcLabel = number_format($tc/1000, 1) . 'K';
-                    else                    $tcLabel = (string)$tc;
-                @endphp
-                <span class="key-tokens {{ $tc > 0 ? 'kt-has' : '' }}"
-                      id="ktoken-{{ $key->id }}"
-                      title="Total token dipakai: {{ number_format($tc) }} tokens">
-                    <span class="kt-icon">◈</span>{{ $tcLabel }}
-                </span>
-
-                <span class="key-when" id="kwhen-{{ $key->id }}">{{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never' }}</span>
-
-                {{-- Health Check Button --}}
-                <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
-                        onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}', {{ json_encode($provider->models->where('is_active', true)->pluck('model_name')->values()) }})">  
-                    <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                </button>
-
-                @if($key->limit_reached)
-                <form action="{{ route('admin.ai_management.reset_limit', $key->id) }}" method="POST" style="display:inline">
-                    @csrf
-                    <button type="submit" class="mb mb-warn" title="Reset limit flag">
-                        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                    </button>
-                </form>
-                @endif
-
-                <button type="button" class="mb mb-edit" title="Edit key"
-                        onclick="openEditKey({{ json_encode(['id'=>$key->id,'key_name'=>$key->key_name,'is_active'=>$key->is_active]) }})">
-                    <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                </button>
-
-                <form action="{{ route('admin.ai_management.delete_key', $key->id) }}" method="POST" style="display:inline"
-                      onsubmit="confirmDelete(event, 'Hapus API Key?', 'Key ini tidak akan bisa digunakan lagi untuk request AI.')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="mb mb-del" title="Hapus key">
-                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                    </button>
-                </form>
+                    {{-- Token count badge --}}
+                    @php
+                        $tc = $key->token_count ?? 0;
+                        if ($tc >= 1000000)      $tcLabel = number_format($tc/1000000, 1) . 'M';
+                        elseif ($tc >= 1000)     $tcLabel = number_format($tc/1000, 1) . 'K';
+                        else                    $tcLabel = (string)$tc;
+                    @endphp
+                    <span class="key-tokens {{ $tc > 0 ? 'kt-has' : '' }}"
+                          id="ktoken-{{ $key->id }}"
+                          title="Total token dipakai: {{ number_format($tc) }} tokens">
+                        <span class="kt-icon">◈</span>{{ $tcLabel }}
+                    </span>
+                    
+                    <span class="key-added-by" title="Ditambahkan Oleh: {{ $key->addedBy->name ?? 'System' }} pada {{ $key->created_at->format('d M Y') }}">
+                        <i class="fas fa-user-plus"></i> {{ Str::limit($key->addedBy->name ?? 'System', 15) }} &bull; {{ $key->created_at->format('d M Y') }}
+                    </span>
+                </div>
             </div>
             @empty
             <p class="empty-hint">Belum ada API Key — klik "Add Key" di bawah</p>
@@ -899,7 +916,12 @@ html.dark .limit-alert-bar { color: #f87171; }
             </div>
             <div class="form-grp">
                 <label id="keyLabel">API Key</label>
-                <input type="password" name="api_key" id="keyValue" placeholder="Masukkan API Key">
+                <div style="position:relative;display:flex;align-items:center;">
+                    <input type="password" name="api_key" id="keyValue" placeholder="Masukkan API Key" style="padding-right:35px;width:100%;">
+                    <button type="button" onclick="toggleApiKeyVisibility()" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--aim-muted);">
+                        <i class="fas fa-eye" id="keyEyeIcon"></i>
+                    </button>
+                </div>
                 <small id="keyHint" style="display:none">Kosongkan jika tidak ingin mengubah</small>
             </div>
             <div class="form-check" id="keyActiveGrp" style="display:none">
@@ -1162,6 +1184,10 @@ function openAddKey(providerId, providerName) {
     document.getElementById('keyLabel').textContent      = 'API Key';
     document.getElementById('keyHint').style.display     = 'none';
     document.getElementById('keyActiveGrp').style.display = 'none';
+    
+    document.getElementById('keyValue').type = 'password';
+    document.getElementById('keyEyeIcon').className = 'fas fa-eye';
+    
     m.style.display = 'flex';
 }
 
@@ -1174,13 +1200,29 @@ function openEditKey(key) {
     document.getElementById('keyFormMethod').value       = 'PUT';
     document.getElementById('keyForm').action            = '/admin/ai-management/keys/' + key.id;
     document.getElementById('keyName').value             = key.key_name;
-    document.getElementById('keyValue').value            = '';
+    document.getElementById('keyValue').value            = key.api_key || '';
     document.getElementById('keyValue').required         = false;
     document.getElementById('keyLabel').textContent      = 'API Key (opsional)';
     document.getElementById('keyHint').style.display     = 'block';
     document.getElementById('keyActiveGrp').style.display = 'flex';
     document.getElementById('keyIsActive').checked       = !!key.is_active;
+
+    document.getElementById('keyValue').type = 'password';
+    document.getElementById('keyEyeIcon').className = 'fas fa-eye';
+
     m.style.display = 'flex';
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('keyValue');
+    const icon = document.getElementById('keyEyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
 }
 
 /* ── Add Model ──────────────────────────────────────────── */

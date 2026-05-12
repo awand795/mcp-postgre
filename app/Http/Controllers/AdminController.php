@@ -29,7 +29,12 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $query = User::with(['roleModel', 'aiModels', 'aiKeys']);
+        $query = User::with(['roleModel', 'aiModels', 'aiKeys', 'addedBy']);
+        
+        // Visibility filter: Admins see only users they added, Super Admins see all
+        if (!auth()->user()->is_super_admin) {
+            $query->where('added_by', auth()->id());
+        }
         
         // Search functionality
         if ($request->filled('search')) {
@@ -62,6 +67,19 @@ class AdminController extends Controller
             'role' => 'required',
         ]);
 
+        if ($request->has('is_admin') && $request->has('is_super_admin')) {
+            return back()->withErrors(['role' => 'Tidak bisa memilih Admin dan Super Admin sekaligus.'])->withInput();
+        }
+
+        $isAdmin = $request->has('is_admin');
+        $isSuperAdmin = $request->has('is_super_admin');
+
+        // Only Super Admin can grant Admin or Super Admin
+        if (!auth()->user()->is_super_admin && ($isAdmin || $isSuperAdmin)) {
+            $isAdmin = false;
+            $isSuperAdmin = false;
+        }
+
         // Validate AI Config if provided
         if ($request->has('ai_models') || $request->has('ai_keys')) {
             $this->validateAiConfig(
@@ -75,7 +93,9 @@ class AdminController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
-            'is_admin' => $request->has('is_admin'),
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
+            'added_by' => auth()->id(),
             'max_tokens' => $request->input('max_tokens', 32768),
             'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ]);
@@ -99,6 +119,19 @@ class AdminController extends Controller
             'role' => 'required',
         ]);
 
+        if ($request->has('is_admin') && $request->has('is_super_admin')) {
+            return back()->withErrors(['role' => 'Tidak bisa memilih Admin dan Super Admin sekaligus.'])->withInput();
+        }
+
+        $isAdmin = $request->has('is_admin');
+        $isSuperAdmin = $request->has('is_super_admin');
+
+        // Only Super Admin can change Admin or Super Admin status
+        if (!auth()->user()->is_super_admin) {
+            $isAdmin = $user->is_admin;
+            $isSuperAdmin = $user->is_super_admin;
+        }
+
         // Validate AI Config if provided
         if ($request->has('ai_models') || $request->has('ai_keys')) {
             $this->validateAiConfig(
@@ -111,7 +144,8 @@ class AdminController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
-            'is_admin' => $request->has('is_admin'),
+            'is_admin' => $isAdmin,
+            'is_super_admin' => $isSuperAdmin,
             'max_tokens' => $request->input('max_tokens', 32768),
             'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ];
@@ -273,9 +307,28 @@ class AdminController extends Controller
         // Paksa bersihkan cache agar tabel database yang baru ditambah langsung muncul
         $this->clearTableCache();
         
-        $roles = Role::with('permissions')->get();
+        $user = auth()->user();
+        
+        $rolesQuery = Role::with(['permissions', 'addedBy']);
+        $databasesQuery = DatabaseConnection::active();
+        
+        if (!$user->is_super_admin) {
+            $rolesQuery->where('added_by', $user->id);
+            $databasesQuery->where('added_by', $user->id);
+        }
+        
+        $roles = $rolesQuery->get();
+        $databases = $databasesQuery->get();
+        
+        $allowedDbCodes = $databases->pluck('database')->toArray();
         $allTables = $this->getAllTables();
-        $databases = DatabaseConnection::active()->get();
+        
+        // Filter tables to only those from allowed databases
+        if (!$user->is_super_admin) {
+            $allTables = array_values(array_filter($allTables, function($table) use ($allowedDbCodes) {
+                return in_array($table['database_code'], $allowedDbCodes);
+            }));
+        }
 
         // Temporary debug
         // Detailed debug logging
@@ -298,7 +351,9 @@ class AdminController extends Controller
     public function roleStore(Request $request)
     {
         $request->validate(['name' => 'required|unique:roles']);
-        Role::create($request->only('name', 'description'));
+        $data = $request->only('name', 'description');
+        $data['added_by'] = auth()->id();
+        Role::create($data);
         return back()->with('success', 'Role berhasil ditambahkan.');
     }
 
@@ -376,7 +431,13 @@ class AdminController extends Controller
 
     public function databases()
     {
-        $databases = DatabaseConnection::orderBy('is_default', 'desc')->orderBy('name')->get();
+        $query = DatabaseConnection::with('addedBy')->orderBy('is_default', 'desc')->orderBy('name');
+        
+        if (!auth()->user()->is_super_admin) {
+            $query->where('added_by', auth()->id());
+        }
+        
+        $databases = $query->get();
         return view('admin.databases', compact('databases'));
     }
 
@@ -420,6 +481,8 @@ class AdminController extends Controller
         if ($validated['is_default']) {
             DatabaseConnection::where('is_default', true)->update(['is_default' => false]);
         }
+
+        $validated['added_by'] = auth()->id();
 
         $db = DatabaseConnection::create($validated);
 

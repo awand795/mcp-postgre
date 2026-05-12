@@ -14,7 +14,14 @@ class AiController extends Controller
 {
     public function index()
     {
-        $providers = AiProvider::with(['models', 'apiKeys'])
+        $user = auth()->user();
+        
+        $providers = AiProvider::with(['models', 'apiKeys' => function($query) use ($user) {
+            if (!$user->is_super_admin) {
+                $query->where('added_by', $user->id);
+            }
+            $query->with('addedBy');
+        }])
             ->orderByRaw("CASE 
                 WHEN code = 'openai' THEN 1 
                 WHEN code = 'gemini' THEN 2 
@@ -35,7 +42,9 @@ class AiController extends Controller
             'api_key'     => 'required|string',
         ]);
 
-        AiApiKey::create($request->all());
+        $data = $request->all();
+        $data['added_by'] = auth()->id();
+        AiApiKey::create($data);
 
         return back()->with('success', 'API Key berhasil ditambahkan.');
     }

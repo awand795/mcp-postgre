@@ -51,10 +51,12 @@
                     <th>Nama</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Admin?</th>
+                    <th>Hak Akses</th>
                     <th>AI Models</th>
                     <th>API Keys</th>
                     <th>Cakupan</th>
+                    <th>Ditambahkan Oleh</th>
+                    <th>Tanggal</th>
                     <th class="th-sticky">Aksi</th>
                 </tr>
             </thead>
@@ -70,10 +72,12 @@
                         </span>
                     </td>
                     <td>
-                        @if($user->is_admin)
-                            <span class="status-yes"><i class="fas fa-check-circle"></i> Yes</span>
+                        @if($user->is_super_admin)
+                            <span class="status-yes" style="background: rgba(99,102,241,0.1); color: #4338ca; border-color: rgba(99,102,241,0.2);"><i class="fas fa-crown"></i> Super Admin</span>
+                        @elseif($user->is_admin)
+                            <span class="status-yes"><i class="fas fa-user-shield"></i> Admin</span>
                         @else
-                            <span class="status-no"><i class="fas fa-times-circle"></i> No</span>
+                            <span class="status-no"><i class="fas fa-user"></i> User Biasa</span>
                         @endif
                     </td>
                     <td>
@@ -126,6 +130,12 @@
                         @else
                             <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
                         @endif
+                    </td>
+                    <td>
+                        <span style="font-size: 0.82rem; font-weight: 500;">{{ $user->addedBy->name ?? 'System' }}</span>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.82rem; color: var(--text-muted);">{{ $user->created_at->format('d M Y, H:i') }}</span>
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
@@ -198,10 +208,18 @@
                 <label>Max Tokens</label>
                 <input type="number" name="max_tokens" id="userMaxTokens" value="32768" required>
             </div>
+            
+            @if(auth()->user()->is_super_admin)
             <div class="form-group checkbox-group">
-                <input type="checkbox" name="is_admin" id="userIsAdmin" value="1">
+                <input type="checkbox" name="is_admin" id="userIsAdmin" value="1" onchange="document.getElementById('userIsSuperAdmin').checked = false;">
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
+            <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
+                <input type="checkbox" name="is_super_admin" id="userIsSuperAdmin" value="1" onchange="document.getElementById('userIsAdmin').checked = false;">
+                <label for="userIsSuperAdmin">Jadikan Super Admin</label>
+            </div>
+            @endif
+            
             <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
                 <input type="checkbox" name="analysis_scope_limited" id="userScopeLimited" value="1" checked>
                 <label for="userScopeLimited">Hanya dari database</label>
@@ -943,7 +961,8 @@
             document.getElementById('userName').value = user.name;
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
-            document.getElementById('userIsAdmin').checked = user.is_admin;
+            if(document.getElementById('userIsAdmin')) document.getElementById('userIsAdmin').checked = user.is_admin;
+            if(document.getElementById('userIsSuperAdmin')) document.getElementById('userIsSuperAdmin').checked = user.is_super_admin;
             document.getElementById('userScopeLimited').checked = user.analysis_scope_limited ?? true;
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
         }

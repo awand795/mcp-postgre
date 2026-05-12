@@ -23,6 +23,8 @@ class User extends Authenticatable
         'password',
         'role',
         'is_admin',
+        'is_super_admin',
+        'added_by',
         'max_tokens',
         'analysis_scope_limited',
     ];
@@ -52,8 +54,14 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_super_admin' => 'boolean',
             'analysis_scope_limited' => 'boolean',
         ];
+    }
+
+    public function addedBy()
+    {
+        return $this->belongsTo(User::class, 'added_by');
     }
 
     /**

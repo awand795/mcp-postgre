@@ -179,6 +179,14 @@
                     <span class="detail-value muted">{{ Str::limit($db->description, 60) }}</span>
                 </div>
                 @endif
+                <div class="db-detail-row">
+                    <span class="detail-label"><i class="fas fa-user-plus"></i> Ditambahkan Oleh</span>
+                    <span class="detail-value">{{ $db->addedBy->name ?? 'System' }}</span>
+                </div>
+                <div class="db-detail-row">
+                    <span class="detail-label"><i class="fas fa-calendar-alt"></i> Tanggal</span>
+                    <span class="detail-value">{{ $db->created_at->format('d M Y') }}</span>
+                </div>
             </div>
 
             {{-- Status Footer --}}
