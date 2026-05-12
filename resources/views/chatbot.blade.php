@@ -1050,14 +1050,16 @@
         }
 
         .smart-table-scroll {
-            overflow-x: auto;
+            overflow-x: auto !important;
             width: 100%;
+            max-width: 100%;
+            display: block;
             -webkit-overflow-scrolling: touch;
         }
 
         .smart-table-scroll table {
-            width: 100%;
-            min-width: max-content;
+            width: max-content;
+            min-width: 100%;
             border-collapse: collapse;
         }
 
@@ -1075,7 +1077,7 @@
             text-align: left;
             font-weight: 700;
             color: #4c1d95;
-            white-space: nowrap;
+            white-space: nowrap !important;
             border: none;
             cursor: pointer;
             user-select: none;
@@ -1099,11 +1101,11 @@
             border-bottom: 1px solid rgba(99, 102, 241, 0.07) !important;
             color: #1e293b !important;
             font-size: 13px !important;
-            white-space: nowrap;
+            white-space: nowrap !important;
         }
 
         .smart-table-scroll td.wrap {
-            white-space: normal;
+            white-space: normal !important;
             min-width: 200px;
             max-width: 400px;
             word-break: break-word;

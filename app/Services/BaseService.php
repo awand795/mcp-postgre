@@ -202,6 +202,7 @@ abstract class BaseService
 
             $allTables = $connModel->getTables();
             $unauthorizedSensitiveTables = [];
+            $authorizedTables = [];
 
             // Sensitive tables are usually "Master" data or Views starting with specific prefixes
             $sensitivePrefixes = ['view_master_', 'master_', 'mst_', 'm_'];
@@ -219,9 +220,14 @@ abstract class BaseService
                     }
                 }
                 
+                $isAllowed = $this->isTableAllowed($databaseCode, $schema, $tableName, $allowedDbs);
+
                 // If it's a sensitive table and NOT allowed, we must block its columns globally
-                if ($isSensitive && !$this->isTableAllowed($databaseCode, $schema, $tableName, $allowedDbs)) {
+                if ($isSensitive && !$isAllowed) {
                     $unauthorizedSensitiveTables[] = $tableInfo;
+                } elseif ($isAllowed) {
+                    // Track authorized tables to know which columns MUST NOT be blocked
+                    $authorizedTables[] = $tableInfo;
                 }
             }
 
@@ -230,6 +236,8 @@ abstract class BaseService
             }
 
             $forbiddenCols = [];
+            $allowedCols = []; // Columns that exist in at least one authorized table
+
             // We don't want to block common columns that might exist in many tables
             $commonCols = [
                 'id', 'created_at', 'updated_at', 'deleted_at', 
@@ -237,11 +245,20 @@ abstract class BaseService
                 'version', 'timestamp'
             ];
 
+            // 1. Identify columns in authorized tables
+            foreach ($authorizedTables as $tableInfo) {
+                $cols = $this->getTableColumns($connModel, $tableInfo['schema_name'], $tableInfo['table_name']);
+                foreach ($cols as $colName) {
+                    $allowedCols[strtolower($colName)] = true;
+                }
+            }
+
+            // 2. Identify forbidden columns (those in unauthorized tables NOT in authorized tables)
             foreach ($unauthorizedSensitiveTables as $tableInfo) {
                 $cols = $this->getTableColumns($connModel, $tableInfo['schema_name'], $tableInfo['table_name']);
                 foreach ($cols as $colName) {
                     $lowCol = strtolower($colName);
-                    if (!in_array($lowCol, $commonCols)) {
+                    if (!in_array($lowCol, $commonCols) && !isset($allowedCols[$lowCol])) {
                         $forbiddenCols[] = $lowCol;
                     }
                 }
