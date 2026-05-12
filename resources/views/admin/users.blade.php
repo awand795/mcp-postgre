@@ -55,8 +55,7 @@
                     <th>AI Models</th>
                     <th>API Keys</th>
                     <th>Cakupan</th>
-                    <th>Ditambahkan Oleh</th>
-                    <th>Tanggal</th>
+                    <th>Ditambahkan / Tanggal</th>
                     <th class="th-sticky">Aksi</th>
                 </tr>
             </thead>
@@ -132,10 +131,10 @@
                         @endif
                     </td>
                     <td>
-                        <span style="font-size: 0.82rem; font-weight: 500;">{{ $user->addedBy->name ?? 'System' }}</span>
-                    </td>
-                    <td>
-                        <span style="font-size: 0.82rem; color: var(--text-muted);">{{ $user->created_at->format('d M Y, H:i') }}</span>
+                        <div class="metadata-wrap">
+                            <span class="metadata-user"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
+                            <span class="metadata-date"><i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/Y H:i') }}</span>
+                        </div>
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
@@ -402,6 +401,12 @@
     .status-no { background: rgba(239,68,68,0.1); color: #b91c1c; border: 1.5px solid rgba(239,68,68,0.2); }
     html.dark .status-yes { color: #6ee7b7; border-color: rgba(16,185,129,0.2); background: rgba(16,185,129,0.13); }
     html.dark .status-no { color: #f87171; border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.13); }
+
+    .metadata-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .metadata-user { font-size: 0.78rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 5px; }
+    .metadata-user i { color: var(--primary); font-size: 0.75rem; }
+    .metadata-date { font-size: 0.7rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+    .metadata-date i { font-size: 0.7rem; }
 
     .td-email { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .td-name { font-weight: 600; color: var(--text-main); }
