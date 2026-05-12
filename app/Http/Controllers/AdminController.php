@@ -1136,4 +1136,12 @@ class AdminController extends Controller
             cache()->forget("allowed_tables_role_{$role->id}");
         });
     }
+
+    /**
+     * Display the admin panel guide.
+     */
+    public function guide()
+    {
+        return view('admin.guide');
+    }
 }

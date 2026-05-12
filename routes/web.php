@@ -111,6 +111,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/ai-management/providers', [App\Http\Controllers\Admin\AiController::class, 'storeProvider'])->name('ai_management.store_provider');
         Route::delete('/ai-management/providers/{provider}', [App\Http\Controllers\Admin\AiController::class, 'deleteProvider'])->name('ai_management.delete_provider');
         Route::get('/ai-management/keys/status-poll', [App\Http\Controllers\Admin\AiController::class, 'pollKeyStatus'])->name('ai_management.poll_status');
+
+        // Admin Guide
+        Route::get('/guide', [AdminController::class, 'guide'])->name('guide');
     });
 });
 

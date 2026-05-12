@@ -425,6 +425,8 @@
         <div class="nav-divider"></div>
         <p class="nav-section-label">Lainnya</p>
         <ul class="nav-links">
+            <li><a href="{{ route('admin.guide') }}" class="{{ request()->routeIs('admin.guide') ? 'active' : '' }}">
+                <i class="fas fa-book"></i><span>Panduan Admin</span></a></li>
             <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i><span>Kembali ke Chatbot</span></a></li>
         </ul>
 
