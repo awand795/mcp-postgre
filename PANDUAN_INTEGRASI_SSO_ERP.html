@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: auto; padding: 20px; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #2980b9; margin-top: 30px; border-left: 5px solid #3498db; padding-left: 10px; }
+        h3 { color: #16a085; }
+        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: 'Consolas', monospace; color: #e74c3c; }
+        pre { background-color: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: 'Consolas', monospace; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .note { background-color: #fff3cd; border-left: 5px solid #ffecb5; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .important { color: #c0392b; font-weight: bold; }
+    </style>
+    <title>Panduan Integrasi SSO ERP</title>
+</head>
+<body>
+
+<h1>PANDUAN INTEGRASI SSO (SINGLE SIGN-ON) - HANDSHAKE METHOD</h1>
+<p><strong>Sistem: Chatbot MCP (Agentic System)</strong></p>
+
+<p>Panduan ini ditujukan bagi tim backend ERP untuk mengimplementasikan login otomatis ke aplikasi Chatbot di dalam Iframe.</p>
+
+<hr>
+
+<h2>1. Konsep Utama</h2>
+<p>Integrasi ini menggunakan metode <strong>Handshake</strong> (Server-ke-Server) untuk menjamin keamanan. Data user dikirim di belakang layar, dan browser hanya menerima token sekali pakai yang berlaku singkat.</p>
+<ol>
+    <li><strong>Backend ERP</strong> memanggil API Chatbot untuk registrasi/identifikasi user.</li>
+    <li><strong>Chatbot</strong> membalas dengan <strong>One-Time-Token (OTT)</strong>.</li>
+    <li><strong>Frontend ERP</strong> memuat Iframe Chatbot dengan URL yang menyertakan token tersebut.</li>
+</ol>
+
+<hr>
+
+<h2>2. Kredensial API</h2>
+<p>Silakan minta kredensial berikut kepada Administrator Chatbot:</p>
+<ul>
+    <li><strong>SSO API Key</strong>: <code>[MASUKKAN_KUNCI_RAHASIA_DI_SINI]</code> (Simpan di <code>.env</code> ERP Anda)</li>
+    <li><strong>Chatbot Base URL</strong>: <code>https://chatbot-anda.com</code></li>
+</ul>
+
+<hr>
+
+<h2>3. Langkah Implementasi (Backend ERP)</h2>
+
+<h3>Endpoint Chatbot</h3>
+<p><code>POST https://chatbot-anda.com/api/sso/generate-token</code></p>
+
+<h3>Header Request</h3>
+<table>
+    <tr>
+        <th>Key</th>
+        <th>Value</th>
+        <th>Keterangan</th>
+    </tr>
+    <tr>
+        <td><code>X-SSO-KEY</code></td>
+        <td><code>[SSO_API_KEY]</code></td>
+        <td>Kunci rahasia untuk otentikasi server</td>
+    </tr>
+    <tr>
+        <td><code>Accept</code></td>
+        <td><code>application/json</code></td>
+        <td>Format respon yang diinginkan</td>
+    </tr>
+</table>
+
+<h3>Body Request (JSON)</h3>
+<table>
+    <tr>
+        <th>Field</th>
+        <th>Type</th>
+        <th>Required</th>
+        <th>Keterangan</th>
+    </tr>
+    <tr>
+        <td><code>email</code></td>
+        <td><code>string</code></td>
+        <td><strong>Ya</strong></td>
+        <td>Email unik user (sebagai ID utama)</td>
+    </tr>
+    <tr>
+        <td><code>name</code></td>
+        <td><code>string</code></td>
+        <td><strong>Ya</strong></td>
+        <td>Nama lengkap user (untuk tampilan)</td>
+    </tr>
+    <tr>
+        <td><code>erp_user_id</code></td>
+        <td><code>string</code></td>
+        <td>Tidak</td>
+        <td>ID internal user di sistem ERP</td>
+    </tr>
+</table>
+
+<h3>Contoh Request (PHP/Laravel)</h3>
+<pre>
+$response = Http::withHeaders([
+    'X-SSO-KEY' => env('CHATBOT_SSO_KEY'),
+    'Accept' => 'application/json',
+])->post('https://chatbot-anda.com/api/sso/generate-token', [
+    'email' => $user->email,
+    'name' => $user->name,
+]);
+
+if ($response->successful()) {
+    $ottToken = $response->json()['token'];
+}
+</pre>
+
+<hr>
+
+<h2>4. Langkah Implementasi (Frontend ERP)</h2>
+<p>Gunakan token yang didapat dari API untuk memuat Iframe. Token ini hanya berlaku <strong>60 detik</strong> dan akan hangus setelah satu kali pakai.</p>
+
+<h3>Struktur URL Iframe</h3>
+<p><code>https://chatbot-anda.com/auth/sso?token=[OTT_TOKEN]</code></p>
+
+<h3>Contoh Kode HTML</h3>
+<pre>
+&lt;iframe 
+    src="https://chatbot-anda.com/auth/sso?token=ott_8291ndk82129..." 
+    style="width: 100%; height: 700px; border: none;"
+    allow="clipboard-read; clipboard-write"
+&gt;&lt;/iframe&gt;
+</pre>
+
+<hr>
+
+<h2>5. Fitur Registrasi Otomatis</h2>
+<p>Tim ERP tidak perlu khawatir jika user belum terdaftar di Chatbot. Saat API <code>generate-token</code> dipanggil:</p>
+<ul>
+    <li>Jika email <strong>belum ada</strong>: Chatbot akan otomatis membuat akun baru dengan role default.</li>
+    <li>Jika email <strong>sudah ada</strong>: Chatbot akan memperbarui nama user (jika ada perubahan) dan memberikan akses masuk.</li>
+    <li>Admin Chatbot tetap memegang kendali penuh melalui <strong>Panel Admin</strong> untuk mengatur hak akses database atau limit token bagi user tersebut setelah terdaftar.</li>
+</ul>
+
+<hr>
+
+<h2>6. Catatan Penting</h2>
+<div class="note">
+    <ul>
+        <li><strong>X-Frame-Options</strong>: Aplikasi Chatbot telah dikonfigurasi untuk mengizinkan tampilan di dalam Iframe.</li>
+        <li><strong>Cookies</strong>: Gunakan browser modern. Chatbot menggunakan setting <code>SameSite=None</code> untuk menjamin sesi login tetap aktif di dalam Iframe.</li>
+        <li><span class="important">Security</span>: Jangan pernah membocorkan <code>SSO API Key</code> ke sisi Frontend (Javascript client-side). Request token harus selalu dilakukan dari server ERP.</li>
+    </ul>
+</div>
+
+</body>
+</html>
