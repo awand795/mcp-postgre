@@ -86,7 +86,7 @@ class AgenticChatbotController extends Controller
         }
 
         $allowedDatabases = [];
-        if ($user->is_admin) {
+        if ($user->is_admin || $user->is_super_admin) {
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
                 $tables = $c->getTables();

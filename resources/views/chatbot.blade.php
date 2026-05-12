@@ -1540,7 +1540,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2 header-actions flex-shrink-0">
-                    @if(auth()->user()->is_admin)
+                    @if(auth()->user()->is_admin || auth()->user()->is_super_admin)
                         <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
                             class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#818cf8] text-xs border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
