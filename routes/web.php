@@ -7,6 +7,9 @@ use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
 
 // Authentication Routes
+Route::get('/auth/sso', [App\Http\Controllers\Auth\SSOController::class, 'loginWithToken'])->name('sso.login');
+Route::post('/api/sso/generate-token', [App\Http\Controllers\Auth\SSOController::class, 'generateToken'])->name('sso.generate_token');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
