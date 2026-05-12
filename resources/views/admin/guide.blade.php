@@ -15,10 +15,10 @@ $guideData = [
                 'id' => 'login-auth',
                 'title' => 'Langkah Login',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman login kosong — sorot merah field Email', 'desc' => 'Field Email: masukkan email akun admin.', 'img_text' => 'Step 1: Login Kosong\nSorot Merah Email'],
-                    ['no' => 2, 'text' => 'Mengetik email — sorot merah field Email yang sudah diisi', 'desc' => 'Pastikan format email valid.', 'img_text' => 'Step 2: Isi Email\nSorot Merah Email'],
-                    ['no' => 3, 'text' => 'Mengetik password — sorot merah field Password', 'desc' => 'Field Password: masukkan password akun.', 'img_text' => 'Step 3: Isi Password\nSorot Merah Password'],
-                    ['no' => 4, 'text' => 'Tombol "Login" — sorot merah lingkaran besar di tombol Login', 'desc' => 'Klik tombol untuk masuk.', 'img_text' => 'Step 4: Klik Login\nLingkaran Merah Tombol'],
+                    ['no' => 1, 'text' => 'Halaman login kosong — sorot merah field Email', 'desc' => 'Field Email: masukkan email akun admin.', 'real_img' => 'real_login_page.png', 'img_text' => 'Step 1: Login Kosong\nSorot Merah Email'],
+                    ['no' => 2, 'text' => 'Mengetik email — sorot merah field Email yang sudah diisi', 'desc' => 'Pastikan format email valid.', 'real_img' => 'real_login_email.png', 'img_text' => 'Step 2: Isi Email\nSorot Merah Email'],
+                    ['no' => 3, 'text' => 'Mengetik password — sorot merah field Password', 'desc' => 'Field Password: masukkan password akun.', 'real_img' => 'real_login_password.png', 'img_text' => 'Step 3: Isi Password\nSorot Merah Password'],
+                    ['no' => 4, 'text' => 'Tombol "Login" — sorot merah lingkaran besar di tombol Login', 'desc' => 'Klik tombol untuk masuk.', 'real_img' => 'real_login_button.png', 'img_text' => 'Step 4: Klik Login\nLingkaran Merah Tombol'],
                     ['no' => 5, 'text' => 'Setelah login berhasil', 'desc' => 'Sistem akan me-redirect Anda ke halaman Chatbot atau Dashboard.', 'img_text' => 'Step 5: Login Sukses\nRedirect Dashboard'],
                 ]
             ]
@@ -34,7 +34,7 @@ $guideData = [
                 'id' => 'dashboard-overview',
                 'title' => 'Overview Dashboard',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman dashboard penuh — sorot merah setiap kartu statistik', 'desc' => 'Setiap kartu statistik menunjukkan ringkasan data.', 'img_text' => 'Step 1: Dashboard Penuh\nSorot Semua Kartu', 'real_img' => 'v2_dash_clean.png'],
+                    ['no' => 1, 'text' => 'Halaman dashboard penuh — sorot merah setiap kartu statistik', 'desc' => 'Setiap kartu statistik menunjukkan ringkasan data.', 'real_img' => 'real_dashboard.png', 'img_text' => 'Step 1: Dashboard Penuh\nSorot Semua Kartu', 'real_img' => 'v2_dash_clean.png'],
                     ['no' => 2, 'text' => 'Kartu statistik pertama — sorot merah angka dan labelnya', 'desc' => 'Menunjukkan metrik spesifik.', 'img_text' => 'Step 2: Kartu Pertama\nSorot Angka & Label'],
                     ['no' => 3, 'text' => 'Area grafik/chart', 'desc' => 'Menampilkan tren jika tersedia.', 'img_text' => 'Step 3: Area Grafik\nSorot Grafik'],
                     ['no' => 4, 'text' => 'Sidebar navigasi — sorot merah setiap menu di sidebar', 'desc' => 'Navigasi semua menu yang tersedia.', 'img_text' => 'Step 4: Sidebar Navigasi\nSorot Menu'],
@@ -53,7 +53,7 @@ $guideData = [
                 'id' => 'user-main',
                 'title' => '3A. Halaman Utama User',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman users lengkap — sorot merah tabel user', 'desc' => 'Menampilkan tabel list user.', 'img_text' => 'Step 1: Halaman Users\nSorot Tabel Utama', 'real_img' => 'user_list.png'],
+                    ['no' => 1, 'text' => 'Halaman users lengkap — sorot merah tabel user', 'desc' => 'Menampilkan tabel list user.', 'real_img' => 'real_user_list.png', 'img_text' => 'Step 1: Halaman Users\nSorot Tabel Utama', 'real_img' => 'user_list.png'],
                     ['no' => 2, 'text' => 'Tombol "Tambah User" (kanan atas) — sorot merah dengan lingkaran besar', 'desc' => 'Tombol biru di kanan atas.', 'img_text' => 'Step 2: Tambah User\nLingkaran Tombol Tambah', 'real_img' => 'v2_user_top_actions.png'],
                     ['no' => 3, 'text' => 'Tombol "Template" — sorot merah', 'desc' => 'Download format excel.', 'img_text' => 'Step 3: Tombol Template\nSorot Tombol'],
                     ['no' => 4, 'text' => 'Tombol "Import" — sorot merah', 'desc' => 'Upload data excel.', 'img_text' => 'Step 4: Tombol Import\nSorot Tombol'],
@@ -68,7 +68,7 @@ $guideData = [
                 'id' => 'user-add',
                 'title' => '3B. Tambah User Baru',
                 'steps' => [
-                    ['no' => 10, 'text' => 'Modal "Tambah User" yang baru terbuka', 'desc' => 'Judul modal tambah.', 'img_text' => 'Step 10: Modal Tambah User\nSorot Judul Modal', 'real_img' => 'v2_user_add_modal.png'],
+                    ['no' => 10, 'text' => 'Modal "Tambah User" yang baru terbuka', 'desc' => 'Judul modal tambah.', 'real_img' => 'real_tambah_user_modal.png', 'img_text' => 'Step 10: Modal Tambah User\nSorot Judul Modal', 'real_img' => 'v2_user_add_modal.png'],
                     ['no' => 11, 'text' => 'Field Nama Lengkap', 'desc' => 'Isi nama lengkap user.', 'img_text' => 'Step 11: Field Nama\nSorot Input Nama'],
                     ['no' => 12, 'text' => 'Field Email', 'desc' => 'Isi email yang valid.', 'img_text' => 'Step 12: Field Email\nSorot Input Email'],
                     ['no' => 13, 'text' => 'Field Password', 'desc' => 'Minimal 8 karakter.', 'img_text' => 'Step 13: Field Password\nSorot Input Password'],
@@ -84,7 +84,7 @@ $guideData = [
                 'title' => '3C. Edit User',
                 'steps' => [
                     ['no' => 19, 'text' => 'Tombol Edit (ikon pensil)', 'desc' => 'Di kolom aksi.', 'img_text' => 'Step 19: Tombol Edit\nSorot Ikon Pensil', 'real_img' => 'v2_user_row_actions.png'],
-                    ['no' => 20, 'text' => 'Modal Edit User terbuka', 'desc' => 'Modal edit.', 'img_text' => 'Step 20: Modal Edit\nSorot Form'],
+                    ['no' => 20, 'text' => 'Modal Edit User terbuka', 'desc' => 'Modal edit.', 'real_img' => 'real_edit_user_modal.png', 'img_text' => 'Step 20: Modal Edit\nSorot Form'],
                     ['no' => 21, 'text' => 'Field terisi data lama', 'desc' => 'Form dengan data eksisting.', 'img_text' => 'Step 21: Data Lama\nSorot Input Terisi'],
                     ['no' => 22, 'text' => 'Tombol Update', 'desc' => 'Menyimpan pembaruan.', 'img_text' => 'Step 22: Tombol Update\nSorot Tombol'],
                     ['no' => 23, 'text' => 'Notifikasi sukses', 'desc' => 'Edit berhasil.', 'img_text' => 'Step 23: Notif Edit\nSorot Alert'],
@@ -95,7 +95,7 @@ $guideData = [
                 'title' => '3D. Hapus User',
                 'steps' => [
                     ['no' => 24, 'text' => 'Tombol Hapus (ikon tempat sampah)', 'desc' => 'Di kolom aksi.', 'img_text' => 'Step 24: Tombol Hapus\nLingkaran Merah Besar'],
-                    ['no' => 25, 'text' => 'Dialog konfirmasi "Apakah Anda yakin?"', 'desc' => 'Sorot tombol "Ya, Hapus".', 'img_text' => 'Step 25: Dialog Hapus\nSorot Tombol Ya'],
+                    ['no' => 25, 'text' => 'Dialog konfirmasi "Apakah Anda yakin?"', 'desc' => 'Sorot tombol "Ya, Hapus".', 'real_img' => 'real_hapus_user.png', 'img_text' => 'Step 25: Dialog Hapus\nSorot Tombol Ya'],
                     ['no' => 26, 'text' => 'Setelah user berhasil dihapus', 'desc' => 'User hilang dari tabel.', 'img_text' => 'Step 26: User Hilang\nSorot Tabel'],
                 ]
             ],
@@ -104,7 +104,7 @@ $guideData = [
                 'title' => '3E. AI Config per User',
                 'steps' => [
                     ['no' => 27, 'text' => 'Tombol konfigurasi AI', 'desc' => 'Ikon otak di kolom Aksi.', 'img_text' => 'Step 27: Tombol AI Config\nSorot Ikon Otak'],
-                    ['no' => 28, 'text' => 'Modal "AI Config" terbuka', 'desc' => 'Sorot seluruh modal.', 'img_text' => 'Step 28: Modal AI\nSorot Modal', 'real_img' => 'v2_user_ai_config_modal.png'],
+                    ['no' => 28, 'text' => 'Modal "AI Config" terbuka', 'desc' => 'Sorot seluruh modal.', 'real_img' => 'real_ai_config_modal.png', 'img_text' => 'Step 28: Modal AI\nSorot Modal', 'real_img' => 'v2_user_ai_config_modal.png'],
                     ['no' => 29, 'text' => 'Daftar AI Models', 'desc' => 'Bisa di-toggle per user.', 'img_text' => 'Step 29: AI Models\nSorot Toggle Switch', 'real_img' => 'user_ai_config.png'],
                     ['no' => 30, 'text' => 'Daftar API Keys', 'desc' => 'Bisa di-toggle per user.', 'img_text' => 'Step 30: API Keys\nSorot Toggle Switch'],
                     ['no' => 31, 'text' => 'Tombol Save Config', 'desc' => 'Simpan setting AI.', 'img_text' => 'Step 31: Save Config\nSorot Tombol'],
@@ -126,7 +126,7 @@ $guideData = [
                 'title' => '3G. Table Filters (Row Level Security)',
                 'steps' => [
                     ['no' => 37, 'text' => 'Tombol "Table Filters"', 'desc' => 'Ikon filter.', 'img_text' => 'Step 37: Tombol RLS\nSorot Ikon Filter', 'real_img' => 'user_rls.png'],
-                    ['no' => 38, 'text' => 'Modal Table Filters terbuka', 'desc' => 'Seluruh area.', 'img_text' => 'Step 38: Modal RLS\nSorot Modal', 'real_img' => 'v2_user_rls_table_select.png'],
+                    ['no' => 38, 'text' => 'Modal Table Filters terbuka', 'desc' => 'Seluruh area.', 'real_img' => 'real_rls_modal.png', 'img_text' => 'Step 38: Modal RLS\nSorot Modal', 'real_img' => 'v2_user_rls_table_select.png'],
                     ['no' => 39, 'text' => 'Dropdown memilih tabel', 'desc' => 'Memilih nama tabel.', 'img_text' => 'Step 39: Pilih Tabel\nSorot Dropdown', 'real_img' => 'user_rls_select.png'],
                     ['no' => 40, 'text' => 'Field filter (kolom, operator, nilai)', 'desc' => 'Masing-masing input field.', 'img_text' => 'Step 40: Aturan Filter\nSorot Kolom/Operator/Nilai', 'real_img' => 'v2_user_rls_rule_builder.png'],
                     ['no' => 41, 'text' => 'Tombol "Tambah Filter"', 'desc' => 'Menambahkan kondisional ekstra.', 'img_text' => 'Step 41: Tambah Aturan\nSorot Tombol Tambah'],
@@ -159,7 +159,7 @@ $guideData = [
                 'id' => 'role-main',
                 'title' => '4A. Halaman Utama Role',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman roles lengkap', 'desc' => 'Sidebar kiri dan panel kanan.', 'img_text' => 'Step 1: Halaman Roles\nSorot Kiri Kanan', 'real_img' => 'role_list.png'],
+                    ['no' => 1, 'text' => 'Halaman roles lengkap', 'desc' => 'Sidebar kiri dan panel kanan.', 'real_img' => 'real_role_list.png', 'img_text' => 'Step 1: Halaman Roles\nSorot Kiri Kanan', 'real_img' => 'role_list.png'],
                     ['no' => 2, 'text' => 'Tombol "Tambah Role" (kanan atas)', 'desc' => 'Lingkaran besar.', 'img_text' => 'Step 2: Tambah Role\nLingkaran Besar', 'real_img' => 'v2_role_add_btn.png'],
                     ['no' => 3, 'text' => 'Daftar role di sidebar kiri', 'desc' => 'Setiap role dalam daftar.', 'img_text' => 'Step 3: Daftar Role\nSorot Setiap Role'],
                     ['no' => 4, 'text' => 'Panel permissions di kanan', 'desc' => 'Tabel permissions.', 'img_text' => 'Step 4: Panel Permissions\nSorot Tabel Kanan'],
@@ -169,7 +169,7 @@ $guideData = [
                 'id' => 'role-add',
                 'title' => '4B. Tambah Role Baru',
                 'steps' => [
-                    ['no' => 5, 'text' => 'Modal "Tambah Role"', 'desc' => 'Judul modal.', 'img_text' => 'Step 5: Modal Role\nSorot Judul'],
+                    ['no' => 5, 'text' => 'Modal "Tambah Role"', 'desc' => 'Judul modal.', 'real_img' => 'real_tambah_role_modal.png', 'img_text' => 'Step 5: Modal Role\nSorot Judul'],
                     ['no' => 6, 'text' => 'Field Nama Role', 'desc' => 'Contoh: Operator, Manager.', 'img_text' => 'Step 6: Field Nama\nSorot Input'],
                     ['no' => 7, 'text' => 'Field Deskripsi', 'desc' => 'Input deskripsi.', 'img_text' => 'Step 7: Field Deskripsi\nSorot Input'],
                     ['no' => 8, 'text' => 'Tombol Simpan', 'desc' => 'Menyimpan.', 'img_text' => 'Step 8: Simpan Role\nLingkaran Besar'],
@@ -222,7 +222,7 @@ $guideData = [
                 'id' => 'db-main',
                 'title' => '5A. Halaman Utama Database',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman databases lengkap', 'desc' => 'Grid/list database.', 'img_text' => 'Step 1: Halaman DB\nSorot Grid DB', 'real_img' => 'db_list.png'],
+                    ['no' => 1, 'text' => 'Halaman databases lengkap', 'desc' => 'Grid/list database.', 'real_img' => 'real_db_list.png', 'img_text' => 'Step 1: Halaman DB\nSorot Grid DB', 'real_img' => 'db_list.png'],
                     ['no' => 2, 'text' => 'Tombol "Tambah Database" (kanan atas)', 'desc' => 'Lingkaran besar.', 'img_text' => 'Step 2: Tambah DB\nLingkaran Besar', 'real_img' => 'v2_db_top_actions.png'],
                     ['no' => 3, 'text' => 'Tombol "Test All"', 'desc' => 'Test semua koneksi sekaligus.', 'img_text' => 'Step 3: Test All\nSorot Tombol'],
                     ['no' => 4, 'text' => 'Toolbar filter', 'desc' => 'Input search, filter driver, list view.', 'img_text' => 'Step 4: Toolbar\nSorot Semua Elemen'],
@@ -235,7 +235,7 @@ $guideData = [
                 'id' => 'db-add',
                 'title' => '5B. Tambah Database Baru',
                 'steps' => [
-                    ['no' => 8, 'text' => 'Modal "Tambah Database" terbuka', 'desc' => 'Judul modal.', 'img_text' => 'Step 8: Modal Tambah DB\nSorot Judul', 'real_img' => 'v2_db_modal_add.png'],
+                    ['no' => 8, 'text' => 'Modal "Tambah Database" terbuka', 'desc' => 'Judul modal.', 'real_img' => 'real_tambah_db_modal.png', 'img_text' => 'Step 8: Modal Tambah DB\nSorot Judul', 'real_img' => 'v2_db_modal_add.png'],
                     ['no' => 9, 'text' => 'Field Nama Database', 'desc' => 'Nama alias/label.', 'img_text' => 'Step 9: Field Nama\nSorot Input'],
                     ['no' => 10, 'text' => 'Field Kode Unik', 'desc' => 'Identifier unik huruf kecil.', 'img_text' => 'Step 10: Kode Unik\nSorot Input'],
                     ['no' => 11, 'text' => 'Dropdown Driver', 'desc' => 'PostgreSQL, MySQL, MariaDB.', 'img_text' => 'Step 11: Dropdown Driver\nSorot Select'],
@@ -302,7 +302,7 @@ $guideData = [
                 'id' => 'ai-main',
                 'title' => '6A. Halaman Utama AI Management',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Halaman AI Management penuh', 'desc' => 'Semua elemen layout.', 'img_text' => 'Step 1: Halaman Penuh\nSorot Seluruh Elemen', 'real_img' => 'ai_list.png'],
+                    ['no' => 1, 'text' => 'Halaman AI Management penuh', 'desc' => 'Semua elemen layout.', 'real_img' => 'real_ai_management.png', 'img_text' => 'Step 1: Halaman Penuh\nSorot Seluruh Elemen', 'real_img' => 'ai_list.png'],
                     ['no' => 2, 'text' => '4 Kartu statistik', 'desc' => 'Providers, API Keys, Rate Limited, Active Models.', 'img_text' => 'Step 2: Kartu Statistik\nSorot ke-4 Kartu'],
                     ['no' => 3, 'text' => 'Tombol "Add Provider"', 'desc' => 'Kanan atas, lingkaran BESAR.', 'img_text' => 'Step 3: Tambah Provider\nLingkaran BESAR'],
                 ]
@@ -318,7 +318,7 @@ $guideData = [
                 'id' => 'ai-provider-add',
                 'title' => '6C. Tambah Provider Baru',
                 'steps' => [
-                    ['no' => 5, 'text' => 'Modal "Add Provider AI Baru"', 'desc' => 'Judul modal.', 'img_text' => 'Step 5: Modal Tambah Provider\nSorot Judul', 'real_img' => 'v2_ai_provider_add.png'],
+                    ['no' => 5, 'text' => 'Modal "Add Provider AI Baru"', 'desc' => 'Judul modal.', 'real_img' => 'real_add_provider_modal.png', 'img_text' => 'Step 5: Modal Tambah Provider\nSorot Judul', 'real_img' => 'v2_ai_provider_add.png'],
                     ['no' => 6, 'text' => 'Field Nama Provider', 'desc' => 'Contoh: Groq, Ollama.', 'img_text' => 'Step 6: Field Nama Provider\nSorot Input'],
                     ['no' => 7, 'text' => 'Field Kode Unik', 'desc' => 'Contoh: groq.', 'img_text' => 'Step 7: Kode Unik Provider\nSorot Input'],
                     ['no' => 8, 'text' => 'Field Base URL API', 'desc' => 'Endpoint provider eksternal.', 'img_text' => 'Step 8: Base URL\nSorot Input'],
@@ -364,7 +364,7 @@ $guideData = [
                 'title' => '6G. Tambah API Key Baru',
                 'steps' => [
                     ['no' => 26, 'text' => 'Tombol "Add Key"', 'desc' => 'Footer card.', 'img_text' => 'Step 26: Add Key Button\nSorot Tombol Bawah'],
-                    ['no' => 27, 'text' => 'Modal "Add API Key" terbuka', 'desc' => 'Membuka form.', 'img_text' => 'Step 27: Modal Add Key\nSorot Judul Modal', 'real_img' => 'ai_add_key.png'],
+                    ['no' => 27, 'text' => 'Modal "Add API Key" terbuka', 'desc' => 'Membuka form.', 'real_img' => 'real_add_key_modal.png', 'img_text' => 'Step 27: Modal Add Key\nSorot Judul Modal', 'real_img' => 'ai_add_key.png'],
                     ['no' => 28, 'text' => 'Field Nama Key (alias)', 'desc' => 'Contoh: Key Utama Production.', 'img_text' => 'Step 28: Field Nama Key\nSorot Input Nama'],
                     ['no' => 29, 'text' => 'Field API Key', 'desc' => 'Isi token sebenarnya.', 'img_text' => 'Step 29: Field API Key\nSorot Input Token'],
                     ['no' => 30, 'text' => 'Tombol show/hide password', 'desc' => 'Ikon mata.', 'img_text' => 'Step 30: Ikon Mata\nSorot Toggle Visibility'],
@@ -409,7 +409,7 @@ $guideData = [
                 'title' => '6K. Health Check API Key',
                 'steps' => [
                     ['no' => 47, 'text' => 'Tombol Health Check', 'desc' => 'Ikon gelombang/sinyal.', 'img_text' => 'Step 47: Health Check\nSorot Ikon Sinyal'],
-                    ['no' => 48, 'text' => 'Modal API Key Health Check', 'desc' => 'Judul modal.', 'img_text' => 'Step 48: Modal Health\nSorot Judul'],
+                    ['no' => 48, 'text' => 'Modal API Key Health Check', 'desc' => 'Judul modal.', 'real_img' => 'real_health_check_modal.png', 'img_text' => 'Step 48: Modal Health\nSorot Judul'],
                     ['no' => 49, 'text' => 'Dropdown Model untuk diuji', 'desc' => 'Auto-detect atau model manual.', 'img_text' => 'Step 49: Dropdown Model Test\nSorot Select'],
                     ['no' => 50, 'text' => 'Checkbox "Ketik model manual"', 'desc' => 'Opsi input string manual.', 'img_text' => 'Step 50: Checkbox Manual\nSorot Checkbox'],
                     ['no' => 51, 'text' => 'Input manual model', 'desc' => 'Ketik string (misal gemini-2.0).', 'img_text' => 'Step 51: Input Manual\nSorot Input Teks'],
@@ -425,7 +425,7 @@ $guideData = [
                 'id' => 'ai-models-main',
                 'title' => '6L. Tab Models — Kelola Model AI',
                 'steps' => [
-                    ['no' => 58, 'text' => 'Tab "🧠 Models"', 'desc' => 'Berada di tab Models.', 'img_text' => 'Step 58: Tab Models\nSorot Tab Kedua', 'real_img' => 'v2_ai_tabs.png'],
+                    ['no' => 58, 'text' => 'Tab "🧠 Models"', 'desc' => 'Berada di tab Models.', 'real_img' => 'real_models_tab.png', 'img_text' => 'Step 58: Tab Models\nSorot Tab Kedua', 'real_img' => 'v2_ai_tabs.png'],
                     ['no' => 59, 'text' => 'Daftar model sebagai chip/badge', 'desc' => 'Tampilan chip list.', 'img_text' => 'Step 59: Badge Model\nSorot Chip Kapsul'],
                     ['no' => 60, 'text' => 'Model chip AKTIF', 'desc' => 'Warna indigo/biru.', 'img_text' => 'Step 60: Model Aktif\nSorot Warna Biru'],
                     ['no' => 61, 'text' => 'Model chip NONAKTIF', 'desc' => 'Warna abu-abu.', 'img_text' => 'Step 61: Model Mati\nSorot Warna Abu'],
@@ -438,7 +438,7 @@ $guideData = [
                 'title' => '6M. Tambah Model AI Baru',
                 'steps' => [
                     ['no' => 64, 'text' => 'Tombol "Add Model"', 'desc' => 'Di footer provider card.', 'img_text' => 'Step 64: Add Model Button\nSorot Tombol Bawah'],
-                    ['no' => 65, 'text' => 'Modal "Add Model AI"', 'desc' => 'Menambah entitas model.', 'img_text' => 'Step 65: Modal Add Model\nSorot Modal', 'real_img' => 'v2_ai_models_add.png'],
+                    ['no' => 65, 'text' => 'Modal "Add Model AI"', 'desc' => 'Menambah entitas model.', 'real_img' => 'real_add_model_modal.png', 'img_text' => 'Step 65: Modal Add Model\nSorot Modal', 'real_img' => 'v2_ai_models_add.png'],
                     ['no' => 66, 'text' => 'Field ID Model (system name)', 'desc' => 'SANGAT PENTING: ID teknis API.', 'img_text' => 'Step 66: ID Model Tepat\nSorot Input ID'],
                     ['no' => 67, 'text' => 'Field Display Name', 'desc' => 'Nama tampilan ramah pengguna.', 'img_text' => 'Step 67: Display Name\nSorot Input Display'],
                     ['no' => 68, 'text' => 'Tombol Simpan Model', 'desc' => 'Simpan model ke database.', 'img_text' => 'Step 68: Simpan Model\nLingkaran Besar'],
