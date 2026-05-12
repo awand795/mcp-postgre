@@ -51,9 +51,9 @@ class AdminController extends Controller
         }
         
         $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
-        $roles = Role::all();
+        $roles = Role::with('addedBy')->get();
         $aiModels = \App\Models\AiModel::with('provider')->where('is_active', true)->get();
-        $aiKeysQuery = \App\Models\AiApiKey::with('provider')->where('is_active', true);
+        $aiKeysQuery = \App\Models\AiApiKey::with(['provider', 'addedBy'])->where('is_active', true);
         if (!auth()->user()->is_super_admin) {
             $aiKeysQuery->where('added_by', auth()->id());
         }

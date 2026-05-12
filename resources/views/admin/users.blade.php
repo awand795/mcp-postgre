@@ -199,7 +199,7 @@
                 <select name="role" id="userRole" required>
                     <option value="">Pilih Role</option>
                     @foreach($roles as $role)
-                        <option value="{{ $role->id }}" style="color: black;">{{ $role->name }}</option>
+                        <option value="{{ $role->id }}" style="color: black;">{{ $role->name }} (by {{ $role->addedBy->name ?? 'System' }})</option>
                     @endforeach
                 </select>
             </div>
@@ -665,6 +665,9 @@
     html.dark .aic-item-checked .aic-item-name { color: #c7d2fe; }
     .aic-item-checked.aic-item-key .aic-item-name { color: #047857; }
     html.dark .aic-item-checked.aic-item-key .aic-item-name { color: #6ee7b7; }
+    .aic-item-owner { font-size: 0.65rem; color: var(--text-muted); opacity: 0.7; margin-top: -1px; }
+    .aic-item-checked .aic-item-owner { opacity: 0.9; }
+
     .aic-item-check-icon { margin-left: auto; font-size: 0.68rem; color: #6366f1; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
     .aic-item-checked .aic-item-check-icon { opacity: 1; }
     .aic-item-checked.aic-item-key .aic-item-check-icon { color: #10b981; }
@@ -749,10 +752,15 @@
                 const isChecked = checkedIds.includes(item.id);
                 const itemEl = document.createElement('label');
                 itemEl.className = `aic-item ${isChecked ? 'aic-item-checked' : ''} ${isKey ? 'aic-item-key' : ''}`;
+                const ownerName = item.added_by ? item.added_by.name : 'System';
+                const ownerHtml = isKey ? `<span class="aic-item-owner">by ${ownerName}</span>` : '';
                 itemEl.dataset.name = (item[nameField] || '').toLowerCase();
                 itemEl.innerHTML = `
                     <input type="checkbox" name="${inputName}" value="${item.id}" ${isChecked ? 'checked' : ''}>
-                    <span class="aic-item-name" title="${item[nameField]}">${item[nameField]}</span>
+                    <div style="display:flex; flex-direction:column; gap:0; flex:1; min-width:0;">
+                        <span class="aic-item-name" title="${item[nameField]}">${item[nameField]}</span>
+                        ${ownerHtml}
+                    </div>
                     <i class="fas fa-check aic-item-check-icon"></i>
                 `;
                 
