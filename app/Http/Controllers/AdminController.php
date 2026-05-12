@@ -903,12 +903,31 @@ class AdminController extends Controller
         }
 
         $whereClause = $this->buildWhereFromRules($rules);
-        $fullTable = $conn->driver === 'pgsql' ? "\"{$schema}\".\"{$tableName}\"" : "`{$tableName}`";
-        $sql = "SELECT * FROM {$fullTable}";
+        $driver = $conn->driver;
+
+        // Build table reference per driver
+        if ($driver === 'pgsql') {
+            $fullTable = "\"{$schema}\".\"{$tableName}\"";
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            $fullTable = "`{$tableName}`";
+        } elseif ($driver === 'sqlsrv') {
+            $fullTable = "[{$schema}].[{$tableName}]";
+        } else {
+            $fullTable = "\"{$tableName}\"";
+        }
+
+        // Build SELECT with driver-specific LIMIT
+        if ($driver === 'sqlsrv') {
+            $sql = "SELECT TOP 5 * FROM {$fullTable}";
+        } else {
+            $sql = "SELECT * FROM {$fullTable}";
+        }
         if ($whereClause) {
             $sql .= " WHERE {$whereClause}";
         }
-        $sql .= " LIMIT 5";
+        if ($driver !== 'sqlsrv') {
+            $sql .= " LIMIT 5";
+        }
 
         $tempConn = 'temp_preview_' . $conn->code;
         try {
@@ -935,7 +954,10 @@ class AdminController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::purge($tempConn);
-            return response()->json(['success' => false, 'error' => $e->getMessage()]);
+            // Sanitize error: remove connection details for security
+            $errMsg = $e->getMessage();
+            $errMsg = preg_replace('/\(Connection:.*$/', '', $errMsg);
+            return response()->json(['success' => false, 'error' => trim($errMsg)]);
         }
     }
 
@@ -1071,11 +1093,7 @@ class AdminController extends Controller
                 $parts[] = "{$col} {$op} '{$escaped}'";
             } else {
                 $escaped = str_replace("'", "''", $val);
-                if (is_numeric($val)) {
-                    $parts[] = "{$col} {$op} {$val}";
-                } else {
-                    $parts[] = "{$col} {$op} '{$escaped}'";
-                }
+                $parts[] = "{$col} {$op} '{$escaped}'";
             }
         }
 

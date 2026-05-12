@@ -1102,11 +1102,7 @@ class QueryService extends BaseService
                 $parts[] = "{$col} {$op} '{$escaped}'";
             } else {
                 $escaped = str_replace("'", "''", $val);
-                if (is_numeric($val)) {
-                    $parts[] = "{$col} {$op} {$val}";
-                } else {
-                    $parts[] = "{$col} {$op} '{$escaped}'";
-                }
+                $parts[] = "{$col} {$op} '{$escaped}'";
             }
         }
 
