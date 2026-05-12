@@ -323,43 +323,51 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 5.8: Inject User Table Filters (Row Level Security) ────────
-        // Jika user bukan super admin, periksa apakah ada filter khusus untuk tabel ini.
+        // Syarat RLS:
+        // 1. User terautentikasi
+        // 2. Bukan Super Admin
+        // 3. Jika Admin, hanya kena RLS pada database yang BUKAN ditambahkan sendiri (kecuali eksplisit dibatasi)
         $user = Auth::user();
         if ($user && !$user->is_super_admin && $dbModel) {
-            $tableFilters = \App\Models\UserTableFilter::where('user_id', $user->id)
-                ->where('database_connection_id', $dbModel->id)
-                ->get();
+            // Admin bebas dari RLS pada database yang dia buat sendiri
+            if ($user->is_admin && $dbModel->added_by === $user->id) {
+                // Skip RLS
+            } else {
+                $tableFilters = \App\Models\UserTableFilter::where('user_id', $user->id)
+                    ->where('database_connection_id', $dbModel->id)
+                    ->get();
             
-            if ($tableFilters->count() > 0) {
-                foreach ($tableFilters as $tf) {
-                    $tbl = $tf->table_name;
-                    $rawCondition = $tf->filter_condition;
-                    if (empty($rawCondition)) continue;
+                if ($tableFilters->count() > 0) {
+                    foreach ($tableFilters as $tf) {
+                        $tbl = $tf->table_name;
+                        $rawCondition = $tf->filter_condition;
+                        if (empty($rawCondition)) continue;
 
-                    // Parse JSON rules and build WHERE clause
-                    $rules = json_decode($rawCondition, true);
-                    if (!is_array($rules) || empty($rules)) continue;
+                        // Parse JSON rules and build WHERE clause
+                        $rules = json_decode($rawCondition, true);
+                        if (!is_array($rules) || empty($rules)) continue;
 
-                    $cond = $this->buildWhereFromRules($rules);
-                    if (empty($cond)) continue;
+                        $cond = $this->buildWhereFromRules($rules);
+                        if (empty($cond)) continue;
 
-                    // Strategi: Bungkus tabel dengan subquery yang sudah difilter
-                    
-                    // 1. Handle FROM
-                    $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
-                    $trimmedSql = preg_replace_callback($fromPattern, function($m) use ($tbl, $cond) {
-                        $schema = !empty($m[1]) ? $m[1] . "." : "";
-                        return "FROM (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
-                    }, $trimmedSql);
+                        // Strategi: Bungkus tabel dengan subquery yang sudah difilter
+                        
+                        // 1. Handle FROM
+                        $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
+                        $trimmedSql = preg_replace_callback($fromPattern, function($m) use ($tbl, $cond) {
+                            $schema = !empty($m[1]) ? $m[1] . "." : "";
+                            return "FROM (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                        }, $trimmedSql);
 
-                    // 2. Handle JOIN
-                    $joinPattern = '/\bJOIN\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
-                    $trimmedSql = preg_replace_callback($joinPattern, function($m) use ($tbl, $cond) {
-                        $schema = !empty($m[1]) ? $m[1] . "." : "";
-                        return "JOIN (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
-                    }, $trimmedSql);
+                        // 2. Handle JOIN
+                        $joinPattern = '/\bJOIN\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
+                        $trimmedSql = preg_replace_callback($joinPattern, function($m) use ($tbl, $cond) {
+                            $schema = !empty($m[1]) ? $m[1] . "." : "";
+                            return "JOIN (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                        }, $trimmedSql);
 
-                    Log::info("[QueryService] RLS filter injected for user {$user->id} on table {$tbl}: {$cond}");
+                        Log::info("[QueryService] RLS filter injected for user {$user->id} on table {$tbl}: {$cond}");
+                    }
                 }
             }
         }

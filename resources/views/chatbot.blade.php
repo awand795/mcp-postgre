@@ -1055,6 +1055,12 @@
             -webkit-overflow-scrolling: touch;
         }
 
+        .smart-table-scroll table {
+            width: 100%;
+            min-width: max-content;
+            border-collapse: collapse;
+        }
+
         .smart-table-scroll thead tr {
             background: linear-gradient(90deg, #ede9fe 0%, #f3e8ff 50%, #fce7f3 100%);
             border-bottom: 2px solid rgba(99, 102, 241, 0.2);
@@ -1093,6 +1099,14 @@
             border-bottom: 1px solid rgba(99, 102, 241, 0.07) !important;
             color: #1e293b !important;
             font-size: 13px !important;
+            white-space: nowrap;
+        }
+
+        .smart-table-scroll td.wrap {
+            white-space: normal;
+            min-width: 200px;
+            max-width: 400px;
+            word-break: break-word;
         }
 
         html.dark .smart-table-scroll td {
@@ -4163,7 +4177,7 @@
                     <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
                 </div>
                 <div class="smart-table-scroll">
-                    <table><thead></thead><tbody></tbody></table>
+                    <table class="smart-table"><thead></thead><tbody></tbody></table>
                 </div>
                 <div class="smart-table-pagination">
                     <span class="smart-table-page-info"></span>
@@ -4534,7 +4548,7 @@
                                         <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
                                     </div>
                                     <div class="smart-table-scroll">
-                                        <table><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
+                                        <table class="smart-table"><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
                                     </div>
                                     <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
                                 </div>`;
