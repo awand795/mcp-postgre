@@ -55,14 +55,23 @@
                     <th>AI Models</th>
                     <th>API Keys</th>
                     <th>Cakupan</th>
-                    <th>Ditambahkan / Tanggal</th>
+                    <th>Dibuat</th>
                     <th class="th-sticky">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($users as $user)
                 <tr>
-                    <td class="td-name">{{ $user->name }}</td>
+                    <td class="td-name">
+                        <div>
+                            {{ $user->name }}
+                            @if($user->tableFilters->count() > 0)
+                                <div class="user-filter-indicator">
+                                    <i class="fas fa-shield-halved"></i> {{ $user->tableFilters->count() }} filter aktif
+                                </div>
+                            @endif
+                        </div>
+                    </td>
                     <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
                     <td>
                         <span class="role-badge">
@@ -131,18 +140,14 @@
                         @endif
                     </td>
                     <td>
-                        <div class="metadata-wrap">
-                            <span class="metadata-user"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
-                            <span class="metadata-date"><i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/Y H:i') }}</span>
-                        </div>
+                        <span class="metadata-compact" title="Oleh: {{ $user->addedBy->name ?? 'System' }} — {{ $user->created_at->format('d/m/Y H:i') }}">
+                            <i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/y') }}
+                        </span>
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'has-active-filters' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)" style="position: relative;">
+                            <button class="btn btn-filter" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)">
                                 <i class="fas fa-filter"></i>
-                                @if($user->tableFilters->count() > 0)
-                                    <span class="filter-count-badge">{{ $user->tableFilters->count() }}</span>
-                                @endif
                             </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
@@ -158,7 +163,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="empty-state">
+                    <td colspan="9" class="empty-state">
                         <i class="fas fa-user-slash"></i>
                         <p>Tidak ada user yang ditemukan</p>
                     </td>
@@ -444,23 +449,27 @@
 <style>
     /* ── Existing styles (unchanged) ─────────────────────────────────── */
     .filter-group select option { background: var(--select-bg); color: var(--input-text); }
-    .action-buttons { display: flex; gap: 8px; flex-wrap: nowrap; }
+    .action-buttons { display: flex; gap: 6px; flex-wrap: nowrap; }
     td.td-sticky { white-space: nowrap; }
-    .filter-count-badge {
-        position: absolute; top: -6px; right: -6px;
-        background: #ef4444; color: white;
-        font-size: 0.6rem; font-weight: 800;
-        min-width: 16px; height: 16px; padding: 0 4px;
-        border-radius: 10px; display: flex; align-items: center; justify-content: center;
-        border: 2px solid var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+
+    /* Filter indicator under user name */
+    .user-filter-indicator {
+        display: inline-flex; align-items: center; gap: 4px;
+        margin-top: 4px; padding: 2px 8px; border-radius: 6px;
+        font-size: 0.65rem; font-weight: 700;
+        background: rgba(245,158,11,0.12); color: #d97706;
+        border: 1px solid rgba(245,158,11,0.25);
     }
-    .btn-filter.has-active-filters {
-        background: rgba(16,185,129,0.15); color: #10b981; border-color: rgba(16,185,129,0.3);
+    .user-filter-indicator i { font-size: 0.6rem; }
+    html.dark .user-filter-indicator {
+        background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3);
     }
-    html.dark .btn-filter.has-active-filters {
-        background: rgba(16,185,129,0.25); color: #34d399; border-color: rgba(16,185,129,0.4);
+
+    /* Compact metadata */
+    .metadata-compact {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; cursor: default;
     }
-    .filter-count-badge { z-index: 2; }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
     .ai-pill-group { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
