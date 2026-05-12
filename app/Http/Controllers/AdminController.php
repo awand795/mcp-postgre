@@ -53,7 +53,11 @@ class AdminController extends Controller
         $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
         $roles = Role::all();
         $aiModels = \App\Models\AiModel::with('provider')->where('is_active', true)->get();
-        $aiKeys = \App\Models\AiApiKey::with('provider')->where('is_active', true)->get();
+        $aiKeysQuery = \App\Models\AiApiKey::with('provider')->where('is_active', true);
+        if (!auth()->user()->is_super_admin) {
+            $aiKeysQuery->where('added_by', auth()->id());
+        }
+        $aiKeys = $aiKeysQuery->get();
         
         return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys'));
     }
@@ -249,6 +253,19 @@ class AdminController extends Controller
      */
     private function validateAiConfig(array $modelIds, array $keyIds)
     {
+        // Admin (non-super) only allowed to assign keys they added
+        if (!auth()->user()->is_super_admin && !empty($keyIds)) {
+            $ownedCount = \App\Models\AiApiKey::whereIn('id', $keyIds)
+                ->where('added_by', auth()->id())
+                ->count();
+            
+            if ($ownedCount < count($keyIds)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'ai_config' => ["Anda hanya dapat memberikan akses API Key yang Anda tambahkan sendiri."]
+                ]);
+            }
+        }
+
         if (empty($modelIds)) return;
 
         $models = \App\Models\AiModel::with('provider')->whereIn('id', $modelIds)->get();
