@@ -64,6 +64,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{user}/mcp-token/generate', [AdminController::class, 'generateMcpToken'])->name('users.mcp_token.generate');
         Route::delete('/users/{user}/mcp-token', [AdminController::class, 'revokeMcpToken'])->name('users.mcp_token.revoke');
 
+        // User Table Filters (Row Level Security)
+        Route::get('/users/{user}/table-filters', [AdminController::class, 'getTableFilters'])->name('users.table_filters');
+        Route::post('/users/{user}/table-filters', [AdminController::class, 'updateTableFilters'])->name('users.table_filters.update');
+
         // User Import/Export
         Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');
         Route::post('/users/import', [AdminController::class, 'usersImport'])->name('users.import');

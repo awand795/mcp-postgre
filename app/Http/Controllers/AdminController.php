@@ -781,6 +781,94 @@ class AdminController extends Controller
     }
 
     /**
+     * Get allowed tables and current filters for a user.
+     */
+    public function getTableFilters(User $user)
+    {
+        // Security: Admin only sees users they added
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Get allowed tables based on user's role
+        $role = $user->roleModel;
+        if (!$role) return response()->json(['tables' => []]);
+
+        $permissions = \App\Models\RolePermission::with('databaseConnection')
+            ->where('role_id', $role->id)
+            ->get();
+
+        $allowedTables = [];
+        foreach ($permissions as $p) {
+            $conn = $p->databaseConnection;
+            if (!$conn) continue;
+
+            // Security: Admin only sees databases they added (if not super admin)
+            if (!auth()->user()->is_super_admin && $conn->added_by !== auth()->id()) {
+                continue;
+            }
+
+            $existingFilter = \App\Models\UserTableFilter::where('user_id', $user->id)
+                ->where('database_connection_id', $conn->id)
+                ->where('table_name', $p->table_name)
+                ->first();
+
+            $allowedTables[] = [
+                'db_id' => $conn->id,
+                'db_name' => $conn->name,
+                'table_name' => $p->table_name,
+                'schema' => $p->schema_name,
+                'current_filter' => $existingFilter ? $existingFilter->filter_condition : ''
+            ];
+        }
+
+        return response()->json(['tables' => $allowedTables]);
+    }
+
+    /**
+     * Update table filters for a user.
+     */
+    public function updateTableFilters(Request $request, User $user)
+    {
+        // Security: Admin only edits users they added
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $filters = $request->input('filters', []);
+
+        foreach ($filters as $f) {
+            $dbId = $f['db_id'];
+            $tableName = $f['table_name'];
+            $condition = $f['condition'] ?? null;
+
+            // Security check for DB access
+            if (!auth()->user()->is_super_admin) {
+                $conn = DatabaseConnection::find($dbId);
+                if (!$conn || $conn->added_by !== auth()->id()) continue;
+            }
+
+            if (empty($condition)) {
+                \App\Models\UserTableFilter::where('user_id', $user->id)
+                    ->where('database_connection_id', $dbId)
+                    ->where('table_name', $tableName)
+                    ->delete();
+            } else {
+                \App\Models\UserTableFilter::updateOrCreate(
+                    [
+                        'user_id' => $user->id,
+                        'database_connection_id' => $dbId,
+                        'table_name' => $tableName
+                    ],
+                    ['filter_condition' => $condition]
+                );
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
      * Clear table cache (called internally)
      */
     private function clearTableCache(): void

@@ -138,6 +138,9 @@
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
+                            <button class="btn btn-filter" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)">
+                                <i class="fas fa-filter"></i>
+                            </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
                             </button>
@@ -354,6 +357,80 @@
                 <button type="submit" class="btn btn-primary">Upload</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     TABLE FILTER MODAL (RLS) — NEW
+     ═══════════════════════════════════════════════════════════ -->
+<div id="tableFilterModal" class="modal-overlay">
+    <div class="tf-modal glass-card">
+        <!-- Header -->
+        <div class="tf-header">
+            <div class="tf-header-left">
+                <div class="tf-icon-circle"><i class="fas fa-shield-halved"></i></div>
+                <div>
+                    <p class="tf-label">Pembatasan Data (Row-Level Security)</p>
+                    <h3 class="tf-username" id="tfUserName">—</h3>
+                </div>
+            </div>
+            <button class="tf-close-btn" onclick="hideTableFilters()" title="Tutup">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="tf-body">
+            <div class="tf-sidebar">
+                <div class="tf-sidebar-header">
+                    <i class="fas fa-database"></i> <span>Tabel Terdeteksi</span>
+                </div>
+                <div class="tf-table-list" id="tfTableList">
+                    <!-- Tables will be loaded here -->
+                </div>
+            </div>
+
+            <div class="tf-content">
+                <div id="tfEmptyState" class="tf-empty-panel">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <p>Pilih tabel di sebelah kiri untuk mengatur kondisi filter.</p>
+                </div>
+
+                <div id="tfConfigPanel" class="tf-config-panel" style="display: none;">
+                    <div class="tf-table-header-info">
+                        <h4 id="tfActiveTableName">Nama Tabel</h4>
+                        <span id="tfActiveDbName" class="tf-db-badge">Database Name</span>
+                    </div>
+
+                    <div class="tf-form-area">
+                        <label class="tf-input-label">
+                            <i class="fas fa-filter"></i> Kondisi WHERE (SQL)
+                        </label>
+                        <div class="tf-input-wrapper">
+                            <textarea id="tfFilterInput" placeholder="Contoh: kode_cabang = 'B282' OR region = 'Pusat'"></textarea>
+                        </div>
+                        <p class="tf-help-text">
+                            <i class="fas fa-info-circle"></i> Gunakan sintaks SQL murni. Kosongkan jika ingin mengizinkan semua data.
+                        </p>
+                    </div>
+
+                    <div class="tf-examples">
+                        <h5>Contoh Penulisan:</h5>
+                        <ul>
+                            <li><code>kode_cabang = 'B282'</code></li>
+                            <li><code>wilayah IN ('JATIM', 'JATENG')</code></li>
+                            <li><code>tgl_faktur >= '2024-01-01'</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tf-footer">
+            <button type="button" class="btn btn-cancel" onclick="hideTableFilters()">Batal</button>
+            <button type="button" class="btn btn-primary" id="btnSaveTableFilters">
+                <i class="fas fa-save"></i> Simpan Perubahan
+            </button>
+        </div>
     </div>
 </div>
 
@@ -708,6 +785,74 @@
     }
 </style>
 
+    /* ── Table Filter Modal (TF) ── */
+    .tf-modal { 
+        width: 100%; max-width: 850px; height: 600px; 
+        display: flex; flex-direction: column; overflow: hidden; border-radius: 20px;
+    }
+    .tf-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid var(--glass-border2); display: flex; justify-content: space-between; align-items: center; }
+    .tf-header-left { display: flex; align-items: center; gap: 1rem; }
+    .tf-icon-circle { width: 42px; height: 42px; border-radius: 12px; background: rgba(99,102,241,0.1); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .tf-label { font-size: 0.72rem; font-weight: 700; color: #6366f1; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .tf-username { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
+    .tf-close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: pointer; }
+    
+    .tf-body { display: flex; flex: 1; overflow: hidden; }
+    .tf-sidebar { width: 280px; border-right: 1px solid var(--glass-border2); background: rgba(0,0,0,0.02); display: flex; flex-direction: column; }
+    .tf-sidebar-header { padding: 1rem 1.25rem; font-size: 0.78rem; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--glass-border2); }
+    .tf-table-list { flex: 1; overflow-y: auto; padding: 0.75rem; display: flex; flex-direction: column; gap: 4px; }
+    
+    .tf-table-item { 
+        padding: 0.75rem 1rem; border-radius: 10px; cursor: pointer; transition: all 0.2s;
+        display: flex; flex-direction: column; gap: 2px; border: 1px solid transparent;
+    }
+    .tf-table-item:hover { background: rgba(99,102,241,0.05); }
+    .tf-table-item.active { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.2); }
+    .tf-ti-name { font-size: 0.82rem; font-weight: 600; color: var(--text-main); }
+    .tf-ti-db { font-size: 0.68rem; color: var(--text-muted); }
+    .tf-table-item.has-filter::after { 
+        content: '\f0b0'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+        position: absolute; right: 10px; top: 15px; font-size: 0.7rem; color: #10b981;
+    }
+    .tf-table-item { position: relative; }
+
+    .tf-content { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); position: relative; }
+    .tf-empty-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center; padding: 2rem; }
+    .tf-empty-panel i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; }
+    
+    .tf-config-panel { flex: 1; display: flex; flex-direction: column; padding: 2rem; overflow-y: auto; }
+    .tf-table-header-info { margin-bottom: 2rem; }
+    .tf-table-header-info h4 { font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; }
+    .tf-db-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; background: rgba(99,102,241,0.1); color: #6366f1; font-size: 0.7rem; font-weight: 600; }
+    
+    .tf-form-area { margin-bottom: 2rem; }
+    .tf-input-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.75rem; }
+    .tf-input-wrapper textarea { 
+        width: 100%; height: 120px; border-radius: 12px; border: 1.5px solid var(--input-border);
+        background: var(--input-bg); color: var(--text-main); padding: 1rem; font-family: 'Consolas', monospace;
+        font-size: 0.9rem; resize: none; transition: all 0.3s;
+    }
+    .tf-input-wrapper textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99,102,241,0.1); outline: none; }
+    .tf-help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+    
+    .tf-examples h5 { font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.75rem; }
+    .tf-examples ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .tf-examples li { font-size: 0.8rem; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+    .tf-examples code { background: rgba(0,0,0,0.05); padding: 2px 6px; border-radius: 4px; font-family: monospace; color: #4338ca; }
+    html.dark .tf-examples code { background: rgba(255,255,255,0.05); color: #a5b4fc; }
+
+    .tf-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 10px; }
+    
+    .btn-filter { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+    .btn-filter:hover { background: rgba(16,185,129,0.2); }
+    html.dark .btn-filter { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.25); color: #34d399; }
+
+    @media (max-width: 768px) {
+        .tf-modal { height: 95vh; max-height: 95vh; }
+        .tf-body { flex-direction: column; }
+        .tf-sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid var(--glass-border2); }
+    }
+</style>
 <script>
     let currentEditingUserId = null;
     let _aicActiveTab = 'models';
@@ -991,5 +1136,111 @@
             hideModal(); hideImportModal(); hideAiConfig();
         }
     }
+    /* ── TABLE FILTER (RLS) LOGIC ── */
+    let _tfTargetUser = null;
+    let _tfTables = [];
+    let _tfActiveTableIdx = -1;
+
+    async function showTableFilters(user) {
+        _tfTargetUser = user;
+        document.getElementById('tfUserName').innerText = user.name;
+        document.getElementById('tfTableList').innerHTML = '<div class="tf-empty" style="padding:1rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat tabel...</div>';
+        document.getElementById('tfEmptyState').style.display = 'flex';
+        document.getElementById('tfConfigPanel').style.display = 'none';
+        document.getElementById('tableFilterModal').style.display = 'flex';
+
+        try {
+            const res = await fetch(`/admin/users/${user.id}/table-filters`);
+            const data = await res.json();
+            _tfTables = data.tables || [];
+            renderTfTableList();
+        } catch (e) {
+            Swal.fire('Error', 'Gagal memuat daftar tabel.', 'error');
+        }
+    }
+
+    function renderTfTableList() {
+        const list = document.getElementById('tfTableList');
+        if (_tfTables.length === 0) {
+            list.innerHTML = '<div class="tf-empty" style="padding:1rem; font-size:0.8rem; color:var(--text-muted);">Tidak ada tabel yang diizinkan untuk role ini.</div>';
+            return;
+        }
+
+        list.innerHTML = _tfTables.map((t, idx) => `
+            <div class="tf-table-item ${idx === _tfActiveTableIdx ? 'active' : ''} ${t.current_filter ? 'has-filter' : ''}" onclick="selectTfTable(${idx})">
+                <span class="tf-ti-name">${t.table_name}</span>
+                <span class="tf-ti-db">${t.db_name}</span>
+            </div>
+        `).join('');
+    }
+
+    function selectTfTable(idx) {
+        // Save current filter before switching
+        if (_tfActiveTableIdx !== -1) {
+            _tfTables[_tfActiveTableIdx].current_filter = document.getElementById('tfFilterInput').value.trim();
+        }
+
+        _tfActiveTableIdx = idx;
+        const table = _tfTables[idx];
+
+        document.getElementById('tfActiveTableName').innerText = table.table_name;
+        document.getElementById('tfActiveDbName').innerText = table.db_name;
+        document.getElementById('tfFilterInput').value = table.current_filter || '';
+        
+        document.getElementById('tfEmptyState').style.display = 'none';
+        document.getElementById('tfConfigPanel').style.display = 'flex';
+        
+        renderTfTableList();
+    }
+
+    async function saveTableFilters() {
+        // Save current filter in memory first
+        if (_tfActiveTableIdx !== -1) {
+            _tfTables[_tfActiveTableIdx].current_filter = document.getElementById('tfFilterInput').value.trim();
+        }
+
+        const btn = document.getElementById('btnSaveTableFilters');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+
+        const payload = {
+            filters: _tfTables.map(t => ({
+                db_id: t.db_id,
+                table_name: t.table_name,
+                condition: t.current_filter
+            }))
+        };
+
+        try {
+            const res = await fetch(`/admin/users/${_tfTargetUser.id}/table-filters`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Pembatasan data berhasil diperbarui!', timer: 2000, showConfirmButton: false });
+                hideTableFilters();
+            } else {
+                throw new Error(data.message || 'Gagal menyimpan.');
+            }
+        } catch (e) {
+            Swal.fire('Gagal', e.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    function hideTableFilters() {
+        document.getElementById('tableFilterModal').style.display = 'none';
+        _tfActiveTableIdx = -1;
+    }
+
+    document.getElementById('btnSaveTableFilters').onclick = saveTableFilters;
 </script>
 @endsection

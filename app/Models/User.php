@@ -80,4 +80,9 @@ class User extends Authenticatable
                     ->withPivot('is_enabled')
                     ->withTimestamps();
     }
+
+    public function tableFilters()
+    {
+        return $this->hasMany(UserTableFilter::class);
+    }
 }

@@ -316,10 +316,38 @@ class QueryService extends BaseService
             }
         }
 
-        // ── LAYER 5.5: Global Security Policy (Columns & Keywords) ───────────
-        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $sqlForRbacScan);
-        if ($policyViolation) {
-            return $policyViolation;
+        // ── LAYER 5.8: Inject User Table Filters (Row Level Security) ────────
+        // Jika user bukan super admin, periksa apakah ada filter khusus untuk tabel ini.
+        $user = Auth::user();
+        if ($user && !$user->is_super_admin && $dbModel) {
+            $tableFilters = \App\Models\UserTableFilter::where('user_id', $user->id)
+                ->where('database_connection_id', $dbModel->id)
+                ->get();
+            
+            if ($tableFilters->count() > 0) {
+                foreach ($tableFilters as $tf) {
+                    $tbl = $tf->table_name;
+                    $cond = $tf->filter_condition;
+                    if (empty($cond)) continue;
+
+                    // Strategi: Bungkus tabel dengan subquery yang sudah difilter
+                    // Hal ini memastikan filter berlaku bahkan jika AI tidak menambahkan WHERE sendiri.
+                    
+                    // 1. Handle FROM
+                    $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
+                    $trimmedSql = preg_replace_callback($fromPattern, function($m) use ($tbl, $cond) {
+                        $schema = !empty($m[1]) ? $m[1] . "." : "";
+                        return "FROM (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                    }, $trimmedSql);
+
+                    // 2. Handle JOIN
+                    $joinPattern = '/\bJOIN\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
+                    $trimmedSql = preg_replace_callback($joinPattern, function($m) use ($tbl, $cond) {
+                        $schema = !empty($m[1]) ? $m[1] . "." : "";
+                        return "JOIN (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                    }, $trimmedSql);
+                }
+            }
         }
 
         // ── LAYER 6: Execute Query ────────────────────────────────────────────
