@@ -138,8 +138,11 @@
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS) {{ $user->tableFilters->count() > 0 ? '— ' . $user->tableFilters->count() . ' filter aktif' : '' }}">
+                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS) {{ $user->tableFilters->count() > 0 ? '— ' . $user->tableFilters->count() . ' filter aktif' : '' }}" style="position:relative;">
                                 <i class="fas fa-filter"></i>
+                                @if($user->tableFilters->count() > 0)
+                                    <span class="filter-dot"></span>
+                                @endif
                             </button>
                             <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
                                 <i class="fas fa-robot"></i>
@@ -452,6 +455,18 @@
     html.dark .btn-filter-active {
         background: rgba(16,185,129,0.25) !important; color: #34d399 !important;
         border-color: rgba(16,185,129,0.4) !important;
+    }
+    /* Green dot indicator */
+    .filter-dot {
+        position: absolute; top: -3px; right: -3px;
+        width: 10px; height: 10px; border-radius: 50%;
+        background: #10b981; border: 2px solid var(--card-bg);
+        box-shadow: 0 0 0 1px rgba(16,185,129,0.3);
+        animation: filter-dot-pulse 2s ease-in-out infinite;
+    }
+    @keyframes filter-dot-pulse {
+        0%, 100% { box-shadow: 0 0 0 1px rgba(16,185,129,0.3); }
+        50% { box-shadow: 0 0 0 4px rgba(16,185,129,0.15); }
     }
     .btn-edit, .btn-delete, .btn-info { padding: 8px 12px; }
 
