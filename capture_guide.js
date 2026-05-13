@@ -1,992 +1,684 @@
 /**
- * capture_guide.js — Panduan Screenshot Komprehensif
- * DarkoAI Admin Panel
- * 
+ * capture_guide.js — Screenshot Panduan DarkoAI Admin Panel
  * Jalankan: node capture_guide.js
- * Pastikan server berjalan di http://74.48.112.31:5000
+ * Server: http://74.48.112.31:5000
  */
 
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
 const OUT_DIR  = path.resolve('public', 'admin_guide');
 const BASE_URL = 'http://74.48.112.31:5000';
-
-// Kredensial login — sesuaikan dengan akun admin aktif
 const LOGIN_EMAIL    = 'awanda@darkotech.id';
 const LOGIN_PASSWORD = 'awanda21345';
 
-// Outline merah untuk highlight elemen
-const RED_OUTLINE = '5px solid #ef4444';
-const RED_OFFSET  = '4px';
-
-// ─── INIT ─────────────────────────────────────────────────────────────────────
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
-let page;
-let browser;
+let page, browser;
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-/** Navigasi ke URL jika belum di sana */
-async function nav(url, wait = 'networkidle2') {
-    if (page.url() !== url) {
-        await page.goto(url, { waitUntil: wait, timeout: 30000 });
-    }
+async function wait(ms) { await new Promise(r => setTimeout(r, ms)); }
+
+async function nav(url, w = 'networkidle2') {
+    if (page.url() !== url) await page.goto(url, { waitUntil: w, timeout: 30000 });
 }
 
-/** Highlight elemen dengan border merah */
-async function highlight(selector, offset = RED_OFFSET) {
-    if (!selector) return;
-    await page.evaluate((sel, ofs) => {
-        const el = document.querySelector(sel);
-        if (el) {
-            el.style.outline       = '5px solid #ef4444';
-            el.style.outlineOffset = ofs;
-            el.style.borderRadius  = '6px';
-            el.scrollIntoView({ behavior: 'instant', block: 'center' });
-        }
-    }, selector, offset);
-    await wait(600);
-}
-
-/** Hapus highlight */
-async function unhighlight(selector) {
-    if (!selector) return;
-    await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (el) {
-            el.style.outline = '';
-            el.style.outlineOffset = '';
-        }
-    }, selector);
-}
-
-/** Highlight BANYAK elemen sekaligus */
-async function highlightAll(selectors) {
-    await page.evaluate((sels) => {
-        sels.forEach(sel => {
-            const el = document.querySelector(sel);
-            if (el) {
-                el.style.outline       = '5px solid #ef4444';
-                el.style.outlineOffset = '4px';
-                el.style.borderRadius  = '6px';
-            }
-        });
-    }, selectors);
-    await wait(600);
-}
-
-async function unhighlightAll(selectors) {
-    await page.evaluate((sels) => {
-        sels.forEach(sel => {
-            const el = document.querySelector(sel);
-            if (el) { el.style.outline = ''; el.style.outlineOffset = ''; }
-        });
-    }, selectors);
-}
-
-/** Wait ms */
-async function wait(ms) {
-    await new Promise(r => setTimeout(r, ms));
-}
-
-/** Login ke sistem — robust dengan clear cookies & fallback jika sudah login */
-async function doLogin() {
-    // Hapus semua cookies agar tidak ada redirect otomatis
-    try {
-        const cookies = await page.cookies(`${BASE_URL}/login`);
-        if (cookies.length) await page.deleteCookie(...cookies);
-    } catch (_) {}
+/** Highlight satu elemen + scroll ke sana */
+async function hl(sel) {
+    if (!sel) return;
+    await page.evaluate(s => {
+        const el = document.querySelector(s);
+        if (el) { el.style.outline='5px solid #ef4444'; el.style.outlineOffset='3px'; el.style.borderRadius='6px'; el.scrollIntoView({behavior:'instant',block:'center'}); }
+    }, sel);
     await wait(500);
-
-    // Navigasi ke halaman login
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2', timeout: 30000 });
-    await wait(1000);
-
-    // Cek apakah sudah di-redirect (sudah login) — kalau iya tidak perlu login lagi
-    const urlAfterNav = page.url();
-    if (!urlAfterNav.includes('/login')) {
-        console.log(`  ✓ Sudah terautentikasi, URL: ${urlAfterNav}`);
-        return;
-    }
-
-    // Tunggu field email dengan timeout lebih panjang
-    await page.waitForSelector('input[name="email"]', { timeout: 20000 });
-
-    // Clear field dulu
-    await page.$eval('input[name="email"]',    el => el.value = '');
-    await page.$eval('input[name="password"]', el => el.value = '');
-
-    await page.type('input[name="email"]',    LOGIN_EMAIL,    { delay: 60 });
-    await page.type('input[name="password"]', LOGIN_PASSWORD, { delay: 60 });
-    await wait(500);
-
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
-        page.click('button[type="submit"]'),
-    ]);
-
-    const currentUrl = page.url();
-    if (currentUrl.includes('/login')) {
-        throw new Error(`Login gagal — masih di: ${currentUrl}`);
-    }
-    console.log(`  ✓ Login berhasil, URL: ${currentUrl}`);
 }
 
-/** Screenshot ke file */
+/** Highlight banyak elemen sekaligus */
+async function hlAll(sels) {
+    await page.evaluate(ss => ss.forEach(s => {
+        const el = document.querySelector(s);
+        if (el) { el.style.outline='5px solid #ef4444'; el.style.outlineOffset='3px'; el.style.borderRadius='6px'; }
+    }), sels);
+    await wait(500);
+}
+
+/** Hapus semua highlight */
+async function unhl(sels) {
+    const arr = Array.isArray(sels) ? sels : [sels];
+    await page.evaluate(ss => ss.forEach(s => {
+        const el = document.querySelector(s);
+        if (el) { el.style.outline=''; el.style.outlineOffset=''; }
+    }), arr);
+}
+
+/** Highlight via JS inject (untuk elemen yang tidak bisa di-querySelector biasa) */
+async function hlBox(x, y, w, h) {
+    await page.evaluate((x,y,w,h) => {
+        const div = document.createElement('div');
+        div.id = '__hlbox__';
+        div.style.cssText = `position:fixed;left:${x}px;top:${y}px;width:${w}px;height:${h}px;border:5px solid #ef4444;border-radius:8px;z-index:99999;pointer-events:none;`;
+        document.body.appendChild(div);
+    }, x, y, w, h);
+    await wait(400);
+}
+
+async function removeHlBox() {
+    await page.evaluate(() => { const d = document.getElementById('__hlbox__'); if(d) d.remove(); });
+}
+
+/** Screenshot */
 async function shot(filename) {
-    const savePath = path.join(OUT_DIR, filename);
-    await page.screenshot({ path: savePath, type: 'png' });
+    await page.screenshot({ path: path.join(OUT_DIR, filename), type: 'png' });
     console.log(`  ✓ ${filename}`);
 }
 
-/**
- * Capture lengkap:
- * 1. Navigasi (jika url diberikan)
- * 2. Jalankan script custom (opsional)
- * 3. Highlight selector (opsional)
- * 4. Screenshot
- * 5. Hapus highlight
- */
-async function capture(filename, options = {}) {
-    const {
-        url         = null,
-        selector    = null,
-        selectors   = null,   // array selector
-        script      = null,
-        waitMs      = 1500,
-        navWait     = 'networkidle2',
-    } = options;
-
+/** Capture all-in-one */
+async function capture(filename, opts = {}) {
+    const { url=null, sel=null, sels=null, fn=null, waitMs=1200, navWait='networkidle2' } = opts;
     try {
         if (url) await nav(url, navWait);
-
-        if (script) {
-            await page.evaluate(script);
-            await wait(waitMs);
-        }
-
-        if (selectors) {
-            await highlightAll(selectors);
-        } else if (selector) {
-            await page.waitForSelector(selector, { timeout: 8000 }).catch(() => {});
-            await highlight(selector);
-        }
-
+        if (fn) { await page.evaluate(fn); await wait(waitMs); }
+        if (sels) await hlAll(sels);
+        else if (sel) { await page.waitForSelector(sel,{timeout:8000}).catch(()=>{}); await hl(sel); }
         await shot(filename);
+        if (sels) await unhl(sels);
+        else if (sel) await unhl(sel);
+    } catch(e) { console.error(`  ✗ ${filename}: ${e.message}`); }
+}
 
-        if (selectors) await unhighlightAll(selectors);
-        else if (selector) await unhighlight(selector);
-
-    } catch (err) {
-        console.error(`  ✗ ${filename}: ${err.message}`);
-    }
+/** Login robust */
+async function doLogin() {
+    try { const c = await page.cookies(); if (c.length) await page.deleteCookie(...c); } catch(_){}
+    await wait(300);
+    await page.goto(`${BASE_URL}/login`, { waitUntil:'networkidle2', timeout:30000 });
+    await wait(800);
+    const url = page.url();
+    if (!url.includes('/login')) { console.log(`  ✓ Sudah login: ${url}`); return; }
+    await page.waitForSelector('input[name="email"]', { timeout:20000 });
+    await page.$eval('input[name="email"]', el => el.value='');
+    await page.$eval('input[name="password"]', el => el.value='');
+    await page.type('input[name="email"]', LOGIN_EMAIL, {delay:60});
+    await page.type('input[name="password"]', LOGIN_PASSWORD, {delay:60});
+    await wait(400);
+    await Promise.all([
+        page.waitForNavigation({waitUntil:'networkidle0', timeout:30000}),
+        page.click('button[type="submit"]'),
+    ]);
+    const after = page.url();
+    if (after.includes('/login')) throw new Error(`Login gagal: ${after}`);
+    console.log(`  ✓ Login OK: ${after}`);
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 async function run() {
     browser = await puppeteer.launch({
         headless: 'new',
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--window-size=1440,900',
-            '--disable-web-security',
-        ],
+        args: ['--no-sandbox','--disable-setuid-sandbox','--window-size=1440,900'],
     });
-
     page = await browser.newPage();
-    await page.setViewport({ width: 1440, height: 900 });
+    await page.setViewport({ width:1440, height:900 });
 
-    // Inject CSS global untuk highlight lebih rapi
-    await page.evaluateOnNewDocument(() => {
-        const style = document.createElement('style');
-        style.textContent = '.guide-highlight { outline: 5px solid #ef4444 !important; outline-offset: 4px !important; border-radius: 6px !important; }';
-        document.head.appendChild(style);
-    });
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 1: AUTENTIKASI
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 1: AUTENTIKASI ═══');
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 0: AUTENTIKASI
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 1: AUTENTIKASI');
-    console.log('═══════════════════════════════');
-
-    // 1. Halaman login
-    await capture('real_login_page.png', {
-        url:      `${BASE_URL}/login`,
-        selector: 'form',
-    });
-
-    // 2. Field email di-highlight
-    await capture('real_login_email.png', {
-        url:      `${BASE_URL}/login`,
-        selector: 'input[name="email"]',
-    });
-
-    // 3. Field password
-    await capture('real_login_password.png', {
-        selector: 'input[name="password"]',
-    });
-
-    // 4. Tombol submit login
-    await capture('real_login_button.png', {
-        selector: 'button[type="submit"]',
-    });
-
-    // 5. Login pertama kali
-    console.log('\n  Melakukan login pertama...');
-    await doLogin();
-
-    // 6. Halaman awal setelah login
-    await capture('real_login_success.png', {
-        selectors: ['body'],
-    });
-
-    // 6b. Lupa password — buka di page baru agar tidak ganggu session
-    await capture('real_login_forgot_link.png', {
-        url:      `${BASE_URL}/login`,
-        selector: 'a[href*="forgot"]',
-    });
-
-    // 7. Halaman forgot password
-    await capture('real_forgot_email_field.png', {
-        url:      `${BASE_URL}/forgot-password`,
-        selector: 'form',
-    });
-
-    // 8. Halaman OTP — hanya screenshot, tidak submit
-    await capture('real_verify_otp_page.png', {
-        url:      `${BASE_URL}/verify-otp?email=admin@darkotech.id`,
-        selector: 'form',
-    });
-
-    // 9. Halaman reset password — hanya screenshot, tidak submit
-    await capture('real_reset_password_page.png', {
-        url: `${BASE_URL}/reset-password?email=admin@darkotech.id&otp=000000`,
-        selector: 'form',
-    });
-
-    // Re-login: clear cookies lalu login ulang
-    console.log('\n  Re-login setelah screenshot auth pages...');
-    await doLogin();
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 1: CHATBOT
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 2: CHATBOT');
-    console.log('═══════════════════════════════');
-
-    // 10. Tampilan chatbot utama
-    await capture('real_chatbot_page.png', {
-        url:      BASE_URL + '/',
-        selector: '#chat-input, textarea, input[type="text"]',
-        waitMs:   2000,
-    });
-
-    // 11. Sidebar riwayat
-    await capture('real_chatbot_sidebar.png', {
-        script: () => {
-            // Coba buka sidebar
-            const hamburger = document.querySelector('[onclick*="sidebar"], .hamburger, .sidebar-toggle, [data-target*="sidebar"], #sidebarToggle');
-            if (hamburger) hamburger.click();
-            else {
-                const sidebar = document.getElementById('chat-sidebar') || document.querySelector('.sidebar, .chat-history');
-                if (sidebar) sidebar.style.display = 'block';
-            }
-        },
-        selector: '#chat-sidebar, .chat-history, .sidebar',
-        waitMs:   1500,
-    });
-
-    // 12. Dialog hapus chat
-    await capture('real_chatbot_delete_confirm.png', {
-        script: () => {
-            if (typeof showDeleteModal === 'function') showDeleteModal(1, () => {});
-            else {
-                // Trigger Swal atau modal konfirmasi
-                const trashBtn = document.querySelector('.delete-chat, [onclick*="delete"], .btn-delete');
-                if (trashBtn) trashBtn.click();
-            }
-        },
-        selector: '.swal2-container, .modal-backdrop, .delete-modal, [class*="swal"]',
-        waitMs:   2000,
-    });
-
-    // Tutup modal jika ada
-    await page.evaluate(() => {
-        if (typeof Swal !== 'undefined') Swal.close();
-        document.querySelectorAll('.swal2-container').forEach(el => el.remove());
-    });
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 2: DASHBOARD
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 3: DASHBOARD');
-    console.log('═══════════════════════════════');
-
-    const dashUrl = `${BASE_URL}/admin`;
-
-    // 13. Dashboard overview — stats cards
-    await capture('real_dashboard.png', {
-        url:      dashUrl,
-        selector: '.stats-grid',
-        waitMs:   2000,
-    });
-
-    // 14. Sidebar navigasi
-    await capture('real_sidebar.png', {
-        selector: '.sidebar, nav.sidebar, #sidebar',
-    });
-
-    // 15. Tombol dark mode toggle
-    await capture('real_dash_darkmode.png', {
-        selector: '.theme-switch-wrap, .theme-toggle, [onclick*="theme"], [onclick*="Theme"], #themeToggle',
-    });
-
-    // 16. Dark mode aktif
-    await page.evaluate(() => {
-        if (typeof toggleTheme === 'function') toggleTheme();
-        else {
-            document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-        }
-    });
-    await wait(1500);
-    await capture('real_dashboard_dark.png', {
-        selector: '.stats-grid',
-    });
-
-    // Balik ke light
-    await page.evaluate(() => {
-        if (typeof toggleTheme === 'function') toggleTheme();
-        else document.documentElement.classList.remove('dark');
-    });
+    // Screenshot halaman login SEBELUM login — pastikan kita belum login
+    try { const c = await page.cookies(); if(c.length) await page.deleteCookie(...c); } catch(_){}
+    await page.goto(`${BASE_URL}/login`, {waitUntil:'networkidle2',timeout:30000});
     await wait(1000);
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 3: DATABASE MANAGEMENT
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 4: DATABASE MANAGEMENT');
-    console.log('═══════════════════════════════');
+    await capture('real_login_page.png',     { sel: 'form' });
+    await capture('real_login_email.png',    { sel: 'input[name="email"]' });
+    await capture('real_login_password.png', { sel: 'input[name="password"]' });
+    await capture('real_login_button.png',   { sel: 'button[type="submit"]' });
 
+    // Screenshot halaman lupa password — dari halaman login, cari link forgot
+    await capture('real_login_forgot_link.png', { sel: 'a[href*="forgot"], a[href*="password"]' });
+
+    // Halaman forgot password
+    await capture('real_forgot_email_field.png', {
+        url: `${BASE_URL}/forgot-password`,
+        sel: 'form',
+    });
+
+    // Halaman verifikasi OTP
+    await capture('real_verify_otp_page.png', {
+        url: `${BASE_URL}/verify-otp?email=admin@darkotech.id`,
+        sel: 'form',
+    });
+
+    // Halaman reset password
+    await capture('real_reset_password_page.png', {
+        url: `${BASE_URL}/reset-password?email=admin@darkotech.id&otp=000000`,
+        sel: 'form',
+    });
+
+    // Login untuk lanjut ke bagian berikutnya
+    console.log('\n  Login...');
+    await doLogin();
+    await capture('real_login_success.png', {});
+
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 2: CHATBOT
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 2: CHATBOT ═══');
+
+    await page.goto(`${BASE_URL}/chatbot`, {waitUntil:'networkidle2'});
+    await wait(1500);
+
+    // 2A-1: Halaman utama chatbot — highlight input area
+    await capture('real_chatbot_page.png', {
+        sel: '#chat-input, textarea[placeholder], .chat-input-area, form.chat-form',
+    });
+
+    // 2A-2: Sidebar riwayat — klik tombol hamburger/new chat untuk buka sidebar
+    await page.evaluate(() => {
+        // Coba klik tombol buka sidebar
+        const btns = ['#sidebarToggle','.sidebar-toggle','[data-bs-toggle="offcanvas"]','button.hamburger'];
+        for (const s of btns) { const el = document.querySelector(s); if(el){el.click();return;} }
+        // Atau paksa tampilkan element sidebar
+        const sidebar = document.querySelector('.chat-sidebar,.sidebar-history,#chatSidebar,[class*="history"]');
+        if (sidebar) sidebar.style.display = 'block';
+    });
+    await wait(1500);
+    await capture('real_chatbot_sidebar.png', {
+        sel: '.chat-sidebar, #chatSidebar, [class*="history"], .offcanvas.show, .sidebar',
+    });
+
+    // Tutup sidebar jika terbuka
+    await page.evaluate(() => {
+        const backdrop = document.querySelector('.offcanvas-backdrop,.modal-backdrop');
+        if (backdrop) backdrop.click();
+        const sidebar = document.querySelector('.offcanvas.show');
+        if (sidebar) sidebar.classList.remove('show');
+    });
+    await wait(800);
+
+    // 2A-3: Dialog hapus riwayat — klik tombol "Hapus Riwayat" di header
+    await capture('real_chatbot_delete_confirm.png', {
+        fn: () => {
+            // Klik tombol hapus riwayat di topbar
+            const hapusBtn = document.querySelector(
+                '[onclick*="hapus"],[onclick*="delete"],[onclick*="clear"],.btn-hapus-riwayat,button[title*="Hapus"],.hapus-riwayat'
+            );
+            if (hapusBtn) hapusBtn.click();
+            else {
+                // Coba tombol "Hapus Riwayat" di navbar chatbot
+                const allBtns = [...document.querySelectorAll('button,a')];
+                const found = allBtns.find(b => b.textContent.includes('Hapus') || b.title?.includes('Hapus'));
+                if (found) found.click();
+            }
+        },
+        sel: '.swal2-container, .modal.show, [role="dialog"]',
+        waitMs: 2000,
+    });
+    await page.evaluate(() => { try{Swal.close();}catch(e){} document.querySelectorAll('.swal2-container').forEach(el=>el.remove()); });
+
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 3: DASHBOARD
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 3: DASHBOARD ═══');
+
+    await capture('real_dashboard.png', { url:`${BASE_URL}/admin`, sel:'.stats-grid,.stat-card,[class*="stat"]', waitMs:2000 });
+    await capture('real_sidebar.png',   { sel:'nav.sidebar, .sidebar, #sidebar, aside' });
+
+    // Dark mode toggle
+    await capture('real_dash_darkmode.png', {
+        sel: '#themeToggle, .theme-toggle, [onclick*="theme"],[onclick*="Theme"], .theme-switch, label[for*="theme"]',
+    });
+    // Aktifkan dark mode
+    await page.evaluate(() => {
+        const toggle = document.querySelector('#themeToggle,.theme-toggle,[onclick*="theme"]');
+        if (toggle) toggle.click();
+        else document.documentElement.classList.add('dark');
+    });
+    await wait(1200);
+    await capture('real_dashboard_dark.png', { sel: '.stats-grid,.stat-card,body' });
+    // Balik ke light
+    await page.evaluate(() => {
+        const toggle = document.querySelector('#themeToggle,.theme-toggle,[onclick*="theme"]');
+        if (toggle) toggle.click();
+        else document.documentElement.classList.remove('dark');
+    });
+    await wait(800);
+
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 4: DATABASE MANAGEMENT
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 4: DATABASE ═══');
     const dbUrl = `${BASE_URL}/admin/databases`;
 
-    // 17. Daftar database
-    await capture('real_db_list.png', {
-        url:      dbUrl,
-        selector: '.database-grid, .db-page-header',
-        waitMs:   2000,
-    });
+    await capture('real_db_list.png',     { url:dbUrl, sel:'.database-grid,.db-card-grid,[class*="database"]', waitMs:2000 });
+    await capture('real_db_toolbar.png',  { sel:'.toolbar,[class*="toolbar"]' });
+    await capture('real_db_test_all.png', { sel:'#testAllBtn,button[onclick*="testAll"],button[onclick*="TestAll"]' });
+    await capture('real_db_tambah_btn.png',{ sel:'button[onclick*="showDatabaseModal"],button[onclick*="createDatabase"],button[onclick*="addDatabase"]' });
 
-    // 18. Tombol Tambah Database
-    await capture('real_db_tambah_btn.png', {
-        selector: 'button[onclick*="showDatabaseModal"]',
-    });
-
-    // 19. Tombol Test All
-    await capture('real_db_test_all.png', {
-        selector: '#testAllBtn, button[onclick*="testAllConnections"]',
-    });
-
-    // 20. Toolbar search + filter
-    await capture('real_db_toolbar.png', {
-        selector: '.toolbar',
-    });
-
-    // 21. Modal Tambah — Step 1
-    await page.evaluate(() => {
-        if (typeof showDatabaseModal === 'function') showDatabaseModal('create');
-    });
+    // Wizard tambah step 1
+    await page.evaluate(()=>{ if(typeof showDatabaseModal==='function') showDatabaseModal('create'); });
     await wait(1500);
-    await capture('real_db_modal_step1.png', {
-        selector: '.modal-container, #databaseModal .wizard-steps',
-    });
-
-    // 22. Step 2 — Koneksi
-    await page.evaluate(() => {
-        if (typeof goStep === 'function') goStep(2);
-    });
+    await capture('real_db_modal_step1.png', { sel:'#databaseModal .wizard-step.active, #databaseModal #panel1, #databaseModal' });
+    await page.evaluate(()=>{ if(typeof goStep==='function') goStep(2); });
     await wait(800);
-    await capture('real_db_modal_step2.png', {
-        selector: '#panel2, #dbHostInput',
-    });
-
-    // 23. Step 3 — Advanced & Test Koneksi
-    await page.evaluate(() => {
-        if (typeof goStep === 'function') goStep(3);
-    });
+    await capture('real_db_modal_step2.png', { sel:'#panel2, #databaseModal #dbHostInput, #databaseModal' });
+    await page.evaluate(()=>{ if(typeof goStep==='function') goStep(3); });
     await wait(800);
-    await capture('real_db_modal_step3.png', {
-        selector: '#panel3, .test-preview-box',
-    });
-
+    await capture('real_db_modal_step3.png', { sel:'#panel3, .test-preview-box, #databaseModal' });
     // Tutup modal
-    await page.evaluate(() => {
-        const modal = document.getElementById('databaseModal');
-        if (modal) modal.style.display = 'none';
-    });
-    await wait(500);
+    await page.evaluate(()=>{ const m=document.getElementById('databaseModal'); if(m) m.style.display='none'; });
+    await wait(400);
 
-    // 24. Tombol Edit pada card database
-    await capture('real_db_edit_btn.png', {
-        selector: '.btn-icon.btn-icon-edit, button[onclick*="showDatabaseModal"][onclick*="edit"]',
+    await capture('real_db_edit_btn.png',    { sel:'.btn-icon-edit, [onclick*="edit"][onclick*="atabase"], button[title*="Edit"]' });
+    await capture('real_db_status_badge.png',{ sel:'.status-chip,.chip-success,.chip-failed,.chip-pending,[class*="status"]' });
+    await capture('real_db_copy_btn.png',    { sel:'.copy-btn,[onclick*="copy"],[title*="Copy"]' });
+    await capture('real_db_delete_confirm.png', {
+        fn: () => { if(typeof deleteDatabase==='function') deleteDatabase(9999,'Test DB'); },
+        sel: '.swal2-container',
+        waitMs: 1800,
     });
+    await page.evaluate(()=>{ try{Swal.close();}catch(e){} });
+    await wait(400);
 
-    // 25. Modal Edit database
-    await page.evaluate(() => {
-        const editBtn = document.querySelector('.btn-icon.btn-icon-edit, [onclick*="showDatabaseModal"][onclick*="edit"]');
-        if (editBtn) editBtn.click();
+    // Modal edit
+    await page.evaluate(()=>{
+        const btn = document.querySelector('.btn-icon-edit,[onclick*="edit"][onclick*="atabase"]');
+        if(btn) btn.click();
     });
     await wait(1500);
-    await capture('real_db_edit_modal.png', {
-        selector: '.modal-container',
-    });
+    await capture('real_db_edit_modal.png', { sel:'#databaseModal .modal-container, #databaseModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('databaseModal'); if(m) m.style.display='none'; });
+    await wait(300);
 
-    await page.evaluate(() => {
-        const modal = document.getElementById('databaseModal');
-        if (modal) modal.style.display = 'none';
-    });
-
-    // 26. Badge status koneksi
-    await capture('real_db_status_badge.png', {
-        selector: '.status-chip, .chip-success, .chip-pending, .chip-failed',
-    });
-
-    // 27. Tombol delete database
-    await capture('real_db_delete_btn.png', {
-        selector: '.btn-icon.btn-icon-danger, button[onclick*="deleteDatabase"]',
-    });
-
-    // 28. Dialog hapus database (SweetAlert)
-    await page.evaluate(() => {
-        if (typeof deleteDatabase === 'function') deleteDatabase(9999, 'Contoh Database');
-    });
-    await wait(2000);
-    await capture('real_db_delete_confirm.png', {
-        selector: '.swal2-container',
-    });
-    await page.evaluate(() => { if (typeof Swal !== 'undefined') Swal.close(); });
-    await wait(500);
-
-    // 29. Copy button pada detail card
-    await capture('real_db_copy_btn.png', {
-        selector: '.copy-btn',
-    });
-
-    // 30. View toggle (grid/list)
-    await capture('real_db_view_toggle.png', {
-        selector: '.toolbar-view',
-    });
-
-    // 31. Filter dropdown
-    await capture('real_db_filter.png', {
-        selector: '.toolbar-filters',
-    });
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 4: AI MANAGEMENT
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 5: AI MANAGEMENT');
-    console.log('═══════════════════════════════');
-
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 5: AI MANAGEMENT
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 5: AI MANAGEMENT ═══');
     const aiUrl = `${BASE_URL}/admin/ai-management`;
 
-    // 32. Halaman AI Management — stats + provider grid
-    await capture('real_ai_management.png', {
-        url:      aiUrl,
-        selector: '.aim-stats',
-        waitMs:   2000,
-    });
+    await capture('real_ai_management.png', { url:aiUrl, sel:'.aim-stats,[class*="stats"]', waitMs:2000 });
+    await capture('real_ai_providers.png',  { sel:'.aim-provider-grid,.pcard,[class*="provider-grid"]' });
+    await capture('real_ai_add_provider_btn.png', { sel:'button[onclick*="openAddProvider"],.aim-btn-primary,button[onclick*="addProvider"]' });
 
-    // 33. Stats row detail
-    await capture('real_ai_stats.png', {
-        selector: '.aim-stats',
-    });
-
-    // 34. Provider grid
-    await capture('real_ai_providers.png', {
-        selector: '.aim-provider-grid, .pcard',
-    });
-
-    // 35. Tombol Tambah Provider
-    await capture('real_ai_add_provider_btn.png', {
-        selector: '.aim-btn-primary, button[onclick*="openAddProvider"]',
-    });
-
-    // 36. Modal Tambah Provider
-    await page.evaluate(() => {
-        const btn = document.querySelector('[onclick*="openAddProvider"], .aim-btn-primary');
-        if (btn) btn.click();
-        else {
-            const modal = document.getElementById('providerModal');
-            if (modal) modal.style.display = 'flex';
-        }
-    });
+    // Modal tambah provider
+    await page.evaluate(()=>{ const btn=document.querySelector('[onclick*="openAddProvider"],[onclick*="addProvider"],.aim-btn-primary'); if(btn) btn.click(); else { const m=document.getElementById('providerModal'); if(m) m.style.display='flex'; } });
     await wait(1500);
-    await capture('real_ai_provider_modal.png', {
-        selector: '#providerModal .modal-box, #providerModal .glass-card, #providerModal',
-    });
+    await capture('real_ai_provider_modal.png', { sel:'#providerModal .modal-box, #providerModal .glass-card, #providerModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('providerModal'); if(m) m.style.display='none'; document.querySelectorAll('.swal2-container').forEach(el=>el.remove()); });
+    await wait(400);
 
-    // Tutup modal provider
+    await capture('real_ai_toggle_provider.png', { sel:'.pcard-toggle,[onclick*="toggleProvider"] input[type="checkbox"], .pcard .toggle-switch' });
+
+    // ── Hapus Provider: highlight tombol trash di header kartu ──
+    // DeepSeek card punya trash icon di header — highlight icon trash yang ada di header pcard
     await page.evaluate(() => {
-        const m = document.getElementById('providerModal');
-        if (m) m.style.display = 'none';
-        document.querySelectorAll('.swal2-container').forEach(el => el.remove());
-    });
-    await wait(500);
-
-    // 37. Tab Keys pada provider card
-    await capture('real_ai_keys_tab.png', {
-        selector: '.pcard-tabs, .tab-btn, [data-tab="keys"]',
-        script: () => {
-            // Klik tab keys jika ada
-            const tabKeys = document.querySelector('[data-tab="keys"], .tab-keys, [onclick*="keys"]');
-            if (tabKeys) tabKeys.click();
-        },
-        waitMs: 1000,
-    });
-
-    // 38. Tombol Tambah API Key
-    await capture('real_ai_add_key_btn.png', {
-        selector: 'button[onclick*="openAddKey"], .btn-add-key',
-    });
-
-    // 39. Modal Tambah API Key
-    await page.evaluate(() => {
-        const btn = document.querySelector('[onclick*="openAddKey"], .btn-add-key');
-        if (btn) btn.click();
-        else {
-            const m = document.getElementById('keyModal');
-            if (m) m.style.display = 'flex';
-        }
-    });
-    await wait(1500);
-    await capture('real_ai_key_modal.png', {
-        selector: '#keyModal .modal-box, #keyModal .glass-card, #keyModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('keyModal');
-        if (m) m.style.display = 'none';
-    });
-    await wait(300);
-
-    // 40. Tab Models pada provider card
-    await capture('real_ai_models_tab.png', {
-        script: () => {
-            const tabModel = document.querySelector('[data-tab="models"], .tab-models, [onclick*="models"]');
-            if (tabModel) tabModel.click();
-        },
-        selector: '.pcard-tabs, [data-tab="models"]',
-        waitMs: 1000,
-    });
-
-    // 41. Tombol Tambah Model
-    await capture('real_ai_add_model_btn.png', {
-        selector: 'button[onclick*="openAddModel"], .btn-add-model',
-    });
-
-    // 42. Modal Tambah Model
-    await page.evaluate(() => {
-        const btn = document.querySelector('[onclick*="openAddModel"], .btn-add-model');
-        if (btn) btn.click();
-        else {
-            const m = document.getElementById('modelModal');
-            if (m) m.style.display = 'flex';
-        }
-    });
-    await wait(1500);
-    await capture('real_ai_model_modal.png', {
-        selector: '#modelModal .modal-box, #modelModal .glass-card, #modelModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('modelModal');
-        if (m) m.style.display = 'none';
-    });
-    await wait(300);
-
-    // 43. Toggle Aktif/Nonaktif Provider
-    await capture('real_ai_toggle_provider.png', {
-        selector: '.pcard-toggle, [onclick*="toggleProvider"], input[type="checkbox"]',
-    });
-
-    // 44. Tombol Health Check
-    await capture('real_ai_health_btn.png', {
-        selector: 'button[onclick*="runHealthCheck"], .btn-health, .mb-hc',
-    });
-
-    // 45. Modal Health Check
-    await page.evaluate(() => {
-        const btn = document.querySelector('[onclick*="runHealthCheck"], .btn-health, .mb-hc');
-        if (btn) btn.click();
-        else {
-            const m = document.getElementById('hcModal');
-            if (m) m.style.display = 'flex';
-        }
-    });
-    await wait(2500);
-    await capture('real_ai_health_modal.png', {
-        selector: '#hcModal, .hc-modal, .health-modal',
-    });
-
-    await page.evaluate(() => {
-        ['hcModal', 'providerModal', 'keyModal', 'modelModal'].forEach(id => {
-            const m = document.getElementById(id);
-            if (m) m.style.display = 'none';
+        // Cari semua tombol hapus provider di header kartu (bukan di baris key)
+        const trashBtns = document.querySelectorAll('.pcard-header .btn-danger, .pcard-header [onclick*="deleteProvider"], .pcard-header .fa-trash');
+        trashBtns.forEach(el => {
+            el.style.outline = '5px solid #ef4444';
+            el.style.outlineOffset = '3px';
+            el.style.borderRadius = '6px';
         });
-        if (typeof Swal !== 'undefined') Swal.close();
+        // Juga cari di luar header
+        const trashBtns2 = document.querySelectorAll('[onclick*="deleteProvider"]');
+        trashBtns2.forEach(el => {
+            el.style.outline = '5px solid #ef4444';
+            el.style.outlineOffset = '3px';
+            el.style.borderRadius = '6px';
+            el.scrollIntoView({behavior:'instant',block:'center'});
+        });
     });
-    await wait(500);
-
-    // 46. Tombol Reset Limit
-    await capture('real_ai_reset_limit_btn.png', {
-        selector: 'button[onclick*="resetLimit"], .btn-reset-limit',
-    });
-
-    // 47. Tombol Edit Key
-    await capture('real_ai_edit_key_btn.png', {
-        selector: 'button[onclick*="editKey"], .btn-edit-key, [title*="Edit Key"]',
-    });
-
-    // 48. Tombol Hapus Provider
-    await capture('real_ai_delete_provider_btn.png', {
-        selector: 'button[onclick*="deleteProvider"], .btn-delete-provider, [title*="Hapus"]',
+    await wait(600);
+    await shot('real_ai_delete_provider_btn.png');
+    await page.evaluate(() => {
+        document.querySelectorAll('[onclick*="deleteProvider"],.pcard-header .btn-danger').forEach(el => {
+            el.style.outline=''; el.style.outlineOffset='';
+        });
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 5: ROLE MANAGEMENT
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 6: ROLE MANAGEMENT');
-    console.log('═══════════════════════════════');
+    // Tab Keys
+    await page.evaluate(()=>{ const t=document.querySelector('[data-tab="keys"],.tab-keys,[onclick*="keys"]'); if(t) t.click(); });
+    await wait(800);
+    await capture('real_ai_keys_tab.png', { sel:'.pcard-tabs,.tab-btn,[class*="tabs"]' });
+    await capture('real_ai_add_key_btn.png', { sel:'button[onclick*="openAddKey"],.btn-add-key,button[onclick*="addKey"]' });
 
+    // Modal tambah key
+    await page.evaluate(()=>{ const btn=document.querySelector('[onclick*="openAddKey"],[onclick*="addKey"],.btn-add-key'); if(btn) btn.click(); else { const m=document.getElementById('keyModal'); if(m) m.style.display='flex'; } });
+    await wait(1500);
+    await capture('real_ai_key_modal.png', { sel:'#keyModal .modal-box, #keyModal .glass-card, #keyModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('keyModal'); if(m) m.style.display='none'; });
+    await wait(300);
+
+    // ── Edit Key: highlight tombol edit (ikon pensil) di baris key ──
+    await page.evaluate(() => {
+        // Cari semua tombol edit key (ikon fa-edit / fa-pencil di dalam baris key)
+        const editBtns = document.querySelectorAll(
+            '.key-row [onclick*="editKey"], .key-item [onclick*="editKey"], [onclick*="editKey"], .key-actions .btn-edit, button[title*="Edit Key"]'
+        );
+        editBtns.forEach(el => {
+            el.style.outline = '5px solid #ef4444';
+            el.style.outlineOffset = '3px';
+            el.style.borderRadius = '6px';
+        });
+        // Fallback: cari ikon edit di dalam key list
+        const editIcons = document.querySelectorAll('.key-list .fa-edit, .key-list .fa-pencil, .key-list [class*="edit"]');
+        editIcons.forEach(el => {
+            el.style.outline = '5px solid #ef4444';
+            el.style.outlineOffset = '3px';
+        });
+        // Scroll ke elemen pertama yang ditemukan
+        const first = document.querySelector('[onclick*="editKey"],.key-list .fa-edit');
+        if (first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(600);
+    await shot('real_ai_edit_key_btn.png');
+    await page.evaluate(() => {
+        document.querySelectorAll('[onclick*="editKey"],.key-list .fa-edit,.key-list .fa-pencil').forEach(el => {
+            el.style.outline=''; el.style.outlineOffset='';
+        });
+    });
+
+    // ── Reset Limit: highlight tombol reset limit di baris key ──
+    await page.evaluate(() => {
+        const resetBtns = document.querySelectorAll(
+            '[onclick*="resetLimit"], [onclick*="resetUsage"], button[title*="Reset"], .btn-reset-limit, .key-actions [class*="reset"]'
+        );
+        resetBtns.forEach(el => {
+            el.style.outline = '5px solid #ef4444';
+            el.style.outlineOffset = '3px';
+            el.style.borderRadius = '6px';
+        });
+        const first = document.querySelector('[onclick*="resetLimit"],[onclick*="resetUsage"]');
+        if (first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(600);
+    await shot('real_ai_reset_limit_btn.png');
+    await page.evaluate(() => {
+        document.querySelectorAll('[onclick*="resetLimit"],[onclick*="resetUsage"]').forEach(el => {
+            el.style.outline=''; el.style.outlineOffset='';
+        });
+    });
+
+    // Tab Models
+    await page.evaluate(()=>{ const t=document.querySelector('[data-tab="models"],.tab-models,[onclick*="models"]'); if(t) t.click(); });
+    await wait(800);
+    await capture('real_ai_models_tab.png', { sel:'.pcard-tabs,[class*="tabs"]' });
+    await capture('real_ai_add_model_btn.png', { sel:'button[onclick*="openAddModel"],.btn-add-model,button[onclick*="addModel"]' });
+
+    // Modal tambah model
+    await page.evaluate(()=>{ const btn=document.querySelector('[onclick*="openAddModel"],[onclick*="addModel"],.btn-add-model'); if(btn) btn.click(); else { const m=document.getElementById('modelModal'); if(m) m.style.display='flex'; } });
+    await wait(1500);
+    await capture('real_ai_model_modal.png', { sel:'#modelModal .modal-box, #modelModal .glass-card, #modelModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('modelModal'); if(m) m.style.display='none'; });
+    await wait(300);
+
+    // Health check
+    await capture('real_ai_health_btn.png', { sel:'button[onclick*="runHealthCheck"],button[onclick*="healthCheck"],.btn-health,.mb-hc' });
+    await page.evaluate(()=>{ const btn=document.querySelector('[onclick*="runHealthCheck"],[onclick*="healthCheck"],.btn-health'); if(btn) btn.click(); else { const m=document.getElementById('hcModal'); if(m) m.style.display='flex'; } });
+    await wait(2500);
+    await capture('real_ai_health_modal.png', { sel:'#hcModal, .hc-modal, .health-modal, .swal2-container, [class*="health"]' });
+    await page.evaluate(()=>{ try{Swal.close();}catch(e){} ['hcModal','providerModal','keyModal','modelModal'].forEach(id=>{ const m=document.getElementById(id); if(m) m.style.display='none'; }); });
+    await wait(400);
+
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 6: ROLE MANAGEMENT
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 6: ROLE ═══');
     const roleUrl = `${BASE_URL}/admin/roles`;
 
-    // 49. Daftar Role (split layout kiri-kanan)
-    await capture('real_role_list.png', {
-        url:      roleUrl,
-        selector: '.roles-container, .role-list-card',
-        waitMs:   2000,
-    });
+    await capture('real_role_list.png',      { url:roleUrl, sel:'.roles-container,.role-list-card,[class*="roles"]', waitMs:2000 });
+    await capture('real_role_tambah_btn.png',{ sel:'button[onclick*="showRoleModal"],button[onclick*="addRole"]' });
 
-    // 50. Tombol Tambah Role
-    await capture('real_role_tambah_btn.png', {
-        selector: 'button[onclick*="showRoleModal"]',
-    });
-
-    // 51. Modal Tambah Role
-    await page.evaluate(() => {
-        if (typeof showRoleModal === 'function') showRoleModal('create');
-    });
+    await page.evaluate(()=>{ if(typeof showRoleModal==='function') showRoleModal('create'); });
     await wait(1500);
-    await capture('real_role_modal.png', {
-        selector: '#roleModal .glass-card, #roleModal .modal-content, #roleModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('roleModal');
-        if (m) m.style.display = 'none';
-    });
+    await capture('real_role_modal.png', { sel:'#roleModal .glass-card, #roleModal .modal-content, #roleModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('roleModal'); if(m) m.style.display='none'; });
     await wait(300);
 
-    // 52. Area Permissions (tabel checklist)
-    await capture('real_role_permissions.png', {
-        selector: '.permissions-card, #permissions-area',
-    });
+    await capture('real_role_permissions.png',     { sel:'.permissions-card,#permissions-area,[class*="permission"]' });
+    await capture('real_role_filter_bar.png',       { sel:'.filter-bar,[class*="filter-bar"]' });
+    await capture('real_role_bulk_select.png',      { sels:['button[onclick*="bulkAction"]','.btn-bulk-select','.btn-bulk-deselect','button[onclick*="selectAll"]','button[onclick*="deselectAll"]'] });
+    await capture('real_role_save_permissions.png', { sel:'button[onclick*="savePermissions"],.btn-save-permissions' });
+    await capture('real_role_edit_btn.png',         { sel:'.fa-edit[onclick*="showRoleModal"],.role-item .btn-edit,[onclick*="editRole"]' });
 
-    // 53. Tombol Simpan Akses (permissions)
-    await capture('real_role_save_permissions.png', {
-        selector: 'button[onclick*="savePermissions"]',
-    });
-
-    // 54. Filter bar di permissions
-    await capture('real_role_filter_bar.png', {
-        selector: '.filter-bar',
-    });
-
-    // 55. Bulk select/deselect tombol
-    await capture('real_role_bulk_select.png', {
-        selectors: ['button[onclick*="bulkAction"]', '.btn-bulk-select', '.btn-bulk-deselect'],
-    });
-
-    // 56. Tombol Edit Role
-    await capture('real_role_edit_btn.png', {
-        selector: '.fas.fa-edit[onclick*="showRoleModal"], .role-item .fa-edit',
-    });
-
-    // 57. Modal Edit Role
-    await page.evaluate(() => {
-        const editIcon = document.querySelector('.fa-edit[onclick*="showRoleModal"]');
-        if (editIcon) editIcon.click();
-        else {
-            const role = { id: 1, name: 'Sample Role', description: 'Role contoh' };
-            if (typeof showRoleModal === 'function') showRoleModal('edit', role);
-        }
-    });
+    await page.evaluate(()=>{ const btn=document.querySelector('.fa-edit[onclick*="showRoleModal"],[onclick*="editRole"]'); if(btn) btn.click(); else if(typeof showRoleModal==='function') showRoleModal('edit',{id:1,name:'Sample',description:''}); });
     await wait(1500);
-    await capture('real_role_edit_modal.png', {
-        selector: '#roleModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('roleModal');
-        if (m) m.style.display = 'none';
-    });
+    await capture('real_role_edit_modal.png', { sel:'#roleModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('roleModal'); if(m) m.style.display='none'; });
     await wait(300);
 
-    // 58. Tombol hapus role
-    await capture('real_role_hapus_btn.png', {
-        selector: '.fa-trash[onclick*="deleteRole"], .role-item .fa-trash',
-    });
+    await capture('real_role_hapus_btn.png', { sel:'.fa-trash[onclick*="deleteRole"],.role-item .btn-delete,[onclick*="deleteRole"]' });
+    await page.evaluate(()=>{ if(typeof deleteRole==='function') deleteRole(9999,'Role Test'); });
+    await wait(1800);
+    await capture('real_role_delete_confirm.png', { sel:'.swal2-container' });
+    await page.evaluate(()=>{ try{Swal.close();}catch(e){} });
+    await wait(400);
 
-    // 59. Konfirmasi hapus role (SweetAlert)
-    await page.evaluate(() => {
-        if (typeof deleteRole === 'function') deleteRole(9999, 'Role Test');
-    });
-    await wait(2000);
-    await capture('real_role_delete_confirm.png', {
-        selector: '.swal2-container',
-    });
-    await page.evaluate(() => { if (typeof Swal !== 'undefined') Swal.close(); });
-    await wait(500);
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 6: USER MANAGEMENT
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 7: USER MANAGEMENT');
-    console.log('═══════════════════════════════');
-
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 7: USER MANAGEMENT
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 7: USER MANAGEMENT ═══');
     const userUrl = `${BASE_URL}/admin/users`;
 
-    // 60. Daftar users (tabel)
-    await capture('real_user_list.png', {
-        url:      userUrl,
-        selector: '.table-responsive, table',
-        waitMs:   2000,
-    });
+    await capture('real_user_list.png',        { url:userUrl, sel:'table,.table-responsive', waitMs:2000 });
+    await capture('real_user_header_btns.png', { sels:['button[onclick*="downloadTemplate"]','button[onclick*="import"]','button[onclick*="exportUsers"]','button[onclick*="showModal"][onclick*="create"]'] });
+    await capture('real_user_filter_form.png', { sel:'.filter-card,.filter-form,[class*="filter"]' });
 
-    // 61. Tombol-tombol header (Template, Import, Export, Tambah)
-    await capture('real_user_header_btns.png', {
-        selectors: [
-            'button[onclick*="downloadTemplate"]',
-            'button[onclick*="showModal"][onclick*="import"]',
-            'button[onclick*="exportUsers"]',
-            'button[onclick*="showModal"][onclick*="create"]',
-        ],
-    });
+    // ── Tambah User: tombol di header ──
+    await capture('real_user_tambah_btn.png', { sel:'button[onclick*="showModal"][onclick*="create"],button[onclick*="addUser"],#tambahUserBtn' });
 
-    // 62. Tombol Tambah User
-    await capture('real_user_tambah_btn.png', {
-        selector: 'button[onclick*="showModal"][onclick*="create"]',
-    });
-
-    // 63. Modal Tambah User
-    await page.evaluate(() => {
-        if (typeof showModal === 'function') showModal('create');
-    });
+    // Modal tambah user — gambar real_user_tambah_modal2.png sudah benar, pakai itu
+    await page.evaluate(()=>{ if(typeof showModal==='function') showModal('create'); });
     await wait(1500);
-    await capture('real_user_modal.png', {
-        selector: '#userModal .modal-content, #userModal',
+    // Highlight semua field wajib di modal
+    await page.evaluate(()=>{
+        ['input[name="name"]','input[name="email"]','input[name="password"]','select[name="role_id"]','input[name="max_tokens"]','.form-check-input[name="is_admin"]'].forEach(s=>{
+            const el = document.querySelector(s);
+            if(el){ el.style.outline='5px solid #ef4444'; el.style.outlineOffset='3px'; el.style.borderRadius='6px'; }
+        });
     });
-
-    // 64. Field nama & email di modal
-    await capture('real_user_field_name.png', {
-        selectors: ['input[name="name"]', 'input[name="email"]'],
-    });
-
-    // 65. Dropdown role di modal
-    await capture('real_user_field_role.png', {
-        selector: 'select[name="role_id"], #userModal select[name*="role"]',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('userModal');
-        if (m) m.style.display = 'none';
-        if (typeof hideModal === 'function') hideModal();
-    });
-    await wait(300);
-
-    // 66. Search & filter form
-    await capture('real_user_filter_form.png', {
-        selector: '.filter-card, .filter-form',
-    });
-
-    // 67. Kolom tabel (header)
-    await capture('real_user_table_header.png', {
-        selector: 'table thead, table thead tr',
-    });
-
-    // 68. Tombol-tombol aksi per baris (RLS, AI, Edit, Delete)
-    await capture('real_user_row_btns.png', {
-        selector: '.action-buttons, .td-sticky',
-    });
-
-    // 69. Tombol Import
-    await page.evaluate(() => {
-        if (typeof showModal === 'function') showModal('import');
-    });
-    await wait(1500);
-    await capture('real_user_import_modal.png', {
-        selector: '#userModal .modal-content, #userModal, #importModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('userModal');
-        if (m) m.style.display = 'none';
-        if (typeof hideModal === 'function') hideModal();
-    });
-    await wait(300);
-
-    // 70. Tombol Export
-    await capture('real_user_export_btn.png', {
-        selector: 'button[onclick*="exportUsers"]',
-    });
-
-    // 71. Tombol Download Template
-    await capture('real_user_template_btn.png', {
-        selector: 'button[onclick*="downloadTemplate"]',
-    });
-
-    // 72. Modal Edit User
-    await page.evaluate(() => {
-        const editBtn = document.querySelector('button[onclick*="showModal"][onclick*="edit"], .btn-edit-user');
-        if (editBtn) editBtn.click();
-        else {
-            const firstEdit = document.querySelector('.action-buttons button:nth-child(3), button[title*="Edit"]');
-            if (firstEdit) firstEdit.click();
-        }
-    });
-    await wait(1500);
-    await capture('real_edit_user_modal.png', {
-        selector: '#userModal .modal-content, #userModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('userModal');
-        if (m) m.style.display = 'none';
-        if (typeof hideModal === 'function') hideModal();
-    });
-    await wait(300);
-
-    // 73. Tombol AI Config
-    await capture('real_user_ai_btn.png', {
-        selector: 'button[onclick*="showAiConfig"], [title*="AI Config"]',
-    });
-
-    // 74. Modal AI Config
-    await page.evaluate(() => {
-        const btn = document.querySelector('button[onclick*="showAiConfig"]');
-        if (btn) btn.click();
-    });
-    await wait(2000);
-    await capture('real_user_ai_modal.png', {
-        selector: '#aiConfigModal .glass-card, #aiConfigModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('aiConfigModal');
-        if (m) m.style.display = 'none';
-    });
-    await wait(300);
-
-    // 75. Tombol RLS (Data Filter)
-    await capture('real_user_rls_btn.png', {
-        selector: 'button[onclick*="showTableFilters"], .btn-filter',
-    });
-
-    // 76. Modal RLS / Table Filters
-    await page.evaluate(() => {
-        const btn = document.querySelector('button[onclick*="showTableFilters"]');
-        if (btn) btn.click();
-    });
-    await wait(2000);
-    await capture('real_user_rls_modal.png', {
-        selector: '#tableFilterModal .tf-modal, #tableFilterModal',
-    });
-
-    await page.evaluate(() => {
-        const m = document.getElementById('tableFilterModal');
-        if (m) m.style.display = 'none';
-    });
-    await wait(300);
-
-    // 77. Tombol MCP Config (jika ada)
-    await capture('real_user_mcp_btn.png', {
-        selector: 'button[onclick*="showMcpConfig"], button[title*="MCP"]',
-    });
-
-    // 78. Tombol Hapus User
-    await capture('real_user_delete_btn.png', {
-        selector: 'button[onclick*="deleteUser"], .btn-delete, [title*="Hapus"]',
-    });
-
-    // 79. Konfirmasi hapus user
-    await page.evaluate(() => {
-        const deleteBtn = document.querySelector('button[onclick*="deleteUser"], .btn-delete');
-        if (deleteBtn) deleteBtn.click();
-    });
-    await wait(2000);
-    await capture('real_user_delete_confirm.png', {
-        selector: '.swal2-container',
-    });
-    await page.evaluate(() => { if (typeof Swal !== 'undefined') Swal.close(); });
     await wait(500);
-
-    // 80. Badge status admin/super admin/user
-    await capture('real_user_badges.png', {
-        selector: '.status-yes, .status-no, .role-badge',
+    await shot('real_user_modal.png');
+    await page.evaluate(()=>{
+        ['input[name="name"]','input[name="email"]','input[name="password"]','select[name="role_id"]','input[name="max_tokens"]','.form-check-input[name="is_admin"]'].forEach(s=>{
+            const el=document.querySelector(s); if(el){el.style.outline='';el.style.outlineOffset='';}
+        });
     });
 
-    // 81. AI Pills (badge model/key)
-    await capture('real_user_ai_pills.png', {
-        selector: '.ai-pill-group, .ai-pill',
+    await capture('real_user_field_name.png', { sels:['input[name="name"]','input[name="email"]'] });
+    await capture('real_user_field_role.png', { sel:'select[name="role_id"], #userModal select[name*="role"]' });
+    await page.evaluate(()=>{ const m=document.getElementById('userModal'); if(m) m.style.display='none'; if(typeof hideModal==='function') hideModal(); });
+    await wait(300);
+
+    // ── Tombol Edit User — highlight tombol edit (kuning) di baris pertama ──
+    await page.evaluate(()=>{
+        const editBtns = document.querySelectorAll(
+            'button[onclick*="showModal"][onclick*="edit"], button[onclick*="editUser"], .action-buttons .btn-warning, [title*="Edit User"]'
+        );
+        editBtns.forEach(el=>{
+            el.style.outline='5px solid #ef4444';
+            el.style.outlineOffset='3px';
+            el.style.borderRadius='6px';
+        });
+        const first = editBtns[0];
+        if(first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(500);
+    await shot('real_user_edit_btn.png');
+    await page.evaluate(()=>{
+        document.querySelectorAll('button[onclick*="editUser"],.action-buttons .btn-warning').forEach(el=>{
+            el.style.outline=''; el.style.outlineOffset='';
+        });
     });
 
-    // 82. Scope badge (cakupan analisis)
-    await capture('real_user_scope_badge.png', {
-        selector: '.scope-badge',
+    // Modal edit user — klik tombol edit baris pertama
+    await page.evaluate(()=>{
+        const btn = document.querySelector('button[onclick*="showModal"][onclick*="edit"],button[onclick*="editUser"],.action-buttons .btn-warning');
+        if(btn) btn.click();
+    });
+    await wait(1500);
+    await capture('real_edit_user_modal.png', { sel:'#userModal .modal-content, #userModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('userModal'); if(m) m.style.display='none'; if(typeof hideModal==='function') hideModal(); });
+    await wait(300);
+
+    // ── Template & Export — highlight tombol di header (bukan modal import) ──
+    // Ambil screenshot halaman user list TANPA modal terbuka
+    await page.goto(userUrl, {waitUntil:'networkidle2'});
+    await wait(1500);
+
+    // Template button
+    await page.evaluate(()=>{
+        const btn = document.querySelector('button[onclick*="downloadTemplate"]');
+        if(btn){ btn.style.outline='5px solid #ef4444'; btn.style.outlineOffset='3px'; btn.style.borderRadius='6px'; btn.scrollIntoView({behavior:'instant',block:'center'}); }
+    });
+    await wait(500);
+    await shot('real_user_template_btn.png');
+    await page.evaluate(()=>{ const btn=document.querySelector('button[onclick*="downloadTemplate"]'); if(btn){btn.style.outline='';btn.style.outlineOffset='';} });
+
+    // Export button
+    await page.evaluate(()=>{
+        const btn = document.querySelector('button[onclick*="exportUsers"],button[onclick*="export"]');
+        if(btn){ btn.style.outline='5px solid #ef4444'; btn.style.outlineOffset='3px'; btn.style.borderRadius='6px'; btn.scrollIntoView({behavior:'instant',block:'center'}); }
+    });
+    await wait(500);
+    await shot('real_user_export_btn.png');
+    await page.evaluate(()=>{ const btn=document.querySelector('button[onclick*="exportUsers"]'); if(btn){btn.style.outline='';btn.style.outlineOffset='';} });
+
+    // Import modal — ini memang modal import, benar
+    await page.evaluate(()=>{ if(typeof showModal==='function') showModal('import'); });
+    await wait(1500);
+    await capture('real_user_import_modal.png', { sel:'#userModal .modal-content, #userModal, #importModal' });
+    await page.evaluate(()=>{ const m=document.getElementById('userModal'); if(m) m.style.display='none'; if(typeof hideModal==='function') hideModal(); });
+    await wait(300);
+
+    // ── AI Config per User — highlight tombol robot/chip biru di baris user ──
+    await page.evaluate(()=>{
+        const aiBtns = document.querySelectorAll(
+            'button[onclick*="showAiConfig"],button[onclick*="aiConfig"],[title*="AI Config"],[title*="Konfigurasi AI"],.btn-ai-config'
+        );
+        aiBtns.forEach(el=>{
+            el.style.outline='5px solid #ef4444';
+            el.style.outlineOffset='3px';
+            el.style.borderRadius='6px';
+        });
+        const first = aiBtns[0];
+        if(first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(500);
+    await shot('real_user_ai_btn.png');
+    await page.evaluate(()=>{
+        document.querySelectorAll('button[onclick*="showAiConfig"],button[onclick*="aiConfig"]').forEach(el=>{
+            el.style.outline=''; el.style.outlineOffset='';
+        });
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // BAGIAN 7: PANDUAN (halaman guide itu sendiri)
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════');
-    console.log('  BAGIAN 8: PANDUAN');
-    console.log('═══════════════════════════════');
+    // Modal AI Config — buka
+    await page.evaluate(()=>{
+        const btn = document.querySelector('button[onclick*="showAiConfig"],button[onclick*="aiConfig"]');
+        if(btn) btn.click();
+    });
+    await wait(2000);
+    // Screenshot modal AI config — tab AI Models aktif dulu
+    await capture('real_user_ai_modal.png', {
+        sel: '#aiConfigModal .glass-card, #aiConfigModal, [class*="ai-config"], [class*="aiConfig"]',
+    });
+    // Screenshot tab API Keys
+    await page.evaluate(()=>{
+        const apiTab = document.querySelector('[data-tab="api-keys"],[onclick*="apikeys"],button:has(.fa-key)');
+        if(apiTab) apiTab.click();
+    });
+    await wait(800);
+    await capture('real_user_ai_apikeys_tab.png', {
+        sel: '#aiConfigModal, [class*="ai-config"]',
+    });
+    await page.evaluate(()=>{ const m=document.getElementById('aiConfigModal'); if(m) m.style.display='none'; });
+    await wait(300);
 
-    await capture('real_guide_page.png', {
-        url:      `${BASE_URL}/admin/guide`,
-        selector: '.guide-wrap, .guide-content',
-        waitMs:   2000,
+    // ── RLS Filter ──
+    await page.evaluate(()=>{
+        const rlsBtns = document.querySelectorAll(
+            'button[onclick*="showTableFilters"],button[onclick*="tableFilter"],.btn-filter,[title*="Filter Data"],[title*="RLS"]'
+        );
+        rlsBtns.forEach(el=>{
+            el.style.outline='5px solid #ef4444';
+            el.style.outlineOffset='3px';
+            el.style.borderRadius='6px';
+        });
+        const first = rlsBtns[0];
+        if(first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(500);
+    await shot('real_user_rls_btn.png');
+    await page.evaluate(()=>{
+        document.querySelectorAll('button[onclick*="showTableFilters"],button[onclick*="tableFilter"],.btn-filter').forEach(el=>{
+            el.style.outline=''; el.style.outlineOffset='';
+        });
     });
 
-    await capture('real_guide_toc.png', {
-        selector: '.guide-toc',
+    await page.evaluate(()=>{ const btn=document.querySelector('button[onclick*="showTableFilters"],button[onclick*="tableFilter"]'); if(btn) btn.click(); });
+    await wait(2000);
+    await capture('real_user_rls_modal.png',       { sel:'#tableFilterModal .tf-modal, #tableFilterModal, [class*="tableFilter"], [class*="rls"]' });
+    await capture('real_rls_table_select.png',     { sel:'.tf-table-list,.table-list,[class*="table-list"]' });
+    // Klik tabel pertama di list
+    await page.evaluate(()=>{ const tbl=document.querySelector('.tf-table-item,.table-item,.tf-table-list li,[class*="table-item"]'); if(tbl) tbl.click(); });
+    await wait(1000);
+    await capture('real_rls_add_rule.png',  { sel:'.tf-rule-builder,.rule-builder,[class*="rule"],button[onclick*="addRule"],button[onclick*="tambahKondisi"]' });
+    await capture('real_rls_preview.png',   { sel:'button[onclick*="previewData"],.btn-preview,[class*="preview"]' });
+    await page.evaluate(()=>{ const m=document.getElementById('tableFilterModal'); if(m) m.style.display='none'; });
+    await wait(300);
+
+    // ── Hapus User — highlight tombol trash merah di baris user ──
+    await page.evaluate(()=>{
+        const delBtns = document.querySelectorAll(
+            'button[onclick*="deleteUser"],button[onclick*="hapusUser"],.action-buttons .btn-danger,[title*="Hapus User"]'
+        );
+        delBtns.forEach(el=>{
+            el.style.outline='5px solid #ef4444';
+            el.style.outlineOffset='3px';
+            el.style.borderRadius='6px';
+        });
+        const first = delBtns[0];
+        if(first) first.scrollIntoView({behavior:'instant',block:'center'});
+    });
+    await wait(500);
+    await shot('real_user_delete_btn.png');
+    await page.evaluate(()=>{
+        document.querySelectorAll('button[onclick*="deleteUser"],.action-buttons .btn-danger').forEach(el=>{
+            el.style.outline=''; el.style.outlineOffset='';
+        });
     });
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // DONE
-    // ─────────────────────────────────────────────────────────────────────────
-    console.log('\n═══════════════════════════════════════════════════════');
-    console.log('  ✅ SEMUA SCREENSHOT SELESAI DIAMBIL');
+    // Konfirmasi hapus user
+    await page.evaluate(()=>{ const btn=document.querySelector('button[onclick*="deleteUser"],.action-buttons .btn-danger'); if(btn) btn.click(); });
+    await wait(1800);
+    await capture('real_user_delete_confirm.png', { sel:'.swal2-container' });
+    await page.evaluate(()=>{ try{Swal.close();}catch(e){} });
+    await wait(400);
+
+    // Badges & pills
+    await capture('real_user_badges.png',    { sel:'.status-yes,.status-no,.role-badge,[class*="badge"]' });
+    await capture('real_user_ai_pills.png',  { sel:'.ai-pill-group,.ai-pill,[class*="pill"]' });
+    await capture('real_user_scope_badge.png',{ sel:'.scope-badge,[class*="scope"]' });
+    await capture('real_user_row_btns.png',   { sel:'.action-buttons,.td-sticky' });
+
+    // ══════════════════════════════════════════════════════
+    //  BAGIAN 8: PANDUAN (halaman guide)
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══ BAGIAN 8: PANDUAN ═══');
+    await capture('real_guide_page.png', { url:`${BASE_URL}/admin/guide`, sel:'.guide-wrap,.guide-content', waitMs:2000 });
+    await capture('real_guide_toc.png',  { sel:'.guide-toc' });
+
+    // ══════════════════════════════════════════════════════
+    console.log('\n═══════════════════════════════════════════');
+    console.log('  ✅ SEMUA SCREENSHOT SELESAI');
     console.log(`  📁 Tersimpan di: ${OUT_DIR}`);
-    console.log('═══════════════════════════════════════════════════════');
-
+    console.log('═══════════════════════════════════════════');
     await browser.close();
 }
 
 run().catch(err => {
-    console.error('Fatal Error:', err);
-    if (browser) browser.close();
+    console.error('Fatal Error:', err.message);
+    if(browser) browser.close();
     process.exit(1);
 });
