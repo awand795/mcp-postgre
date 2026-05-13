@@ -748,7 +748,9 @@ html.dark .badge-inactive { color: #94a3b8; border-color: rgba(100,116,139,0.2);
 }
 .btn-icon:hover { background: rgba(99,102,241,0.1); color: var(--primary); }
 .btn-icon.btn-icon-edit:hover { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
-.btn-icon.btn-icon-danger:hover { background: rgba(239,68,68,0.15); color: #ef4444; border-color: rgba(239,68,68,0.3); }
+.btn-icon.btn-icon-danger { color: #ef4444; }
+html.dark .btn-icon.btn-icon-danger { color: #f87171; }
+.btn-icon.btn-icon-danger:hover { background: rgba(239,68,68,0.15); color: #dc2626; border-color: rgba(239,68,68,0.3); }
 
 /* Card Details */
 .db-details {

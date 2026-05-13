@@ -700,7 +700,7 @@
                                 'no' => 9,
                                 'text' => 'Save User',
                                 'desc' => 'Jika semua data user sudah terisi semua maka anda tinggal save user tersebut dengan klik tombol simpan seperti di gambar di bawah ini',
-                                'img' => 'real_user_admin_superadmin.png',
+                                'img' => 'real_user_save_user.png',
                                 'label' => 'SAVE USER'
                             ],
 

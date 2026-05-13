@@ -476,6 +476,8 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
     .btn-edit, .btn-delete, .btn-info, .btn-filter { padding: 8px 10px; font-size: 0.8rem; border-radius: 8px; }
+    .btn-delete { color: #ef4444 !important; }
+    html.dark .btn-delete { color: #f87171 !important; }
 
     .ai-pill-group { display: flex; flex-wrap: wrap; gap: 3px; max-width: 160px; }
     .ai-pill {

@@ -324,8 +324,12 @@ html.dark .key-added-by { background: rgba(255,255,255,.04); }
 html.dark .mb:hover { background: rgba(255,255,255,.06); }
 .mb.mb-warn:hover  { background: rgba(245,158,11,.1); } .mb.mb-warn:hover svg  { stroke: #d97706; }
 html.dark .mb.mb-warn:hover svg { stroke: #fbbf24; }
+.mb.mb-del           { border-color: rgba(239,68,68,0.25); }
+.mb.mb-del svg       { stroke: #ef4444; }
 .mb.mb-del:hover   { background: rgba(239,68,68,.1);  } .mb.mb-del:hover svg   { stroke: #dc2626; }
-html.dark .mb.mb-del:hover svg { stroke: #f87171; }
+html.dark .mb.mb-del { border-color: rgba(239,68,68,0.2); }
+html.dark .mb.mb-del svg { stroke: #f87171; }
+html.dark .mb.mb-del:hover svg { stroke: #ef4444; }
 .mb.mb-edit:hover  { background: rgba(99,102,241,.1); } .mb.mb-edit:hover svg  { stroke: var(--aim-indigo); }
 .mb.mb-hc:hover    { background: rgba(6,182,212,.1);  } .mb.mb-hc:hover svg    { stroke: #0891b2; }
 html.dark .mb.mb-hc:hover svg { stroke: #22d3ee; }
@@ -344,11 +348,12 @@ html.dark .model-chip { background: rgba(0,0,0,.2); }
 .model-chip.mc-on { border-color: rgba(99,102,241,.4); background: rgba(99,102,241,.07); color: var(--aim-indigo); }
 .model-chip:hover { transform: translateY(-1px); border-color: var(--aim-indigo); }
 .mc-del {
-    background: none; border: none; color: inherit;
+    background: none; border: none; color: #ef4444;
     cursor: pointer; font-size: 0.75rem; line-height: 1;
-    padding: 0; opacity: .5; margin-left: 2px;
+    padding: 0; opacity: .7; margin-left: 2px;
     transition: opacity .15s;
 }
+html.dark .mc-del { color: #f87171; }
 .mc-del:hover { opacity: 1; }
 
 /* Empty hint */
