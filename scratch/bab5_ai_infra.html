@@ -1,555 +1,201 @@
-<div class="darko-guide-wrapper" style="font-family: 'Inter', -apple-system, sans-serif; max-width: 900px; margin: 0 auto; color: #334155;">
+<p>Pusat kendali seluruh infrastruktur AI: mendaftarkan provider (OpenAI, Gemini, dll), mengelola API Key & Model, serta memantau kesehatan key via Health Check.</p>
+<ul>
+    <li><span style="font-size: 16px;"><strong>5A. Halaman AI Management & Statistik</strong>, bagian atas menampilkan 4 kartu statistik ai (kotak merah): <strong>total provider</strong>, <strong>api keys aktif</strong>, <strong>total model</strong>, dan <strong>provider aktif</strong>.</span></li>
+    <li><span style="font-size: 16px;"><strong>5B. Mengelola Provider AI</strong>, klik tombol <strong>"+ tambah provider"</strong> (kotak merah) di header untuk mendaftarkan penyedia ai baru.</span></li>
+    <li><span style="font-size: 16px;"><strong>5C. Mengelola API Keys</strong>, klik tab <strong>"keys"</strong> (kotak merah) pada kartu provider untuk melihat semua api key yang terdaftar.</span></li>
+    <li><span style="font-size: 16px;"><strong>5D. Mengelola Model AI</strong>, klik tab <strong>"models"</strong> (kotak merah) untuk melihat daftar model ai yang didukung provider ini.</span></li>
+    <li><span style="font-size: 16px;"><strong>5E. Health Check — Uji Validitas API Key</strong>, klik tombol <strong>"health check"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) pada baris api key.</span></li>
+</ul>
 
-    <!-- TOP HEADER -->
-    <div style="padding: 60px 40px; background: #fff; text-align: center; border-radius: 30px; margin-bottom: 40px;">
-        <span style="background: #06b6d420; color: #06b6d4; padding: 8px 20px; border-radius: 100px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Panduan Dokumentasi</span>
-        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; margin: 20px 0; letter-spacing: -2px;">5. AI INFRASTRUCTURE</h1>
-        <p style="font-size: 1.2rem; color: #64748b; max-width: 600px; margin: 0 auto; line-height: 1.6;">Pusat kendali seluruh infrastruktur AI: mendaftarkan provider (OpenAI, Gemini, dll), mengelola API Key & Model, serta memantau kesehatan key via Health Check.</p>
-    </div>
+<p>Berikut ini adalah tampilan antarmuka menu dari modul <strong>5. AI INFRASTRUCTURE</strong> :</p>
+<p>
+    <a href="http://74.48.112.31:5000/admin_guide/real_ai_management.png" class="fancybox image">
+        <img class="alignnone size-full" src="http://74.48.112.31:5000/admin_guide/real_ai_management.png" alt="5. AI INFRASTRUCTURE" width="1354" />
+    </a>
+</p>
 
-            <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">5A. Halaman AI Management & Statistik</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
+<hr />
 
+<h3>Petunjuk Pemakaian :</h3>
+<ul>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>5A. Halaman AI Management & Statistik</strong></span>
+        <br />
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">29</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Halaman AI Management — Statistik Utama</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Bagian atas menampilkan 4 kartu statistik AI (kotak merah): <strong>Total Provider</strong>, <strong>API Keys Aktif</strong>, <strong>Total Model</strong>, dan <strong>Provider Aktif</strong>. Di bawahnya terdapat grid kartu provider.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">HALAMAN AI MANAGEMENT</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_management.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="HALAMAN AI MANAGEMENT">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">30</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Grid Kartu Provider AI</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Setiap provider AI ditampilkan sebagai kartu terpisah (kotak merah). Kartu menampilkan: logo provider, jumlah key aktif, jumlah model, toggle aktif/nonaktif, dan tab Keys/Models.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">GRID PROVIDER AI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_providers.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="GRID PROVIDER AI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">5B. Mengelola Provider AI</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">31</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Tambah Provider Baru</h3>
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>1. Halaman AI Management — Statistik Utama</strong></p>
+            <p>Bagian atas menampilkan 4 kartu statistik AI (kotak merah): <strong>Total Provider</strong>, <strong>API Keys Aktif</strong>, <strong>Total Model</strong>, dan <strong>Provider Aktif</strong>. Di bawahnya terdapat grid kartu provider.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_management.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_management.png" alt="Halaman AI Management — Statistik Utama" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>2. Grid Kartu Provider AI</strong></p>
+            <p>Setiap provider AI ditampilkan sebagai kartu terpisah (kotak merah). Kartu menampilkan: logo provider, jumlah key aktif, jumlah model, toggle aktif/nonaktif, dan tab Keys/Models.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_providers.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_providers.png" alt="Grid Kartu Provider AI" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"+ Tambah Provider"</strong> (kotak merah) di header untuk mendaftarkan penyedia AI baru.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TAMBAH PROVIDER</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_add_provider_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TAMBAH PROVIDER">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">32</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Form Tambah Provider</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Form (kotak merah) meminta: <strong>Nama Provider</strong>, <strong>Kode Unik</strong> (huruf kecil, misal "openai"), <strong>Base URL API</strong>, dan <strong>Status Aktif</strong>. Klik <strong>"Simpan"</strong> setelah semua terisi.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM TAMBAH PROVIDER AI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_provider_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM TAMBAH PROVIDER AI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">33</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Toggle Aktif/Nonaktif Provider</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Pada kartu provider, terdapat toggle switch (kotak merah). Klik untuk mengaktifkan atau menonaktifkan provider. Provider nonaktif tidak digunakan chatbot meskipun punya key yang valid.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOGGLE AKTIF PROVIDER</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_toggle_provider.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOGGLE AKTIF PROVIDER">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">34</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Menghapus Provider</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> Hapus (kotak merah). Dialog konfirmasi akan muncul. Menghapus provider juga menghapus semua API Key dan Model di bawahnya — tidak dapat dibatalkan.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">HAPUS PROVIDER AI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_delete_provider_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="HAPUS PROVIDER AI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">5C. Mengelola API Keys</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>5B. Mengelola Provider AI</strong></span>
+        <br />
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">35</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tab "Keys" pada Kartu Provider</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tab <strong>"Keys"</strong> (kotak merah) pada kartu provider untuk melihat semua API Key yang terdaftar.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TAB API KEYS</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_keys_tab.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TAB API KEYS">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">36</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Tambah API Key</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"+ Tambah Key"</strong> (kotak merah) di dalam tab Keys untuk mendaftarkan token API baru.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TAMBAH API KEY</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_add_key_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TAMBAH API KEY">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">37</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Form Tambah API Key</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Form tambah key (kotak merah) meminta: <strong>Nama Key</strong> (label deskriptif), <strong>Nilai API Key</strong> (token rahasia dari provider — disamarkan), <strong>Batas Token/Bulan</strong> (opsional), dan <strong>Status Aktif</strong>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM TAMBAH API KEY</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_key_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM TAMBAH API KEY">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">38</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Edit API Key</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) di samping nama key untuk memperbarui label, batas token, atau status aktif. Nilai key asli tidak ditampilkan ulang demi keamanan.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL EDIT API KEY</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_edit_key_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL EDIT API KEY">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">39</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Reset Limit Token</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Jika key mencapai batas token bulanan, klik <strong>"Reset Limit"</strong> (kotak merah) untuk mereset counter penggunaan ke nol.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">RESET LIMIT TOKEN</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_reset_limit_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="RESET LIMIT TOKEN">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">5D. Mengelola Model AI</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">40</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tab "Models" pada Kartu Provider</h3>
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>3. Tombol Tambah Provider Baru</strong></p>
+            <p>Klik tombol <strong>"+ Tambah Provider"</strong> (kotak merah) di header untuk mendaftarkan penyedia AI baru.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_add_provider_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_add_provider_btn.png" alt="Tombol Tambah Provider Baru" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>4. Modal Form Tambah Provider</strong></p>
+            <p>Form (kotak merah) meminta: <strong>Nama Provider</strong>, <strong>Kode Unik</strong> (huruf kecil, misal "openai"), <strong>Base URL API</strong>, dan <strong>Status Aktif</strong>. Klik <strong>"Simpan"</strong> setelah semua terisi.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_provider_modal.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_provider_modal.png" alt="Modal Form Tambah Provider" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>5. Toggle Aktif/Nonaktif Provider</strong></p>
+            <p>Pada kartu provider, terdapat toggle switch (kotak merah). Klik untuk mengaktifkan atau menonaktifkan provider. Provider nonaktif tidak digunakan chatbot meskipun punya key yang valid.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_toggle_provider.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_toggle_provider.png" alt="Toggle Aktif/Nonaktif Provider" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>6. Menghapus Provider</strong></p>
+            <p>Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> Hapus (kotak merah). Dialog konfirmasi akan muncul. Menghapus provider juga menghapus semua API Key dan Model di bawahnya — tidak dapat dibatalkan.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_delete_provider_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_delete_provider_btn.png" alt="Menghapus Provider" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tab <strong>"Models"</strong> (kotak merah) untuk melihat daftar model AI yang didukung provider ini.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TAB MODELS AI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_models_tab.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TAB MODELS AI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">41</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Tambah Model AI</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"+ Tambah Model"</strong> (kotak merah) untuk mendaftarkan model baru.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TAMBAH MODEL</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_add_model_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TAMBAH MODEL">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">42</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Form Tambah Model AI</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Form model (kotak merah) meminta: <strong>Model ID</strong> (identifier teknis dari provider — contoh: <code>gpt-4o-mini</code>, <code>gemini-1.5-flash</code>), <strong>Nama Tampilan</strong>, <strong>Tipe Model</strong>, <strong>Max Token</strong>, dan <strong>Status Aktif</strong>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM TAMBAH MODEL AI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_model_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM TAMBAH MODEL AI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">5E. Health Check — Uji Validitas API Key</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>5C. Mengelola API Keys</strong></span>
+        <br />
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">43</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Health Check</h3>
+        
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>7. Tab "Keys" pada Kartu Provider</strong></p>
+            <p>Klik tab <strong>"Keys"</strong> (kotak merah) pada kartu provider untuk melihat semua API Key yang terdaftar.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_keys_tab.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_keys_tab.png" alt="Tab "Keys" pada Kartu Provider" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>8. Tombol Tambah API Key</strong></p>
+            <p>Klik tombol <strong>"+ Tambah Key"</strong> (kotak merah) di dalam tab Keys untuk mendaftarkan token API baru.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_add_key_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_add_key_btn.png" alt="Tombol Tambah API Key" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>9. Modal Form Tambah API Key</strong></p>
+            <p>Form tambah key (kotak merah) meminta: <strong>Nama Key</strong> (label deskriptif), <strong>Nilai API Key</strong> (token rahasia dari provider — disamarkan), <strong>Batas Token/Bulan</strong> (opsional), dan <strong>Status Aktif</strong>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_key_modal.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_key_modal.png" alt="Modal Form Tambah API Key" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>10. Tombol Edit API Key</strong></p>
+            <p>Klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) di samping nama key untuk memperbarui label, batas token, atau status aktif. Nilai key asli tidak ditampilkan ulang demi keamanan.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_edit_key_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_edit_key_btn.png" alt="Tombol Edit API Key" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>11. Tombol Reset Limit Token</strong></p>
+            <p>Jika key mencapai batas token bulanan, klik <strong>"Reset Limit"</strong> (kotak merah) untuk mereset counter penggunaan ke nol.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_reset_limit_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_reset_limit_btn.png" alt="Tombol Reset Limit Token" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"Health Check"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) pada baris API Key. Tombol ini memanggil API provider secara langsung untuk memverifikasi key masih valid dan tidak melampaui rate-limit.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL HEALTH CHECK</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_health_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL HEALTH CHECK">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>5D. Mengelola Model AI</strong></span>
+        <br />
+        
+        
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>12. Tab "Models" pada Kartu Provider</strong></p>
+            <p>Klik tab <strong>"Models"</strong> (kotak merah) untuk melihat daftar model AI yang didukung provider ini.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_models_tab.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_models_tab.png" alt="Tab "Models" pada Kartu Provider" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>13. Tombol Tambah Model AI</strong></p>
+            <p>Klik tombol <strong>"+ Tambah Model"</strong> (kotak merah) untuk mendaftarkan model baru.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_add_model_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_add_model_btn.png" alt="Tombol Tambah Model AI" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>14. Modal Form Tambah Model AI</strong></p>
+            <p>Form model (kotak merah) meminta: <strong>Model ID</strong> (identifier teknis dari provider — contoh: <code>gpt-4o-mini</code>, <code>gemini-1.5-flash</code>), <strong>Nama Tampilan</strong>, <strong>Tipe Model</strong>, <strong>Max Token</strong>, dan <strong>Status Aktif</strong>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_model_modal.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_model_modal.png" alt="Modal Form Tambah Model AI" width="800" />
+                </a>
+            </p>
                 </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #06b6d4; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #06b6d440;">44</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Hasil Health Check</h3>
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>5E. Health Check — Uji Validitas API Key</strong></span>
+        <br />
+        
+        
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>15. Tombol Health Check</strong></p>
+            <p>Klik tombol <strong>"Health Check"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) pada baris API Key. Tombol ini memanggil API provider secara langsung untuk memverifikasi key masih valid dan tidak melampaui rate-limit.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_health_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_health_btn.png" alt="Tombol Health Check" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>16. Hasil Health Check</strong></p>
+            <p>Modal Health Check (kotak merah) menampilkan hasil pengujian: status key (Valid/Invalid/Rate Limited/Expired), waktu respons, pesan error jika ada, dan rekomendasi tindakan.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_ai_health_modal.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_health_modal.png" alt="Hasil Health Check" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Modal Health Check (kotak merah) menampilkan hasil pengujian: status key (Valid/Invalid/Rate Limited/Expired), waktu respons, pesan error jika ada, dan rekomendasi tindakan.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">HASIL HEALTH CHECK</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_ai_health_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="HASIL HEALTH CHECK">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-            
-    <!-- FINAL FOOTER -->
-    <div style="background: #0f172a; border-radius: 40px; padding: 60px; text-align: center; color: #fff; margin-top: 100px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
-        <h2 style="font-size: 2rem; font-weight: 800; margin: 0; color: #fff;">Selesai!</h2>
-        <p style="font-size: 1.1rem; color: #94a3b8; margin: 15px 0 0 0;">Anda telah menyelesaikan panduan untuk bab ini. Dokumentasi ini membantu tim tetap sinkron dengan sistem DarkoAI.</p>
-    </div>
-
-</div>
+    </li>
+</ul>
     

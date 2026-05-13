@@ -1,415 +1,149 @@
-<div class="darko-guide-wrapper" style="font-family: 'Inter', -apple-system, sans-serif; max-width: 900px; margin: 0 auto; color: #334155;">
+<p>Modul untuk menghubungkan server database eksternal (PostgreSQL, MySQL, MariaDB) ke sistem AI. Setiap koneksi dapat ditambah, diedit, diuji, dan dihapus.</p>
+<ul>
+    <li><span style="font-size: 16px;"><strong>4A. Halaman Daftar & Toolbar Database</strong>, semua koneksi database yang terdaftar ditampilkan sebagai kartu (kotak merah).</span></li>
+    <li><span style="font-size: 16px;"><strong>4B. Wizard Tambah Database (3 Langkah)</strong>, wizard langkah pertama meminta: <br>• <strong>nama koneksi/alias</strong> — nama tampilan (contoh: "production db") <br>• <strong>kode</strong> — pengenal unik huruf kecil & underscore <br>• <strong>driver</strong> — pilih: postgresql, mysql, atau mariadb <br>• centang <strong>aktif</strong> dan/atau <strong>default</strong> jika perlu.</span></li>
+    <li><span style="font-size: 16px;"><strong>4C. Mengelola Koneksi yang Sudah Ada</strong>, pada setiap kartu database, klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) untuk membuka modal edit.</span></li>
+</ul>
 
-    <!-- TOP HEADER -->
-    <div style="padding: 60px 40px; background: #fff; text-align: center; border-radius: 30px; margin-bottom: 40px;">
-        <span style="background: #f59e0b20; color: #f59e0b; padding: 8px 20px; border-radius: 100px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Panduan Dokumentasi</span>
-        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; margin: 20px 0; letter-spacing: -2px;">4. DATABASE MANAGEMENT</h1>
-        <p style="font-size: 1.2rem; color: #64748b; max-width: 600px; margin: 0 auto; line-height: 1.6;">Modul untuk menghubungkan server database eksternal (PostgreSQL, MySQL, MariaDB) ke sistem AI. Setiap koneksi dapat ditambah, diedit, diuji, dan dihapus.</p>
-    </div>
+<p>Berikut ini adalah tampilan antarmuka menu dari modul <strong>4. DATABASE MANAGEMENT</strong> :</p>
+<p>
+    <a href="http://74.48.112.31:5000/admin_guide/real_db_list.png" class="fancybox image">
+        <img class="alignnone size-full" src="http://74.48.112.31:5000/admin_guide/real_db_list.png" alt="4. DATABASE MANAGEMENT" width="1354" />
+    </a>
+</p>
 
-            <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">4A. Halaman Daftar & Toolbar Database</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
+<hr />
 
+<h3>Petunjuk Pemakaian :</h3>
+<ul>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>4A. Halaman Daftar & Toolbar Database</strong></span>
+        <br />
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">17</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Halaman Daftar Database</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Semua koneksi database yang terdaftar ditampilkan sebagai kartu (kotak merah). Setiap kartu memuat: nama alias, driver (PostgreSQL/MySQL/MariaDB), host:port, status koneksi, dan tombol aksi.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">DAFTAR KONEKSI DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_list.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="DAFTAR KONEKSI DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">18</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Toolbar: Pencarian, Filter, & View Toggle</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Toolbar (kotak merah) berisi: <strong>Kolom Pencarian</strong>, <strong>Filter Driver</strong>, <strong>Filter Status</strong>, dan <strong>Toggle View</strong> Grid/List.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOOLBAR PENCARIAN & FILTER</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_toolbar.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOOLBAR PENCARIAN & FILTER">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">19</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol "Test All Connections"</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"Test All"</strong> (kotak merah) di pojok kanan atas untuk menguji semua koneksi database sekaligus. Hasilnya ditampilkan dalam health bar: Total, <span style="color:#10b981">Connected</span>, dan <span style="color:#ef4444">Failed</span>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TEST ALL CONNECTIONS</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_test_all.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TEST ALL CONNECTIONS">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">20</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol "Tambah Database"</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik tombol <strong>"+ Tambah Database"</strong> (kotak merah) untuk membuka wizard penambahan koneksi baru. Wizard terdiri dari 3 langkah.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TAMBAH DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_tambah_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TAMBAH DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">4B. Wizard Tambah Database (3 Langkah)</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">21</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Step 1 — Identitas: Nama, Kode & Driver</h3>
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>1. Halaman Daftar Database</strong></p>
+            <p>Semua koneksi database yang terdaftar ditampilkan sebagai kartu (kotak merah). Setiap kartu memuat: nama alias, driver (PostgreSQL/MySQL/MariaDB), host:port, status koneksi, dan tombol aksi.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_list.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_list.png" alt="Halaman Daftar Database" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>2. Toolbar: Pencarian, Filter, & View Toggle</strong></p>
+            <p>Toolbar (kotak merah) berisi: <strong>Kolom Pencarian</strong>, <strong>Filter Driver</strong>, <strong>Filter Status</strong>, dan <strong>Toggle View</strong> Grid/List.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_toolbar.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_toolbar.png" alt="Toolbar: Pencarian, Filter, & View Toggle" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>3. Tombol "Test All Connections"</strong></p>
+            <p>Klik tombol <strong>"Test All"</strong> (kotak merah) di pojok kanan atas untuk menguji semua koneksi database sekaligus. Hasilnya ditampilkan dalam health bar: Total, <span style="color:#10b981">Connected</span>, dan <span style="color:#ef4444">Failed</span>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_test_all.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_test_all.png" alt="Tombol "Test All Connections"" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>4. Tombol "Tambah Database"</strong></p>
+            <p>Klik tombol <strong>"+ Tambah Database"</strong> (kotak merah) untuk membuka wizard penambahan koneksi baru. Wizard terdiri dari 3 langkah.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_tambah_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_tambah_btn.png" alt="Tombol "Tambah Database"" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Wizard langkah pertama meminta: <br>• <strong>Nama Koneksi/Alias</strong> — nama tampilan (contoh: "Production DB") <br>• <strong>Kode</strong> — pengenal unik huruf kecil & underscore <br>• <strong>Driver</strong> — pilih: PostgreSQL, MySQL, atau MariaDB <br>• Centang <strong>Aktif</strong> dan/atau <strong>Default</strong> jika perlu.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">WIZARD STEP 1: IDENTITAS</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_modal_step1.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="WIZARD STEP 1: IDENTITAS">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">22</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Step 2 — Koneksi: Host, Port, Kredensial & Schema</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Isi detail koneksi server: <br>• <strong>Host</strong> — IP atau hostname server database <br>• <strong>Port</strong> — otomatis terisi sesuai driver (5432/3306) <br>• <strong>Nama Database</strong> — nama database asli di server <br>• <strong>Username & Password</strong> — kredensial akses database <br>• <strong>Schema</strong> — klik Load untuk deteksi otomatis                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">WIZARD STEP 2: KONEKSI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_modal_step2.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="WIZARD STEP 2: KONEKSI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">23</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Step 3 — Test Koneksi Sebelum Simpan</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik <strong>"Test Sekarang"</strong> untuk memverifikasi parameter yang diisi. Hasil muncul di bawah tombol: hijau = berhasil, merah = gagal. Setelah berhasil, klik <strong>"Simpan Database"</strong>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">WIZARD STEP 3: TEST & SIMPAN</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_modal_step3.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="WIZARD STEP 3: TEST & SIMPAN">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">4C. Mengelola Koneksi yang Sudah Ada</h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
-
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>4B. Wizard Tambah Database (3 Langkah)</strong></span>
+        <br />
         
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">24</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Edit Database</h3>
+        
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>5. Step 1 — Identitas: Nama, Kode & Driver</strong></p>
+            <p>Wizard langkah pertama meminta: <br>• <strong>Nama Koneksi/Alias</strong> — nama tampilan (contoh: "Production DB") <br>• <strong>Kode</strong> — pengenal unik huruf kecil & underscore <br>• <strong>Driver</strong> — pilih: PostgreSQL, MySQL, atau MariaDB <br>• Centang <strong>Aktif</strong> dan/atau <strong>Default</strong> jika perlu.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_modal_step1.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_modal_step1.png" alt="Step 1 — Identitas: Nama, Kode & Driver" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>6. Step 2 — Koneksi: Host, Port, Kredensial & Schema</strong></p>
+            <p>Isi detail koneksi server: <br>• <strong>Host</strong> — IP atau hostname server database <br>• <strong>Port</strong> — otomatis terisi sesuai driver (5432/3306) <br>• <strong>Nama Database</strong> — nama database asli di server <br>• <strong>Username & Password</strong> — kredensial akses database <br>• <strong>Schema</strong> — klik Load untuk deteksi otomatis</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_modal_step2.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_modal_step2.png" alt="Step 2 — Koneksi: Host, Port, Kredensial & Schema" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>7. Step 3 — Test Koneksi Sebelum Simpan</strong></p>
+            <p>Klik <strong>"Test Sekarang"</strong> untuk memverifikasi parameter yang diisi. Hasil muncul di bawah tombol: hijau = berhasil, merah = gagal. Setelah berhasil, klik <strong>"Simpan Database"</strong>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_modal_step3.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_modal_step3.png" alt="Step 3 — Test Koneksi Sebelum Simpan" width="800" />
+                </a>
+            </p>
                 </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Pada setiap kartu database, klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) untuk membuka modal Edit. Semua data koneksi yang tersimpan akan terisi otomatis.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL EDIT DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_edit_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL EDIT DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
+    </li>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong>4C. Mengelola Koneksi yang Sudah Ada</strong></span>
+        <br />
+        
+        
+        <div style="margin-top: 15px;">
+                                
+            <p><strong>8. Tombol Edit Database</strong></p>
+            <p>Pada setiap kartu database, klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) untuk membuka modal Edit. Semua data koneksi yang tersimpan akan terisi otomatis.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_edit_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_edit_btn.png" alt="Tombol Edit Database" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>9. Modal Edit Database</strong></p>
+            <p>Modal edit menampilkan semua field yang sudah terisi (kotak merah). Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan Database"</strong>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_edit_modal.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_edit_modal.png" alt="Modal Edit Database" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>10. Badge Status Koneksi</strong></p>
+            <p>Di bagian bawah setiap kartu terdapat badge status (kotak merah): <span style="background:rgba(16,185,129,.1);color:#047857;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-check-circle"></i> Connected</span>, <span style="background:rgba(239,68,68,.1);color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-times-circle"></i> Failed</span>, atau <span style="background:rgba(245,158,11,.1);color:#b45309;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-question-circle"></i> Not Tested</span>.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_status_badge.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_status_badge.png" alt="Badge Status Koneksi" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>11. Copy Host & Nama Database</strong></p>
+            <p>Pada detail koneksi di kartu, terdapat tombol copy <i class="fas fa-copy"></i> (kotak merah) di samping Host:Port dan Nama Database. Klik untuk menyalin nilai ke clipboard. Notifikasi toast akan muncul sebagai konfirmasi.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_copy_btn.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_copy_btn.png" alt="Copy Host & Nama Database" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>12. Menghapus Koneksi Database</strong></p>
+            <p>Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah) pada kartu database yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul. <strong>⚠ Database bertanda Default tidak dapat dihapus.</strong></p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_db_delete_confirm.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_db_delete_confirm.png" alt="Menghapus Koneksi Database" width="800" />
+                </a>
+            </p>
                 </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">25</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Edit Database</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Modal edit menampilkan semua field yang sudah terisi (kotak merah). Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan Database"</strong>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">MODAL EDIT DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_edit_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="MODAL EDIT DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">26</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Badge Status Koneksi</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Di bagian bawah setiap kartu terdapat badge status (kotak merah): <span style="background:rgba(16,185,129,.1);color:#047857;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-check-circle"></i> Connected</span>, <span style="background:rgba(239,68,68,.1);color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-times-circle"></i> Failed</span>, atau <span style="background:rgba(245,158,11,.1);color:#b45309;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-question-circle"></i> Not Tested</span>.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">BADGE STATUS KONEKSI</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_status_badge.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="BADGE STATUS KONEKSI">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">27</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Copy Host & Nama Database</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Pada detail koneksi di kartu, terdapat tombol copy <i class="fas fa-copy"></i> (kotak merah) di samping Host:Port dan Nama Database. Klik untuk menyalin nilai ke clipboard. Notifikasi toast akan muncul sebagai konfirmasi.                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL COPY HOST/DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_copy_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL COPY HOST/DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-                    <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: #f59e0b; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #f59e0b40;">28</div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Menghapus Koneksi Database</h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah) pada kartu database yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul. <strong>⚠ Database bertanda Default tidak dapat dihapus.</strong>                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">KONFIRMASI HAPUS DATABASE</div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="http://74.48.112.31:5000/admin_guide/real_db_delete_confirm.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="KONFIRMASI HAPUS DATABASE">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
-            
-    <!-- FINAL FOOTER -->
-    <div style="background: #0f172a; border-radius: 40px; padding: 60px; text-align: center; color: #fff; margin-top: 100px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
-        <h2 style="font-size: 2rem; font-weight: 800; margin: 0; color: #fff;">Selesai!</h2>
-        <p style="font-size: 1.1rem; color: #94a3b8; margin: 15px 0 0 0;">Anda telah menyelesaikan panduan untuk bab ini. Dokumentasi ini membantu tim tetap sinkron dengan sistem DarkoAI.</p>
-    </div>
-
-</div>
+    </li>
+</ul>
     

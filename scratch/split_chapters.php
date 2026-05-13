@@ -8,7 +8,7 @@ $guideData = [
         'id'    => 'menu-auth',
         'title' => '1. AUTENTIKASI & KEAMANAN',
         'icon'  => 'fas fa-shield-alt',
-        'color' => '#6366f1',
+        'color' => 'linear-gradient(135deg,#6366f1,#4f46e5)',
         'desc'  => 'Prosedur masuk ke sistem Admin Panel secara aman, reset password via OTP, dan verifikasi identitas pengguna.',
         'sections' => [
             [
@@ -67,7 +67,7 @@ $guideData = [
         'id'    => 'menu-chatbot',
         'title' => '2. CHATBOT AI',
         'icon'  => 'fas fa-robot',
-        'color' => '#10b981',
+        'color' => 'linear-gradient(135deg,#10b981,#059669)',
         'desc'  => 'Halaman utama interaksi dengan AI. Gunakan chatbot untuk menganalisis data database, ekspor tabel ke Excel/PDF, dan kelola riwayat percakapan.',
         'sections' => [
             [
@@ -97,7 +97,7 @@ $guideData = [
         'id'    => 'menu-dashboard',
         'title' => '3. MONITORING DASHBOARD',
         'icon'  => 'fas fa-chart-pie',
-        'color' => '#8b5cf6',
+        'color' => 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
         'desc'  => 'Halaman pertama yang dilihat Admin. Menampilkan statistik sistem real-time, navigasi sidebar, dan pengaturan tema tampilan.',
         'sections' => [
             [
@@ -136,7 +136,7 @@ $guideData = [
         'id'    => 'menu-database',
         'title' => '4. DATABASE MANAGEMENT',
         'icon'  => 'fas fa-database',
-        'color' => '#f59e0b',
+        'color' => 'linear-gradient(135deg,#f59e0b,#d97706)',
         'desc'  => 'Modul untuk menghubungkan server database eksternal (PostgreSQL, MySQL, MariaDB) ke sistem AI. Setiap koneksi dapat ditambah, diedit, diuji, dan dihapus.',
         'sections' => [
             [
@@ -212,7 +212,7 @@ $guideData = [
         'id'    => 'menu-ai',
         'title' => '5. AI INFRASTRUCTURE',
         'icon'  => 'fas fa-brain',
-        'color' => '#06b6d4',
+        'color' => 'linear-gradient(135deg,#06b6d4,#0284c7)',
         'desc'  => 'Pusat kendali seluruh infrastruktur AI: mendaftarkan provider (OpenAI, Gemini, dll), mengelola API Key & Model, serta memantau kesehatan key via Health Check.',
         'sections' => [
             [
@@ -314,7 +314,7 @@ $guideData = [
         'id'    => 'menu-roles',
         'title' => '6. ROLE MANAGEMENT',
         'icon'  => 'fas fa-user-shield',
-        'color' => '#ec4899',
+        'color' => 'linear-gradient(135deg,#ec4899,#be185d)',
         'desc'  => 'Mengatur grup hak akses (Role) yang menentukan tabel database mana yang boleh dibaca AI untuk sekelompok pengguna.',
         'sections' => [
             [
@@ -382,7 +382,7 @@ $guideData = [
         'id'    => 'menu-users',
         'title' => '7. USER MANAGEMENT',
         'icon'  => 'fas fa-users-cog',
-        'color' => '#14b8a6',
+        'color' => 'linear-gradient(135deg,#14b8a6,#0f766e)',
         'desc'  => 'Pengaturan paling mendalam untuk setiap akun pengguna: tambah/edit/hapus akun, impor massal via CSV, ekspor data, konfigurasi AI per user, dan pembatasan baris data (Row Level Security).',
         'sections' => [
             [
@@ -454,11 +454,11 @@ $guideData = [
                 'steps' => [
                     ['no'=>67, 'text'=>'Tombol AI Config (per User)',
                      'desc'=>'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus untuk satu user.',
-                     'img'=>'real_user_ai_btn.png', 'label'=>'TOMBOL AI CONFIG PER USER'],
+                     'img'=>'real_user_ai_config2.png', 'label'=>'TOMBOL AI CONFIG PER USER'],
 
                     ['no'=>68, 'text'=>'Modal Konfigurasi AI per User',
                      'desc'=>'Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan key yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.',
-                     'img'=>'real_user_ai_modal.png', 'label'=>'KONFIGURASI AI PER USER'],
+                     'img'=>'real_ai_config_modal.png', 'label'=>'KONFIGURASI AI PER USER'],
                 ],
             ],
             [
@@ -467,7 +467,7 @@ $guideData = [
                 'steps' => [
                     ['no'=>69, 'text'=>'Apa itu Row Level Security?',
                      'desc'=>'Row Level Security (RLS) adalah fitur pembatasan data di level baris. Dengan RLS, Admin dapat membatasi baris data yang bisa dianalisis AI untuk user tertentu. <br><br>Contoh kasus: <br>• User <strong>Cabang Jakarta</strong> → hanya bisa melihat data di mana <code>kode_cabang = \'JKT\'</code> <br>• User <strong>Salesman A</strong> → hanya bisa melihat data di mana <code>id_salesman = 12</code> <br>• User <strong>Divisi Finance</strong> → hanya bisa melihat data di mana <code>divisi = \'finance\'</code> <br><br>Tanpa RLS, user dapat melihat seluruh isi tabel yang diizinkan rolenya.',
-                     'img'=>'real_user_rls_btn.png', 'label'=>'KONSEP ROW LEVEL SECURITY'],
+                     'img'=>'real_user_rls_open.png', 'label'=>'KONSEP ROW LEVEL SECURITY'],
 
                     ['no'=>70, 'text'=>'Tombol RLS — Buka Modal Filter Data',
                      'desc'=>'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol <i class="fas fa-filter" style="color:#10b981"></i> hijau (kotak merah). Jika user sudah memiliki filter aktif, badge angka kecil berwarna akan muncul di atas tombol menunjukkan jumlah filter yang terpasang.',
@@ -520,97 +520,79 @@ foreach ($guideData as $idx => $menu) {
     $babNo = $idx + 1;
     $fileName = $fileNames[$babNo];
     
+    // Per bab, reset nomor langkah ke 1
+    $stepCounter = 1;
+    
     ob_start();
     ?>
-<div class="darko-guide-wrapper" style="font-family: 'Inter', -apple-system, sans-serif; max-width: 900px; margin: 0 auto; color: #334155;">
+<p><?php echo $menu['desc']; ?></p>
+<ul>
+<?php 
+// Ringkasan fitur di bagian atas
+foreach ($menu['sections'] as $sec): 
+    // Ambil kalimat pertama dari deskripsi langkah pertama sebagai ringkasan singkat
+    $summaryText = strtolower(explode('.', $sec['steps'][0]['desc'])[0]);
+?>
+    <li><span style="font-size: 16px;"><strong><?php echo $sec['title']; ?></strong>, <?php echo $summaryText; ?>.</span></li>
+<?php endforeach; ?>
+</ul>
 
-    <!-- TOP HEADER -->
-    <div style="padding: 60px 40px; background: #fff; text-align: center; border-radius: 30px; margin-bottom: 40px;">
-        <span style="background: <?php echo $menu['color']; ?>20; color: <?php echo $menu['color']; ?>; padding: 8px 20px; border-radius: 100px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Panduan Dokumentasi</span>
-        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; margin: 20px 0; letter-spacing: -2px;"><?php echo $menu['title']; ?></h1>
-        <p style="font-size: 1.2rem; color: #64748b; max-width: 600px; margin: 0 auto; line-height: 1.6;"><?php echo $menu['desc']; ?></p>
-    </div>
+<p>Berikut ini adalah tampilan antarmuka menu dari modul <strong><?php echo $menu['title']; ?></strong> :</p>
+<p>
+    <a href="<?php echo $baseUrl . $menu['sections'][0]['steps'][0]['img']; ?>" class="fancybox image">
+        <img class="alignnone size-full" src="<?php echo $baseUrl . $menu['sections'][0]['steps'][0]['img']; ?>" alt="<?php echo $menu['title']; ?>" width="1354" />
+    </a>
+</p>
 
-    <?php foreach ($menu['sections'] as $sec): ?>
-        <!-- SECTION TITLE -->
-        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
-            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
-            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;"><?php echo $sec['title']; ?></h2>
-            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
-        </div>
+<hr />
 
-        <?php if ($sec['id'] === 'user-rls'): ?>
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 24px; padding: 30px; margin-bottom: 50px;">
-                <h4 style="margin: 0 0 20px 0; color: #0f172a; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
-                    <span style="background: #10b981; color: #fff; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">?</span>
-                    Referensi Operator RLS
-                </h4>
-                <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem;">
-                        <thead>
-                            <tr style="text-align: left;">
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Operator</th>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Fungsi</th>
-                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Contoh</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>=</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Sama Persis</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">id = 101</td></tr>
-                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>LIKE</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Pencarian Teks</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">nama LIKE 'Andi'</td></tr>
-                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>IN</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Dalam Daftar</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">id IN 1,2,3</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+<h3>Petunjuk Pemakaian :</h3>
+<ul>
+<?php foreach ($menu['sections'] as $sec): ?>
+    <li style="margin-bottom: 30px;">
+        <span style="font-size: 18px;"><strong><?php echo $sec['title']; ?></strong></span>
+        <br />
+        
+        <?php if($sec['id'] === 'user-rls'): ?>
+            <div style="margin: 20px 0; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; background: #f8fafc;">
+                <strong>Referensi Cepat: Operator Kondisi Filter</strong>
+                <table border="1" style="width:100%; border-collapse:collapse; font-size:14px; margin-top: 10px;">
+                    <tr style="background:#f1f5f9;">
+                        <th style="padding: 8px;">Operator</th>
+                        <th style="padding: 8px;">Arti</th>
+                        <th style="padding: 8px;">Contoh</th>
+                    </tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>=</code></td><td style="padding: 8px;">Sama persis</td><td style="padding: 8px;">kode_cabang <code>=</code> 1271</td></tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>!=</code></td><td style="padding: 8px;">Tidak sama</td><td style="padding: 8px;">status <code>!=</code> inactive</td></tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>&gt;</code></td><td style="padding: 8px;">Lebih besar</td><td style="padding: 8px;">total <code>&gt;</code> 1000</td></tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>&lt;</code></td><td style="padding: 8px;">Lebih kecil</td><td style="padding: 8px;">umur <code>&lt;</code> 30</td></tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>LIKE</code></td><td style="padding: 8px;">Mengandung teks</td><td style="padding: 8px;">nama <code>LIKE</code> Beras</td></tr>
+                    <tr><td style="padding: 8px; text-align:center;"><code>IN</code></td><td style="padding: 8px;">Dalam daftar</td><td style="padding: 8px;">kota <code>IN</code> Jakarta,Bandung</td></tr>
+                </table>
             </div>
         <?php endif; ?>
 
-        <?php foreach ($sec['steps'] as $stepIdx => $step): ?>
-            <!-- STEP ITEM -->
-            <div style="margin-bottom: 100px; position: relative;">
-                
-                <!-- Step Number & Line -->
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                    <div style="background: <?php echo $menu['color']; ?>; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px <?php echo $menu['color']; ?>40;"><?php echo $step['no']; ?></div>
-                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;"><?php echo $step['text']; ?></h3>
-                </div>
-
-                <!-- Description Callout -->
-                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
-                    <?php echo $step['desc']; ?>
-                </div>
-
-                <!-- Browser Frame Screenshot -->
-                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
-                    <!-- Browser Top Bar -->
-                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
-                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
-                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;"><?php echo $step['label']; ?></div>
-                    </div>
-                    <!-- Image -->
-                    <div style="position: relative; background: #000;">
-                        <img src="<?php echo $baseUrl . $step['img']; ?>" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="<?php echo $step['label']; ?>">
-                        <!-- Red Highlight Indicator Tooltip -->
-                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
-                    </div>
-                </div>
-
-            </div>
+        <div style="margin-top: 15px;">
+        <?php foreach ($sec['steps'] as $sIdx => $step): ?>
+            <?php if ($sIdx > 0): ?>
+                <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+            <?php endif; ?>
+            
+            <p><strong><?php echo $stepCounter++; ?>. <?php echo $step['text']; ?></strong></p>
+            <p><?php echo $step['desc']; ?></p>
+            <p>
+                <a href="<?php echo $baseUrl . $step['img']; ?>" class="fancybox image">
+                    <img class="alignnone" src="<?php echo $baseUrl . $step['img']; ?>" alt="<?php echo $step['text']; ?>" width="800" />
+                </a>
+            </p>
         <?php endforeach; ?>
-    <?php endforeach; ?>
-
-    <!-- FINAL FOOTER -->
-    <div style="background: #0f172a; border-radius: 40px; padding: 60px; text-align: center; color: #fff; margin-top: 100px;">
-        <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
-        <h2 style="font-size: 2rem; font-weight: 800; margin: 0; color: #fff;">Selesai!</h2>
-        <p style="font-size: 1.1rem; color: #94a3b8; margin: 15px 0 0 0;">Anda telah menyelesaikan panduan untuk bab ini. Dokumentasi ini membantu tim tetap sinkron dengan sistem DarkoAI.</p>
-    </div>
-
-</div>
+        </div>
+    </li>
+<?php endforeach; ?>
+</ul>
     <?php
     $html = ob_get_clean();
     file_put_contents(__DIR__ . '/' . $fileName, $html);
 }
-echo "Successfully generated 7 PREMIUM chapter files.";
+echo "Successfully generated 7 CLEAN & TIDY chapter files with reset numbering.";
 ?>
