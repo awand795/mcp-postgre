@@ -24,7 +24,7 @@ $guideData = [
                 'title' => '1A. Login ke Sistem',
                 'steps' => [
                     ['no'=>1, 'text'=>'Buka Halaman Login',
-                     'desc'=>'Akses URL sistem di browser (contoh: <code>http://localhost:5000/login</code>). Akan muncul form kartu bertajuk <strong>Sign In</strong>. Pastikan URL sudah benar dan koneksi internet tersedia.',
+                     'desc'=>'Akses URL sistem di browser. Akan muncul form kartu bertajuk <strong>Sign In</strong>. Pastikan URL sudah benar dan koneksi internet tersedia.',
                      'img'=>'real_login_page.png', 'label'=>'HALAMAN LOGIN UTAMA'],
 
                     ['no'=>2, 'text'=>'Isi Field Email',
@@ -32,7 +32,7 @@ $guideData = [
                      'img'=>'real_login_email.png', 'label'=>'FIELD EMAIL'],
 
                     ['no'=>3, 'text'=>'Isi Field Password',
-                     'desc'=>'Klik kolom <strong>Password</strong> (kotak merah) lalu ketik password Anda. Gunakan ikon <i class="fas fa-eye"></i> di ujung kanan field untuk menampilkan/menyembunyikan karakter dan memverifikasi ketikan.',
+                     'desc'=>'Klik kolom <strong>Password</strong> (kotak merah) lalu ketik password Anda. Gunakan ikon mata di ujung kanan field untuk menampilkan/menyembunyikan karakter.',
                      'img'=>'real_login_password.png', 'label'=>'FIELD PASSWORD'],
 
                     ['no'=>4, 'text'=>'Klik Tombol LOGIN',
@@ -40,7 +40,7 @@ $guideData = [
                      'img'=>'real_login_button.png', 'label'=>'TOMBOL LOGIN'],
 
                     ['no'=>5, 'text'=>'Berhasil Masuk ke Sistem',
-                     'desc'=>'Setelah login berhasil, Anda diarahkan ke halaman utama (Chatbot atau Dashboard). Tampilan ini membuktikan autentikasi berhasil. Sidebar kiri akan menampilkan menu Admin jika akun Anda adalah Administrator.',
+                     'desc'=>'Setelah login berhasil, Anda diarahkan ke halaman utama Chatbot. Sidebar kiri menampilkan menu Admin jika akun Anda adalah Administrator.',
                      'img'=>'real_login_success.png', 'label'=>'LOGIN BERHASIL'],
                 ],
             ],
@@ -53,15 +53,15 @@ $guideData = [
                      'img'=>'real_login_forgot_link.png', 'label'=>'LINK LUPA PASSWORD'],
 
                     ['no'=>7, 'text'=>'Masukkan Email Pemulihan',
-                     'desc'=>'Pada halaman Forgot Password, isi kolom email (kotak merah) dengan email terdaftar Anda, lalu klik <strong>"Kirim Kode OTP"</strong>. Sistem mengirimkan 6-digit kode rahasia ke inbox email dalam beberapa detik.',
+                     'desc'=>'Pada halaman Forgot Password, isi kolom email (kotak merah) dengan email terdaftar Anda, lalu klik <strong>"Kirim Kode OTP"</strong>. Sistem mengirimkan 6-digit kode ke inbox email dalam beberapa detik.',
                      'img'=>'real_forgot_email_field.png', 'label'=>'EMAIL PEMULIHAN'],
 
                     ['no'=>8, 'text'=>'Verifikasi Kode OTP 6 Digit',
-                     'desc'=>'Buka inbox email Anda, salin kode 6 digit yang diterima, lalu masukkan ke kotak-kotak verifikasi (kotak merah) secara berurutan. <strong>⚠ Kode hanya berlaku 10 menit.</strong> Periksa folder Spam jika tidak masuk Inbox.',
+                     'desc'=>'Buka inbox email Anda, salin kode 6 digit yang diterima, lalu masukkan ke kotak verifikasi (kotak merah) secara berurutan. <strong>⚠ Kode hanya berlaku 10 menit.</strong> Periksa folder Spam jika tidak masuk Inbox.',
                      'img'=>'real_verify_otp_page.png', 'label'=>'VERIFIKASI OTP'],
 
                     ['no'=>9, 'text'=>'Buat Password Baru',
-                     'desc'=>'Setelah OTP terverifikasi, Anda masuk ke halaman Reset Password. Ketik password baru (min. 8 karakter, kombinasi huruf besar, kecil, angka & simbol), ulangi di kolom konfirmasi, lalu klik <strong>"Simpan Password Baru"</strong>.',
+                     'desc'=>'Setelah OTP terverifikasi, masukkan password baru (min. 8 karakter), ulangi di kolom konfirmasi, lalu klik <strong>"Simpan Password Baru"</strong>.',
                      'img'=>'real_reset_password_page.png', 'label'=>'BUAT PASSWORD BARU'],
                 ],
             ],
@@ -83,15 +83,15 @@ $guideData = [
                 'title' => '2A. Antarmuka Chat & Cara Bertanya',
                 'steps' => [
                     ['no'=>10, 'text'=>'Tampilan Utama Chatbot',
-                     'desc'=>'Setelah login, halaman ini yang pertama muncul. Area tengah adalah percakapan dengan AI. Ketik pertanyaan Anda pada kolom input bawah (kotak merah) — contoh: <em>"Tampilkan 10 transaksi terbesar bulan ini"</em> — lalu tekan <kbd>Enter</kbd> atau klik tombol kirim.',
+                     'desc'=>'Setelah login, halaman ini yang pertama muncul. Area tengah adalah percakapan dengan AI. Ketik pertanyaan pada kolom input bawah (kotak merah) — contoh: <em>"Tampilkan 10 transaksi terbesar bulan ini"</em> — lalu tekan <kbd>Enter</kbd> atau klik tombol kirim.',
                      'img'=>'real_chatbot_page.png', 'label'=>'HALAMAN UTAMA CHATBOT'],
 
                     ['no'=>11, 'text'=>'Membuka Sidebar Riwayat Chat',
-                     'desc'=>'Klik ikon <i class="fas fa-bars"></i> hamburger di pojok kiri atas (kotak merah) untuk membuka panel Sidebar Riwayat. Di sini Anda bisa melihat semua sesi percakapan lama, dikelompokkan berdasarkan tanggal. Klik judul chat untuk membuka kembali.',
+                     'desc'=>'Klik ikon <i class="fas fa-bars"></i> hamburger di pojok kiri atas (kotak merah) untuk membuka panel Sidebar Riwayat. Di sini Anda bisa melihat semua sesi percakapan lama. Klik judul chat untuk membuka kembali.',
                      'img'=>'real_chatbot_sidebar.png', 'label'=>'SIDEBAR RIWAYAT CHAT'],
 
                     ['no'=>12, 'text'=>'Menghapus Sesi Chat',
-                     'desc'=>'Klik ikon <i class="fas fa-trash"></i> sampah pada judul chat di sidebar. Dialog konfirmasi (kotak merah) akan muncul. Klik <strong>"Ya, Hapus"</strong> untuk menghapus permanen, atau <strong>"Batal"</strong> untuk membatalkan. Penghapusan tidak dapat dibatalkan.',
+                     'desc'=>'Klik ikon <i class="fas fa-trash"></i> sampah pada judul chat di sidebar. Dialog konfirmasi (kotak merah) akan muncul. Klik <strong>"Ya, Hapus"</strong> untuk menghapus permanen, atau <strong>"Batal"</strong> untuk membatalkan.',
                      'img'=>'real_chatbot_delete_confirm.png', 'label'=>'KONFIRMASI HAPUS CHAT'],
                 ],
             ],
@@ -106,18 +106,18 @@ $guideData = [
         'title' => '3. MONITORING DASHBOARD',
         'icon'  => 'fas fa-chart-pie',
         'color' => 'linear-gradient(135deg,#8b5cf6,#7c3aed)',
-        'desc'  => 'Halaman pertama yang dilihat Admin. Menampilkan statistik sistem real-time, navigasi sidebar, quick-links, dan pengaturan tema tampilan.',
+        'desc'  => 'Halaman pertama yang dilihat Admin. Menampilkan statistik sistem real-time, navigasi sidebar, dan pengaturan tema tampilan.',
         'sections' => [
             [
                 'id'    => 'dash-stats',
-                'title' => '3A. Kartu Statistik & Quick Links',
+                'title' => '3A. Kartu Statistik & Navigasi',
                 'steps' => [
                     ['no'=>13, 'text'=>'Dashboard Overview — 4 Kartu Statistik',
-                     'desc'=>'Dashboard menampilkan 4 kartu (kotak merah): <strong>Total Users</strong> (jumlah akun terdaftar), <strong>Total Roles</strong> (grup hak akses), <strong>Total Databases</strong> (koneksi aktif), dan <strong>Total Tables</strong> (tabel yang bisa diakses AI). Angka diperbarui real-time.',
+                     'desc'=>'Dashboard menampilkan 4 kartu (kotak merah): <strong>Total Users</strong>, <strong>Total Roles</strong>, <strong>Total Databases</strong>, dan <strong>Total Tables</strong>. Angka diperbarui real-time.',
                      'img'=>'real_dashboard.png', 'label'=>'KARTU STATISTIK SISTEM'],
 
                     ['no'=>14, 'text'=>'Sidebar Navigasi Admin',
-                     'desc'=>'Sidebar kiri (kotak merah) adalah navigasi utama Admin Panel. Berisi menu: <strong>Dashboard, Management Database, AI Management, Management Role, Management User,</strong> dan <strong>Panduan</strong>. Klik nama menu untuk berpindah halaman. Di bagian bawah terdapat info user yang sedang login.',
+                     'desc'=>'Sidebar kiri (kotak merah) adalah navigasi utama Admin Panel. Berisi menu: <strong>Dashboard, Management Database, AI Management, Management Role, Management User,</strong> dan <strong>Panduan</strong>. Di bagian bawah terdapat info user yang sedang login.',
                      'img'=>'real_sidebar.png', 'label'=>'NAVIGASI SIDEBAR ADMIN'],
                 ],
             ],
@@ -126,11 +126,11 @@ $guideData = [
                 'title' => '3B. Fitur Dark Mode',
                 'steps' => [
                     ['no'=>15, 'text'=>'Tombol Toggle Dark/Light Mode',
-                     'desc'=>'Temukan tombol toggle tema (kotak merah) di bagian atas sidebar atau header. Klik sekali untuk beralih dari Light Mode ke Dark Mode. Preferensi tema disimpan otomatis di browser sehingga tetap berlaku saat Anda login kembali.',
+                     'desc'=>'Temukan toggle tema (kotak merah) di bagian atas header. Klik sekali untuk beralih dari Light Mode ke Dark Mode. Preferensi disimpan otomatis di browser.',
                      'img'=>'real_dash_darkmode.png', 'label'=>'TOGGLE DARK MODE'],
 
                     ['no'=>16, 'text'=>'Tampilan Dark Mode Aktif',
-                     'desc'=>'Saat Dark Mode aktif, seluruh antarmuka berubah ke palet warna gelap (kotak merah menunjukkan area yang berubah). Sangat nyaman untuk penggunaan di kondisi pencahayaan rendah atau untuk mereduksi kelelahan mata saat bekerja malam.',
+                     'desc'=>'Saat Dark Mode aktif, seluruh antarmuka berubah ke palet warna gelap (kotak merah). Sangat nyaman untuk penggunaan di kondisi pencahayaan rendah.',
                      'img'=>'real_dashboard_dark.png', 'label'=>'TAMPILAN DARK MODE'],
                 ],
             ],
@@ -152,19 +152,19 @@ $guideData = [
                 'title' => '4A. Halaman Daftar & Toolbar Database',
                 'steps' => [
                     ['no'=>17, 'text'=>'Halaman Daftar Database',
-                     'desc'=>'Semua koneksi database yang terdaftar ditampilkan sebagai kartu (kotak merah). Setiap kartu memuat: nama alias, kode, driver (PostgreSQL/MySQL/MariaDB), host:port, nama database, schema, status koneksi (Connected/Failed/Not Tested), dan tombol aksi.',
+                     'desc'=>'Semua koneksi database yang terdaftar ditampilkan sebagai kartu (kotak merah). Setiap kartu memuat: nama alias, driver (PostgreSQL/MySQL/MariaDB), host:port, status koneksi, dan tombol aksi.',
                      'img'=>'real_db_list.png', 'label'=>'DAFTAR KONEKSI DATABASE'],
 
                     ['no'=>18, 'text'=>'Toolbar: Pencarian, Filter, & View Toggle',
-                     'desc'=>'Toolbar (kotak merah) di bawah header berisi: <strong>Kolom Pencarian</strong> (cari berdasarkan nama/kode/host), <strong>Filter Driver</strong> (PostgreSQL/MySQL/MariaDB), <strong>Filter Status</strong> (Active/Inactive/Connected/Failed/Not Tested), dan <strong>Toggle View</strong> (Grid <i class="fas fa-th-large"></i> / List <i class="fas fa-list"></i>).',
+                     'desc'=>'Toolbar (kotak merah) berisi: <strong>Kolom Pencarian</strong>, <strong>Filter Driver</strong>, <strong>Filter Status</strong>, dan <strong>Toggle View</strong> Grid/List.',
                      'img'=>'real_db_toolbar.png', 'label'=>'TOOLBAR PENCARIAN & FILTER'],
 
                     ['no'=>19, 'text'=>'Tombol "Test All Connections"',
-                     'desc'=>'Klik tombol <strong>"Test All"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) di pojok kanan atas untuk menguji semua koneksi database sekaligus. Hasilnya ditampilkan dalam health bar yang muncul di bawah header: Total, <span style="color:#10b981">Connected</span>, dan <span style="color:#ef4444">Failed</span>.',
+                     'desc'=>'Klik tombol <strong>"Test All"</strong> (kotak merah) di pojok kanan atas untuk menguji semua koneksi database sekaligus. Hasilnya ditampilkan dalam health bar: Total, <span style="color:#10b981">Connected</span>, dan <span style="color:#ef4444">Failed</span>.',
                      'img'=>'real_db_test_all.png', 'label'=>'TOMBOL TEST ALL CONNECTIONS'],
 
                     ['no'=>20, 'text'=>'Tombol "Tambah Database"',
-                     'desc'=>'Klik tombol <strong>"+ Tambah Database"</strong> (kotak merah) untuk membuka wizard penambahan koneksi baru. Wizard terdiri dari 3 langkah yang harus diisi secara berurutan.',
+                     'desc'=>'Klik tombol <strong>"+ Tambah Database"</strong> (kotak merah) untuk membuka wizard penambahan koneksi baru. Wizard terdiri dari 3 langkah.',
                      'img'=>'real_db_tambah_btn.png', 'label'=>'TOMBOL TAMBAH DATABASE'],
                 ],
             ],
@@ -173,15 +173,15 @@ $guideData = [
                 'title' => '4B. Wizard Tambah Database (3 Langkah)',
                 'steps' => [
                     ['no'=>21, 'text'=>'Step 1 — Identitas: Nama, Kode & Driver',
-                     'desc'=>'Wizard dibuka, langkah pertama meminta: <br>• <strong>Nama Koneksi/Alias</strong> — nama tampilan (contoh: "Production DB") <br>• <strong>Kode</strong> — pengenal unik huruf kecil & underscore (contoh: "prod_db") <br>• <strong>Driver</strong> — pilih salah satu: PostgreSQL, MySQL, atau MariaDB <br>• <strong>Deskripsi</strong> (opsional) <br>• Centang <strong>Aktif</strong> dan/atau <strong>Default</strong> jika perlu.',
+                     'desc'=>'Wizard langkah pertama meminta: <br>• <strong>Nama Koneksi/Alias</strong> — nama tampilan (contoh: "Production DB") <br>• <strong>Kode</strong> — pengenal unik huruf kecil & underscore <br>• <strong>Driver</strong> — pilih: PostgreSQL, MySQL, atau MariaDB <br>• Centang <strong>Aktif</strong> dan/atau <strong>Default</strong> jika perlu.',
                      'img'=>'real_db_modal_step1.png', 'label'=>'WIZARD STEP 1: IDENTITAS'],
 
                     ['no'=>22, 'text'=>'Step 2 — Koneksi: Host, Port, Kredensial & Schema',
-                     'desc'=>'Isi detail koneksi server: <br>• <strong>Host</strong> — IP atau hostname server database <br>• <strong>Port</strong> — otomatis terisi sesuai driver (5432/3306) <br>• <strong>Nama Database</strong> — nama database asli di server <br>• <strong>Username & Password</strong> — kredensial akses database <br>• <strong>SSL Mode</strong> — keamanan koneksi (None/Prefer/Require) <br>• <strong>Schema</strong> — klik Load <i class="fas fa-sync-alt"></i> untuk deteksi otomatis',
+                     'desc'=>'Isi detail koneksi server: <br>• <strong>Host</strong> — IP atau hostname server database <br>• <strong>Port</strong> — otomatis terisi sesuai driver (5432/3306) <br>• <strong>Nama Database</strong> — nama database asli di server <br>• <strong>Username & Password</strong> — kredensial akses database <br>• <strong>Schema</strong> — klik Load untuk deteksi otomatis',
                      'img'=>'real_db_modal_step2.png', 'label'=>'WIZARD STEP 2: KONEKSI'],
 
                     ['no'=>23, 'text'=>'Step 3 — Test Koneksi Sebelum Simpan',
-                     'desc'=>'Langkah terakhir menyediakan panel uji koneksi (kotak merah). Klik <strong>"Test Sekarang"</strong> untuk memverifikasi parameter yang diisi sudah benar sebelum disimpan. Hasil muncul di bawah tombol: hijau = berhasil, merah = gagal beserta pesan error. Setelah berhasil, klik <strong>"Simpan Database"</strong>.',
+                     'desc'=>'Klik <strong>"Test Sekarang"</strong> untuk memverifikasi parameter yang diisi. Hasil muncul di bawah tombol: hijau = berhasil, merah = gagal. Setelah berhasil, klik <strong>"Simpan Database"</strong>.',
                      'img'=>'real_db_modal_step3.png', 'label'=>'WIZARD STEP 3: TEST & SIMPAN'],
                 ],
             ],
@@ -190,27 +190,23 @@ $guideData = [
                 'title' => '4C. Mengelola Koneksi yang Sudah Ada',
                 'steps' => [
                     ['no'=>24, 'text'=>'Tombol Edit Database',
-                     'desc'=>'Pada setiap kartu database, klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) untuk membuka modal Edit. Semua data koneksi yang tersimpan akan terisi otomatis dan siap diubah. Kolom password dikosongkan — isi hanya jika ingin menggantinya.',
+                     'desc'=>'Pada setiap kartu database, klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) untuk membuka modal Edit. Semua data koneksi yang tersimpan akan terisi otomatis.',
                      'img'=>'real_db_edit_btn.png', 'label'=>'TOMBOL EDIT DATABASE'],
 
                     ['no'=>25, 'text'=>'Modal Edit Database',
-                     'desc'=>'Modal edit menampilkan semua field yang sudah terisi dengan data lama (kotak merah). Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan Database"</strong>. Anda juga dapat menjalankan uji koneksi ulang sebelum menyimpan perubahan.',
+                     'desc'=>'Modal edit menampilkan semua field yang sudah terisi (kotak merah). Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan Database"</strong>.',
                      'img'=>'real_db_edit_modal.png', 'label'=>'MODAL EDIT DATABASE'],
 
-                    ['no'=>26, 'text'=>'Status Badge Koneksi',
-                     'desc'=>'Di bagian bawah setiap kartu terdapat badge status (kotak merah): <span style="background:rgba(16,185,129,.1);color:#047857;padding:2px 8px;border-radius:6px;font-size:0.8rem"><i class="fas fa-check-circle"></i> Connected</span> (koneksi aktif), <span style="background:rgba(239,68,68,.1);color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:0.8rem"><i class="fas fa-times-circle"></i> Failed</span> (gagal), atau <span style="background:rgba(245,158,11,.1);color:#b45309;padding:2px 8px;border-radius:6px;font-size:0.8rem"><i class="fas fa-question-circle"></i> Not Tested</span> (belum diuji). Terdapat juga dot animasi di sudut kartu.',
+                    ['no'=>26, 'text'=>'Badge Status Koneksi',
+                     'desc'=>'Di bagian bawah setiap kartu terdapat badge status (kotak merah): <span style="background:rgba(16,185,129,.1);color:#047857;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-check-circle"></i> Connected</span>, <span style="background:rgba(239,68,68,.1);color:#b91c1c;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-times-circle"></i> Failed</span>, atau <span style="background:rgba(245,158,11,.1);color:#b45309;padding:2px 8px;border-radius:6px;font-size:.8rem"><i class="fas fa-question-circle"></i> Not Tested</span>.',
                      'img'=>'real_db_status_badge.png', 'label'=>'BADGE STATUS KONEKSI'],
 
-                    ['no'=>27, 'text'=>'Tombol Test Koneksi Individual',
-                     'desc'=>'Pada setiap kartu, klik ikon <i class="fas fa-plug"></i> (kotak merah) untuk menguji satu koneksi database secara individual. Dot status di sudut kartu akan berubah: hijau (berhasil) atau merah (gagal) beserta notifikasi waktu respons dalam milidetik.',
-                     'img'=>'real_db_delete_btn.png', 'label'=>'TEST KONEKSI INDIVIDUAL'],
-
-                    ['no'=>28, 'text'=>'Copy Host & Nama Database',
-                     'desc'=>'Pada detail koneksi di dalam kartu, terdapat tombol copy <i class="fas fa-copy"></i> (kotak merah) di samping Host:Port dan Nama Database. Klik untuk menyalin nilai ke clipboard secara instan. Notifikasi toast kecil akan muncul sebagai konfirmasi.',
+                    ['no'=>27, 'text'=>'Copy Host & Nama Database',
+                     'desc'=>'Pada detail koneksi di kartu, terdapat tombol copy <i class="fas fa-copy"></i> (kotak merah) di samping Host:Port dan Nama Database. Klik untuk menyalin nilai ke clipboard. Notifikasi toast akan muncul sebagai konfirmasi.',
                      'img'=>'real_db_copy_btn.png', 'label'=>'TOMBOL COPY HOST/DATABASE'],
 
-                    ['no'=>29, 'text'=>'Menghapus Koneksi Database',
-                     'desc'=>'Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah) pada kartu database yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul. Klik <strong>"Ya, Hapus"</strong> untuk melanjutkan. <strong>⚠ Perhatian:</strong> database dengan badge <i class="fas fa-star"></i> Default tidak dapat dihapus.',
+                    ['no'=>28, 'text'=>'Menghapus Koneksi Database',
+                     'desc'=>'Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah) pada kartu database yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul. <strong>⚠ Database bertanda Default tidak dapat dihapus.</strong>',
                      'img'=>'real_db_delete_confirm.png', 'label'=>'KONFIRMASI HAPUS DATABASE'],
                 ],
             ],
@@ -231,12 +227,12 @@ $guideData = [
                 'id'    => 'ai-overview',
                 'title' => '5A. Halaman AI Management & Statistik',
                 'steps' => [
-                    ['no'=>30, 'text'=>'Halaman AI Management — Statistik Utama',
-                     'desc'=>'Bagian atas halaman menampilkan 4 kartu statistik AI (kotak merah): <strong>Total Provider</strong>, <strong>API Keys Aktif</strong>, <strong>Total Model</strong>, dan <strong>Provider Aktif</strong>. Di bawahnya terdapat grid kartu provider yang terdaftar.',
+                    ['no'=>29, 'text'=>'Halaman AI Management — Statistik Utama',
+                     'desc'=>'Bagian atas menampilkan 4 kartu statistik AI (kotak merah): <strong>Total Provider</strong>, <strong>API Keys Aktif</strong>, <strong>Total Model</strong>, dan <strong>Provider Aktif</strong>. Di bawahnya terdapat grid kartu provider.',
                      'img'=>'real_ai_management.png', 'label'=>'HALAMAN AI MANAGEMENT'],
 
-                    ['no'=>31, 'text'=>'Grid Kartu Provider AI',
-                     'desc'=>'Setiap provider AI (OpenAI, Gemini, Claude, Mistral, Groq, dst.) ditampilkan sebagai kartu terpisah (kotak merah). Kartu menampilkan: logo provider, jumlah key aktif, jumlah model, toggle aktif/nonaktif, dan tab untuk navigasi antara Keys dan Models.',
+                    ['no'=>30, 'text'=>'Grid Kartu Provider AI',
+                     'desc'=>'Setiap provider AI ditampilkan sebagai kartu terpisah (kotak merah). Kartu menampilkan: logo provider, jumlah key aktif, jumlah model, toggle aktif/nonaktif, dan tab Keys/Models.',
                      'img'=>'real_ai_providers.png', 'label'=>'GRID PROVIDER AI'],
                 ],
             ],
@@ -244,20 +240,20 @@ $guideData = [
                 'id'    => 'ai-provider',
                 'title' => '5B. Mengelola Provider AI',
                 'steps' => [
-                    ['no'=>32, 'text'=>'Tombol Tambah Provider Baru',
-                     'desc'=>'Klik tombol <strong>"+ Tambah Provider"</strong> (kotak merah) di header halaman untuk mendaftarkan penyedia AI baru yang belum ada dalam daftar (misal: provider lokal atau kustom).',
+                    ['no'=>31, 'text'=>'Tombol Tambah Provider Baru',
+                     'desc'=>'Klik tombol <strong>"+ Tambah Provider"</strong> (kotak merah) di header untuk mendaftarkan penyedia AI baru.',
                      'img'=>'real_ai_add_provider_btn.png', 'label'=>'TOMBOL TAMBAH PROVIDER'],
 
-                    ['no'=>33, 'text'=>'Modal Form Tambah Provider',
-                     'desc'=>'Form (kotak merah) meminta: <strong>Nama Provider</strong>, <strong>Kode Unik</strong> (huruf kecil, misal "openai"), <strong>Base URL API</strong> (endpoint API provider), dan <strong>Status Aktif</strong>. Klik <strong>"Simpan"</strong> setelah semua terisi.',
+                    ['no'=>32, 'text'=>'Modal Form Tambah Provider',
+                     'desc'=>'Form (kotak merah) meminta: <strong>Nama Provider</strong>, <strong>Kode Unik</strong> (huruf kecil, misal "openai"), <strong>Base URL API</strong>, dan <strong>Status Aktif</strong>. Klik <strong>"Simpan"</strong> setelah semua terisi.',
                      'img'=>'real_ai_provider_modal.png', 'label'=>'FORM TAMBAH PROVIDER AI'],
 
-                    ['no'=>34, 'text'=>'Toggle Aktif/Nonaktif Provider',
-                     'desc'=>'Pada setiap kartu provider, terdapat toggle switch (kotak merah) di area header kartu. Klik untuk mengaktifkan atau menonaktifkan provider. Provider yang nonaktif tidak akan digunakan chatbot meskipun memiliki key yang valid.',
+                    ['no'=>33, 'text'=>'Toggle Aktif/Nonaktif Provider',
+                     'desc'=>'Pada kartu provider, terdapat toggle switch (kotak merah). Klik untuk mengaktifkan atau menonaktifkan provider. Provider nonaktif tidak digunakan chatbot meskipun punya key yang valid.',
                      'img'=>'real_ai_toggle_provider.png', 'label'=>'TOGGLE AKTIF PROVIDER'],
 
-                    ['no'=>35, 'text'=>'Menghapus Provider',
-                     'desc'=>'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> Hapus (kotak merah) di kartu provider. Dialog konfirmasi akan muncul. Menghapus provider akan menghapus juga semua API Key dan Model yang terdaftar di bawah provider tersebut — tindakan ini tidak dapat dibatalkan.',
+                    ['no'=>34, 'text'=>'Menghapus Provider',
+                     'desc'=>'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> Hapus (kotak merah). Dialog konfirmasi akan muncul. Menghapus provider juga menghapus semua API Key dan Model di bawahnya — tidak dapat dibatalkan.',
                      'img'=>'real_ai_delete_provider_btn.png', 'label'=>'HAPUS PROVIDER AI'],
                 ],
             ],
@@ -265,24 +261,24 @@ $guideData = [
                 'id'    => 'ai-keys',
                 'title' => '5C. Mengelola API Keys',
                 'steps' => [
-                    ['no'=>36, 'text'=>'Tab "Keys" pada Kartu Provider',
-                     'desc'=>'Klik tab <strong>"Keys"</strong> (kotak merah) pada kartu provider untuk melihat semua API Key yang terdaftar. Setiap key ditampilkan dengan nama, nilai (tersembunyi), status, dan tombol aksi. Tab ini aktif secara default.',
+                    ['no'=>35, 'text'=>'Tab "Keys" pada Kartu Provider',
+                     'desc'=>'Klik tab <strong>"Keys"</strong> (kotak merah) pada kartu provider untuk melihat semua API Key yang terdaftar.',
                      'img'=>'real_ai_keys_tab.png', 'label'=>'TAB API KEYS'],
 
-                    ['no'=>37, 'text'=>'Tombol Tambah API Key',
-                     'desc'=>'Klik tombol <strong>"+ Tambah Key"</strong> <i class="fas fa-plus"></i> (kotak merah) di dalam tab Keys untuk mendaftarkan token API baru dari dashboard provider (OpenAI, Google, Anthropic, dst.).',
+                    ['no'=>36, 'text'=>'Tombol Tambah API Key',
+                     'desc'=>'Klik tombol <strong>"+ Tambah Key"</strong> (kotak merah) di dalam tab Keys untuk mendaftarkan token API baru.',
                      'img'=>'real_ai_add_key_btn.png', 'label'=>'TOMBOL TAMBAH API KEY'],
 
-                    ['no'=>38, 'text'=>'Modal Form Tambah API Key',
-                     'desc'=>'Form tambah key (kotak merah) meminta: <strong>Nama Key</strong> (label deskriptif, misal "OpenAI Production Key"), <strong>Nilai API Key</strong> (token rahasia dari provider — disamarkan saat diketik), <strong>Batas Token/Bulan</strong> (opsional), dan <strong>Status Aktif</strong>.',
+                    ['no'=>37, 'text'=>'Modal Form Tambah API Key',
+                     'desc'=>'Form tambah key (kotak merah) meminta: <strong>Nama Key</strong> (label deskriptif), <strong>Nilai API Key</strong> (token rahasia dari provider — disamarkan), <strong>Batas Token/Bulan</strong> (opsional), dan <strong>Status Aktif</strong>.',
                      'img'=>'real_ai_key_modal.png', 'label'=>'FORM TAMBAH API KEY'],
 
-                    ['no'=>39, 'text'=>'Tombol Edit API Key',
-                     'desc'=>'Klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) di samping nama key untuk memperbarui informasi — misalnya mengubah label, batas token, atau status aktif. Nilai key asli tidak ditampilkan ulang demi keamanan.',
+                    ['no'=>38, 'text'=>'Tombol Edit API Key',
+                     'desc'=>'Klik ikon <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) di samping nama key untuk memperbarui label, batas token, atau status aktif. Nilai key asli tidak ditampilkan ulang demi keamanan.',
                      'img'=>'real_ai_edit_key_btn.png', 'label'=>'TOMBOL EDIT API KEY'],
 
-                    ['no'=>40, 'text'=>'Tombol Reset Limit Token',
-                     'desc'=>'Jika sebuah key mencapai batas token bulanan yang ditetapkan, klik tombol <strong>"Reset Limit"</strong> <i class="fas fa-sync-alt"></i> (kotak merah) untuk mereset counter penggunaan token ke nol agar key bisa digunakan kembali.',
+                    ['no'=>39, 'text'=>'Tombol Reset Limit Token',
+                     'desc'=>'Jika key mencapai batas token bulanan, klik <strong>"Reset Limit"</strong> (kotak merah) untuk mereset counter penggunaan ke nol.',
                      'img'=>'real_ai_reset_limit_btn.png', 'label'=>'RESET LIMIT TOKEN'],
                 ],
             ],
@@ -290,16 +286,16 @@ $guideData = [
                 'id'    => 'ai-models',
                 'title' => '5D. Mengelola Model AI',
                 'steps' => [
-                    ['no'=>41, 'text'=>'Tab "Models" pada Kartu Provider',
-                     'desc'=>'Klik tab <strong>"Models"</strong> (kotak merah) untuk beralih ke daftar model AI yang didukung oleh provider ini. Setiap model ditampilkan dengan nama teknis (model ID), nama tampilan, jenis (chat/completion/embedding), dan tombol aksi.',
+                    ['no'=>40, 'text'=>'Tab "Models" pada Kartu Provider',
+                     'desc'=>'Klik tab <strong>"Models"</strong> (kotak merah) untuk melihat daftar model AI yang didukung provider ini.',
                      'img'=>'real_ai_models_tab.png', 'label'=>'TAB MODELS AI'],
 
-                    ['no'=>42, 'text'=>'Tombol Tambah Model AI',
-                     'desc'=>'Klik tombol <strong>"+ Tambah Model"</strong> (kotak merah) untuk mendaftarkan model baru. Anda perlu mengetahui identifier teknis model yang ingin didaftarkan dari dokumentasi provider.',
+                    ['no'=>41, 'text'=>'Tombol Tambah Model AI',
+                     'desc'=>'Klik tombol <strong>"+ Tambah Model"</strong> (kotak merah) untuk mendaftarkan model baru.',
                      'img'=>'real_ai_add_model_btn.png', 'label'=>'TOMBOL TAMBAH MODEL'],
 
-                    ['no'=>43, 'text'=>'Modal Form Tambah Model AI',
-                     'desc'=>'Form model (kotak merah) meminta: <strong>Model ID</strong> (identifier teknis dari provider — contoh: <code>gpt-4o-mini</code>, <code>gemini-1.5-flash</code>), <strong>Nama Tampilan</strong> (label ramah pengguna), <strong>Tipe Model</strong>, <strong>Max Token</strong>, dan <strong>Status Aktif</strong>.',
+                    ['no'=>42, 'text'=>'Modal Form Tambah Model AI',
+                     'desc'=>'Form model (kotak merah) meminta: <strong>Model ID</strong> (identifier teknis dari provider — contoh: <code>gpt-4o-mini</code>, <code>gemini-1.5-flash</code>), <strong>Nama Tampilan</strong>, <strong>Tipe Model</strong>, <strong>Max Token</strong>, dan <strong>Status Aktif</strong>.',
                      'img'=>'real_ai_model_modal.png', 'label'=>'FORM TAMBAH MODEL AI'],
                 ],
             ],
@@ -307,12 +303,12 @@ $guideData = [
                 'id'    => 'ai-health',
                 'title' => '5E. Health Check — Uji Validitas API Key',
                 'steps' => [
-                    ['no'=>44, 'text'=>'Tombol Health Check',
-                     'desc'=>'Klik tombol <strong>"Health Check"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) yang ada di setiap baris API Key. Tombol ini menjalankan pengujian nyata: memanggil API provider secara langsung untuk memverifikasi key masih valid, saldo masih ada, dan batas rate-limit belum terlampaui.',
+                    ['no'=>43, 'text'=>'Tombol Health Check',
+                     'desc'=>'Klik tombol <strong>"Health Check"</strong> <i class="fas fa-heartbeat"></i> (kotak merah) pada baris API Key. Tombol ini memanggil API provider secara langsung untuk memverifikasi key masih valid dan tidak melampaui rate-limit.',
                      'img'=>'real_ai_health_btn.png', 'label'=>'TOMBOL HEALTH CHECK'],
 
-                    ['no'=>45, 'text'=>'Hasil Health Check',
-                     'desc'=>'Modal Health Check (kotak merah) menampilkan hasil pengujian secara detail: status key (Valid/Invalid/Rate Limited/Expired), waktu respons, pesan error jika ada, dan rekomendasi tindakan yang perlu diambil.',
+                    ['no'=>44, 'text'=>'Hasil Health Check',
+                     'desc'=>'Modal Health Check (kotak merah) menampilkan hasil pengujian: status key (Valid/Invalid/Rate Limited/Expired), waktu respons, pesan error jika ada, dan rekomendasi tindakan.',
                      'img'=>'real_ai_health_modal.png', 'label'=>'HASIL HEALTH CHECK'],
                 ],
             ],
@@ -327,22 +323,22 @@ $guideData = [
         'title' => '6. ROLE MANAGEMENT',
         'icon'  => 'fas fa-user-shield',
         'color' => 'linear-gradient(135deg,#ec4899,#be185d)',
-        'desc'  => 'Mengatur grup hak akses (Role) yang menentukan tabel database mana saja yang boleh dibaca oleh AI untuk sekelompok pengguna. Halaman ini memiliki layout dua kolom: daftar role di kiri, pengaturan izin tabel di kanan.',
+        'desc'  => 'Mengatur grup hak akses (Role) yang menentukan tabel database mana yang boleh dibaca AI untuk sekelompok pengguna.',
         'sections' => [
             [
                 'id'    => 'role-list',
                 'title' => '6A. Daftar Role & Tambah Role Baru',
                 'steps' => [
-                    ['no'=>46, 'text'=>'Tampilan Halaman Role Management',
-                     'desc'=>'Halaman terbagi dua bagian (kotak merah): <strong>Kiri</strong> — daftar semua role yang ada; <strong>Kanan</strong> — area pengaturan izin tabel untuk role yang sedang dipilih. Klik nama role di kiri untuk menampilkan izin tabelnya di kanan.',
+                    ['no'=>45, 'text'=>'Tampilan Halaman Role Management',
+                     'desc'=>'Halaman terbagi dua (kotak merah): <strong>Kiri</strong> — daftar semua role; <strong>Kanan</strong> — area pengaturan izin tabel. Klik nama role di kiri untuk menampilkan izin tabelnya di kanan.',
                      'img'=>'real_role_list.png', 'label'=>'HALAMAN ROLE MANAGEMENT'],
 
-                    ['no'=>47, 'text'=>'Tombol Tambah Role',
-                     'desc'=>'Klik tombol <strong>"+ Tambah Role"</strong> (kotak merah) di pojok kanan atas untuk membuka form pembuatan role baru. Setiap role akan menjadi grup yang bisa ditetapkan ke satu atau lebih pengguna.',
+                    ['no'=>46, 'text'=>'Tombol Tambah Role',
+                     'desc'=>'Klik tombol <strong>"+ Tambah Role"</strong> (kotak merah) di pojok kanan atas untuk membuka form pembuatan role baru.',
                      'img'=>'real_role_tambah_btn.png', 'label'=>'TOMBOL TAMBAH ROLE'],
 
-                    ['no'=>48, 'text'=>'Modal Form Tambah Role',
-                     'desc'=>'Isi form (kotak merah): <strong>Nama Role</strong> (contoh: "Finance Team", "HRD", "Staff Gudang") dan <strong>Deskripsi</strong> (opsional, menjelaskan fungsi role). Klik <strong>"Simpan"</strong> untuk membuat role baru. Role yang baru dibuat awalnya tidak memiliki akses ke tabel mana pun.',
+                    ['no'=>47, 'text'=>'Modal Form Tambah Role',
+                     'desc'=>'Isi form (kotak merah): <strong>Nama Role</strong> (contoh: "Finance Team", "HRD") dan <strong>Deskripsi</strong> (opsional). Klik <strong>"Simpan"</strong>. Role baru awalnya tidak memiliki akses ke tabel mana pun.',
                      'img'=>'real_role_modal.png', 'label'=>'FORM TAMBAH ROLE'],
                 ],
             ],
@@ -350,20 +346,20 @@ $guideData = [
                 'id'    => 'role-permissions',
                 'title' => '6B. Mengatur Izin Akses Tabel',
                 'steps' => [
-                    ['no'=>49, 'text'=>'Area Pengaturan Permissions',
-                     'desc'=>'Setelah memilih role di panel kiri, panel kanan (kotak merah) menampilkan semua tabel dari semua database. Centang tabel yang boleh diakses AI untuk role ini. Kolom info menampilkan: berapa tabel ditampilkan, berapa yang terpilih.',
+                    ['no'=>48, 'text'=>'Area Pengaturan Permissions',
+                     'desc'=>'Setelah memilih role, panel kanan (kotak merah) menampilkan semua tabel dari semua database. Centang tabel yang boleh diakses AI untuk role ini.',
                      'img'=>'real_role_permissions.png', 'label'=>'AREA PENGATURAN IZIN TABEL'],
 
-                    ['no'=>50, 'text'=>'Filter Bar Pencarian Tabel',
-                     'desc'=>'Gunakan filter bar (kotak merah) untuk mempersempit daftar tabel: <strong>Cari</strong> berdasarkan nama tabel, <strong>Filter Database</strong> (pilih database tertentu), <strong>Filter Schema</strong> (muncul setelah pilih database), dan <strong>Filter Status</strong> (Semua / Diizinkan / Belum Diizinkan).',
+                    ['no'=>49, 'text'=>'Filter Bar Pencarian Tabel',
+                     'desc'=>'Gunakan filter bar (kotak merah) untuk mempersempit daftar: <strong>Cari</strong> nama tabel, <strong>Filter Database</strong>, <strong>Filter Schema</strong>, dan <strong>Filter Status</strong> (Semua / Diizinkan / Belum Diizinkan).',
                      'img'=>'real_role_filter_bar.png', 'label'=>'FILTER PENCARIAN TABEL'],
 
-                    ['no'=>51, 'text'=>'Tombol Pilih Semua & Hapus Semua',
-                     'desc'=>'Dua tombol cepat (kotak merah): <strong>"Pilih Semua" <i class="fas fa-check-square"></i></strong> — centang semua tabel yang sedang tampil (sesuai filter aktif); <strong>"Hapus Semua" <i class="fas fa-square"></i></strong> — hapus semua centang. Berguna untuk manajemen izin dalam jumlah besar.',
+                    ['no'=>50, 'text'=>'Tombol Pilih Semua & Hapus Semua',
+                     'desc'=>'Dua tombol cepat (kotak merah): <strong>"Pilih Semua"</strong> — centang semua tabel yang tampil; <strong>"Hapus Semua"</strong> — hapus semua centang. Berguna untuk manajemen izin massal.',
                      'img'=>'real_role_bulk_select.png', 'label'=>'TOMBOL PILIH/HAPUS SEMUA'],
 
-                    ['no'=>52, 'text'=>'Tombol Simpan Izin Akses',
-                     'desc'=>'Setelah selesai mencentang tabel yang diizinkan, klik <strong>"Simpan Akses"</strong> <i class="fas fa-save"></i> (kotak merah). Jika ada perubahan yang belum disimpan, indikator kuning <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> akan muncul sebagai pengingat.',
+                    ['no'=>51, 'text'=>'Tombol Simpan Izin Akses',
+                     'desc'=>'Setelah selesai mencentang tabel, klik <strong>"Simpan Akses"</strong> (kotak merah). Jika ada perubahan yang belum disimpan, indikator kuning <i class="fas fa-exclamation-triangle" style="color:#f59e0b"></i> akan muncul sebagai pengingat.',
                      'img'=>'real_role_save_permissions.png', 'label'=>'TOMBOL SIMPAN AKSES'],
                 ],
             ],
@@ -371,16 +367,16 @@ $guideData = [
                 'id'    => 'role-edit-del',
                 'title' => '6C. Edit & Hapus Role',
                 'steps' => [
-                    ['no'=>53, 'text'=>'Tombol Edit Role',
-                     'desc'=>'Pada panel daftar role di kiri, setiap item memiliki ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah) di samping kanan nama role. Klik ikon ini untuk membuka modal edit dan mengubah nama atau deskripsi role tanpa mempengaruhi izin tabel yang sudah diset.',
+                    ['no'=>52, 'text'=>'Tombol Edit Role',
+                     'desc'=>'Pada panel daftar role, setiap item memiliki ikon <i class="fas fa-edit" style="color:#f59e0b"></i> (kotak merah). Klik untuk membuka modal edit — mengubah nama atau deskripsi tidak mempengaruhi izin tabel yang sudah diset.',
                      'img'=>'real_role_edit_btn.png', 'label'=>'TOMBOL EDIT ROLE'],
 
-                    ['no'=>54, 'text'=>'Modal Edit Role',
-                     'desc'=>'Modal edit (kotak merah) menampilkan form dengan nilai nama dan deskripsi role yang sudah ada. Ubah sesuai kebutuhan lalu klik <strong>"Simpan"</strong> untuk memperbarui, atau <strong>"Batal"</strong> untuk menutup tanpa perubahan.',
+                    ['no'=>53, 'text'=>'Modal Edit Role',
+                     'desc'=>'Modal edit (kotak merah) menampilkan form dengan nilai nama dan deskripsi yang sudah ada. Ubah sesuai kebutuhan lalu klik <strong>"Simpan"</strong> atau <strong>"Batal"</strong> untuk membatalkan.',
                      'img'=>'real_role_edit_modal.png', 'label'=>'FORM EDIT ROLE'],
 
-                    ['no'=>55, 'text'=>'Menghapus Role',
-                     'desc'=>'Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah) di samping nama role. Dialog konfirmasi SweetAlert akan muncul. Klik <strong>"Ya, Hapus"</strong> untuk menghapus role beserta seluruh izin tabelnya. <strong>⚠ Pengguna yang memiliki role ini akan kehilangan hak aksesnya.</strong>',
+                    ['no'=>54, 'text'=>'Menghapus Role',
+                     'desc'=>'Klik ikon <i class="fas fa-trash" style="color:#ef4444"></i> (kotak merah). Dialog konfirmasi SweetAlert akan muncul. <strong>⚠ Pengguna yang memiliki role ini akan kehilangan hak aksesnya.</strong>',
                      'img'=>'real_role_delete_confirm.png', 'label'=>'KONFIRMASI HAPUS ROLE'],
                 ],
             ],
@@ -401,16 +397,16 @@ $guideData = [
                 'id'    => 'user-list',
                 'title' => '7A. Tampilan Tabel User & Aksi Header',
                 'steps' => [
-                    ['no'=>56, 'text'=>'Halaman Daftar User (Tabel)',
-                     'desc'=>'Semua pengguna ditampilkan dalam tabel (kotak merah) dengan kolom: <strong>Nama, Email, Role, Hak Akses</strong> (Super Admin/Admin/User), <strong>AI Models, API Keys</strong> (yang didelegasikan), <strong>Cakupan</strong> (bebas/database), <strong>Dibuat</strong> (tanggal & oleh siapa), dan <strong>Aksi</strong>.',
+                    ['no'=>55, 'text'=>'Halaman Daftar User (Tabel)',
+                     'desc'=>'Semua pengguna ditampilkan dalam tabel (kotak merah) dengan kolom: <strong>Nama, Email, Role, Hak Akses, AI Models, API Keys, Cakupan, Dibuat,</strong> dan <strong>Aksi</strong>.',
                      'img'=>'real_user_list.png', 'label'=>'TABEL DAFTAR USER'],
 
-                    ['no'=>57, 'text'=>'Header Aksi: Template, Import, Export & Tambah User',
-                     'desc'=>'Di pojok kanan atas terdapat 4 tombol (kotak merah): <br>• <i class="fas fa-download" style="color:#10b981"></i> <strong>Template</strong> — unduh file CSV contoh <br>• <i class="fas fa-file-import" style="color:#0ea5e9"></i> <strong>Import</strong> — impor user massal dari file CSV <br>• <i class="fas fa-file-export"></i> <strong>Export</strong> — ekspor semua data user ke file <br>• <i class="fas fa-plus" style="color:#6366f1"></i> <strong>Tambah User</strong> — tambah akun manual',
+                    ['no'=>56, 'text'=>'Header Aksi: Template, Import, Export & Tambah User',
+                     'desc'=>'Di pojok kanan atas terdapat 4 tombol (kotak merah): <br>• <i class="fas fa-download" style="color:#10b981"></i> <strong>Template</strong> — unduh file CSV contoh <br>• <i class="fas fa-file-import" style="color:#0ea5e9"></i> <strong>Import</strong> — impor user massal dari CSV <br>• <i class="fas fa-file-export"></i> <strong>Export</strong> — ekspor semua data user <br>• <i class="fas fa-plus" style="color:#6366f1"></i> <strong>Tambah User</strong> — tambah akun manual',
                      'img'=>'real_user_header_btns.png', 'label'=>'TOMBOL AKSI HEADER'],
 
-                    ['no'=>58, 'text'=>'Filter & Pencarian User',
-                     'desc'=>'Di bawah header terdapat form filter (kotak merah): <strong>Kolom Cari</strong> (nama atau email) dan <strong>Dropdown Filter Role</strong> (tampilkan user berdasarkan role tertentu). Klik <strong>"Filter"</strong> untuk menerapkan atau <strong>"Reset"</strong> untuk membersihkan filter.',
+                    ['no'=>57, 'text'=>'Filter & Pencarian User',
+                     'desc'=>'Di bawah header terdapat form filter (kotak merah): <strong>Kolom Cari</strong> (nama atau email) dan <strong>Dropdown Filter Role</strong>. Klik <strong>"Filter"</strong> untuk menerapkan atau <strong>"Reset"</strong> untuk membersihkan.',
                      'img'=>'real_user_filter_form.png', 'label'=>'FORM FILTER USER'],
                 ],
             ],
@@ -418,28 +414,28 @@ $guideData = [
                 'id'    => 'user-add',
                 'title' => '7B. Menambah & Mengedit User',
                 'steps' => [
-                    ['no'=>59, 'text'=>'Tombol "Tambah User"',
-                     'desc'=>'Klik tombol <strong>"+ Tambah User"</strong> biru (kotak merah) di header untuk membuka form tambah akun baru secara manual.',
+                    ['no'=>58, 'text'=>'Tombol "Tambah User"',
+                     'desc'=>'Klik tombol <strong>"+ Tambah User"</strong> biru (kotak merah) di header untuk membuka form tambah akun baru.',
                      'img'=>'real_user_tambah_btn.png', 'label'=>'TOMBOL TAMBAH USER'],
 
-                    ['no'=>60, 'text'=>'Modal Form Tambah User',
-                     'desc'=>'Form tambah user (kotak merah) berisi field: <strong>Nama Lengkap</strong>, <strong>Email</strong> (wajib unik), <strong>Password</strong> (min. 8 karakter), <strong>Konfirmasi Password</strong>, <strong>Role</strong> (pilih dari daftar role yang ada), dan opsi <strong>Is Admin / Is Super Admin</strong>.',
+                    ['no'=>59, 'text'=>'Modal Form Tambah User',
+                     'desc'=>'Form tambah user (kotak merah) berisi: <strong>Nama Lengkap</strong>, <strong>Email</strong> (wajib unik), <strong>Password</strong> (min. 8 karakter), <strong>Konfirmasi Password</strong>, <strong>Role</strong>, dan opsi <strong>Is Admin / Is Super Admin</strong>.',
                      'img'=>'real_user_modal.png', 'label'=>'FORM TAMBAH USER'],
 
-                    ['no'=>61, 'text'=>'Field Nama & Email (Wajib Diisi)',
-                     'desc'=>'Field <strong>Nama Lengkap</strong> dan <strong>Email</strong> (kotak merah) adalah field wajib. Email harus berformat valid dan belum terdaftar di sistem. Jika email sudah digunakan, sistem akan menampilkan pesan error saat menyimpan.',
+                    ['no'=>60, 'text'=>'Field Nama & Email (Wajib Diisi)',
+                     'desc'=>'Field <strong>Nama Lengkap</strong> dan <strong>Email</strong> (kotak merah) adalah field wajib. Email harus berformat valid dan belum terdaftar di sistem.',
                      'img'=>'real_user_field_name.png', 'label'=>'FIELD NAMA & EMAIL'],
 
-                    ['no'=>62, 'text'=>'Dropdown Pilih Role',
-                     'desc'=>'Dropdown <strong>Role</strong> (kotak merah) menampilkan semua role yang sudah dibuat di modul Role Management. Pilih role yang sesuai untuk menentukan tabel mana yang bisa dianalisis AI untuk user ini. User tanpa role tidak bisa menggunakan chatbot dengan data spesifik.',
+                    ['no'=>61, 'text'=>'Dropdown Pilih Role',
+                     'desc'=>'Dropdown <strong>Role</strong> (kotak merah) menampilkan semua role dari modul Role Management. Pilih role yang sesuai. User tanpa role tidak bisa menggunakan chatbot dengan data spesifik.',
                      'img'=>'real_user_field_role.png', 'label'=>'DROPDOWN PILIH ROLE'],
 
-                    ['no'=>63, 'text'=>'Tombol Edit User',
-                     'desc'=>'Pada baris user di tabel, klik tombol <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) untuk membuka modal edit. Semua data user terisi otomatis. Kolom password kosong — isi hanya jika ingin mengganti password user tersebut.',
+                    ['no'=>62, 'text'=>'Tombol Edit User & Modal Edit',
+                     'desc'=>'Pada baris user, klik tombol <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) untuk membuka modal edit. Semua data user terisi otomatis. Kolom password kosong — isi hanya jika ingin mengganti password.',
                      'img'=>'real_user_edit_btn.png', 'label'=>'TOMBOL EDIT USER'],
 
-                    ['no'=>64, 'text'=>'Modal Edit User',
-                     'desc'=>'Modal edit (kotak merah) identik dengan modal tambah, namun semua field sudah terisi dengan data user yang dipilih. Ubah field yang perlu diperbarui, kosongkan password jika tidak ingin mengubahnya, lalu klik <strong>"Simpan"</strong>.',
+                    ['no'=>63, 'text'=>'Modal Edit User — Data Terisi Otomatis',
+                     'desc'=>'Modal edit (kotak merah) identik dengan modal tambah, namun semua field sudah terisi. Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan"</strong>.',
                      'img'=>'real_edit_user_modal.png', 'label'=>'FORM EDIT USER'],
                 ],
             ],
@@ -447,16 +443,16 @@ $guideData = [
                 'id'    => 'user-import',
                 'title' => '7C. Import & Export Data User',
                 'steps' => [
-                    ['no'=>65, 'text'=>'Unduh Template CSV',
-                     'desc'=>'Klik tombol <strong>"Template"</strong> <i class="fas fa-download"></i> (kotak merah) untuk mengunduh file CSV contoh dengan header kolom yang benar: name, email, password, role, is_admin. Gunakan file ini sebagai dasar pengisian data sebelum impor massal.',
+                    ['no'=>64, 'text'=>'Unduh Template CSV',
+                     'desc'=>'Klik tombol <strong>"Template"</strong> (kotak merah) untuk mengunduh file CSV contoh dengan header: name, email, password, role, is_admin. Gunakan file ini sebagai dasar sebelum impor massal.',
                      'img'=>'real_user_template_btn.png', 'label'=>'UNDUH TEMPLATE CSV'],
 
-                    ['no'=>66, 'text'=>'Import User dari CSV',
-                     'desc'=>'Klik tombol <strong>"Import"</strong> <i class="fas fa-file-import"></i> (kotak merah) untuk membuka modal impor. Unggah file CSV yang sudah diisi sesuai template. Sistem akan memvalidasi setiap baris dan membuat akun user secara massal. Error per baris akan dilaporkan.',
-                     'img'=>'real_user_import_modal.png', 'label'=>'MODAL IMPORT CSV'],
+                    ['no'=>65, 'text'=>'Import User dari File Excel/CSV',
+                     'desc'=>'Klik tombol <strong>"Import"</strong> (kotak merah) untuk membuka modal impor. Unggah file Excel/CSV sesuai template. Sistem memvalidasi setiap baris dan membuat akun secara massal. Error per baris akan dilaporkan.',
+                     'img'=>'real_user_import_modal.png', 'label'=>'MODAL IMPORT FILE'],
 
-                    ['no'=>67, 'text'=>'Export Data User',
-                     'desc'=>'Klik tombol <strong>"Export"</strong> <i class="fas fa-file-export"></i> (kotak merah) untuk mengunduh seluruh data user dalam format file. Data yang diekspor mencakup semua informasi user kecuali password yang dienkripsi.',
+                    ['no'=>66, 'text'=>'Export Data User',
+                     'desc'=>'Klik tombol <strong>"Export"</strong> (kotak merah) untuk mengunduh seluruh data user. Data yang diekspor mencakup semua informasi user kecuali password.',
                      'img'=>'real_user_export_btn.png', 'label'=>'EXPORT DATA USER'],
                 ],
             ],
@@ -464,38 +460,50 @@ $guideData = [
                 'id'    => 'user-advanced',
                 'title' => '7D. Konfigurasi AI per User (Delegasi)',
                 'steps' => [
-                    ['no'=>68, 'text'=>'Tombol AI Config (per User)',
-                     'desc'=>'Pada setiap baris user, klik tombol <i class="fas fa-brain"></i> biru AI Config (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu secara khusus untuk satu user — terlepas dari pengaturan default sistem.',
-                     'img'=>'real_user_ai_btn.png', 'label'=>'TOMBOL AI CONFIG'],
+                    ['no'=>67, 'text'=>'Tombol AI Config (per User)',
+                     'desc'=>'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus untuk satu user.',
+                     'img'=>'real_user_ai_config2.png', 'label'=>'TOMBOL AI CONFIG PER USER'],
 
-                    ['no'=>69, 'text'=>'Modal Konfigurasi AI per User',
-                     'desc'=>'Modal AI Config (kotak merah) menampilkan daftar semua model dan API key yang tersedia. Centang model dan key yang ingin didelegasikan untuk user ini. User hanya bisa menggunakan model dan key yang dicentang, sehingga penggunaan dapat dikontrol per individu.',
-                     'img'=>'real_user_ai_modal.png', 'label'=>'KONFIGURASI AI PER USER'],
+                    ['no'=>68, 'text'=>'Modal Konfigurasi AI per User',
+                     'desc'=>'Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan key yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.',
+                     'img'=>'real_ai_config_modal.png', 'label'=>'KONFIGURASI AI PER USER'],
                 ],
             ],
             [
                 'id'    => 'user-rls',
                 'title' => '7E. Row Level Security (RLS) — Filter Data Baris',
                 'steps' => [
-                    ['no'=>70, 'text'=>'Tombol RLS / Data Filter',
-                     'desc'=>'Klik tombol <i class="fas fa-filter"></i> Filter (kotak merah) pada baris user untuk membuka modal Row Level Security. Jika user sudah memiliki filter aktif, tombol akan berwarna berbeda dan menampilkan badge jumlah filter.',
-                     'img'=>'real_user_rls_btn.png', 'label'=>'TOMBOL RLS DATA FILTER'],
+                    ['no'=>69, 'text'=>'Apa itu Row Level Security?',
+                     'desc'=>'Row Level Security (RLS) adalah fitur pembatasan data di level baris. Dengan RLS, Admin dapat membatasi baris data yang bisa dianalisis AI untuk user tertentu. <br><br>Contoh kasus: <br>• User <strong>Cabang Jakarta</strong> → hanya bisa melihat data di mana <code>kode_cabang = \'JKT\'</code> <br>• User <strong>Salesman A</strong> → hanya bisa melihat data di mana <code>id_salesman = 12</code> <br>• User <strong>Divisi Finance</strong> → hanya bisa melihat data di mana <code>divisi = \'finance\'</code> <br><br>Tanpa RLS, user dapat melihat seluruh isi tabel yang diizinkan rolenya.',
+                     'img'=>'real_user_rls_open.png', 'label'=>'KONSEP ROW LEVEL SECURITY'],
 
-                    ['no'=>71, 'text'=>'Modal Row Level Security',
-                     'desc'=>'Modal RLS (kotak merah) memungkinkan Admin membatasi baris data yang bisa dianalisis AI untuk user tertentu. Misalnya: user Cabang Jakarta hanya bisa melihat data dengan kolom <code>cabang = \'Jakarta\'</code>. Pilih tabel, kolom, operator, dan nilai filter, lalu klik <strong>"Tambah Rule"</strong>.',
-                     'img'=>'real_user_rls_modal.png', 'label'=>'MODAL ROW LEVEL SECURITY'],
+                    ['no'=>70, 'text'=>'Tombol RLS — Buka Modal Filter Data',
+                     'desc'=>'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol <i class="fas fa-filter" style="color:#10b981"></i> hijau (kotak merah). Jika user sudah memiliki filter aktif, badge angka kecil berwarna akan muncul di atas tombol menunjukkan jumlah filter yang terpasang.',
+                     'img'=>'real_user_rls_btn.png', 'label'=>'TOMBOL BUKA RLS'],
+
+                    ['no'=>71, 'text'=>'Modal RLS — Daftar Tabel Terdeteksi',
+                     'desc'=>'Modal <strong>Pembatasan Data (Row-Level Security)</strong> terbuka menampilkan daftar tabel yang terdeteksi di panel kiri (kotak merah). Setiap tabel yang sudah memiliki filter menampilkan badge <span style="background:#d1fae5;color:#065f46;padding:1px 7px;border-radius:10px;font-size:.75rem">N filter</span>. <br><br>Di pojok kanan atas terdapat tombol <strong>"Salin"</strong> untuk menyalin konfigurasi RLS dari user lain.',
+                     'img'=>'real_user_rls_modal.png', 'label'=>'DAFTAR TABEL RLS'],
+
+                    ['no'=>72, 'text'=>'Pilih Tabel & Tambah Kondisi Filter',
+                     'desc'=>'Klik nama tabel di panel kiri untuk membuka area pengaturan kondisi di panel kanan. Panel kanan menampilkan: <br>• <strong>Nama tabel</strong> yang dipilih <br>• <strong>Daftar aturan filter</strong> yang sudah ada <br>• <strong>Tombol "+ Tambah Kondisi"</strong> (kotak merah) untuk menambah rule baru <br><br>Setiap aturan filter terdiri dari 3 bagian: <br>1. <strong>Kolom</strong> — pilih kolom dari dropdown (beserta tipe data) <br>2. <strong>Operator</strong> — pilih dari: <code>=</code> sama dengan, <code>!=</code> tidak sama, <code>&gt;</code> lebih besar, <code>&lt;</code> lebih kecil, <code>LIKE</code> mengandung teks, <code>IN</code> dalam daftar <br>3. <strong>Nilai</strong> — ketik nilai yang menjadi batasan (contoh: <code>1271</code>, <code>Jakarta</code>)',
+                     'img'=>'real_rls_add_rule.png', 'label'=>'TAMBAH KONDISI FILTER'],
+
+                    ['no'=>73, 'text'=>'Preview Data & Simpan Perubahan',
+                     'desc'=>'Sebelum menyimpan, klik tombol <strong>"Preview Data (5 Baris)"</strong> (kotak merah) untuk melihat contoh 5 baris data yang akan tampil sesuai kondisi filter yang diset. Ini memastikan filter sudah benar sebelum diterapkan ke user. <br><br>Setelah yakin, klik <strong>"Simpan Perubahan"</strong> biru di bawah modal. Klik <strong>"Batal"</strong> untuk menutup tanpa menyimpan. <br><br><strong>Tips penting:</strong><br>• Kosongkan semua kondisi untuk mengizinkan user melihat seluruh data tabel tersebut <br>• Satu tabel bisa memiliki lebih dari satu kondisi (AND logic) <br>• Kondisi berlaku untuk semua pertanyaan AI yang melibatkan tabel tersebut',
+                     'img'=>'real_rls_preview.png', 'label'=>'PREVIEW DATA & SIMPAN RLS'],
                 ],
             ],
             [
                 'id'    => 'user-del',
                 'title' => '7F. Menghapus User',
                 'steps' => [
-                    ['no'=>72, 'text'=>'Tombol Hapus User',
-                     'desc'=>'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul sebelum penghapusan dilakukan.',
+                    ['no'=>74, 'text'=>'Tombol Hapus User',
+                     'desc'=>'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul.',
                      'img'=>'real_user_delete_btn.png', 'label'=>'TOMBOL HAPUS USER'],
 
-                    ['no'=>73, 'text'=>'Konfirmasi Hapus User',
-                     'desc'=>'Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus dan meminta konfirmasi. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.',
+                    ['no'=>75, 'text'=>'Konfirmasi Hapus User',
+                     'desc'=>'Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.',
                      'img'=>'real_user_delete_confirm.png', 'label'=>'KONFIRMASI HAPUS USER'],
                 ],
             ],
@@ -509,7 +517,6 @@ $guideData = [
      CSS
 ══════════════════════════════════════════════════════════════ --}}
 <style>
-/* ── Layout ── */
 .guide-wrap     { display:flex; gap:0; align-items:flex-start; width:100%; }
 .guide-toc      {
     width:300px; min-width:300px; flex-shrink:0;
@@ -519,8 +526,6 @@ $guideData = [
     box-shadow:var(--shadow-md);
 }
 .guide-content  { flex:1; min-width:0; }
-
-/* ── TOC Links ── */
 .toc-title      { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:.75rem; }
 .toc-menu-link  {
     display:flex; align-items:center; gap:8px;
@@ -538,8 +543,6 @@ $guideData = [
 }
 .toc-link:hover { color:var(--primary); border-left-color:var(--primary); background:rgba(99,102,241,.04); padding-left:18px; }
 .toc-step-count { font-size:.68rem; background:rgba(99,102,241,.12); color:var(--primary); padding:1px 7px; border-radius:20px; float:right; font-weight:700; }
-
-/* ── Menu Section Card ── */
 .menu-section   {
     background:var(--card-bg); border:1px solid var(--glass-border);
     border-radius:24px; padding:2.5rem; margin-bottom:3.5rem;
@@ -548,21 +551,16 @@ $guideData = [
 .menu-icon      {
     width:56px; height:56px; min-width:56px; border-radius:16px;
     display:flex; align-items:center; justify-content:center;
-    font-size:1.4rem; color:#fff;
-    box-shadow:0 8px 20px rgba(0,0,0,.25);
+    font-size:1.4rem; color:#fff; box-shadow:0 8px 20px rgba(0,0,0,.25);
 }
 .menu-section-title { font-weight:900; font-size:2rem; color:var(--text-main); margin:0; letter-spacing:-1px; }
 .menu-section-desc  { color:var(--text-muted); font-size:.95rem; margin:.5rem 0 0; max-width:640px; line-height:1.6; }
-
-/* ── Sub-section ── */
 .sub-section    { margin-top:3rem; scroll-margin-top:100px; }
 .sub-section-title {
     font-weight:800; font-size:1.25rem; color:var(--text-main);
     border-left:5px solid var(--primary); padding-left:1.25rem;
     margin-bottom:2rem; display:flex; align-items:center; gap:10px;
 }
-
-/* ── Step ── */
 .guide-step     {
     display:flex; gap:22px; padding:2.25rem 0;
     border-bottom:1px solid var(--glass-border2);
@@ -583,8 +581,6 @@ html.dark .step-num { background:var(--primary); border-color:#fff; }
     border-radius:12px; border:1px dashed var(--glass-border2);
 }
 html.dark .step-desc { background:rgba(255,255,255,.02); }
-
-/* ── Screenshot ── */
 .screenshot-wrap {
     margin-top:1.5rem; border-radius:14px; overflow:hidden;
     border:4px solid #ef4444; position:relative; background:#000;
@@ -603,8 +599,6 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
     text-align:center; color:#fff; background:rgba(239,68,68,.88);
     text-transform:uppercase;
 }
-
-/* ── Lightbox ── */
 .img-lightbox   {
     display:none; position:fixed; inset:0; z-index:99999;
     background:rgba(0,0,0,.97); align-items:center; justify-content:center;
@@ -618,27 +612,31 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
     width:44px; height:44px; border-radius:50%; font-size:1.2rem;
     cursor:pointer; display:flex; align-items:center; justify-content:center;
 }
-
-/* ── Print & floating btn ── */
 .print-btn {
     position:fixed; bottom:2.5rem; right:2.5rem; z-index:1000;
     padding:14px 28px; border-radius:60px; font-weight:900;
     box-shadow:0 12px 30px rgba(99,102,241,.45); transition:all .3s;
 }
-.print-btn:hover { transform:translateY(-4px); box-shadow:0 18px 40px rgba(99,102,241,.55); }
-
-/* ── Progress bar ── */
+.print-btn:hover { transform:translateY(-4px); }
 .guide-progress-bar {
     position:fixed; top:0; left:0; height:3px; z-index:9999;
-    background:linear-gradient(90deg,#6366f1,#10b981);
-    transition:width .1s;
+    background:linear-gradient(90deg,#6366f1,#10b981); transition:width .1s;
 }
-
+/* RLS info box */
+.rls-info-box {
+    background:linear-gradient(135deg,rgba(20,184,166,.1),rgba(15,118,110,.05));
+    border:1px solid rgba(20,184,166,.3); border-radius:12px;
+    padding:1rem 1.25rem; margin-top:.75rem;
+}
+.rls-info-box .rls-title { font-weight:800; color:#0f766e; font-size:.9rem; margin-bottom:.5rem; }
+.rls-operator-table { width:100%; border-collapse:collapse; font-size:.82rem; margin-top:.5rem; }
+.rls-operator-table th { background:rgba(20,184,166,.15); color:#0f766e; padding:6px 10px; text-align:left; }
+.rls-operator-table td { padding:5px 10px; border-bottom:1px solid rgba(20,184,166,.1); color:var(--text-muted); }
+.rls-operator-table code { background:rgba(20,184,166,.1); padding:1px 6px; border-radius:4px; color:#0f766e; }
 @media print {
     .guide-toc,.print-btn,.chatbot-back-btn,.guide-progress-bar { display:none !important; }
     .guide-content { width:100%; }
     .menu-section  { break-inside:avoid; box-shadow:none; border:1px solid #e2e8f0; }
-    .screenshot-wrap { box-shadow:none; }
 }
 @media (max-width:900px) {
     .guide-wrap   { flex-direction:column; }
@@ -699,7 +697,6 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
         @foreach($guideData as $menu)
             <section id="{{ $menu['id'] }}" class="menu-section">
 
-                {{-- Menu Header --}}
                 <div class="d-flex align-items-center gap-4 mb-4">
                     <div class="menu-icon" style="background:{{ $menu['color'] }}">
                         <i class="{{ $menu['icon'] }}"></i>
@@ -714,6 +711,22 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
                     <div id="{{ $sec['id'] }}" class="sub-section">
                         <h4 class="sub-section-title">{{ $sec['title'] }}</h4>
 
+                        {{-- Kotak info khusus untuk seksi RLS --}}
+                        @if($sec['id'] === 'user-rls')
+                        <div class="rls-info-box mb-4">
+                            <div class="rls-title"><i class="fas fa-info-circle me-2"></i>Referensi Cepat: Operator Kondisi Filter</div>
+                            <table class="rls-operator-table">
+                                <tr><th>Operator</th><th>Arti</th><th>Contoh Penggunaan</th></tr>
+                                <tr><td><code>=</code></td><td>Sama persis dengan nilai</td><td>kode_cabang <code>=</code> 1271</td></tr>
+                                <tr><td><code>!=</code></td><td>Tidak sama dengan nilai</td><td>status <code>!=</code> inactive</td></tr>
+                                <tr><td><code>&gt;</code></td><td>Lebih besar dari nilai</td><td>total_penjualan <code>&gt;</code> 1000000</td></tr>
+                                <tr><td><code>&lt;</code></td><td>Lebih kecil dari nilai</td><td>umur <code>&lt;</code> 30</td></tr>
+                                <tr><td><code>LIKE</code></td><td>Mengandung teks tertentu</td><td>nama_produk <code>LIKE</code> Beras</td></tr>
+                                <tr><td><code>IN</code></td><td>Nilainya ada dalam daftar</td><td>kota <code>IN</code> Jakarta,Bandung,Surabaya</td></tr>
+                            </table>
+                        </div>
+                        @endif
+
                         @foreach($sec['steps'] as $step)
                             <div class="guide-step">
                                 <div class="step-num">{{ $step['no'] }}</div>
@@ -726,7 +739,7 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
                                             src="{{ asset('admin_guide/' . $step['img']) }}"
                                             class="screenshot-img"
                                             alt="{{ $step['text'] }}"
-                                            onerror="this.src='https://placehold.co/1280x720/1e293b/ef4444?text=Screenshot+{{ urlencode($step['img']) }}'">
+                                            onerror="this.src='https://placehold.co/1280x720/1e293b/ef4444?text={{ urlencode($step['img']) }}'">
                                         <div class="screenshot-badge">
                                             {{ $step['label'] }} — klik untuk tampilan penuh
                                         </div>
@@ -754,7 +767,6 @@ html.dark .step-desc { background:rgba(255,255,255,.02); }
 </div>
 
 <script>
-/* ── Lightbox ── */
 function openLightbox(src) {
     document.getElementById('lightboxImg').src = src;
     document.getElementById('imgLightbox').classList.add('show');
@@ -766,7 +778,6 @@ function closeLightbox() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
-/* ── Smooth scroll untuk TOC links ── */
 document.querySelectorAll('.toc-link, .toc-menu-link').forEach(a => {
     a.addEventListener('click', e => {
         e.preventDefault();
@@ -775,7 +786,6 @@ document.querySelectorAll('.toc-link, .toc-menu-link').forEach(a => {
     });
 });
 
-/* ── Progress bar saat scroll ── */
 window.addEventListener('scroll', () => {
     const scrolled = window.scrollY;
     const total    = document.documentElement.scrollHeight - window.innerHeight;
@@ -783,26 +793,19 @@ window.addEventListener('scroll', () => {
     document.getElementById('progressBar').style.width = pct + '%';
 });
 
-/* ── Highlight TOC link aktif ── */
 const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
             document.querySelectorAll('.toc-menu-link, .toc-link').forEach(a => {
-                a.style.background = '';
-                a.style.color = '';
+                a.style.background = ''; a.style.color = '';
             });
-            const id  = entry.target.id;
-            const sel = `.toc-menu-link[href="#${id}"], .toc-link[href="#${id}"]`;
-            const el  = document.querySelector(sel);
-            if (el) {
-                el.style.background = 'rgba(99,102,241,.18)';
-                el.style.color      = 'var(--primary)';
-            }
+            const el = document.querySelector(`.toc-menu-link[href="#${entry.target.id}"], .toc-link[href="#${entry.target.id}"]`);
+            if (el) { el.style.background = 'rgba(99,102,241,.18)'; el.style.color = 'var(--primary)'; }
         }
     });
 }, { threshold: 0.15, rootMargin: '-80px 0px -60% 0px' });
 
-document.querySelectorAll('[id^="menu-"], [id^="auth-"],[id^="chat-"],[id^="dash-"],[id^="db-"],[id^="ai-"],[id^="role-"],[id^="user-"]')
+document.querySelectorAll('[id^="menu-"],[id^="auth-"],[id^="chat-"],[id^="dash-"],[id^="db-"],[id^="ai-"],[id^="role-"],[id^="user-"]')
     .forEach(el => observer.observe(el));
 </script>
 @endsection
