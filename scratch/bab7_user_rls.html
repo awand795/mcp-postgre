@@ -165,10 +165,28 @@
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
             <p><strong>14. Modal Konfigurasi AI per User</strong></p>
-            <p>Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan key yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.</p>
+            <p>Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.</p>
             <p>
-                <a href="http://74.48.112.31:5000/admin_guide/real_ai_config_modal.png" class="fancybox image">
-                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_ai_config_modal.png" alt="Modal Konfigurasi AI per User" width="800" />
+                <a href="http://74.48.112.31:5000/admin_guide/real_model_ai_user_management.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_model_ai_user_management.png" alt="Modal Konfigurasi AI per User" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>15. Setting API Key per User</strong></p>
+            <p>Untuk menyetting api key user anda tinggal click yang saya lingkari di gambar, yang bertuliskan API keys di modal agar memunculkan semua api key yang sudah kita input, dan pastikan API Key Sesuai dengan Provider dari model yang sudah anda pilih</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_click_api_key_per_user.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_click_api_key_per_user.png" alt="Setting API Key per User" width="800" />
+                </a>
+            </p>
+                                    <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
+                        
+            <p><strong>16. Setting API Key Per User</strong></p>
+            <p>Centang API key yang ingin didelegasikan untuk user ini. API key yang dipilih akan digunakan oleh AI untuk user tersebut saat melakukan analisis data.</p>
+            <p>
+                <a href="http://74.48.112.31:5000/admin_guide/real_api_key_list.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_api_key_list.png" alt="Setting API Key Per User" width="800" />
                 </a>
             </p>
                 </div>
@@ -196,7 +214,7 @@
         
         <div style="margin-top: 15px;">
                                 
-            <p><strong>15. Apa itu Row Level Security?</strong></p>
+            <p><strong>17. Apa itu Row Level Security?</strong></p>
             <p>Row Level Security (RLS) adalah fitur pembatasan data di level baris. Dengan RLS, Admin dapat membatasi baris data yang bisa dianalisis AI untuk user tertentu. <br><br>Contoh kasus: <br>• User <strong>Cabang Jakarta</strong> → hanya bisa melihat data di mana <code>kode_cabang = 'JKT'</code> <br>• User <strong>Salesman A</strong> → hanya bisa melihat data di mana <code>id_salesman = 12</code> <br>• User <strong>Divisi Finance</strong> → hanya bisa melihat data di mana <code>divisi = 'finance'</code> <br><br>Tanpa RLS, user dapat melihat seluruh isi tabel yang diizinkan rolenya.</p>
             <p>
                 <a href="http://74.48.112.31:5000/admin_guide/real_user_rls_open.png" class="fancybox image">
@@ -205,16 +223,16 @@
             </p>
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
-            <p><strong>16. Tombol RLS — Buka Modal Filter Data</strong></p>
+            <p><strong>18. Tombol RLS — Buka Modal Filter Data</strong></p>
             <p>Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol <i class="fas fa-filter" style="color:#10b981"></i> hijau (kotak merah). Jika user sudah memiliki filter aktif, badge angka kecil berwarna akan muncul di atas tombol menunjukkan jumlah filter yang terpasang.</p>
             <p>
-                <a href="http://74.48.112.31:5000/admin_guide/real_user_rls_btn.png" class="fancybox image">
-                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_user_rls_btn.png" alt="Tombol RLS — Buka Modal Filter Data" width="800" />
+                <a href="http://74.48.112.31:5000/admin_guide/real_button_rls_per_user.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_button_rls_per_user.png" alt="Tombol RLS — Buka Modal Filter Data" width="800" />
                 </a>
             </p>
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
-            <p><strong>17. Modal RLS — Daftar Tabel Terdeteksi</strong></p>
+            <p><strong>19. Modal RLS — Daftar Tabel Terdeteksi</strong></p>
             <p>Modal <strong>Pembatasan Data (Row-Level Security)</strong> terbuka menampilkan daftar tabel yang terdeteksi di panel kiri (kotak merah). Setiap tabel yang sudah memiliki filter menampilkan badge <span style="background:#d1fae5;color:#065f46;padding:1px 7px;border-radius:10px;font-size:.75rem">N filter</span>. <br><br>Di pojok kanan atas terdapat tombol <strong>"Salin"</strong> untuk menyalin konfigurasi RLS dari user lain.</p>
             <p>
                 <a href="http://74.48.112.31:5000/admin_guide/real_user_rls_modal.png" class="fancybox image">
@@ -223,7 +241,7 @@
             </p>
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
-            <p><strong>18. Pilih Tabel & Tambah Kondisi Filter</strong></p>
+            <p><strong>20. Pilih Tabel & Tambah Kondisi Filter</strong></p>
             <p>Klik nama tabel di panel kiri untuk membuka area pengaturan kondisi di panel kanan. Panel kanan menampilkan: <br>• <strong>Nama tabel</strong> yang dipilih <br>• <strong>Daftar aturan filter</strong> yang sudah ada <br>• <strong>Tombol "+ Tambah Kondisi"</strong> (kotak merah) untuk menambah rule baru <br><br>Setiap aturan filter terdiri dari 3 bagian: <br>1. <strong>Kolom</strong> — pilih kolom dari dropdown (beserta tipe data) <br>2. <strong>Operator</strong> — pilih dari: <code>=</code> sama dengan, <code>!=</code> tidak sama, <code>&gt;</code> lebih besar, <code>&lt;</code> lebih kecil, <code>LIKE</code> mengandung teks, <code>IN</code> dalam daftar <br>3. <strong>Nilai</strong> — ketik nilai yang menjadi batasan (contoh: <code>1271</code>, <code>Jakarta</code>)</p>
             <p>
                 <a href="http://74.48.112.31:5000/admin_guide/real_rls_add_rule.png" class="fancybox image">
@@ -232,7 +250,7 @@
             </p>
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
-            <p><strong>19. Preview Data & Simpan Perubahan</strong></p>
+            <p><strong>21. Preview Data & Simpan Perubahan</strong></p>
             <p>Sebelum menyimpan, klik tombol <strong>"Preview Data (5 Baris)"</strong> (kotak merah) untuk melihat contoh 5 baris data yang akan tampil sesuai kondisi filter yang diset. Ini memastikan filter sudah benar sebelum diterapkan ke user. <br><br>Setelah yakin, klik <strong>"Simpan Perubahan"</strong> biru di bawah modal. Klik <strong>"Batal"</strong> untuk menutup tanpa menyimpan. <br><br><strong>Tips penting:</strong><br>• Kosongkan semua kondisi untuk mengizinkan user melihat seluruh data tabel tersebut <br>• Satu tabel bisa memiliki lebih dari satu kondisi (AND logic) <br>• Kondisi berlaku untuk semua pertanyaan AI yang melibatkan tabel tersebut</p>
             <p>
                 <a href="http://74.48.112.31:5000/admin_guide/real_rls_preview.png" class="fancybox image">
@@ -248,20 +266,20 @@
         
         <div style="margin-top: 15px;">
                                 
-            <p><strong>20. Tombol Hapus User</strong></p>
+            <p><strong>22. Tombol Hapus User</strong></p>
             <p>Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul.</p>
             <p>
-                <a href="http://74.48.112.31:5000/admin_guide/real_user_delete_btn.png" class="fancybox image">
-                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_user_delete_btn.png" alt="Tombol Hapus User" width="800" />
+                <a href="http://74.48.112.31:5000/admin_guide/real_button_delete_user.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_button_delete_user.png" alt="Tombol Hapus User" width="800" />
                 </a>
             </p>
                                     <hr style="border: 0; border-top: 1px dashed #cbd5e1; margin: 20px 0;" />
                         
-            <p><strong>21. Konfirmasi Hapus User</strong></p>
+            <p><strong>23. Konfirmasi Hapus User</strong></p>
             <p>Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.</p>
             <p>
-                <a href="http://74.48.112.31:5000/admin_guide/real_user_delete_confirm.png" class="fancybox image">
-                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_user_delete_confirm.png" alt="Konfirmasi Hapus User" width="800" />
+                <a href="http://74.48.112.31:5000/admin_guide/real_confirm_delete_user.png" class="fancybox image">
+                    <img class="alignnone" src="http://74.48.112.31:5000/admin_guide/real_confirm_delete_user.png" alt="Konfirmasi Hapus User" width="800" />
                 </a>
             </p>
                 </div>
