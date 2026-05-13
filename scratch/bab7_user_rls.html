@@ -1,0 +1,740 @@
+<div class="darko-guide-wrapper" style="font-family: 'Inter', -apple-system, sans-serif; max-width: 900px; margin: 0 auto; color: #334155;">
+
+    <!-- TOP HEADER -->
+    <div style="padding: 60px 40px; background: #fff; text-align: center; border-radius: 30px; margin-bottom: 40px;">
+        <span style="background: #14b8a620; color: #14b8a6; padding: 8px 20px; border-radius: 100px; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Panduan Dokumentasi</span>
+        <h1 style="font-size: 3.5rem; font-weight: 900; color: #0f172a; margin: 20px 0; letter-spacing: -2px;">7. USER MANAGEMENT</h1>
+        <p style="font-size: 1.2rem; color: #64748b; max-width: 600px; margin: 0 auto; line-height: 1.6;">Pengaturan paling mendalam untuk setiap akun pengguna: tambah/edit/hapus akun, impor massal via CSV, ekspor data, konfigurasi AI per user, dan pembatasan baris data (Row Level Security).</p>
+    </div>
+
+            <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7A. Tampilan Tabel User & Aksi Header</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">55</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Halaman Daftar User (Tabel)</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Semua pengguna ditampilkan dalam tabel (kotak merah) dengan kolom: <strong>Nama, Email, Role, Hak Akses, AI Models, API Keys, Cakupan, Dibuat,</strong> dan <strong>Aksi</strong>.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TABEL DAFTAR USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_list.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TABEL DAFTAR USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">56</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Header Aksi: Template, Import, Export & Tambah User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Di pojok kanan atas terdapat 4 tombol (kotak merah): <br>• <i class="fas fa-download" style="color:#10b981"></i> <strong>Template</strong> — unduh file CSV contoh <br>• <i class="fas fa-file-import" style="color:#0ea5e9"></i> <strong>Import</strong> — impor user massal dari CSV <br>• <i class="fas fa-file-export"></i> <strong>Export</strong> — ekspor semua data user <br>• <i class="fas fa-plus" style="color:#6366f1"></i> <strong>Tambah User</strong> — tambah akun manual                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL AKSI HEADER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_header_btns.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL AKSI HEADER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">57</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Filter & Pencarian User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Di bawah header terdapat form filter (kotak merah): <strong>Kolom Cari</strong> (nama atau email) dan <strong>Dropdown Filter Role</strong>. Klik <strong>"Filter"</strong> untuk menerapkan atau <strong>"Reset"</strong> untuk membersihkan.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM FILTER USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_filter_form.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM FILTER USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7B. Menambah & Mengedit User</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">58</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol "Tambah User"</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik tombol <strong>"+ Tambah User"</strong> biru (kotak merah) di header untuk membuka form tambah akun baru.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL TAMBAH USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_tambah_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL TAMBAH USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">59</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Form Tambah User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Form tambah user (kotak merah) berisi: <strong>Nama Lengkap</strong>, <strong>Email</strong> (wajib unik), <strong>Password</strong> (min. 8 karakter), <strong>Konfirmasi Password</strong>, <strong>Role</strong>, dan opsi <strong>Is Admin / Is Super Admin</strong>.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM TAMBAH USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM TAMBAH USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">60</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Field Nama & Email (Wajib Diisi)</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Field <strong>Nama Lengkap</strong> dan <strong>Email</strong> (kotak merah) adalah field wajib. Email harus berformat valid dan belum terdaftar di sistem.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FIELD NAMA & EMAIL</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_field_name.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FIELD NAMA & EMAIL">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">61</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Dropdown Pilih Role</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Dropdown <strong>Role</strong> (kotak merah) menampilkan semua role dari modul Role Management. Pilih role yang sesuai. User tanpa role tidak bisa menggunakan chatbot dengan data spesifik.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">DROPDOWN PILIH ROLE</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_field_role.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="DROPDOWN PILIH ROLE">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">62</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Edit User & Modal Edit</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Pada baris user, klik tombol <i class="fas fa-edit" style="color:#f59e0b"></i> Edit (kotak merah) untuk membuka modal edit. Semua data user terisi otomatis. Kolom password kosong — isi hanya jika ingin mengganti password.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL EDIT USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_edit_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL EDIT USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">63</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Edit User — Data Terisi Otomatis</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Modal edit (kotak merah) identik dengan modal tambah, namun semua field sudah terisi. Ubah field yang perlu diperbarui, lalu klik <strong>"Simpan"</strong>.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">FORM EDIT USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_edit_user_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="FORM EDIT USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7C. Import & Export Data User</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">64</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Unduh Template CSV</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik tombol <strong>"Template"</strong> (kotak merah) untuk mengunduh file CSV contoh dengan header: name, email, password, role, is_admin. Gunakan file ini sebagai dasar sebelum impor massal.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">UNDUH TEMPLATE CSV</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_template_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="UNDUH TEMPLATE CSV">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">65</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Import User dari File Excel/CSV</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik tombol <strong>"Import"</strong> (kotak merah) untuk membuka modal impor. Unggah file Excel/CSV sesuai template. Sistem memvalidasi setiap baris dan membuat akun secara massal. Error per baris akan dilaporkan.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">MODAL IMPORT FILE</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_import_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="MODAL IMPORT FILE">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">66</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Export Data User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik tombol <strong>"Export"</strong> (kotak merah) untuk mengunduh seluruh data user. Data yang diekspor mencakup semua informasi user kecuali password.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">EXPORT DATA USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_export_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="EXPORT DATA USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7D. Konfigurasi AI per User (Delegasi)</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">67</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol AI Config (per User)</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus untuk satu user.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL AI CONFIG PER USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_ai_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL AI CONFIG PER USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">68</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal Konfigurasi AI per User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan key yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">KONFIGURASI AI PER USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_ai_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="KONFIGURASI AI PER USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7E. Row Level Security (RLS) — Filter Data Baris</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 24px; padding: 30px; margin-bottom: 50px;">
+                <h4 style="margin: 0 0 20px 0; color: #0f172a; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+                    <span style="background: #10b981; color: #fff; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">?</span>
+                    Referensi Operator RLS
+                </h4>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem;">
+                        <thead>
+                            <tr style="text-align: left;">
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Operator</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Fungsi</th>
+                                <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600;">Contoh</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>=</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Sama Persis</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">id = 101</td></tr>
+                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>LIKE</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Pencarian Teks</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">nama LIKE 'Andi'</td></tr>
+                            <tr><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><code>IN</code></td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Dalam Daftar</td><td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #6366f1;">id IN 1,2,3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">69</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Apa itu Row Level Security?</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Row Level Security (RLS) adalah fitur pembatasan data di level baris. Dengan RLS, Admin dapat membatasi baris data yang bisa dianalisis AI untuk user tertentu. <br><br>Contoh kasus: <br>• User <strong>Cabang Jakarta</strong> → hanya bisa melihat data di mana <code>kode_cabang = 'JKT'</code> <br>• User <strong>Salesman A</strong> → hanya bisa melihat data di mana <code>id_salesman = 12</code> <br>• User <strong>Divisi Finance</strong> → hanya bisa melihat data di mana <code>divisi = 'finance'</code> <br><br>Tanpa RLS, user dapat melihat seluruh isi tabel yang diizinkan rolenya.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">KONSEP ROW LEVEL SECURITY</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_rls_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="KONSEP ROW LEVEL SECURITY">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">70</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol RLS — Buka Modal Filter Data</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol <i class="fas fa-filter" style="color:#10b981"></i> hijau (kotak merah). Jika user sudah memiliki filter aktif, badge angka kecil berwarna akan muncul di atas tombol menunjukkan jumlah filter yang terpasang.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL BUKA RLS</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_rls_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL BUKA RLS">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">71</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Modal RLS — Daftar Tabel Terdeteksi</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Modal <strong>Pembatasan Data (Row-Level Security)</strong> terbuka menampilkan daftar tabel yang terdeteksi di panel kiri (kotak merah). Setiap tabel yang sudah memiliki filter menampilkan badge <span style="background:#d1fae5;color:#065f46;padding:1px 7px;border-radius:10px;font-size:.75rem">N filter</span>. <br><br>Di pojok kanan atas terdapat tombol <strong>"Salin"</strong> untuk menyalin konfigurasi RLS dari user lain.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">DAFTAR TABEL RLS</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_rls_modal.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="DAFTAR TABEL RLS">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">72</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Pilih Tabel & Tambah Kondisi Filter</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik nama tabel di panel kiri untuk membuka area pengaturan kondisi di panel kanan. Panel kanan menampilkan: <br>• <strong>Nama tabel</strong> yang dipilih <br>• <strong>Daftar aturan filter</strong> yang sudah ada <br>• <strong>Tombol "+ Tambah Kondisi"</strong> (kotak merah) untuk menambah rule baru <br><br>Setiap aturan filter terdiri dari 3 bagian: <br>1. <strong>Kolom</strong> — pilih kolom dari dropdown (beserta tipe data) <br>2. <strong>Operator</strong> — pilih dari: <code>=</code> sama dengan, <code>!=</code> tidak sama, <code>&gt;</code> lebih besar, <code>&lt;</code> lebih kecil, <code>LIKE</code> mengandung teks, <code>IN</code> dalam daftar <br>3. <strong>Nilai</strong> — ketik nilai yang menjadi batasan (contoh: <code>1271</code>, <code>Jakarta</code>)                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TAMBAH KONDISI FILTER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_rls_add_rule.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TAMBAH KONDISI FILTER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">73</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Preview Data & Simpan Perubahan</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Sebelum menyimpan, klik tombol <strong>"Preview Data (5 Baris)"</strong> (kotak merah) untuk melihat contoh 5 baris data yang akan tampil sesuai kondisi filter yang diset. Ini memastikan filter sudah benar sebelum diterapkan ke user. <br><br>Setelah yakin, klik <strong>"Simpan Perubahan"</strong> biru di bawah modal. Klik <strong>"Batal"</strong> untuk menutup tanpa menyimpan. <br><br><strong>Tips penting:</strong><br>• Kosongkan semua kondisi untuk mengizinkan user melihat seluruh data tabel tersebut <br>• Satu tabel bisa memiliki lebih dari satu kondisi (AND logic) <br>• Kondisi berlaku untuk semua pertanyaan AI yang melibatkan tabel tersebut                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">PREVIEW DATA & SIMPAN RLS</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_rls_preview.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="PREVIEW DATA & SIMPAN RLS">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- SECTION TITLE -->
+        <div style="margin: 80px 0 40px 0; display: flex; align-items: center; gap: 20px;">
+            <div style="height: 2px; flex: 1; background: linear-gradient(to right, transparent, #e2e8f0);"></div>
+            <h2 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; margin: 0; text-transform: uppercase; letter-spacing: 1px;">7F. Menghapus User</h2>
+            <div style="height: 2px; flex: 1; background: linear-gradient(to left, transparent, #e2e8f0);"></div>
+        </div>
+
+        
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">74</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Tombol Hapus User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">TOMBOL HAPUS USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_delete_btn.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="TOMBOL HAPUS USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+                    <!-- STEP ITEM -->
+            <div style="margin-bottom: 100px; position: relative;">
+                
+                <!-- Step Number & Line -->
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+                    <div style="background: #14b8a6; color: #fff; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1rem; box-shadow: 0 10px 15px -3px #14b8a640;">75</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0;">Konfirmasi Hapus User</h3>
+                </div>
+
+                <!-- Description Callout -->
+                <div style="font-size: 1.1rem; line-height: 1.7; color: #475569; margin-bottom: 30px; padding-left: 51px;">
+                    Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.                </div>
+
+                <!-- Browser Frame Screenshot -->
+                <div style="margin-left: 51px; background: #fff; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; overflow: hidden;">
+                    <!-- Browser Top Bar -->
+                    <div style="background: #f8fafc; padding: 12px 20px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="flex: 1; text-align: center; font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">KONFIRMASI HAPUS USER</div>
+                    </div>
+                    <!-- Image -->
+                    <div style="position: relative; background: #000;">
+                        <img src="http://74.48.112.31:5000/admin_guide/real_user_delete_confirm.png" style="width: 100%; display: block; height: auto; transition: transform 0.3s ease;" alt="KONFIRMASI HAPUS USER">
+                        <!-- Red Highlight Indicator Tooltip -->
+                        <div style="position: absolute; top: 10px; right: 10px; background: #ef4444; color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">LIHAT KOTAK MERAH</div>
+                    </div>
+                </div>
+
+            </div>
+            
+    <!-- FINAL FOOTER -->
+    <div style="background: #0f172a; border-radius: 40px; padding: 60px; text-align: center; color: #fff; margin-top: 100px;">
+        <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
+        <h2 style="font-size: 2rem; font-weight: 800; margin: 0; color: #fff;">Selesai!</h2>
+        <p style="font-size: 1.1rem; color: #94a3b8; margin: 15px 0 0 0;">Anda telah menyelesaikan panduan untuk bab ini. Dokumentasi ini membantu tim tetap sinkron dengan sistem DarkoAI.</p>
+    </div>
+
+</div>
+    

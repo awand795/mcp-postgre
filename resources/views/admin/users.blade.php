@@ -876,20 +876,22 @@
     .tf-add-rule-btn:hover { background: rgba(99,102,241,0.08); border-style: solid; }
     
     .tf-rule-row {
-        display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-        padding: 8px 10px; border-radius: 10px; background: var(--input-bg);
+        display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+        padding: 10px 12px; border-radius: 12px; background: var(--input-bg);
         border: 1px solid var(--glass-border2); transition: all 0.2s;
+        min-width: 0; /* Prevent expansion */
     }
-    .tf-rule-row:hover { border-color: rgba(99,102,241,0.2); }
+    .tf-rule-row:hover { border-color: rgba(99,102,241,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
     .tf-rule-row select, .tf-rule-row input {
-        padding: 6px 10px; border-radius: 8px; border: 1px solid var(--input-border);
-        background: var(--card-bg); color: var(--text-main); font-size: 0.8rem;
-        font-family: 'Outfit', sans-serif; outline: none; transition: border-color 0.2s;
+        padding: 8px 12px; border-radius: 10px; border: 1px solid var(--input-border);
+        background: var(--card-bg); color: var(--text-main); font-size: 0.82rem;
+        font-family: 'Outfit', sans-serif; outline: none; transition: all 0.2s;
+        height: 38px;
     }
-    .tf-rule-row select:focus, .tf-rule-row input:focus { border-color: #6366f1; }
-    .tf-rule-col { flex: 2; min-width: 0; }
-    .tf-rule-op { width: 90px; flex-shrink: 0; }
-    .tf-rule-val { flex: 2; min-width: 0; }
+    .tf-rule-row select:focus, .tf-rule-row input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    .tf-rule-col { flex: 3; min-width: 0; max-width: 40%; }
+    .tf-rule-op { width: 100px; flex-shrink: 0; }
+    .tf-rule-val { flex: 4; min-width: 0; }
     .tf-rule-del {
         width: 30px; height: 30px; border-radius: 8px; border: none;
         background: rgba(239,68,68,0.08); color: #ef4444; cursor: pointer;
