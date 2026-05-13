@@ -954,9 +954,9 @@
         cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
     }
     .tf-preview-btn:hover { background: rgba(16,185,129,0.15); }
-    .tf-preview-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; table-layout: fixed; }
-    .tf-preview-table th { background: rgba(99,102,241,0.08); color: #6366f1; font-weight: 700; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--glass-border2); }
-    .tf-preview-table td { padding: 5px 8px; border-bottom: 1px solid var(--glass-border2); color: var(--text-main); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tf-preview-table { min-width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; table-layout: auto; }
+    .tf-preview-table th { background: rgba(99,102,241,0.08); color: #6366f1; font-weight: 700; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--glass-border2); white-space: nowrap; }
+    .tf-preview-table td { padding: 8px 12px; border-bottom: 1px solid var(--glass-border2); color: var(--text-main); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tf-preview-total { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
 
     .tf-footer { padding: 1.25rem 1.75rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
