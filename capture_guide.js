@@ -23,8 +23,7 @@ async function run() {
         const { 
             clickSelector = null, 
             runScript = null, 
-            waitAfter = 1500, 
-            fullPage = false,
+            waitAfter = 2000, 
             outlineOffset = '4px',
             outlineWidth = '4px'
         } = options;
@@ -32,7 +31,7 @@ async function run() {
         console.log(`Capturing ${filename}...`);
         
         try {
-            if (page.url() !== url) {
+            if (url && page.url() !== url) {
                 await page.goto(url, { waitUntil: 'networkidle2' });
             }
             
@@ -61,7 +60,7 @@ async function run() {
             }
 
             const savePath = path.join(OUT_DIR, filename);
-            await page.screenshot({ path: savePath, fullPage: fullPage });
+            await page.screenshot({ path: savePath });
             
             if (selector) {
                 await page.evaluate((sel) => {
@@ -78,23 +77,12 @@ async function run() {
     }
 
     try {
-        // --- MENU 1: LOGIN ---
-        console.log('\n--- Capturing Menu 1: Login ---');
-        const loginUrl = `${BASE_URL}/login`;
-        await capture(loginUrl, '.auth-card', 'real_login_page.png');
-        await capture(loginUrl, 'input[name="email"]', 'real_login_email.png');
-        await capture(loginUrl, 'input[name="password"]', 'real_login_password.png');
-        await capture(loginUrl, 'button[type="submit"]', 'real_login_button.png');
-        await capture(loginUrl, 'a[href*="forgot-password"]', 'real_login_forgot_link.png');
-
-        // Forgot Password Flow
-        const forgotUrl = `${BASE_URL}/forgot-password`;
-        await capture(forgotUrl, 'input[name="email"]', 'real_forgot_email_field.png');
-        await capture(`${BASE_URL}/verify-otp?email=admin@darkotech.id`, '.auth-card', 'real_verify_otp_page.png');
-        await capture(`${BASE_URL}/reset-password?email=admin@darkotech.id&otp=123456`, '.auth-card', 'real_reset_password_page.png');
-
+        // --- 0. LOGIN ---
+        console.log('\n--- Capturing Menu 0: Login ---');
+        await capture(`${BASE_URL}/login`, '.auth-card', 'real_login_page.png');
+        
         console.log('Logging in...');
-        await page.goto(loginUrl, { waitUntil: 'networkidle2' });
+        await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
         await page.type('input[name="email"]', 'awanda@darkotech.id');
         await page.type('input[name="password"]', 'awanda21345');
         await Promise.all([
@@ -102,84 +90,59 @@ async function run() {
             page.click('button[type="submit"]')
         ]);
 
-        // --- MENU 2: DASHBOARD ---
-        console.log('\n--- Capturing Menu 2: Dashboard ---');
+        // --- 1. DASHBOARD ---
+        console.log('\n--- Capturing Menu 1: Dashboard ---');
         const dashUrl = `${BASE_URL}/admin`;
-        await capture(dashUrl, '.stats-grid', 'real_dashboard.png'); 
-        await capture(dashUrl, '.sidebar', 'real_sidebar.png'); 
-        await capture(dashUrl, '.theme-switch-wrap', 'real_dash_darkmode.png'); 
-
-        // Capture Dashboard in Dark Mode
-        console.log('Switching to Dark Mode...');
-        await page.evaluate(() => {
-            if (typeof toggleTheme === 'function') {
-                toggleTheme();
-            } else {
-                document.documentElement.classList.toggle('dark');
-            }
-        });
+        await capture(dashUrl, '.stats-grid', 'real_dashboard.png');
+        await capture(dashUrl, '.sidebar', 'real_sidebar.png');
+        await capture(dashUrl, '.theme-switch-wrap', 'real_dash_darkmode.png');
+        
+        await page.evaluate(() => typeof toggleTheme === 'function' && toggleTheme());
         await new Promise(r => setTimeout(r, 1000));
         await capture(dashUrl, '.stats-grid', 'real_dashboard_dark.png');
         await capture(dashUrl, '.welcome-card', 'real_welcome_dark.png');
-        
-        // Switch back to Light Mode for consistency or stay Dark for some?
-        // Let's stay Dark for a few more to show examples
-        console.log('\n--- Capturing Menu 3: Users (Dark Mode Example) ---');
-        const userUrl = `${BASE_URL}/admin/users`;
-        await capture(userUrl, '.table-responsive', 'real_user_list_dark.png');
-
-        console.log('Switching back to Light Mode...');
-        await page.evaluate(() => {
-            if (typeof toggleTheme === 'function') {
-                toggleTheme();
-            } else {
-                document.documentElement.classList.toggle('dark');
-            }
-        });
+        await page.evaluate(() => typeof toggleTheme === 'function' && toggleTheme());
         await new Promise(r => setTimeout(r, 1000));
 
-        // --- MENU 3: USERS (Continue Light) ---
-        await capture(userUrl, '.table-responsive', 'real_user_list.png');
-        await capture(userUrl, '.filter-card', 'real_user_filter_form.png');
-        await capture(userUrl, 'button[onclick*="showModal(\'create\')"]', 'real_user_tambah_btn.png');
-        await capture(userUrl, 'button[onclick*="downloadTemplate"]', 'real_user_template_btn.png');
-        await capture(userUrl, 'button[onclick*="exportUsers"]', 'real_user_export_btn.png');
+        // --- 2. DATABASE ---
+        console.log('\n--- Capturing Menu 2: Databases ---');
+        const dbUrl = `${BASE_URL}/admin/databases`;
+        await capture(dbUrl, '.database-grid', 'real_db_list.png');
         
-        await capture(userUrl, '#userModal .modal-content', 'real_user_import_modal.png', { runScript: () => showModal('import') });
+        // Modal Database Steps
+        await capture(dbUrl, '#databaseModal .modal-container', 'real_db_modal_step1.png', { runScript: () => showDatabaseModal('create') });
+        await capture(null, '#dbHostInput', 'real_db_modal_step2.png', { runScript: () => goStep(1) });
+        await capture(null, '#dbSchemaInput', 'real_db_modal_step3.png', { runScript: () => goStep(2) });
+        
+        // Delete Confirmation
+        await capture(null, '.swal2-confirm', 'real_db_delete_confirm.png', { runScript: () => { document.getElementById('databaseModal').style.display='none'; deleteDatabase(99, 'Contoh DB'); } });
+        await page.evaluate(() => Swal.close());
 
-        // AI Config Modal
-        await capture(userUrl, '#aiConfigModal .glass-card', 'real_ai_config_modal.png', { runScript: () => { const btn = document.querySelector('button[onclick*="showAiConfig"]'); if(btn) btn.click(); } });
-        await capture(userUrl, '#aic-tab-keys-btn', 'real_ai_config_tab_keys.png', { runScript: () => { const btn = document.querySelector('button[onclick*="showAiConfig"]'); if(btn) { btn.click(); setTimeout(() => { const tab = document.getElementById('aic-tab-keys-btn'); if(tab) tab.click(); }, 500); } } });
-        await capture(userUrl, '#btnSaveAiConfig', 'real_ai_config_save.png', { runScript: () => { const btn = document.querySelector('button[onclick*="showAiConfig"]'); if(btn) btn.click(); } });
+        // --- 3. AI MANAGEMENT ---
+        console.log('\n--- Capturing Menu 3: AI ---');
+        const aiUrl = `${BASE_URL}/admin/ai-management`;
+        await capture(aiUrl, '.aim-stats', 'real_ai_management.png');
+        await capture(aiUrl, '#providerModal .glass-card', 'real_ai_provider_modal.png', { runScript: () => document.getElementById('providerModal').style.display='flex' });
+        await capture(null, '#keyModal .glass-card', 'real_ai_key_modal.png', { runScript: () => { closeModal('providerModal'); openAddKey(1, 'OpenAI'); } });
+        await capture(null, '#modelModal .glass-card', 'real_ai_model_modal.png', { runScript: () => { closeModal('keyModal'); openAddModel(1, 'OpenAI'); } });
+        await capture(null, '#hcModal .glass-card', 'real_ai_health_modal.png', { runScript: () => { closeModal('modelModal'); const btn = document.querySelector('.mb-hc'); if(btn) btn.click(); } });
 
-        // RLS Modal
-        await capture(userUrl, '#tableFilterModal .modal-content', 'real_rls_modal.png', { runScript: () => { const btn = document.querySelector('button[onclick*="showTableFilters"]'); if(btn) btn.click(); } });
-        await capture(userUrl, '.tf-add-rule-btn', 'real_rls_add_rule.png', { runScript: () => { const btn = document.querySelector('button[onclick*="showTableFilters"]'); if(btn) { btn.click(); setTimeout(() => { const item = document.querySelector(".tf-table-item"); if(item) item.click(); }, 1000); } } });
-
-        // --- MENU 4: ROLES ---
+        // --- 4. ROLES ---
         console.log('\n--- Capturing Menu 4: Roles ---');
         const roleUrl = `${BASE_URL}/admin/roles`;
         await capture(roleUrl, '.role-list-card', 'real_role_list.png');
-        await capture(roleUrl, '#tables-list', 'real_role_permissions.png');
-        await capture(roleUrl, 'button[onclick*="savePermissions"]', 'real_role_save_permissions.png');
+        await capture(null, '#roleModal .glass-card', 'real_role_modal.png', { runScript: () => showRoleModal('create') });
+        await capture(null, '.swal2-confirm', 'real_role_delete_confirm.png', { runScript: () => { document.getElementById('roleModal').style.display='none'; deleteRole(99, 'Role Staff'); } });
+        await page.evaluate(() => Swal.close());
 
-        // --- MENU 5: DATABASES ---
-        console.log('\n--- Capturing Menu 5: Databases ---');
-        const dbUrl = `${BASE_URL}/admin/databases`;
-        await capture(dbUrl, '.database-grid', 'real_db_list.png');
-        await capture(dbUrl, 'button[onclick*="showDatabaseModal"]', 'real_db_add_btn.png');
-        await capture(dbUrl, 'button[onclick*="testAllConnections"]', 'real_db_test_all.png');
-
-        // --- MENU 6: AI MANAGEMENT ---
-        console.log('\n--- Capturing Menu 6: AI Management ---');
-        const aiUrl = `${BASE_URL}/admin/ai-management`;
-        await capture(aiUrl, '.aim-stats', 'real_ai_management.png');
-        await capture(aiUrl, '.sw', 'real_ai_toggle_on.png');
-        await capture(aiUrl, '.pcard-tab', 'real_ai_keys_tab.png');
-        await capture(aiUrl, '.pf-btn-key', 'real_ai_add_key_btn.png');
-        await capture(aiUrl, '.pf-btn-mod', 'real_ai_add_model_btn.png');
-        await capture(aiUrl, '.mb-hc', 'real_ai_health_btn.png');
-        await capture(aiUrl, '.mb-warn, .mb', 'real_ai_reset_limit_btn.png');
+        // --- 5. USERS ---
+        console.log('\n--- Capturing Menu 5: Users ---');
+        const userUrl = `${BASE_URL}/admin/users`;
+        await capture(userUrl, '.table-responsive', 'real_user_list.png');
+        await capture(null, '#userModal .modal-content', 'real_user_modal.png', { runScript: () => showModal('create') });
+        await capture(null, '#aiConfigModal .glass-card', 'real_user_ai_modal.png', { runScript: () => { hideModal(); const btn = document.querySelector('button[onclick*="showAiConfig"]'); if(btn) btn.click(); } });
+        await capture(null, '#tableFilterModal .modal-content', 'real_user_rls_modal.png', { runScript: () => { document.getElementById('aiConfigModal').style.display='none'; const btn = document.querySelector('button[onclick*="showTableFilters"]'); if(btn) btn.click(); } });
+        await capture(null, '.swal2-confirm', 'real_user_delete_confirm.png', { runScript: () => { document.getElementById('tableFilterModal').style.display='none'; const btn = document.querySelector('.btn-delete'); if(btn) btn.click(); } });
 
         console.log('\nAll screenshots captured successfully!');
     } catch (err) {
