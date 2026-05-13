@@ -325,7 +325,7 @@ html.dark .mb:hover { background: rgba(255,255,255,.06); }
 .mb.mb-warn:hover  { background: rgba(245,158,11,.1); } .mb.mb-warn:hover svg  { stroke: #d97706; }
 html.dark .mb.mb-warn:hover svg { stroke: #fbbf24; }
 .mb.mb-del           { border-color: rgba(239,68,68,0.25); }
-.mb.mb-del svg       { stroke: #ef4444; }
+.mb.mb-del svg       { stroke: #ef4444; stroke-width: 2.2; }
 .mb.mb-del:hover   { background: rgba(239,68,68,.1);  } .mb.mb-del:hover svg   { stroke: #dc2626; }
 html.dark .mb.mb-del { border-color: rgba(239,68,68,0.2); }
 html.dark .mb.mb-del svg { stroke: #f87171; }
@@ -349,10 +349,12 @@ html.dark .model-chip { background: rgba(0,0,0,.2); }
 .model-chip:hover { transform: translateY(-1px); border-color: var(--aim-indigo); }
 .mc-del {
     background: none; border: none; color: #ef4444;
-    cursor: pointer; font-size: 0.75rem; line-height: 1;
-    padding: 0; opacity: .7; margin-left: 2px;
-    transition: opacity .15s;
+    cursor: pointer; font-size: 0.8rem; line-height: 1;
+    padding: 0; opacity: 1; margin-left: 4px;
+    font-weight: 900;
+    transition: transform .15s;
 }
+.mc-del:hover { transform: scale(1.2); color: #dc2626; }
 html.dark .mc-del { color: #f87171; }
 .mc-del:hover { opacity: 1; }
 
