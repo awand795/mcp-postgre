@@ -418,6 +418,12 @@
                                 <i class="fas fa-plus"></i> Tambah Kondisi
                             </button>
                         </div>
+                        <div id="tfRulesGridHeader" class="tf-rules-grid-header" style="display: none;">
+                            <span>Kolom</span>
+                            <span>Kondisi</span>
+                            <span>Isi Kondisi / Nilai</span>
+                            <span></span>
+                        </div>
                         <div id="tfRulesContainer"></div>
                         <p class="tf-help-text">
                             <i class="fas fa-info-circle"></i> Kosongkan semua untuk mengizinkan akses ke seluruh data tabel ini.
@@ -855,11 +861,11 @@
         background: rgba(16,185,129,0.15); color: #10b981; flex-shrink: 0;
     }
 
-    .tf-content { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); }
+    .tf-content { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); min-width: 0; }
     .tf-empty-panel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center; padding: 2rem; }
     .tf-empty-panel i { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.3; }
     
-    .tf-config-panel { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; overflow-y: auto; }
+    .tf-config-panel { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; overflow-y: auto; min-width: 0; }
     .tf-table-header-info { margin-bottom: 1.25rem; }
     .tf-table-header-info h4 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 5px; }
     .tf-db-badge { display: inline-block; padding: 2px 8px; border-radius: 5px; background: rgba(99,102,241,0.1); color: #6366f1; font-size: 0.7rem; font-weight: 600; }
@@ -874,10 +880,22 @@
         cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 4px;
     }
     .tf-add-rule-btn:hover { background: rgba(99,102,241,0.08); border-style: solid; }
+
+    .tf-rules-grid-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) 100px minmax(0, 2fr) 36px;
+        gap: 10px;
+        padding: 0 12px 8px 12px;
+        font-size: 0.68rem;
+        font-weight: 800;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
     
     .tf-rule-row {
         display: grid;
-        grid-template-columns: 1.5fr 100px 2fr 36px;
+        grid-template-columns: minmax(0, 1.5fr) 100px minmax(0, 2fr) 36px;
         gap: 10px;
         align-items: center;
         margin-bottom: 10px;
@@ -891,8 +909,8 @@
     }
     .tf-rule-row:hover { border-color: rgba(99,102,241,0.25); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     .tf-rule-row select, .tf-rule-row input {
-        width: 100%; /* Force width */
-        min-width: 0; /* Allow shrinking */
+        width: 100%;
+        min-width: 0;
         padding: 8px 12px; border-radius: 10px; border: 1px solid var(--input-border);
         background: var(--card-bg); color: var(--text-main); font-size: 0.82rem;
         font-family: 'Outfit', sans-serif; outline: none; transition: all 0.2s;
@@ -929,14 +947,14 @@
     .tf-help-text { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
     
     /* Preview */
-    .tf-preview-area { margin-top: auto; padding-top: 1rem; }
+    .tf-preview-area { margin-top: auto; padding-top: 1rem; min-width: 0; }
     .tf-preview-btn {
         padding: 8px 16px; border-radius: 10px; border: 1px solid rgba(16,185,129,0.2);
         background: rgba(16,185,129,0.08); color: #10b981; font-size: 0.8rem; font-weight: 600;
         cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
     }
     .tf-preview-btn:hover { background: rgba(16,185,129,0.15); }
-    .tf-preview-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; }
+    .tf-preview-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.75rem; table-layout: fixed; }
     .tf-preview-table th { background: rgba(99,102,241,0.08); color: #6366f1; font-weight: 700; padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--glass-border2); }
     .tf-preview-table td { padding: 5px 8px; border-bottom: 1px solid var(--glass-border2); color: var(--text-main); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tf-preview-total { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
@@ -951,8 +969,10 @@
         .tf-modal { height: 95vh; max-height: 95vh; }
         .tf-body { flex-direction: column; }
         .tf-sidebar { width: 100%; height: 180px; border-right: none; border-bottom: 1px solid var(--glass-border2); }
-        .tf-rule-row { flex-wrap: wrap; }
-        .tf-rule-col, .tf-rule-val { flex-basis: 100%; }
+        .tf-rule-row { display: flex; flex-direction: column; gap: 8px; }
+        .tf-rule-col, .tf-rule-op, .tf-rule-val { width: 100% !important; }
+        .tf-rule-del { align-self: flex-end; }
+        .tf-rules-grid-header { display: none; }
     }
 </style>
 <script>
@@ -1313,11 +1333,20 @@
         renderTfTableList();
     }
 
+    function updateTfRulesHeader() {
+        const container = document.getElementById('tfRulesContainer');
+        const header = document.getElementById('tfRulesGridHeader');
+        if (!header) return;
+        const hasRows = container.querySelectorAll('.tf-rule-row').length > 0;
+        header.style.display = hasRows ? 'grid' : 'none';
+    }
+
     function renderRulesUI(rules) {
         const container = document.getElementById('tfRulesContainer');
         container.innerHTML = '';
         if (rules.length === 0) {
             container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
+            updateTfRulesHeader();
             return;
         }
         rules.forEach((rule, i) => {
@@ -1327,6 +1356,7 @@
             }
             appendRuleRow(rule.column, rule.operator, rule.value);
         });
+        updateTfRulesHeader();
     }
 
     function addRuleRow() {
@@ -1339,6 +1369,7 @@
             appendLogicSelector('AND');
         }
         appendRuleRow('', '=', '');
+        updateTfRulesHeader();
     }
 
     function appendLogicSelector(selected) {
@@ -1396,6 +1427,7 @@
         if (container.querySelectorAll('.tf-rule-row').length === 0) {
             container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
         }
+        updateTfRulesHeader();
     }
 
     function collectRulesFromUI() {
