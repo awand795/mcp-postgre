@@ -876,38 +876,53 @@
     .tf-add-rule-btn:hover { background: rgba(99,102,241,0.08); border-style: solid; }
     
     .tf-rule-row {
-        display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
-        padding: 10px 12px; border-radius: 12px; background: var(--input-bg);
-        border: 1px solid var(--glass-border2); transition: all 0.2s;
-        min-width: 0; /* Prevent expansion */
+        display: grid;
+        grid-template-columns: 1.5fr 100px 2fr 36px;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 12px;
+        border-radius: 14px;
+        background: var(--input-bg);
+        border: 1px solid var(--glass-border2);
+        transition: all 0.2s;
+        min-width: 0;
+        width: 100%;
     }
-    .tf-rule-row:hover { border-color: rgba(99,102,241,0.25); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
+    .tf-rule-row:hover { border-color: rgba(99,102,241,0.25); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
     .tf-rule-row select, .tf-rule-row input {
+        width: 100%; /* Force width */
+        min-width: 0; /* Allow shrinking */
         padding: 8px 12px; border-radius: 10px; border: 1px solid var(--input-border);
         background: var(--card-bg); color: var(--text-main); font-size: 0.82rem;
         font-family: 'Outfit', sans-serif; outline: none; transition: all 0.2s;
         height: 38px;
+        box-sizing: border-box;
     }
     .tf-rule-row select:focus, .tf-rule-row input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-    .tf-rule-col { flex: 3; min-width: 0; max-width: 40%; }
-    .tf-rule-op { width: 100px; flex-shrink: 0; }
-    .tf-rule-val { flex: 4; min-width: 0; }
+    .tf-rule-col { min-width: 0; overflow: hidden; }
+    .tf-rule-op { min-width: 0; }
+    .tf-rule-val { min-width: 0; }
     .tf-rule-del {
-        width: 30px; height: 30px; border-radius: 8px; border: none;
+        width: 36px; height: 36px; border-radius: 10px; border: none;
         background: rgba(239,68,68,0.08); color: #ef4444; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; font-size: 0.75rem;
-        transition: all 0.2s; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+        transition: all 0.2s; justify-self: center;
     }
-    .tf-rule-del:hover { background: rgba(239,68,68,0.18); }
+    .tf-rule-del:hover { background: #ef4444; color: white; transform: rotate(90deg); }
     .tf-rule-logic {
         display: flex; align-items: center; justify-content: center;
-        margin: -2px 0 2px 0; padding: 2px 0;
+        margin: 4px 0; padding: 4px 0; position: relative;
+    }
+    .tf-rule-logic::before, .tf-rule-logic::after {
+        content: ''; height: 1px; flex: 1; background: var(--glass-border2);
     }
     .tf-logic-select {
-        padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(99,102,241,0.2);
-        background: rgba(99,102,241,0.06); color: #6366f1; font-size: 0.68rem; font-weight: 800;
+        margin: 0 15px; padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(99,102,241,0.25);
+        background: var(--card-bg); color: #6366f1; font-size: 0.7rem; font-weight: 800;
         text-transform: uppercase; cursor: pointer; outline: none;
         font-family: 'Outfit', sans-serif; text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .tf-logic-select:focus { border-color: #6366f1; }
     
