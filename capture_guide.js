@@ -3,7 +3,7 @@
  * DarkoAI Admin Panel
  * 
  * Jalankan: node capture_guide.js
- * Pastikan server berjalan di http://localhost:5000
+ * Pastikan server berjalan di http://74.48.112.31:5000
  */
 
 import puppeteer from 'puppeteer';
@@ -12,7 +12,7 @@ import path from 'path';
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 const OUT_DIR  = path.resolve('public', 'admin_guide');
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'http://74.48.112.31:5000';
 
 // Kredensial login — sesuaikan dengan akun admin aktif
 const LOGIN_EMAIL    = 'awanda@darkotech.id';
@@ -91,6 +91,49 @@ async function unhighlightAll(selectors) {
 /** Wait ms */
 async function wait(ms) {
     await new Promise(r => setTimeout(r, ms));
+}
+
+/** Login ke sistem — robust dengan clear cookies & fallback jika sudah login */
+async function doLogin() {
+    // Hapus semua cookies agar tidak ada redirect otomatis
+    try {
+        const cookies = await page.cookies(`${BASE_URL}/login`);
+        if (cookies.length) await page.deleteCookie(...cookies);
+    } catch (_) {}
+    await wait(500);
+
+    // Navigasi ke halaman login
+    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2', timeout: 30000 });
+    await wait(1000);
+
+    // Cek apakah sudah di-redirect (sudah login) — kalau iya tidak perlu login lagi
+    const urlAfterNav = page.url();
+    if (!urlAfterNav.includes('/login')) {
+        console.log(`  ✓ Sudah terautentikasi, URL: ${urlAfterNav}`);
+        return;
+    }
+
+    // Tunggu field email dengan timeout lebih panjang
+    await page.waitForSelector('input[name="email"]', { timeout: 20000 });
+
+    // Clear field dulu
+    await page.$eval('input[name="email"]',    el => el.value = '');
+    await page.$eval('input[name="password"]', el => el.value = '');
+
+    await page.type('input[name="email"]',    LOGIN_EMAIL,    { delay: 60 });
+    await page.type('input[name="password"]', LOGIN_PASSWORD, { delay: 60 });
+    await wait(500);
+
+    await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
+        page.click('button[type="submit"]'),
+    ]);
+
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+        throw new Error(`Login gagal — masih di: ${currentUrl}`);
+    }
+    console.log(`  ✓ Login berhasil, URL: ${currentUrl}`);
 }
 
 /** Screenshot ke file */
@@ -194,23 +237,16 @@ async function run() {
         selector: 'button[type="submit"]',
     });
 
-    // 5. Login — arahkan ke sistem
-    console.log('\n  Melakukan login...');
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.type('input[name="email"]',    LOGIN_EMAIL,    { delay: 50 });
-    await page.type('input[name="password"]', LOGIN_PASSWORD, { delay: 50 });
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
-        page.click('button[type="submit"]'),
-    ]);
-    console.log(`  Sesudah login, URL: ${page.url()}`);
+    // 5. Login pertama kali
+    console.log('\n  Melakukan login pertama...');
+    await doLogin();
 
     // 6. Halaman awal setelah login
     await capture('real_login_success.png', {
         selectors: ['body'],
     });
 
-    // 6b. Lupa password
+    // 6b. Lupa password — buka di page baru agar tidak ganggu session
     await capture('real_login_forgot_link.png', {
         url:      `${BASE_URL}/login`,
         selector: 'a[href*="forgot"]',
@@ -222,26 +258,21 @@ async function run() {
         selector: 'form',
     });
 
-    // 8. Halaman OTP
+    // 8. Halaman OTP — hanya screenshot, tidak submit
     await capture('real_verify_otp_page.png', {
         url:      `${BASE_URL}/verify-otp?email=admin@darkotech.id`,
         selector: 'form',
     });
 
-    // 9. Halaman reset password
+    // 9. Halaman reset password — hanya screenshot, tidak submit
     await capture('real_reset_password_page.png', {
         url: `${BASE_URL}/reset-password?email=admin@darkotech.id&otp=000000`,
         selector: 'form',
     });
 
-    // Kembali login dulu
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle2' });
-    await page.type('input[name="email"]',    LOGIN_EMAIL,    { delay: 50 });
-    await page.type('input[name="password"]', LOGIN_PASSWORD, { delay: 50 });
-    await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }),
-        page.click('button[type="submit"]'),
-    ]);
+    // Re-login: clear cookies lalu login ulang
+    console.log('\n  Re-login setelah screenshot auth pages...');
+    await doLogin();
 
     // ─────────────────────────────────────────────────────────────────────────
     // BAGIAN 1: CHATBOT
