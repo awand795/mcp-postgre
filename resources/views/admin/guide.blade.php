@@ -6,106 +6,130 @@
 @php
 $guideData = [
     [
-        'id' => 'menu-1-dashboard',
-        'title' => '1. DASHBOARD OVERVIEW',
+        'id' => 'menu-0-auth',
+        'title' => '0. AUTENTIKASI & KEAMANAN',
+        'icon' => 'fas fa-shield-alt',
+        'desc' => 'Proses masuk ke sistem dan pemulihan akun untuk menjaga keamanan data.',
+        'sections' => [
+            [
+                'id' => 'auth-login',
+                'title' => '0A. Login ke Panel',
+                'steps' => [
+                    ['no' => 1, 'text' => 'Halaman Login', 'desc' => 'Masukkan email dan password terdaftar.', 'real_img' => 'real_login_page.png'],
+                    ['no' => 2, 'text' => 'Lupa Password', 'desc' => 'Klik link "Lupa Password" untuk memulai pemulihan via email.', 'real_img' => 'real_login_forgot_link.png'],
+                    ['no' => 3, 'text' => 'Verifikasi OTP', 'desc' => 'Masukkan 6 digit kode yang dikirim ke inbox email Anda.', 'real_img' => 'real_verify_otp_page.png'],
+                    ['no' => 4, 'text' => 'Setel Password Baru', 'desc' => 'Buat password baru yang kuat (minimal 8 karakter).', 'real_img' => 'real_reset_password_page.png'],
+                ]
+            ]
+        ]
+    ],
+    [
+        'id' => 'menu-1-chatbot',
+        'title' => '1. darkotech AI (CHATBOT)',
+        'icon' => 'fas fa-robot',
+        'desc' => 'Antarmuka utama chatbot untuk berinteraksi dengan data melalui kecerdasan buatan.',
+        'sections' => [
+            [
+                'id' => 'chat-interface',
+                'title' => '1A. Antarmuka Chat',
+                'steps' => [
+                    ['no' => 5, 'text' => 'Halaman Utama Chat', 'desc' => 'Area percakapan utama dengan AI.', 'real_img' => 'real_chatbot_page.png'],
+                    ['no' => 6, 'text' => 'Sidebar Riwayat', 'desc' => 'Melihat daftar percakapan sebelumnya dan membuat chat baru.', 'real_img' => 'real_chatbot_sidebar.png'],
+                    ['no' => 7, 'text' => 'Aksi Riwayat (Delete)', 'desc' => 'Klik ikon sampah di sidebar untuk menghapus sesi tertentu.', 'real_img' => 'real_chatbot_delete_confirm.png'],
+                    ['no' => 8, 'text' => 'Export Data (PDF/Excel)', 'desc' => 'AI dapat menghasilkan tabel yang bisa diunduh langsung.', 'real_img' => 'real_chatbot_export.png'],
+                ]
+            ]
+        ]
+    ],
+    [
+        'id' => 'menu-2-dashboard',
+        'title' => '2. DASHBOARD ADMIN',
         'icon' => 'fas fa-chart-pie',
-        'desc' => 'Dashboard adalah pusat informasi statistik sistem secara real-time.',
+        'desc' => 'Pusat statistik sistem dan pengaturan preferensi visual administrator.',
         'sections' => [
             [
                 'id' => 'dash-main',
-                'title' => '1A. Tampilan Utama',
+                'title' => '2A. Statistik & Tema',
                 'steps' => [
-                    ['no' => 1, 'text' => 'Statistik Sistem', 'desc' => 'Melihat jumlah user, database, dan AI provider aktif.', 'real_img' => 'real_dashboard.png'],
-                    ['no' => 2, 'text' => 'Navigasi Sidebar', 'desc' => 'Gunakan menu kiri untuk berpindah modul sesuai urutan panduan ini.', 'real_img' => 'real_sidebar.png'],
-                    ['no' => 3, 'text' => 'Dark Mode Toggle', 'desc' => 'Klik ikon matahari/bulan untuk mengganti tema.', 'real_img' => 'real_dash_darkmode.png'],
-                    ['no' => 4, 'text' => 'Contoh Tema Gelap', 'desc' => 'Visualisasi dashboard saat menggunakan mode malam.', 'real_img' => 'real_dashboard_dark.png'],
+                    ['no' => 9, 'text' => 'Overview Statistik', 'desc' => 'Melihat jumlah user, database, dan AI provider aktif.', 'real_img' => 'real_dashboard.png'],
+                    ['no' => 10, 'text' => 'Navigasi Sidebar Admin', 'desc' => 'Akses cepat ke seluruh modul manajemen.', 'real_img' => 'real_sidebar.png'],
+                    ['no' => 11, 'text' => 'Mode Gelap (Dark Mode)', 'desc' => 'Tampilan Dashboard saat tema gelap diaktifkan.', 'real_img' => 'real_dashboard_dark.png'],
                 ]
             ]
         ]
     ],
     [
-        'id' => 'menu-2-db',
-        'title' => '2. DATABASE MANAGEMENT',
+        'id' => 'menu-3-db',
+        'title' => '3. DATABASE MANAGEMENT',
         'icon' => 'fas fa-database',
-        'desc' => 'Menghubungkan sistem ke sumber data eksternal (PostgreSQL, MySQL, MariaDB, dll).',
+        'desc' => 'Menghubungkan aplikasi ke berbagai sumber data organisasi.',
         'sections' => [
             [
-                'id' => 'db-list',
-                'title' => '2A. Daftar & Koneksi',
+                'id' => 'db-wizard',
+                'title' => '3A. Wizard Tambah Database',
                 'steps' => [
-                    ['no' => 5, 'text' => 'Grid Database', 'desc' => 'Daftar koneksi yang terdaftar beserta status koneksinya.', 'real_img' => 'real_db_list.png'],
-                    ['no' => 6, 'text' => 'Tambah Database (Step 1)', 'desc' => 'Masukkan nama alias dan pilih jenis driver database.', 'real_img' => 'real_db_modal_step1.png'],
-                    ['no' => 7, 'text' => 'Tambah Database (Step 2)', 'desc' => 'Isikan detail host, port, username, dan password server.', 'real_img' => 'real_db_modal_step2.png'],
-                    ['no' => 8, 'text' => 'Tambah Database (Step 3)', 'desc' => 'Pilih schema (untuk PGSQL) dan uji koneksi sebelum simpan.', 'real_img' => 'real_db_modal_step3.png'],
+                    ['no' => 12, 'text' => 'Langkah 1: Identitas', 'desc' => 'Isikan nama alias dan pilih jenis database.', 'real_img' => 'real_db_modal_step1.png'],
+                    ['no' => 13, 'text' => 'Langkah 2: Kredensial', 'desc' => 'Isikan Host, Port, Nama DB, Username, dan Password.', 'real_img' => 'real_db_modal_step2.png'],
+                    ['no' => 14, 'text' => 'Langkah 3: Finalisasi', 'desc' => 'Pilih schema (untuk PGSQL) dan uji koneksi.', 'real_img' => 'real_db_modal_step3.png'],
                 ]
             ],
             [
-                'id' => 'db-actions',
-                'title' => '2B. Aksi & Penghapusan',
+                'id' => 'db-ops',
+                'title' => '3B. Operasi Database',
                 'steps' => [
-                    ['no' => 9, 'text' => 'Edit Database', 'desc' => 'Mengubah kredensial database yang sudah ada.', 'real_img' => 'real_db_list.png'],
-                    ['no' => 10, 'text' => 'Hapus Database', 'desc' => 'Konfirmasi penghapusan koneksi database dari sistem.', 'real_img' => 'real_db_delete_confirm.png'],
+                    ['no' => 15, 'text' => 'Uji Semua Koneksi', 'desc' => 'Gunakan tombol "Test All" untuk cek kesehatan semua DB.', 'real_img' => 'real_db_test_all.png'],
+                    ['no' => 16, 'text' => 'Konfirmasi Hapus DB', 'desc' => 'Kotak merah menunjukkan tombol konfirmasi penghapusan.', 'real_img' => 'real_db_delete_confirm.png'],
                 ]
             ]
         ]
     ],
     [
-        'id' => 'menu-3-ai',
-        'title' => '3. AI MANAGEMENT',
+        'id' => 'menu-4-ai',
+        'title' => '4. AI INFRASTRUCTURE',
         'icon' => 'fas fa-brain',
-        'desc' => 'Mengatur infrastruktur AI, API Key, dan Model yang tersedia.',
+        'desc' => 'Manajemen "Otak" sistem meliputi provider, API key, dan model.',
         'sections' => [
             [
-                'id' => 'ai-prov',
-                'title' => '3A. Provider & Key',
+                'id' => 'ai-config',
+                'title' => '4A. Provider & Key',
                 'steps' => [
-                    ['no' => 11, 'text' => 'Overview AI', 'desc' => 'Statistik penggunaan dan daftar provider AI.', 'real_img' => 'real_ai_management.png'],
-                    ['no' => 12, 'text' => 'Tambah Provider Baru', 'desc' => 'Daftarkan penyedia layanan AI (Custom/Built-in).', 'real_img' => 'real_ai_provider_modal.png'],
-                    ['no' => 13, 'text' => 'Tambah API Key', 'desc' => 'Masukkan token rahasia dari dashboard provider.', 'real_img' => 'real_ai_key_modal.png'],
-                ]
-            ],
-            [
-                'id' => 'ai-health',
-                'title' => '3B. Health Check & Model',
-                'steps' => [
-                    ['no' => 14, 'text' => 'Health Check API', 'desc' => 'Uji validitas key secara berkala agar chatbot tidak error.', 'real_img' => 'real_ai_health_modal.png'],
-                    ['no' => 15, 'text' => 'Tambah Model AI', 'desc' => 'Daftarkan ID model terbaru (misal: gpt-4o).', 'real_img' => 'real_ai_model_modal.png'],
+                    ['no' => 17, 'text' => 'Tambah Provider', 'desc' => 'Daftarkan provider baru (misal: Groq, Anthropic).', 'real_img' => 'real_ai_provider_modal.png'],
+                    ['no' => 18, 'text' => 'Tambah API Key', 'desc' => 'Masukkan API Key untuk rotasi otomatis.', 'real_img' => 'real_ai_key_modal.png'],
+                    ['no' => 19, 'text' => 'Modal Health Check', 'desc' => 'Uji apakah key masih valid atau sudah limit.', 'real_img' => 'real_ai_health_modal.png'],
                 ]
             ]
         ]
     ],
     [
-        'id' => 'menu-4-roles',
-        'title' => '4. ROLE MANAGEMENT',
+        'id' => 'menu-5-roles',
+        'title' => '5. ROLE MANAGEMENT',
         'icon' => 'fas fa-user-shield',
-        'desc' => 'Mengatur grup akses tabel database bagi pengguna.',
+        'desc' => 'Mengatur grup hak akses tabel untuk keamanan data.',
         'sections' => [
             [
-                'id' => 'role-manage',
-                'title' => '4A. Pembuatan Role',
+                'id' => 'role-ops',
+                'title' => '5A. Kelola Role',
                 'steps' => [
-                    ['no' => 16, 'text' => 'Daftar Role', 'desc' => 'List grup akses yang sudah dibuat.', 'real_img' => 'real_role_list.png'],
-                    ['no' => 17, 'text' => 'Form Tambah Role', 'desc' => 'Buat nama role baru (misal: Staff Keuangan).', 'real_img' => 'real_role_modal.png'],
-                    ['no' => 18, 'text' => 'Hapus Role', 'desc' => 'Konfirmasi sebelum mencabut akses seluruh grup.', 'real_img' => 'real_role_delete_confirm.png'],
+                    ['no' => 20, 'text' => 'Tambah Role Baru', 'desc' => 'Buat nama role dan deskripsinya.', 'real_img' => 'real_role_modal.png'],
+                    ['no' => 21, 'text' => 'Konfirmasi Hapus Role', 'desc' => 'Tampilan dialog saat akan menghapus grup akses.', 'real_img' => 'real_role_delete_confirm.png'],
                 ]
             ]
         ]
     ],
     [
-        'id' => 'menu-5-users',
-        'title' => '5. USER MANAGEMENT',
-        'icon' => 'fas fa-users',
-        'desc' => 'Modul paling detail untuk mengatur hak akses individu pengguna.',
+        'id' => 'menu-6-users',
+        'title' => '6. USER MANAGEMENT',
+        'icon' => 'fas fa-users-cog',
+        'desc' => 'Pengaturan mendalam per pengguna, dari akses AI hingga filter data.',
         'sections' => [
             [
-                'id' => 'user-add',
-                'title' => '5A. Pengelolaan User',
+                'id' => 'user-base',
+                'title' => '6A. Manajemen Akun',
                 'steps' => [
-                    ['no' => 19, 'text' => 'Daftar User', 'desc' => 'Tabel seluruh pengguna terdaftar.', 'real_img' => 'real_user_list.png'],
-                    ['no' => 20, 'text' => 'Form Tambah User', 'desc' => 'Isikan Nama, Email, Password, dan pilih Role.', 'real_img' => 'real_user_modal.png'],
-                    ['no' => 21, 'text' => 'Konfigurasi AI', 'desc' => 'Pilih model dan API Key mana yang boleh dipakai user ini.', 'real_img' => 'real_user_ai_modal.png'],
-                    ['no' => 22, 'text' => 'Row Level Security (RLS)', 'desc' => 'Batasi baris data yang bisa dibaca AI per user.', 'real_img' => 'real_user_rls_modal.png'],
-                    ['no' => 23, 'text' => 'Hapus User', 'desc' => 'Cabut total akses user dari sistem.', 'real_img' => 'real_user_delete_confirm.png'],
+                    ['no' => 22, 'text' => 'Modal Tambah User', 'desc' => 'Isikan detail akun dan tetapkan role-nya.', 'real_img' => 'real_user_modal.png'],
+                    ['no' => 23, 'text' => 'Konfigurasi AI User', 'desc' => 'Tentukan model apa yang boleh digunakan individu.', 'real_img' => 'real_user_ai_modal.png'],
+                    ['no' => 24, 'text' => 'Visual Rule Builder (RLS)', 'desc' => 'Membatasi baris data spesifik yang bisa dilihat AI.', 'real_img' => 'real_user_rls_modal.png'],
+                    ['no' => 25, 'text' => 'Konfirmasi Hapus User', 'desc' => 'Peringatan terakhir sebelum menghapus akses user.', 'real_img' => 'real_user_delete_confirm.png'],
                 ]
             ]
         ]
@@ -114,77 +138,94 @@ $guideData = [
 @endphp
 
 <style>
-    /* CSS Layout */
+    /* Layout */
     .guide-wrap { display: flex; gap: 0; align-items: flex-start; width: 100%; }
     .guide-toc {
-        width: 280px; min-width: 280px;
+        width: 300px; min-width: 300px;
         position: sticky; top: 80px;
         max-height: calc(100vh - 100px);
         overflow-y: auto; background: var(--card-bg);
         border: 1px solid var(--glass-border); border-radius: 14px;
-        padding: 1.25rem; box-shadow: var(--shadow-sm);
+        padding: 1.5rem; box-shadow: var(--shadow-sm);
         margin-right: 1.5rem; flex-shrink: 0;
     }
     .toc-menu-link {
         display: block; color: var(--text-main);
-        padding: 8px 10px; border-radius: 8px;
-        font-size: 0.9rem; font-weight: 700;
-        text-decoration: none; margin-top: 10px;
+        padding: 10px; border-radius: 8px;
+        font-size: 0.95rem; font-weight: 800;
+        text-decoration: none; margin-top: 15px;
+        background: rgba(99,102,241,0.05);
     }
     .toc-link {
         display: block; color: var(--text-muted);
-        padding: 5px 12px; font-size: 0.82rem;
+        padding: 6px 15px; font-size: 0.85rem; font-weight: 600;
         text-decoration: none; border-left: 2px solid var(--glass-border2);
+        transition: all 0.2s;
     }
-    .toc-link:hover { color: var(--primary); border-left-color: var(--primary); }
+    .toc-link:hover { color: var(--primary); border-left-color: var(--primary); background: rgba(99,102,241,0.03); }
 
     .guide-content { flex: 1; min-width: 0; }
     .menu-section {
         background: var(--card-bg); border: 1px solid var(--glass-border);
         border-radius: 20px; padding: 2.5rem;
-        margin-bottom: 3rem; box-shadow: var(--shadow-md);
+        margin-bottom: 3.5rem; box-shadow: var(--shadow-md);
         scroll-margin-top: 90px;
     }
     .guide-step {
-        display: flex; gap: 20px; padding: 2rem 0;
+        display: flex; gap: 20px; padding: 2.5rem 0;
         border-bottom: 1px solid var(--glass-border2);
     }
     .step-number {
-        width: 44px; height: 44px; min-width: 44px;
-        background: #1e293b; color: #ffffff;
+        width: 48px; height: 48px; min-width: 48px;
+        background: #0f172a; color: #ffffff;
         border: 2px solid var(--primary); border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-weight: 800; font-size: 1.2rem;
+        font-weight: 800; font-size: 1.3rem;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
     }
     html.dark .step-number { background: var(--primary); border-color: #fff; }
 
     .screenshot-wrapper {
-        margin-top: 1.5rem; border-radius: 12px;
-        overflow: hidden; border: 3px solid rgba(239, 68, 68, 0.4);
+        margin-top: 1.5rem; border-radius: 14px;
+        overflow: hidden; border: 4px solid #ef4444;
         position: relative; background: #000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-    .mockup-img { width: 100%; max-height: 600px; object-fit: contain; cursor: zoom-in; }
+    .mockup-img { width: 100%; max-height: 650px; object-fit: contain; cursor: zoom-in; }
     .screenshot-badge {
         position: absolute; bottom: 0; left: 0; right: 0;
-        padding: 8px; font-size: 0.75rem; font-weight: 700;
-        text-align: center; color: white; background: rgba(239, 68, 68, 0.8);
+        padding: 10px; font-size: 0.8rem; font-weight: 800;
+        text-align: center; color: white; background: rgba(239, 68, 68, 0.9);
+        letter-spacing: 0.5px;
     }
-    .img-lightbox { display:none; position:fixed; z-index:99999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; }
+    .img-lightbox { display:none; position:fixed; z-index:99999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.96); align-items:center; justify-content:center; cursor: zoom-out; }
     .img-lightbox.show { display:flex; }
-    .img-lightbox img { max-width:98vw; max-height:98vh; border: 4px solid white; }
+    .img-lightbox img { max-width:98vw; max-height:98vh; border: 4px solid white; border-radius: 8px; }
+
+    .print-btn {
+        position: fixed; bottom: 30px; right: 30px; z-index: 1000;
+        padding: 12px 25px; border-radius: 50px; font-weight: 800;
+        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+    }
 </style>
 
 <div class="img-lightbox" id="imgLightbox" onclick="this.classList.remove('show')">
     <img id="lightboxImg" src="">
 </div>
 
-<div class="mb-4 d-flex justify-content-between align-items-center">
-    <h1 style="color: var(--text-main); font-weight: 800; font-size: 2.2rem; margin:0;">Exhaustive Admin Guide</h1>
-    <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print me-1"></i> Cetak PDF</button>
+<div class="mb-5 d-flex justify-content-between align-items-center">
+    <div>
+        <h1 style="color: var(--text-main); font-weight: 900; font-size: 2.5rem; margin:0; letter-spacing:-1px;">Exhaustive System Guide</h1>
+        <p class="text-muted mb-0">Dokumentasi operasional lengkap dengan instruksi visual kotak merah.</p>
+    </div>
+    <button onclick="window.print()" class="btn btn-primary print-btn">
+        <i class="fas fa-print me-2"></i> Cetak Dokumen PDF
+    </button>
 </div>
 
 <div class="guide-wrap">
     <nav class="guide-toc">
+        <p class="text-xs fw-bold text-muted text-uppercase mb-3">Navigasi Modul</p>
         @foreach($guideData as $menu)
             <a class="toc-menu-link" href="#{{ $menu['id'] }}">{{ $menu['title'] }}</a>
             @foreach($menu['sections'] as $sec)
@@ -196,23 +237,28 @@ $guideData = [
     <div class="guide-content">
         @foreach($guideData as $menu)
             <section id="{{ $menu['id'] }}" class="menu-section">
-                <h2 style="color: var(--primary); font-weight: 800; margin-bottom: 1rem;">
-                    <i class="{{ $menu['icon'] }} me-2"></i>{{ $menu['title'] }}
-                </h2>
-                <p class="text-muted mb-4">{{ $menu['desc'] }}</p>
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="p-3 rounded-xl bg-primary text-white shadow-sm">
+                        <i class="{{ $menu['icon'] }} fa-2x"></i>
+                    </div>
+                    <h2 style="font-weight: 900; margin:0;">{{ $menu['title'] }}</h2>
+                </div>
+                <p class="text-muted fs-5 mb-4">{{ $menu['desc'] }}</p>
 
                 @foreach($menu['sections'] as $sec)
-                    <div id="{{ $sec['id'] }}" style="margin-top: 2rem; scroll-margin-top: 100px;">
-                        <h4 style="font-weight: 700; border-left: 4px solid var(--primary); padding-left: 1rem;">{{ $sec['title'] }}</h4>
+                    <div id="{{ $sec['id'] }}" style="margin-top: 3rem; scroll-margin-top: 100px;">
+                        <h4 style="font-weight: 800; border-left: 5px solid var(--primary); padding-left: 1.25rem; color: var(--text-main);">
+                            {{ $sec['title'] }}
+                        </h4>
                         @foreach($sec['steps'] as $step)
                             <div class="guide-step">
                                 <div class="step-number">{{ $step['no'] }}</div>
                                 <div class="flex-grow-1">
-                                    <h5 style="font-weight: 700; margin-bottom: 0.5rem;">{{ $step['text'] }}</h5>
-                                    <p class="text-muted">{!! $step['desc'] !!}</p>
+                                    <h5 style="font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">{{ $step['text'] }}</h5>
+                                    <p class="text-muted" style="line-height: 1.7;">{!! $step['desc'] !!}</p>
                                     <div class="screenshot-wrapper" onclick="openLightbox('{{ asset('admin_guide/' . $step['real_img']) }}')">
-                                        <img src="{{ asset('admin_guide/' . $step['real_img']) }}" class="mockup-img" onerror="this.src='https://placehold.co/1280x720/1e293b/ef4444?text=Capture+In+Progress'">
-                                        <div class="screenshot-badge">LIHAT KOTAK MERAH — KLIK UNTUK PERBESAR</div>
+                                        <img src="{{ asset('admin_guide/' . $step['real_img']) }}" class="mockup-img" onerror="this.src='https://placehold.co/1280x720/1e293b/ef4444?text=Capture+Sedang+Proses'">
+                                        <div class="screenshot-badge">IKUTI PETUNJUK KOTAK MERAH — KLIK UNTUK PERBESAR</div>
                                     </div>
                                 </div>
                             </div>
@@ -226,8 +272,9 @@ $guideData = [
 
 <script>
 function openLightbox(src) {
+    const lb = document.getElementById('imgLightbox');
     document.getElementById('lightboxImg').src = src;
-    document.getElementById('imgLightbox').classList.add('show');
+    lb.classList.add('show');
 }
 </script>
 @endsection
