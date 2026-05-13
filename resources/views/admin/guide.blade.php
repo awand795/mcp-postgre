@@ -47,6 +47,15 @@ $guideData = [
                     ['no' => 10, 'text' => 'Sidebar Navigasi', 'desc' => 'Gunakan sidebar di kiri untuk berpindah antar modul administrasi.', 'real_img' => 'real_sidebar.png', 'img_text' => 'Sidebar'],
                     ['no' => 11, 'text' => 'Toggle Dark/Light Mode', 'desc' => 'Sesuaikan kenyamanan mata dengan mengganti tema di pojok kanan atas.', 'real_img' => 'real_dash_darkmode.png', 'img_text' => 'Tombol Tema'],
                 ]
+            ],
+            [
+                'id' => 'dash-dark-mode',
+                'title' => '2B. Tampilan Tema Gelap (Dark Mode)',
+                'steps' => [
+                    ['no' => 12, 'text' => 'Dashboard dalam Dark Mode', 'desc' => 'Sistem mendukung tema gelap penuh untuk mengurangi kelelahan mata.', 'real_img' => 'real_dashboard_dark.png', 'img_text' => 'Dashboard Dark Mode'],
+                    ['no' => 13, 'text' => 'Komponen UI Gelap', 'desc' => 'Seluruh kartu statistik menyesuaikan warna latar belakang menjadi gelap.', 'real_img' => 'real_welcome_dark.png', 'img_text' => 'Welcome Card Dark'],
+                    ['no' => 14, 'text' => 'Visualisasi Tabel Gelap', 'desc' => 'Tabel user juga memiliki varian tema gelap yang kontras.', 'real_img' => 'real_user_list_dark.png', 'img_text' => 'User List Dark Mode'],
+                ]
             ]
         ]
     ],
@@ -60,31 +69,31 @@ $guideData = [
                 'id' => 'user-list',
                 'title' => '3A. Pengelolaan Daftar User',
                 'steps' => [
-                    ['no' => 12, 'text' => 'Tabel Data User', 'desc' => 'Daftar seluruh user beserta role dan status adminnya.', 'real_img' => 'real_user_list.png', 'img_text' => 'Tabel User'],
-                    ['no' => 13, 'text' => 'Fitur Pencarian & Filter', 'desc' => 'Gunakan form di atas tabel untuk mencari user berdasarkan nama/email atau filter per role.', 'real_img' => 'real_user_filter_form.png', 'img_text' => 'Form Filter'],
-                    ['no' => 14, 'text' => 'Tombol Tambah User', 'desc' => 'Klik untuk membuat akun baru secara manual.', 'real_img' => 'real_user_tambah_btn.png', 'img_text' => 'Tombol Tambah'],
-                    ['no' => 15, 'text' => 'Import User Massal', 'desc' => 'Upload file Excel untuk mendaftarkan banyak user sekaligus.', 'real_img' => 'real_user_import_modal.png', 'img_text' => 'Modal Import'],
-                    ['no' => 16, 'text' => 'Download Template Excel', 'desc' => 'Unduh format yang benar sebelum melakukan import.', 'real_img' => 'real_user_template_btn.png', 'img_text' => 'Tombol Template'],
+                    ['no' => 15, 'text' => 'Tabel Data User', 'desc' => 'Daftar seluruh user beserta role dan status adminnya.', 'real_img' => 'real_user_list.png', 'img_text' => 'Tabel User'],
+                    ['no' => 16, 'text' => 'Fitur Pencarian & Filter', 'desc' => 'Gunakan form di atas tabel untuk mencari user berdasarkan nama/email atau filter per role.', 'real_img' => 'real_user_filter_form.png', 'img_text' => 'Form Filter'],
+                    ['no' => 17, 'text' => 'Tombol Tambah User', 'desc' => 'Klik untuk membuat akun baru secara manual.', 'real_img' => 'real_user_tambah_btn.png', 'img_text' => 'Tombol Tambah'],
+                    ['no' => 18, 'text' => 'Import User Massal', 'desc' => 'Upload file Excel untuk mendaftarkan banyak user sekaligus.', 'real_img' => 'real_user_import_modal.png', 'img_text' => 'Modal Import'],
+                    ['no' => 19, 'text' => 'Download Template Excel', 'desc' => 'Unduh format yang benar sebelum melakukan import.', 'real_img' => 'real_user_template_btn.png', 'img_text' => 'Tombol Template'],
                 ]
             ],
             [
                 'id' => 'user-ai-config',
                 'title' => '3B. Konfigurasi AI Per User',
                 'steps' => [
-                    ['no' => 17, 'text' => 'Buka Modal AI Config', 'desc' => 'Klik ikon robot di baris user yang diinginkan.', 'real_img' => 'real_user_ai_btn.png', 'img_text' => 'Tombol AI Config'],
-                    ['no' => 18, 'text' => 'Pilih Model AI', 'desc' => 'Tentukan model mana saja (misal: GPT-4, Gemini Pro) yang boleh digunakan user ini.', 'real_img' => 'real_ai_config_modal.png', 'img_text' => 'Pilih Model'],
-                    ['no' => 19, 'text' => 'Pilih API Key', 'desc' => 'Tentukan API Key mana yang akan menanggung biaya penggunaan user ini.', 'real_img' => 'real_ai_config_tab_keys.png', 'img_text' => 'Pilih API Key'],
-                    ['no' => 20, 'text' => 'Simpan Konfigurasi AI', 'desc' => 'Pastikan setiap model memiliki key yang sesuai sebelum klik Simpan.', 'real_img' => 'real_ai_config_save.png', 'img_text' => 'Simpan AI Config'],
+                    ['no' => 20, 'text' => 'Buka Modal AI Config', 'desc' => 'Klik ikon robot di baris user yang diinginkan.', 'real_img' => 'real_user_ai_btn.png', 'img_text' => 'Tombol AI Config'],
+                    ['no' => 21, 'text' => 'Pilih Model AI', 'desc' => 'Tentukan model mana saja (misal: GPT-4, Gemini Pro) yang boleh digunakan user ini.', 'real_img' => 'real_ai_config_modal.png', 'img_text' => 'Pilih Model'],
+                    ['no' => 22, 'text' => 'Pilih API Key', 'desc' => 'Tentukan API Key mana yang akan menanggung biaya penggunaan user ini.', 'real_img' => 'real_ai_config_tab_keys.png', 'img_text' => 'Pilih API Key'],
+                    ['no' => 23, 'text' => 'Simpan Konfigurasi AI', 'desc' => 'Pastikan setiap model memiliki key yang sesuai sebelum klik Simpan.', 'real_img' => 'real_ai_config_save.png', 'img_text' => 'Simpan AI Config'],
                 ]
             ],
             [
                 'id' => 'user-rls',
                 'title' => '3C. Row Level Security (RLS)',
                 'steps' => [
-                    ['no' => 21, 'text' => 'Buka Filter Tabel', 'desc' => 'Klik ikon filter untuk membatasi baris data yang bisa dibaca AI untuk user ini.', 'real_img' => 'real_user_rls_btn.png', 'img_text' => 'Tombol RLS'],
-                    ['no' => 22, 'text' => 'Pilih Tabel Database', 'desc' => 'Pilih tabel yang ingin dibatasi (misal: tabel penjualan).', 'real_img' => 'real_rls_table_select.png', 'img_text' => 'Pilih Tabel'],
-                    ['no' => 23, 'text' => 'Tambah Aturan Filter', 'desc' => 'Contoh: <code>kode_cabang = "B282"</code> agar user hanya bisa melihat data cabangnya.', 'real_img' => 'real_rls_add_rule.png', 'img_text' => 'Tambah Aturan'],
-                    ['no' => 24, 'text' => 'Preview Hasil Filter', 'desc' => 'Cek 5 baris contoh data untuk memastikan filter bekerja dengan benar.', 'real_img' => 'real_rls_preview.png', 'img_text' => 'Tombol Preview'],
+                    ['no' => 24, 'text' => 'Buka Filter Tabel', 'desc' => 'Klik ikon filter untuk membatasi baris data yang bisa dibaca AI untuk user ini.', 'real_img' => 'real_user_rls_btn.png', 'img_text' => 'Tombol RLS'],
+                    ['no' => 25, 'text' => 'Pilih Tabel Database', 'desc' => 'Pilih tabel yang ingin dibatasi (misal: tabel penjualan).', 'real_img' => 'real_rls_table_select.png', 'img_text' => 'Pilih Tabel'],
+                    ['no' => 26, 'text' => 'Tambah Aturan Filter', 'desc' => 'Contoh: <code>kode_cabang = "B282"</code> agar user hanya bisa melihat data cabangnya.', 'real_img' => 'real_rls_add_rule.png', 'img_text' => 'Tambah Aturan'],
+                    ['no' => 27, 'text' => 'Preview Hasil Filter', 'desc' => 'Cek 5 baris contoh data untuk memastikan filter bekerja dengan benar.', 'real_img' => 'real_rls_preview.png', 'img_text' => 'Tombol Preview'],
                 ]
             ]
         ]
@@ -99,10 +108,10 @@ $guideData = [
                 'id' => 'role-manage',
                 'title' => '4A. Pengaturan Akses Tabel',
                 'steps' => [
-                    ['no' => 25, 'text' => 'Pilih Role di Sidebar', 'desc' => 'Klik nama role di sidebar kiri (misal: Role Accounting) untuk memuat daftar tabelnya.', 'real_img' => 'real_role_list.png', 'img_text' => 'Pilih Role'],
-                    ['no' => 26, 'text' => 'Pilih Tabel Database', 'desc' => 'Klik pada baris tabel yang ingin diizinkan. Tabel yang aktif akan berwarna hijau dengan indikator centang.', 'real_img' => 'real_role_permissions.png', 'img_text' => 'Daftar Tabel Permissions'],
-                    ['no' => 27, 'text' => 'Gunakan Filter & Search', 'desc' => 'Cari tabel spesifik menggunakan form pencarian atau filter per database/schema untuk mempermudah navigasi.', 'real_img' => 'real_role_permissions.png', 'img_text' => 'Filter Tabel Role'],
-                    ['no' => 28, 'text' => 'Simpan Hak Akses', 'desc' => 'Klik tombol <strong>"Simpan Akses"</strong> di pojok kanan atas untuk menerapkan perubahan pada semua user dalam role tersebut.', 'real_img' => 'real_role_save_permissions.png', 'img_text' => 'Tombol Simpan'],
+                    ['no' => 28, 'text' => 'Pilih Role di Sidebar', 'desc' => 'Klik nama role di sidebar kiri (misal: Role Accounting) untuk memuat daftar tabelnya.', 'real_img' => 'real_role_list.png', 'img_text' => 'Pilih Role'],
+                    ['no' => 29, 'text' => 'Pilih Tabel Database', 'desc' => 'Klik pada baris tabel yang ingin diizinkan. Tabel yang aktif akan berwarna hijau dengan indikator centang.', 'real_img' => 'real_role_permissions.png', 'img_text' => 'Daftar Tabel Permissions'],
+                    ['no' => 30, 'text' => 'Gunakan Filter & Search', 'desc' => 'Cari tabel spesifik menggunakan form pencarian atau filter per database/schema untuk mempermudah navigasi.', 'real_img' => 'real_role_permissions.png', 'img_text' => 'Filter Tabel Role'],
+                    ['no' => 31, 'text' => 'Simpan Hak Akses', 'desc' => 'Klik tombol <strong>"Simpan Akses"</strong> di pojok kanan atas untuk menerapkan perubahan pada semua user dalam role tersebut.', 'real_img' => 'real_role_save_permissions.png', 'img_text' => 'Tombol Simpan'],
                 ]
             ]
         ]
@@ -117,10 +126,10 @@ $guideData = [
                 'id' => 'db-conn',
                 'title' => '5A. Koneksi Database Baru',
                 'steps' => [
-                    ['no' => 28, 'text' => 'Tambah Database', 'desc' => 'Klik tombol untuk mendaftarkan server database baru.', 'real_img' => 'real_db_add_btn.png', 'img_text' => 'Tambah DB'],
-                    ['no' => 29, 'text' => 'Pilih Driver (PGSQL/MySQL)', 'desc' => 'Pilih jenis database yang digunakan.', 'real_img' => 'real_db_list.png', 'img_text' => 'Pilih Driver'],
-                    ['no' => 30, 'text' => 'Uji Koneksi (Test All)', 'desc' => 'Pastikan server bisa terhubung ke database target.', 'real_img' => 'real_db_test_all.png', 'img_text' => 'Test All Connections'],
-                    ['no' => 31, 'text' => 'Lihat Schema Tabel', 'desc' => 'Klik ikon mata untuk memastikan tabel terbaca oleh sistem.', 'real_img' => 'real_db_schema_btn.png', 'img_text' => 'Lihat Schema'],
+                    ['no' => 32, 'text' => 'Tambah Database', 'desc' => 'Klik tombol untuk mendaftarkan server database baru.', 'real_img' => 'real_db_add_btn.png', 'img_text' => 'Tambah DB'],
+                    ['no' => 33, 'text' => 'Pilih Driver (PGSQL/MySQL)', 'desc' => 'Pilih jenis database yang digunakan.', 'real_img' => 'real_db_list.png', 'img_text' => 'Pilih Driver'],
+                    ['no' => 34, 'text' => 'Uji Koneksi (Test All)', 'desc' => 'Pastikan server bisa terhubung ke database target.', 'real_img' => 'real_db_test_all.png', 'img_text' => 'Test All Connections'],
+                    ['no' => 35, 'text' => 'Lihat Schema Tabel', 'desc' => 'Klik ikon mata untuk memastikan tabel terbaca oleh sistem.', 'real_img' => 'real_db_schema_btn.png', 'img_text' => 'Lihat Schema'],
                 ]
             ]
         ]
@@ -135,25 +144,25 @@ $guideData = [
                 'id' => 'ai-provider',
                 'title' => '6A. Provider & Status',
                 'steps' => [
-                    ['no' => 32, 'text' => 'Ringkasan AI Management', 'desc' => 'Lihat total provider dan key yang aktif.', 'real_img' => 'real_ai_management.png', 'img_text' => 'AI Overview'],
-                    ['no' => 33, 'text' => 'Toggle Provider Aktif', 'desc' => 'Matikan/hidupkan provider secara instan jika ada gangguan.', 'real_img' => 'real_ai_toggle_on.png', 'img_text' => 'Toggle Provider'],
+                    ['no' => 36, 'text' => 'Ringkasan AI Management', 'desc' => 'Lihat total provider dan key yang aktif.', 'real_img' => 'real_ai_management.png', 'img_text' => 'AI Overview'],
+                    ['no' => 37, 'text' => 'Toggle Provider Aktif', 'desc' => 'Matikan/hidupkan provider secara instan jika ada gangguan.', 'real_img' => 'real_ai_toggle_on.png', 'img_text' => 'Toggle Provider'],
                 ]
             ],
             [
                 'id' => 'ai-keys',
                 'title' => '6B. API Key & Rotasi',
                 'steps' => [
-                    ['no' => 34, 'text' => 'Tambah API Key Baru', 'desc' => 'Sistem mendukung multi-key per provider untuk rotasi otomatis.', 'real_img' => 'real_ai_add_key_btn.png', 'img_text' => 'Tambah Key'],
-                    ['no' => 35, 'text' => 'Health Check API Key', 'desc' => 'Uji apakah key masih valid atau sudah expired/kehabisan saldo.', 'real_img' => 'real_ai_health_btn.png', 'img_text' => 'Tombol Health Check'],
-                    ['no' => 36, 'text' => 'Reset Rate Limit', 'desc' => 'Jika key terkena blokir sementara (429), reset statusnya di sini.', 'real_img' => 'real_ai_reset_limit_btn.png', 'img_text' => 'Reset Limit'],
+                    ['no' => 38, 'text' => 'Tambah API Key Baru', 'desc' => 'Sistem mendukung multi-key per provider untuk rotasi otomatis.', 'real_img' => 'real_ai_add_key_btn.png', 'img_text' => 'Tambah Key'],
+                    ['no' => 39, 'text' => 'Health Check API Key', 'desc' => 'Uji apakah key masih valid atau sudah expired/kehabisan saldo.', 'real_img' => 'real_ai_health_btn.png', 'img_text' => 'Tombol Health Check'],
+                    ['no' => 40, 'text' => 'Reset Rate Limit', 'desc' => 'Jika key terkena blokir sementara (429), reset statusnya di sini.', 'real_img' => 'real_ai_reset_limit_btn.png', 'img_text' => 'Reset Limit'],
                 ]
             ],
             [
                 'id' => 'ai-models',
                 'title' => '6C. Model Management',
                 'steps' => [
-                    ['no' => 37, 'text' => 'Tab Model AI', 'desc' => 'Daftar model yang bisa dipilih oleh user.', 'real_img' => 'real_ai_models_tab.png', 'img_text' => 'Tab Models'],
-                    ['no' => 38, 'text' => 'Tambah Model Baru', 'desc' => 'Daftarkan identifier model terbaru (misal: GPT-4o).', 'real_img' => 'real_ai_add_model_btn.png', 'img_text' => 'Tambah Model'],
+                    ['no' => 41, 'text' => 'Tab Model AI', 'desc' => 'Daftar model yang bisa dipilih oleh user.', 'real_img' => 'real_ai_models_tab.png', 'img_text' => 'Tab Models'],
+                    ['no' => 42, 'text' => 'Tambah Model Baru', 'desc' => 'Daftarkan identifier model terbaru (misal: GPT-4o).', 'real_img' => 'real_ai_add_model_btn.png', 'img_text' => 'Tambah Model'],
                 ]
             ]
         ]
@@ -162,7 +171,7 @@ $guideData = [
 @endphp
 
 <style>
-    /* CSS Layout (Tetap Sama) */
+    /* CSS Layout */
     .guide-wrap { display: flex; gap: 0; align-items: flex-start; width: 100%; }
     .guide-toc {
         width: 260px;
@@ -256,12 +265,17 @@ $guideData = [
         width: 44px;
         height: 44px;
         min-width: 44px;
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        color: white;
+        background: #1e293b; /* Darker background for light mode */
+        color: #ffffff;
+        border: 2px solid var(--primary);
         border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-weight: 800; font-size: 1.1rem; flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    html.dark .step-number {
+        background: var(--primary);
+        border-color: #ffffff;
     }
     .step-title { font-size: 1.1rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; }
     .step-desc { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }

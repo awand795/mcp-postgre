@@ -109,9 +109,36 @@ async function run() {
         await capture(dashUrl, '.sidebar', 'real_sidebar.png'); 
         await capture(dashUrl, '.theme-switch-wrap', 'real_dash_darkmode.png'); 
 
-        // --- MENU 3: USERS ---
-        console.log('\n--- Capturing Menu 3: Users ---');
+        // Capture Dashboard in Dark Mode
+        console.log('Switching to Dark Mode...');
+        await page.evaluate(() => {
+            if (typeof toggleTheme === 'function') {
+                toggleTheme();
+            } else {
+                document.documentElement.classList.toggle('dark');
+            }
+        });
+        await new Promise(r => setTimeout(r, 1000));
+        await capture(dashUrl, '.stats-grid', 'real_dashboard_dark.png');
+        await capture(dashUrl, '.welcome-card', 'real_welcome_dark.png');
+        
+        // Switch back to Light Mode for consistency or stay Dark for some?
+        // Let's stay Dark for a few more to show examples
+        console.log('\n--- Capturing Menu 3: Users (Dark Mode Example) ---');
         const userUrl = `${BASE_URL}/admin/users`;
+        await capture(userUrl, '.table-responsive', 'real_user_list_dark.png');
+
+        console.log('Switching back to Light Mode...');
+        await page.evaluate(() => {
+            if (typeof toggleTheme === 'function') {
+                toggleTheme();
+            } else {
+                document.documentElement.classList.toggle('dark');
+            }
+        });
+        await new Promise(r => setTimeout(r, 1000));
+
+        // --- MENU 3: USERS (Continue Light) ---
         await capture(userUrl, '.table-responsive', 'real_user_list.png');
         await capture(userUrl, '.filter-card', 'real_user_filter_form.png');
         await capture(userUrl, 'button[onclick*="showModal(\'create\')"]', 'real_user_tambah_btn.png');
