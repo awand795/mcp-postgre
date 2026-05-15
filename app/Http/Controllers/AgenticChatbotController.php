@@ -846,8 +846,14 @@ class AgenticChatbotController extends Controller
 
             // --- TERMINAL TOOL GUARD & LOOP REDUCTION ---
             $hasTerminalToolThisTurn = false;
-            foreach ($processedCalls as $pc) {
-                if (in_array($pc['name'], $terminalTools)) {
+            foreach ($executedResults as $execItem) {
+                $pc = $execItem['call'];
+                $toolResultString = $execItem['result'];
+                $decodedRes = json_decode($toolResultString, true);
+                
+                $isFailed = is_array($decodedRes) && isset($decodedRes['error']);
+
+                if (!$isFailed && in_array($pc['name'], $terminalTools)) {
                     $isPcProbe = false;
                     if ($pc['name'] === 'execute_query') {
                         $pcSql = $pc['arguments']['sql'] ?? '';
