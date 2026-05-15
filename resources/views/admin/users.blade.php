@@ -1666,22 +1666,48 @@
 
         if (!result.isConfirmed) return;
 
+        // Show loading state
+        Swal.fire({
+            title: 'Menyalin...',
+            text: 'Mohon tunggu sebentar.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); },
+            background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+            color: isDark ? '#f1f5f9' : '#1e293b',
+        });
+
         try {
             const res = await fetch(`/admin/users/${_tfTargetUser.id}/copy-filters`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                 body: JSON.stringify({ source_user_id: sourceId })
             });
+            
             const data = await res.json();
+            
             if (data.success) {
                 document.getElementById('copyFilterModal').style.display = 'none';
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: `${data.copied} filter berhasil disalin!`, timer: 2000, showConfirmButton: false });
+                await Swal.fire({ 
+                    icon: 'success', 
+                    title: 'Berhasil', 
+                    text: data.message || `${data.copied} filter berhasil disalin!`,
+                    background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+                    color: isDark ? '#f1f5f9' : '#1e293b',
+                    confirmButtonColor: '#6366f1'
+                });
                 showTableFilters(_tfTargetUser);
             } else {
                 throw new Error(data.error || 'Gagal menyalin.');
             }
         } catch(e) {
-            Swal.fire('Gagal', e.message, 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: e.message || 'Terjadi kesalahan saat menyalin filter.',
+                background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+                color: isDark ? '#f1f5f9' : '#1e293b',
+                confirmButtonColor: '#6366f1'
+            });
         }
     }
 

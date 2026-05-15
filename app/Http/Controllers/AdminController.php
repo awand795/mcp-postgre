@@ -1004,31 +1004,45 @@ class AdminController extends Controller
     public function copyUserFilters(Request $request, User $targetUser)
     {
         if (!auth()->user()->is_super_admin && $targetUser->added_by !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            return response()->json(['error' => 'Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.'], 403);
         }
 
         $sourceUserId = $request->input('source_user_id');
         $sourceUser = User::find($sourceUserId);
-        if (!$sourceUser) return response()->json(['error' => 'Source user not found'], 404);
+        if (!$sourceUser) return response()->json(['error' => 'User sumber tidak ditemukan.'], 404);
 
-        if (!auth()->user()->is_super_admin && $sourceUser->added_by !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
+        // Optional: Check if admin has access to source user too? 
+        // If they can find them in the search-ajax, they probably should be able to copy.
+        
         $sourceFilters = \App\Models\UserTableFilter::where('user_id', $sourceUserId)->get();
 
-        foreach ($sourceFilters as $sf) {
-            \App\Models\UserTableFilter::updateOrCreate(
-                [
+        if ($sourceFilters->isEmpty()) {
+            return response()->json([
+                'success' => false, 
+                'error' => 'User sumber (' . $sourceUser->name . ') tidak memiliki konfigurasi filter RLS untuk disalin.'
+            ], 422);
+        }
+
+        \DB::transaction(function () use ($targetUser, $sourceFilters) {
+            // Sesuai konfirmasi di UI: "Seluruh filter RLS user tujuan akan ditimpa"
+            // Maka kita hapus dulu yang lama agar benar-benar identik dengan sumber.
+            \App\Models\UserTableFilter::where('user_id', $targetUser->id)->delete();
+
+            foreach ($sourceFilters as $sf) {
+                \App\Models\UserTableFilter::create([
                     'user_id' => $targetUser->id,
                     'database_connection_id' => $sf->database_connection_id,
                     'table_name' => $sf->table_name,
-                ],
-                ['filter_condition' => $sf->filter_condition]
-            );
-        }
+                    'filter_condition' => $sf->filter_condition
+                ]);
+            }
+        });
 
-        return response()->json(['success' => true, 'copied' => $sourceFilters->count()]);
+        return response()->json([
+            'success' => true, 
+            'copied' => $sourceFilters->count(),
+            'message' => $sourceFilters->count() . ' filter RLS dari ' . $sourceUser->name . ' berhasil disalin ke ' . $targetUser->name
+        ]);
     }
 
     /**
