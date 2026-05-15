@@ -755,7 +755,17 @@ class AgenticChatbotController extends Controller
                 $currentIsProbe = false;
                 if ($toolName === 'execute_query') {
                     $sqlToCheck = $call['arguments']['sql'] ?? '';
-                    $currentIsProbe = stripos($sqlToCheck, 'SELECT DISTINCT') !== false && stripos($sqlToCheck, 'GROUP BY') === false;
+                    $hasDistinct = stripos($sqlToCheck, 'SELECT DISTINCT') !== false;
+                    $hasGroupBy = stripos($sqlToCheck, 'GROUP BY') !== false;
+                    $hasAggregate = (bool) preg_match('/\b(SUM|COUNT|AVG|MIN|MAX)\s*\(/i', $sqlToCheck);
+                    
+                    $selectPart = '';
+                    if (preg_match('/SELECT\s+(.*?)\s+FROM/is', $sqlToCheck, $m)) {
+                        $selectPart = trim($m[1]);
+                    }
+                    $isSingleColumn = (strpos($selectPart, ',') === false) && !empty($selectPart) && stripos($selectPart, '*') === false;
+
+                    $currentIsProbe = ($hasDistinct && !$hasGroupBy) || ($isSingleColumn && !$hasAggregate && !$hasGroupBy);
                 }
 
                 $frontendResult = [
@@ -841,7 +851,17 @@ class AgenticChatbotController extends Controller
                     $isPcProbe = false;
                     if ($pc['name'] === 'execute_query') {
                         $pcSql = $pc['arguments']['sql'] ?? '';
-                        $isPcProbe = stripos($pcSql, 'SELECT DISTINCT') !== false && stripos($pcSql, 'GROUP BY') === false;
+                        $hasDistinct = stripos($pcSql, 'SELECT DISTINCT') !== false;
+                        $hasGroupBy = stripos($pcSql, 'GROUP BY') !== false;
+                        $hasAggregate = (bool) preg_match('/\b(SUM|COUNT|AVG|MIN|MAX)\s*\(/i', $pcSql);
+                        
+                        $selectPart = '';
+                        if (preg_match('/SELECT\s+(.*?)\s+FROM/is', $pcSql, $m)) {
+                            $selectPart = trim($m[1]);
+                        }
+                        $isSingleColumn = (strpos($selectPart, ',') === false) && !empty($selectPart) && stripos($selectPart, '*') === false;
+
+                        $isPcProbe = ($hasDistinct && !$hasGroupBy) || ($isSingleColumn && !$hasAggregate && !$hasGroupBy);
                     }
 
                     if (!$isPcProbe) {
