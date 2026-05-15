@@ -193,9 +193,9 @@ class AgenticChatbotController extends Controller
         ob_implicit_flush(true);
 
         return response()->stream(
-            function () use ($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens) {
+            function () use ($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited) {
                 try {
-                    $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens);
+                    $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited);
                 } catch (\Throwable $e) {
                     Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
                     $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
@@ -215,7 +215,7 @@ class AgenticChatbotController extends Controller
         );
     }
 
-    private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null): void
+    private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null, bool $scopeLimited = true): void
     {
         $apiKey = ApiKeyResolver::pickAvailable($apiKeys);
         if (!$apiKey) {
@@ -466,7 +466,7 @@ class AgenticChatbotController extends Controller
                     }
                 }
 
-                if ($isOutOfDomain) {
+                if ($isOutOfDomain && $scopeLimited) {
                     Log::warning("[Agentic] FIX#3 — False 'out-of-domain' detected at loop #{$loopCount} before any successful tool call. Injecting schema recovery.");
 
                     $schemaHints = [];
@@ -745,11 +745,14 @@ class AgenticChatbotController extends Controller
                             'instruction' => "ANALYST NOTE: Hasil ditampilkan terbatas (100 baris) untuk efisiensi, namun sistem sudah memproses total " . $rowCount . " baris. Gunakan data ini untuk menyusun ringkasan dan 'smart_table'. Tidak perlu melakukan query tambahan untuk baris sisanya karena data tersebut sudah tertangani oleh sistem frontend. Gunakan contoh data ini sebagai referensi struktur kolom Anda."
                         ]);
                     } elseif ($rowCount === 0 && $toolName === 'execute_query') {
+                        $zeroRowsInstruction = $scopeLimited
+                            ? "ANALYST NOTE: Query ini tidak menghasilkan data (0 baris). Jika Anda sedang mencari data untuk periode waktu tertentu, kemungkinan besar data memang belum tersedia di database. Silakan sampaikan temuan ini kepada Bapak/Ibu user secara profesional. Hindari melakukan perulangan query (loop) untuk mencari tanggal alternatif secara otomatis agar tidak terjadi disorientasi konteks waktu."
+                            : "ANALYST NOTE: Query database ini tidak menghasilkan data (0 baris). Jika user meminta rekomendasi eksternal, market insight, atau produk yang BELUM ada di database, hasil kosong ini BUKAN alasan untuk berhenti. Gunakan temuan database sebagai konteks pembanding, lalu berikan rekomendasi berbasis pengetahuan umum/analisis bisnis. Jelaskan secara singkat bahwa rekomendasi non-database dibuat berdasarkan pengetahuan umum dan perlu divalidasi dengan riset pasar terbaru karena tidak ada tool pencarian web publik.";
                         $aiContent = json_encode([
                             'rows_returned' => 0,
                             'columns' => $decodedRes['columns'] ?? [],
                             'rows' => [],
-                            'instruction' => "ANALYST NOTE: Query ini tidak menghasilkan data (0 baris). Jika Anda sedang mencari data untuk periode waktu tertentu, kemungkinan besar data memang belum tersedia di database. Silakan sampaikan temuan ini kepada Bapak/Ibu user secara profesional. Hindari melakukan perulangan query (loop) untuk mencari tanggal alternatif secara otomatis agar tidak terjadi disorientasi konteks waktu."
+                            'instruction' => $zeroRowsInstruction
                         ]);
                     }
                 }
@@ -890,9 +893,12 @@ class AgenticChatbotController extends Controller
 
             if ($hasTerminalToolThisTurn && $loopCount < $this->maxToolLoops) {
                 Log::info("[Agentic] Terminal tool detected. Injecting final response reminder.");
+                $finalResponseReminder = $scopeLimited
+                    ? "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'."
+                    : "[SYSTEM REMINDER]: Anda baru saja memperoleh konteks penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user. Jika data database kosong tetapi user meminta rekomendasi eksternal, market insight, atau produk yang belum ada di database, lanjutkan dengan rekomendasi berbasis pengetahuan umum/analisis bisnis dan sebutkan batasannya secara singkat. Jika data adalah tabel, gunakan format 'smart_table'.";
                 $messages[] = [
                     'role' => 'user',
-                    'content' => "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'.",
+                    'content' => $finalResponseReminder,
                 ];
             }
 
@@ -1424,6 +1430,14 @@ class AgenticChatbotController extends Controller
             ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis atau ERP (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis (cabang, dealer, penjualan, keuangan, stok, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool dulu, baru putuskan)"
             : "## CAKUPAN JAWABAN\n\nAnda bebas membantu user dengan pertanyaan apapun di luar konteks database dan ERP. Tetap utamakan analisis data bisnis jika pertanyaan terkait database, namun Anda BOLEH menjawab pertanyaan umum, pengetahuan umum, dan topik lainnya secara helpful dan informatif.";
 
+        $identitySection = $scopeLimited
+            ? "Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan"
+            : "Anda adalah asisten Data Analyst dan Business Advisor untuk perusahaan. Tugas utama Anda:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Rekomendasi bisnis non-database** - memberikan insight, ide produk, dan rekomendasi pasar berbasis pengetahuan umum ketika user secara eksplisit meminta data dari luar database atau produk yang belum tersedia di database";
+
+        $freeScopeBusinessSection = $scopeLimited
+            ? ""
+            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum dan perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
 
@@ -1449,7 +1463,10 @@ Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika in
 
 ## IDENTITAS & TUGAS UTAMA
 
-Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:
+{$identitySection}
+{$freeScopeBusinessSection}
+
+Untuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:
 1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia
 2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan
 
