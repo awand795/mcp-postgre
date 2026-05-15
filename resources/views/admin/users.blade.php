@@ -1679,7 +1679,11 @@
         try {
             const res = await fetch(`/admin/users/${_tfTargetUser.id}/copy-filters`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}' 
+                },
                 body: JSON.stringify({ source_user_id: sourceId })
             });
             

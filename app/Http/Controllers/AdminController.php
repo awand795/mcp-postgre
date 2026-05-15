@@ -1001,36 +1001,34 @@ class AdminController extends Controller
     /**
      * Search users via AJAX for copy modal (legacy/alias if needed)
      */
-    public function copyUserFilters(Request $request, User $targetUser)
+    public function copyUserFilters(Request $request, User $user)
     {
-        if (!auth()->user()->is_super_admin && $targetUser->added_by !== auth()->id()) {
-            return response()->json(['error' => 'Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.'], 403);
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.'], 403);    
         }
 
         $sourceUserId = $request->input('source_user_id');
         $sourceUser = User::find($sourceUserId);
         if (!$sourceUser) return response()->json(['error' => 'User sumber tidak ditemukan.'], 404);
 
-        // Optional: Check if admin has access to source user too? 
-        // If they can find them in the search-ajax, they probably should be able to copy.
-        
         $sourceFilters = \App\Models\UserTableFilter::where('user_id', $sourceUserId)->get();
 
         if ($sourceFilters->isEmpty()) {
             return response()->json([
                 'success' => false, 
-                'error' => 'User sumber (' . $sourceUser->name . ') tidak memiliki konfigurasi filter RLS untuk disalin.'
+                'error' => 'User sumber (' . $sourceUser->name . ') tidak memiliki konfigurasi filter RLS untuk disalin.'      
             ], 422);
         }
 
-        \DB::transaction(function () use ($targetUser, $sourceFilters) {
+        $targetUserId = $user->id;
+
+        \DB::transaction(function () use ($targetUserId, $sourceFilters) {
             // Sesuai konfirmasi di UI: "Seluruh filter RLS user tujuan akan ditimpa"
-            // Maka kita hapus dulu yang lama agar benar-benar identik dengan sumber.
-            \App\Models\UserTableFilter::where('user_id', $targetUser->id)->delete();
+            \App\Models\UserTableFilter::where('user_id', $targetUserId)->delete();
 
             foreach ($sourceFilters as $sf) {
                 \App\Models\UserTableFilter::create([
-                    'user_id' => $targetUser->id,
+                    'user_id' => $targetUserId,
                     'database_connection_id' => $sf->database_connection_id,
                     'table_name' => $sf->table_name,
                     'filter_condition' => $sf->filter_condition
@@ -1041,10 +1039,9 @@ class AdminController extends Controller
         return response()->json([
             'success' => true, 
             'copied' => $sourceFilters->count(),
-            'message' => $sourceFilters->count() . ' filter RLS dari ' . $sourceUser->name . ' berhasil disalin ke ' . $targetUser->name
+            'message' => $sourceFilters->count() . ' filter RLS dari ' . $sourceUser->name . ' berhasil disalin ke ' . $user->name
         ]);
     }
-
     /**
      * Update table filters for a user (with structured rules + sanitization).
      */
