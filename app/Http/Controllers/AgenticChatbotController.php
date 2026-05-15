@@ -752,11 +752,18 @@ class AgenticChatbotController extends Controller
                     }
                 }
 
+                $currentIsProbe = false;
+                if ($toolName === 'execute_query') {
+                    $sqlToCheck = $call['arguments']['sql'] ?? '';
+                    $currentIsProbe = stripos($sqlToCheck, 'SELECT DISTINCT') !== false && stripos($sqlToCheck, 'GROUP BY') === false;
+                }
+
                 $frontendResult = [
                     'tool_name' => $toolName,
                     'data' => $decodedRes ?: $toolResult,
                     'currency_columns' => is_array($decodedRes) ? ($decodedRes['currency_columns'] ?? []) : [],
                     'label' => is_array($decodedRes) ? ($decodedRes['label'] ?? '') : '',
+                    'is_probe' => $currentIsProbe,
                 ];
 
                 echo "data: " . json_encode([
@@ -778,8 +785,7 @@ class AgenticChatbotController extends Controller
                 if ($toolName === 'execute_query') {
                     $executeQueryCount++;
                     $lastExecutedSql = $call['arguments']['sql'] ?? '';
-                    $currentIsProbe = stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
-                        && stripos($lastExecutedSql, 'GROUP BY') === false;
+                    // $currentIsProbe is already calculated above
 
                     if ($currentIsProbe) {
                         $probeQueryCount++;
@@ -832,16 +838,24 @@ class AgenticChatbotController extends Controller
             $hasTerminalToolThisTurn = false;
             foreach ($processedCalls as $pc) {
                 if (in_array($pc['name'], $terminalTools)) {
-                    $hasTerminalToolThisTurn = true;
-                    $tName = $pc['name'];
-                    $terminalToolCallsCount[$tName] = ($terminalToolCallsCount[$tName] ?? 0) + 1;
+                    $isPcProbe = false;
+                    if ($pc['name'] === 'execute_query') {
+                        $pcSql = $pc['arguments']['sql'] ?? '';
+                        $isPcProbe = stripos($pcSql, 'SELECT DISTINCT') !== false && stripos($pcSql, 'GROUP BY') === false;
+                    }
 
-                    // Bedakan limit antara ERP (statis) dan Query (analitis)
-                    $limit = str_contains($tName, 'erp') ? 3 : 8;
+                    if (!$isPcProbe) {
+                        $hasTerminalToolThisTurn = true;
+                        $tName = $pc['name'];
+                        $terminalToolCallsCount[$tName] = ($terminalToolCallsCount[$tName] ?? 0) + 1;
 
-                    if ($terminalToolCallsCount[$tName] >= $limit) {
-                        Log::warning("[Agentic] Terminal tool '{$tName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
-                        $loopCount = $this->maxToolLoops; // Break on next iteration check
+                        // Bedakan limit antara ERP (statis) dan Query (analitis)
+                        $limit = str_contains($tName, 'erp') ? 3 : 8;
+
+                        if ($terminalToolCallsCount[$tName] >= $limit) {
+                            Log::warning("[Agentic] Terminal tool '{$tName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
+                            $loopCount = $this->maxToolLoops; // Break on next iteration check
+                        }
                     }
                 }
             }
@@ -2057,11 +2071,26 @@ PROMPT;
                     if ($toolIdx >= 0 && !empty($toolResults[$toolIdx])) {
                         $toolRes = $toolResults[$toolIdx];
                     } else {
+                        // First pass: prioritize non-probe results
                         foreach (array_reverse($toolResults) as $tr) {
+                            $isProbe = $tr['is_probe'] ?? false;
+                            if ($isProbe) continue;
+
                             $d = $tr['data'] ?? null;
                             if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
                                 $toolRes = $tr;
                                 break;
+                            }
+                        }
+
+                        // Second pass: fallback to any result if no non-probe result found
+                        if (!$toolRes) {
+                            foreach (array_reverse($toolResults) as $tr) {
+                                $d = $tr['data'] ?? null;
+                                if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
+                                    $toolRes = $tr;
+                                    break;
+                                }
                             }
                         }
                     }
