@@ -2259,6 +2259,58 @@ PROMPT;
             '/^`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
             '/^[\*\-]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
             '/=\s*`(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`/i',
+
+            // ═══════════════════════════════════════════════════════════════════
+            // ANTI SYSTEM-PROMPT REGURGITATION — menangkap AI yang mengulang
+            // instruksi internal-nya ke user (sangat berbahaya)
+            // ═══════════════════════════════════════════════════════════════════
+
+            // Instruksi format output yang di-echo kembali
+            '/selalu\s+awali\s+dengan\s+(ringkasan|executive)/i',
+            '/awali\s+dengan\s+ringkasan\s+eksekutif/i',
+            '/akhiri\s+dengan\s+rekomendasi\s+prompt/i',
+            '/gunakan\s+format\s+[\'"]?(chart|smart_table|smart table)[\'"]?/i',
+            '/jika\s+data\s+adalah\s+grafik/i',
+            '/WAJIB\s+menggunakan\s+angka\s+dan\s+analisis/i',
+            '/JANGAN\s+mengarang\s+atau\s+membuat\s+kesimpulan/i',
+            '/tanpa\s+dasar\s+data/i',
+
+            // Pattern "WAJIB + aksi teknis" — khas instruksi, bukan narasi bisnis
+            '/WAJIB\s+(mencantumkan|menyertakan|menggunakan|mengikuti|diikuti|dipanggil|memanggil|menampilkan)\b/i',
+            '/DILARANG\s+(KERAS\s+)?(menampilkan|menggunakan|menulis|menambahkan|menyebut|tulis|tampil)/i',
+            '/JANGAN\s+(gunakan|tambahkan|tulis|tampilkan|sebut|pernah|hanya)/i',
+
+            // Kalimat instruksi internal yang khas system prompt
+            '/^\s*❌\s*(DILARANG|SALAH)/i',
+            '/^\s*✅\s*(WAJIB|BENAR)/i',
+            '/ATURAN\s+(EMAS|WAJIB|KETAT|KRITIS)/i',
+            '/PROTOKOL\s+(RECOVERY|URUTAN|KHUSUS|TIMEOUT)/i',
+            '/INSTRUKSI\s+PERTAMA/i',
+            '/CRITICAL\s+PRIORITY/i',
+            '/MANDATORY\s+(RESPONSE|INSIGHT|FORMAT)/i',
+
+            // AI menjelaskan format/tools internal
+            '/^\s*tools?\s+tersedia/i',
+            '/^\s*tools?\s+yang\s+(tersedia|digunakan)/i',
+            '/gunakan\s+bahasa\s+yang\s+sesuai\s+dengan\s+user/i',
+            '/gunakan\s+bahasa\s+indonesia\s+formal/i',
+            '/Berpikirlah\s+secara\s+internal/i',
+            '/sampaikan\s+HANYA\s+jawaban\s+bisnis/i',
+
+            // AI mengulang instruksi format chart/table
+            '/format\s+berikut.*smart_table/i',
+            '/blok.*```smart_table/i',
+            '/blok.*```chart/i',
+
+            // Pattern system prompt: "Anda adalah DataBot"
+            '/^Anda\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+
+            // Pattern: AI sedang membacakan aturan-aturan
+            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web)`/i',
+
+            // "SYSTEM FORMAT CORRECTION" / "SYSTEM FORMAT REMINDER" leakage
+            '/\[SYSTEM\s+FORMAT\s+(CORRECTION|REMINDER)\]/i',
         ];
 
         $columnListPattern = '/(`[a-z][a-z0-9_]*`[,\s]*){4,}/i';
@@ -2346,6 +2398,41 @@ PROMPT;
             '/^[\*\-]\s*`?(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`?\s*[=:]/i',
             // Format: "Label bisnis = `kolom_teknis`" atau "Label bisnis : `kolom_teknis`"
             '/=\s*`(hrg_jual|hrg_pokok|total_netto|total_disc|qty_jual)`/i',
+
+            // ═══════════════════════════════════════════════════════════════════
+            // ANTI SYSTEM-PROMPT REGURGITATION (real-time stream filter)
+            // ═══════════════════════════════════════════════════════════════════
+            '/selalu\s+awali\s+dengan\s+(ringkasan|executive)/i',
+            '/awali\s+dengan\s+ringkasan\s+eksekutif/i',
+            '/akhiri\s+dengan\s+rekomendasi\s+prompt/i',
+            '/gunakan\s+format\s+[\'"]?(chart|smart_table|smart table)[\'"]?/i',
+            '/jika\s+data\s+adalah\s+grafik/i',
+            '/WAJIB\s+menggunakan\s+angka\s+dan\s+analisis/i',
+            '/JANGAN\s+mengarang\s+atau\s+membuat\s+kesimpulan/i',
+            '/tanpa\s+dasar\s+data/i',
+            '/WAJIB\s+(mencantumkan|menyertakan|menggunakan|mengikuti|diikuti|dipanggil|memanggil|menampilkan)\b/i',
+            '/DILARANG\s+(KERAS\s+)?(menampilkan|menggunakan|menulis|menambahkan|menyebut|tulis|tampil)/i',
+            '/JANGAN\s+(gunakan|tambahkan|tulis|tampilkan|sebut|pernah|hanya)/i',
+            '/^\s*❌\s*(DILARANG|SALAH)/i',
+            '/^\s*✅\s*(WAJIB|BENAR)/i',
+            '/ATURAN\s+(EMAS|WAJIB|KETAT|KRITIS)/i',
+            '/PROTOKOL\s+(RECOVERY|URUTAN|KHUSUS|TIMEOUT)/i',
+            '/INSTRUKSI\s+PERTAMA/i',
+            '/CRITICAL\s+PRIORITY/i',
+            '/MANDATORY\s+(RESPONSE|INSIGHT|FORMAT)/i',
+            '/^\s*tools?\s+tersedia/i',
+            '/^\s*tools?\s+yang\s+(tersedia|digunakan)/i',
+            '/gunakan\s+bahasa\s+yang\s+sesuai\s+dengan\s+user/i',
+            '/gunakan\s+bahasa\s+indonesia\s+formal/i',
+            '/Berpikirlah\s+secara\s+internal/i',
+            '/sampaikan\s+HANYA\s+jawaban\s+bisnis/i',
+            '/format\s+berikut.*smart_table/i',
+            '/blok.*```smart_table/i',
+            '/blok.*```chart/i',
+            '/^Anda\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web)`/i',
+            '/\[SYSTEM\s+FORMAT\s+(CORRECTION|REMINDER)\]/i',
         ];
 
         foreach ($patterns as $pattern) {
