@@ -3254,6 +3254,8 @@
                         if (storedCols) currencyColumns = JSON.parse(storedCols);
                     } catch (e) {}
 
+                    const chartCurrencyColumns = getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns, chartType);
+
                     // Build headers & rows for server-side
                     const headers = ['No', 'Label', ...datasets.map((d, i) => d.label || `${chartType} ${i + 1}`)];
                     const rows = [];
@@ -3290,7 +3292,7 @@
                             headers: headers,
                             rows: rows,
                             title: chartTitle,
-                            currency_columns: currencyColumns,
+                            currency_columns: chartCurrencyColumns,
                             chart_info: chartInfo,
                             filename: filename
                         })
@@ -3513,13 +3515,7 @@
                     const chartType = chartConfig.type || 'bar';
 
                     // AI-detect currency columns untuk chart PDF export
-                    const detectedPdfCurrencyCols = datasets.map((d, i) => {
-                        const dsLabel = d.label || `${chartType} ${i + 1}`;
-                        if (isColumnCurrencyByAI(dsLabel, currencyColumns)) return dsLabel;
-                        if (isLikelyCurrencyLabel(dsLabel)) return dsLabel;
-                        return null;
-                    }).filter(Boolean);
-                    const finalPdfCurrencyCols = [...new Set([...currencyColumns, ...detectedPdfCurrencyCols])];
+                    const finalPdfCurrencyCols = getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns, chartType);
 
                     // Prepare table data from chart
                     const rows = [];
@@ -3531,7 +3527,7 @@
                         datasets.forEach((d, dsIdx) => {
                             let value = d.data?.[i];
                             const dsLabel = d.label || `${chartType} ${dsIdx + 1}`;
-                            const isCurrency = finalPdfCurrencyCols.includes(dsLabel);
+                            const isCurrency = finalPdfCurrencyCols.includes(dsLabel) || finalPdfCurrencyCols.includes(String(dsLabel).toLowerCase());
                             
                             if (value === null || value === undefined || value === '') {
                                 row.push(0);
@@ -3662,6 +3658,22 @@
 
                 // 1. Fallback to keyword-based detection (Very robust)
                 return isLikelyCurrencyLabel(header);
+            }
+
+            function getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
+                const baseCurrencyColumns = Array.isArray(currencyColumns) ? currencyColumns : [];
+                const datasetLabels = (datasets || []).map((d, i) => d?.label || `${chartType} ${i + 1}`);
+                const chartLooksMonetary = isLikelyCurrencyLabel(chartTitle)
+                    || baseCurrencyColumns.some(col => isLikelyCurrencyLabel(col))
+                    || datasetLabels.some(label => isLikelyCurrencyLabel(label) || isColumnCurrencyByAI(label, baseCurrencyColumns));
+
+                if (!chartLooksMonetary) {
+                    return baseCurrencyColumns;
+                }
+
+                // Server-side chart export uses dataset labels as table headers,
+                // so include those labels to make Rp formatting survive export.
+                return [...new Set([...baseCurrencyColumns, ...datasetLabels])];
             }
 
             // Deteksi otomatis apakah label kemungkinan kolom currency
