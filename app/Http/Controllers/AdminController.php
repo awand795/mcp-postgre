@@ -970,7 +970,36 @@ class AdminController extends Controller
     }
 
     /**
-     * Copy filters from one user to another.
+     * Search users via AJAX for copy modal.
+     */
+    public function searchUsersAjax(Request $request)
+    {
+        $query = User::query()->select('id', 'name', 'email');
+
+        if (!auth()->user()->is_super_admin) {
+            $query->where('added_by', auth()->id());
+        }
+
+        // Don't include the target user if provided
+        if ($request->filled('exclude_id')) {
+            $query->where('id', '!=', $request->exclude_id);
+        }
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%");
+            });
+        }
+
+        $users = $query->orderBy('name')->paginate(5); // Small page size for modal
+
+        return response()->json($users);
+    }
+
+    /**
+     * Search users via AJAX for copy modal (legacy/alias if needed)
      */
     public function copyUserFilters(Request $request, User $targetUser)
     {

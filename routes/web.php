@@ -72,8 +72,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/users/{user}/table-filters', [AdminController::class, 'updateTableFilters'])->name('users.table_filters.update');
         Route::get('/users/table-columns', [AdminController::class, 'getTableColumns'])->name('users.table_columns');
         Route::post('/users/preview-filter', [AdminController::class, 'previewTableFilter'])->name('users.preview_filter');
+        Route::get('/users/search-ajax', [AdminController::class, 'searchUsersAjax'])->name('users.search_ajax');
         Route::post('/users/{user}/copy-filters', [AdminController::class, 'copyUserFilters'])->name('users.copy_filters');
-
         // User Import/Export
         Route::get('/users/export', [AdminController::class, 'usersExport'])->name('users.export');
         Route::post('/users/import', [AdminController::class, 'usersImport'])->name('users.import');

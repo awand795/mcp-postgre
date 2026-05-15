@@ -452,38 +452,47 @@
 
 <!-- Copy Filter Modal -->
 <div id="copyFilterModal" class="modal-overlay">
-    <div class="glass-card modal-content" style="max-width: 400px;">
-        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+    <div class="glass-card modal-content" style="max-width: 550px; height: 500px; display: flex; flex-direction: column;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
             <i class="fas fa-copy" style="color: var(--primary);"></i>
             Salin Filter RLS
         </h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5;">
-            Pilih user sumber untuk menyalin seluruh konfigurasi Row Level Security (RLS) ke user tujuan. 
-            <br><span style="color: #ef4444; font-weight: 600;">Peringatan:</span> Filter yang sudah ada pada user tujuan akan ditimpa.
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4; flex-shrink: 0;">
+            Pilih user sumber untuk menyalin konfigurasi RLS. Filter tujuan akan ditimpa.
         </p>
         
-        <div class="form-group">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Cari & Pilih User Sumber</label>
-            <div style="position: relative; margin-bottom: 0.5rem;">
+        <div class="form-group" style="margin-bottom: 0.75rem; flex-shrink: 0;">
+            <div style="position: relative;">
                 <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); font-size: 0.8rem;"></i>
-                <input type="text" id="searchCopyUser" placeholder="Ketik nama atau email..." 
+                <input type="text" id="searchCopyUser" placeholder="Cari nama atau email..." 
                        style="width: 100%; padding: 0.6rem 0.6rem 0.6rem 2.2rem; border-radius: 8px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; outline: none;"
-                       oninput="filterCopySourceUsers(this.value)">
+                       onkeyup="if(event.key==='Enter') loadCopyUsers(1)">
             </div>
-            <select id="copySourceUser" class="form-control" size="8" style="width: 100%; padding: 0.5rem; border-radius: 10px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main); font-family: inherit;">
-                <option value="" disabled selected>-- Pilih dari daftar di bawah --</option>
-                @foreach($allUsers as $u)
-                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
-                @endforeach
-            </select>
-            <p id="copySearchEmpty" style="display: none; font-size: 0.75rem; color: #ef4444; margin-top: 0.5rem; text-align: center;">User tidak ditemukan.</p>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; border: 1px solid var(--glass-border2); border-radius: 12px; background: rgba(0,0,0,0.02); margin-bottom: 1rem;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;" id="copyUserTable">
+                <thead style="position: sticky; top: 0; background: var(--table-head-bg); z-index: 1;">
+                    <tr>
+                        <th style="padding: 8px 12px; text-align: left; color: var(--table-head-color);">User</th>
+                        <th style="padding: 8px 12px; text-align: center; color: var(--table-head-color); width: 80px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="copyUserTableBody">
+                    <!-- Loaded via AJAX -->
+                </tbody>
+            </table>
+            <div id="copyLoading" style="padding: 2rem; text-align: center; display: none;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; color: var(--primary);"></i>
+            </div>
+        </div>
+
+        <div id="copyPagination" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; flex-shrink: 0;">
+            <!-- Pagination buttons via AJAX -->
         </div>
         
-        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
-            <button type="button" class="btn btn-cancel" onclick="document.getElementById('copyFilterModal').style.display='none'">Batal</button>
-            <button type="button" class="btn btn-primary" onclick="executeCopyFilter()">
-                <i class="fas fa-check"></i> Salin Sekarang
-            </button>
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--glass-border2); flex-shrink: 0;">
+            <button type="button" class="btn btn-cancel" onclick="document.getElementById('copyFilterModal').style.display='none'">Tutup</button>
         </div>
     </div>
 </div>
@@ -1579,47 +1588,82 @@
     }
 
     function showCopyFilterModal() {
-        const select = document.getElementById('copySourceUser');
         const searchInput = document.getElementById('searchCopyUser');
         if (searchInput) searchInput.value = "";
-        if (document.getElementById('copySearchEmpty')) document.getElementById('copySearchEmpty').style.display = 'none';
-
-        if (select) {
-            // Hide the current target user from the selection options and show all others
-            Array.from(select.options).forEach(opt => {
-                if (opt.value == _tfTargetUser.id) {
-                    opt.style.display = 'none';
-                } else {
-                    opt.style.display = 'block';
-                }
-            });
-            select.value = "";
-        }
+        loadCopyUsers(1);
         document.getElementById('copyFilterModal').style.display = 'flex';
     }
 
-    function filterCopySourceUsers(query) {
-        query = query.toLowerCase().trim();
-        const select = document.getElementById('copySourceUser');
-        const options = Array.from(select.options).filter(opt => opt.value !== "");
-        let visibleCount = 0;
+    async function loadCopyUsers(page = 1) {
+        const search = document.getElementById('searchCopyUser').value;
+        const tbody = document.getElementById('copyUserTableBody');
+        const loading = document.getElementById('copyLoading');
+        const pagination = document.getElementById('copyPagination');
 
-        options.forEach(opt => {
-            const text = opt.text.toLowerCase();
-            // Don't show the user we are currently editing
-            const isTarget = (opt.value == _tfTargetUser.id);
-            const match = text.includes(query) && !isTarget;
+        tbody.innerHTML = '';
+        loading.style.display = 'block';
+        pagination.innerHTML = '';
+
+        try {
+            const res = await fetch(`/admin/users/search-ajax?page=${page}&search=${encodeURIComponent(search)}&exclude_id=${_tfTargetUser.id}`);
+            const data = await res.json();
             
-            opt.style.display = match ? 'block' : 'none';
-            if (match) visibleCount++;
-        });
+            loading.style.display = 'none';
+            if (data.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:var(--text-muted);">User tidak ditemukan.</td></tr>';
+                return;
+            }
 
-        document.getElementById('copySearchEmpty').style.display = (visibleCount === 0 && query !== "") ? 'block' : 'none';
+            data.data.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 10px 12px; border-bottom: 1px solid var(--glass-border2);">
+                        <div style="font-weight:600; color:var(--text-main);">${u.name}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted);">${u.email}</div>
+                    </td>
+                    <td style="padding: 10px 12px; border-bottom: 1px solid var(--glass-border2); text-align:center;">
+                        <button class="btn btn-primary" style="padding: 4px 10px; font-size: 0.7rem;" onclick="executeCopyFilter(${u.id})">
+                            Pilih
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Render Pagination
+            if (data.last_page > 1) {
+                pagination.innerHTML = `
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Hal ${data.current_page} / ${data.last_page}</span>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" ${data.current_page === 1 ? 'disabled' : ''} onclick="loadCopyUsers(${data.current_page - 1})">Prev</button>
+                        <button class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" ${data.current_page === data.last_page ? 'disabled' : ''} onclick="loadCopyUsers(${data.current_page + 1})">Next</button>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            loading.style.display = 'none';
+            tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:#ef4444;">Gagal memuat data.</td></tr>';
+        }
     }
 
-    async function executeCopyFilter() {
-        const sourceId = document.getElementById('copySourceUser').value;
-        if (!sourceId) { Swal.fire('Info', 'Pilih user sumber terlebih dahulu.', 'info'); return; }
+    async function executeCopyFilter(sourceId) {
+        if (!sourceId) return;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const result = await Swal.fire({
+            title: 'Konfirmasi Salin',
+            text: 'Seluruh filter RLS user tujuan akan ditimpa dengan filter dari user ini. Lanjutkan?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#6366f1',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Ya, Salin',
+            cancelButtonText: 'Batal',
+            background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
+            color: isDark ? '#f1f5f9' : '#1e293b',
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const res = await fetch(`/admin/users/${_tfTargetUser.id}/copy-filters`, {
@@ -1631,7 +1675,6 @@
             if (data.success) {
                 document.getElementById('copyFilterModal').style.display = 'none';
                 Swal.fire({ icon: 'success', title: 'Berhasil', text: `${data.copied} filter berhasil disalin!`, timer: 2000, showConfirmButton: false });
-                // Reload filter data
                 showTableFilters(_tfTargetUser);
             } else {
                 throw new Error(data.error || 'Gagal menyalin.');
