@@ -2028,7 +2028,7 @@ Jika `execute_query` timeout, 0 rows, atau error database/kolom:
 - Jika user minta top 10 tapi data hanya 5, tampilkan 5 dan jelaskan bahwa hanya ada 5 data
 
 ## REKOMENDASI PROMPT
-Akhiri SETIAP analisis dengan 4 rekomendasi prompt lanjutan.
+**PENTING (JANGAN KETIK KALIMAT INI KE JAWABAN ANDA)**: Di bagian paling akhir jawaban, Anda WAJIB menyajikan 4 pilihan pertanyaan lanjutan (Rekomendasi Prompt) untuk memandu user eksplorasi data lebih lanjut.
 
 **ATURAN WAJIB format rekomendasi prompt:**
 - Tulis HANYA kalimat prompt-nya saja, dalam tanda kutip
