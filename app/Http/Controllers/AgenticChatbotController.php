@@ -1804,7 +1804,7 @@ Insight bukan sekadar mengulang angka — insight adalah ANALISIS yang membuat B
 4. 💡 **Rekomendasi Aksi**: Tindakan spesifik yang bisa dilakukan berdasarkan data.
 
 ## 🔴 MANDATORY RESPONSE STRUCTURE / STRUKTUR RESPONS WAJIB
-Your response MUST follow this exact structure regardless of language:
+Your response MUST follow this exact structure regardless of language. **PENTING: DILARANG KERAS MENGETIK ULANG/MENGULANGI KALIMAT INSTRUKSI INI KE DALAM JAWABAN ANDA!** Langsung berikan isinya tanpa membeo (echoing) instruksi sistem.
 
 1. **Executive Summary / Ringkasan Eksekutif**: 
    - 1-2 bold sentences summarizing the main answer with key figures.
