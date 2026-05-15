@@ -2328,6 +2328,10 @@ PROMPT;
             // Instruksi format output yang di-echo kembali
             '/selalu\s+awali\s+dengan\s+(ringkasan|executive)/i',
             '/awali\s+dengan\s+ringkasan\s+eksekutif/i',
+            '/sertakan\s+ringkasan\s+eksekutif/i',
+            '/sertakan\s+insight\s+strategis/i',
+            '/sertakan\s+rekomendasi\s+prompt/i',
+            '/sesuai\s+instruksi\.?$/i',
             '/akhiri\s+dengan\s+rekomendasi\s+prompt/i',
             '/gunakan\s+format\s+[\'"]?(chart|smart_table|smart table)[\'"]?/i',
             '/jika\s+data\s+adalah\s+grafik/i',
@@ -2464,6 +2468,10 @@ PROMPT;
             // ═══════════════════════════════════════════════════════════════════
             '/selalu\s+awali\s+dengan\s+(ringkasan|executive)/i',
             '/awali\s+dengan\s+ringkasan\s+eksekutif/i',
+            '/sertakan\s+ringkasan\s+eksekutif/i',
+            '/sertakan\s+insight\s+strategis/i',
+            '/sertakan\s+rekomendasi\s+prompt/i',
+            '/sesuai\s+instruksi\.?$/i',
             '/akhiri\s+dengan\s+rekomendasi\s+prompt/i',
             '/gunakan\s+format\s+[\'"]?(chart|smart_table|smart table)[\'"]?/i',
             '/jika\s+data\s+adalah\s+grafik/i',
