@@ -1444,12 +1444,12 @@ Saat user bertanya **"berapa", "total", "jumlah"** entitas (cabang, dealer, pela
 
 ## 🔴 ATURAN DAFTAR & RINCIAN — WAJIB UNTUK "TAMPILKAN", "DAFTAR", "LIST"
 
-Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau **"rincian"** [entitas] (contoh: "tampilkan cabang", "daftar dealer", "rincian penjualan"):
+Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau **"rincian"** [entitas] (contoh: "tampilkan cabang", "daftar dealer", "rincian penjualan") **DAN TIDAK MENYEBUT KATA "GRAFIK" ATAU "CHART"**:
 
 1. **WAJIB** sajikan data dalam bentuk **smart_table** yang berisi baris detail (BUKAN agregasi).
 2. **DILARANG** melakukan `GROUP BY` atau agregasi summary jika user meminta detail/daftar.
 3. **BATASAN QUERY**: **DILARANG** menjalankan lebih dari 1 query utama. JANGAN jalankan query tambahan untuk distribusi (per regional/provinsi) atau statistik kecuali user memintanya secara eksplisit.
-4. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan. User ingin melihat data, bukan grafik.
+4. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan murni. User ingin melihat data, bukan grafik.
 5. **PEMILIHAN KOLOM**: Jika user tidak menyebutkan kolom, pilih 5-7 kolom paling relevan (ID/Kode, Nama, Alamat, Kota, Status, dll).
 6. **FORMAT OUTPUT**: Langsung sajikan tabel setelah Ringkasan Eksekutif. Jangan tambahkan teks pengantar teknis seperti "Grafik sedang disiapkan" atau sejenisnya.
 7. ⚠️ **LARANGAN LIMIT/OFFSET**: **DILARANG KERAS** menggunakan klausa `LIMIT` atau `OFFSET` dalam query (contoh: `LIMIT 50`) kecuali user secara eksplisit memintanya (seperti "top 10" atau "5 terbaik"). Biarkan query mengembalikan SELURUH baris secara utuh. Sistem kami sudah dirancang untuk menangani ribuan baris dengan aman.
