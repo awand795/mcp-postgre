@@ -989,6 +989,17 @@ class QueryService extends BaseService
         $extractMonth = ($driver === 'pgsql') ? "EXTRACT(MONTH FROM {$qualifiedCol})" : "MONTH({$qualifiedCol})";
         $extractYear = ($driver === 'pgsql') ? "EXTRACT(YEAR FROM {$qualifiedCol})" : "YEAR({$qualifiedCol})";
 
+        // FIX: AI sering membandingkan periode_bulan dengan string bulan (contoh: periode_bulan = 'Januari')
+        // Ini menyebabkan error "invalid input syntax for type numeric" karena EXTRACT(MONTH) menghasilkan angka.
+        $monthMap = [
+            'januari' => 1, 'februari' => 2, 'maret' => 3, 'april' => 4,
+            'mei' => 5, 'juni' => 6, 'juli' => 7, 'agustus' => 8,
+            'september' => 9, 'oktober' => 10, 'november' => 11, 'desember' => 12
+        ];
+        foreach ($monthMap as $monthStr => $monthNum) {
+            $cleanSql = preg_replace("/(periode_bulan|EXTRACT\s*\(\s*MONTH\s+FROM\s+[^\)]+\))\s*=\s*'{$monthStr}'/i", "$1 = {$monthNum}", $cleanSql);
+        }
+
         // Ganti periode_bulan dan periode_tahun di seluruh query
         // Gunakan regex agar tidak mengganti bagian dari kata lain
         $cleanSql = preg_replace('/\bperiode_bulan\b/i', $extractMonth, $cleanSql);
