@@ -2071,10 +2071,44 @@
                                 // ── Notifikasi proses (label bisnis) ──────────────
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
+                                    const icon = toolIcons[tc.name] || '';
+                                    const label = toolLabels[tc.name] || 'Memproses data';
 
                                     if (tc.status === 'running') {
-                                        typingText.textContent = 'AI sedang menyusun jawaban...';
+                                        const badgeId = `tool-${tc.id}`;
+                                        if (!document.getElementById(badgeId)) {
+                                            const badge = document.createElement('div');
+                                            badge.id = badgeId;
+                                            badge.className = 'tool-call-badge running';
+                                            badge.dataset.tool = tc.name;
+
+                                            let detail = '';
+                                            if (tc.name === 'execute_query' && tc.arguments?.label) {
+                                                detail = ` · ${tc.arguments.label}`;
+                                            }
+
+                                            if (['describe_table', 'list_tables', 'get_schema_info'].includes(tc.name)) {
+                                                detail = '';
+                                            }
+
+                                            badge.innerHTML = `
+                                                <span class="tool-call-dot running"></span>
+                                                <span>${icon} ${label}${detail}</span>
+                                            `;
+                                            toolArea.appendChild(badge);
+                                        }
+                                        typingText.textContent = label + '...';
                                     } else if (tc.status === 'done' || tc.status === 'success') {
+                                        const badge = document.getElementById(`tool-${tc.id}`);
+                                        if (badge) {
+                                            badge.classList.remove('running');
+                                            badge.classList.add('done');
+                                            const dot = badge.querySelector('.tool-call-dot');
+                                            if (dot) {
+                                                dot.classList.remove('running');
+                                                dot.textContent = '✓';
+                                            }
+                                        }
                                         typingText.textContent = 'Menyusun laporan...';
                                     } else if (tc.status === 'denied') {
                                         const runningBadge = toolArea.querySelector('.tool-call-badge.running');
@@ -4735,17 +4769,26 @@
 
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
+                                    const icon = toolIcons[tc.name] || '';
+                                    const label = toolLabels[tc.name] || 'Memproses data';
                                     if (tc.status === 'running') {
-                                        typingText.textContent = 'AI sedang menyusun jawaban...';
-                                        // Update loading card mengikuti state tool secara generik
+                                        const badge = document.createElement('div');
+                                        badge.className = 'tool-call-badge running';
+                                        let detail = '';
+                                        if (tc.name === 'execute_query' && tc.arguments?.label) detail = ` · ${tc.arguments.label}`;
+                                        badge.innerHTML = `<span class="tool-call-dot running"></span><span>${icon} ${label}${detail}</span>`;
+                                        toolArea.appendChild(badge);
+                                        toolBadges[tc.name + '_' + Object.keys(toolBadges).length] = badge;
+                                        typingText.textContent = label + '...';
+                                        // Update loading card mengikuti state tool
                                         const iconEl = bubble.querySelector('#ai-load-icon');
                                         const labelEl = bubble.querySelector('#ai-load-label');
                                         const subEl = bubble.querySelector('#ai-load-sub');
                                         if (iconEl && labelEl && subEl) {
-                                            iconEl.textContent = 'AI';
+                                            iconEl.textContent = icon;
                                             labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
-                                            labelEl.textContent = 'AI sedang menyusun jawaban';
-                                            subEl.textContent = 'Mohon tunggu sebentar...';
+                                            labelEl.textContent = label + (detail ? detail : '');
+                                            subEl.textContent = 'Sedang memproses...';
                                         }
                                     } else if (tc.status === 'success') {
                                         if (tc.result) {
@@ -4753,18 +4796,38 @@
                                             updateStreamBubbleText(bubble, aiResponseText);
                                         }
 
+                                        const runningBadge = toolArea.querySelector('.tool-call-badge.running');
+                                        if (runningBadge) {
+                                            runningBadge.classList.replace('running', 'done');
+                                            const dot = runningBadge.querySelector('.tool-call-dot');
+                                            if (dot) { dot.classList.remove('running'); dot.textContent = '✓'; }
+                                        }
                                         typingText.textContent = 'Menganalisis data...';
                                         // Update loading card ke state analisis
                                         const iconEl = bubble.querySelector('#ai-load-icon');
                                         const labelEl = bubble.querySelector('#ai-load-label');
                                         const subEl = bubble.querySelector('#ai-load-sub');
                                         if (iconEl && labelEl && subEl) {
-                                            iconEl.textContent = 'Data';
+                                            iconEl.textContent = '📊';
                                             labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
                                             labelEl.textContent = 'Menganalisis data';
                                             subEl.textContent = 'Menyusun hasil...';
                                         }
                                     } else if (tc.status === 'denied') {
+                                        const runningBadgeDenied = toolArea.querySelector('.tool-call-badge.running');
+                                        if (runningBadgeDenied) {
+                                            runningBadgeDenied.classList.replace('running', 'denied');
+                                            const dot = runningBadgeDenied.querySelector('.tool-call-dot');
+                                            if (dot) { dot.classList.remove('running'); dot.textContent = '🔒'; }
+                                        }
+                                        const loadIconEl = bubble.querySelector('#ai-load-icon');
+                                        const loadLabelEl = bubble.querySelector('#ai-load-label');
+                                        const loadSubEl = bubble.querySelector('#ai-load-sub');
+                                        if (loadIconEl && loadLabelEl && loadSubEl) {
+                                            loadIconEl.textContent = '🔒';
+                                            loadLabelEl.textContent = 'Akses Dibatasi';
+                                            loadSubEl.textContent = 'Data terbatas sesuai kebijakan perusahaan';
+                                        }
                                         typingText.textContent = 'Akses dibatasi';
                                     }
                                 }
