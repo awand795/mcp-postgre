@@ -102,6 +102,7 @@ class AdminController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'description' => $request->description,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
@@ -154,6 +155,7 @@ class AdminController extends Controller
 
         $data = [
             'name' => $request->name,
+            'description' => $request->description,
             'email' => $request->email,
             'role' => $request->role,
             'is_admin' => $isAdmin,

@@ -62,7 +62,12 @@
             <tbody>
                 @forelse($users as $user)
                 <tr>
-                    <td class="td-name">{{ $user->name }}</td>
+                    <td class="td-name">
+                        <div style="font-weight: 600; color: var(--text-main);">{{ $user->name }}</div>
+                        @if($user->description)
+                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-weight: 400; line-height: 1.2;">{{ $user->description }}</div>
+                        @endif
+                    </td>
                     <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
                     <td>
                         <span class="role-badge">
@@ -194,6 +199,10 @@
             <div class="form-group">
                 <label>Nama Lengkap</label>
                 <input type="text" name="name" id="userName" required>
+            </div>
+            <div class="form-group">
+                <label>Keterangan</label>
+                <input type="text" name="description" id="userDescription" placeholder="Contoh: Manager Sales, IT Staff, dll">
             </div>
             <div class="form-group">
                 <label>Email</label>
@@ -1284,11 +1293,13 @@
             document.getElementById('formMethod').value = 'POST';
             form.reset();
             document.getElementById('userMaxTokens').value = 32768;
+            document.getElementById('userDescription').value = '';
         } else {
             document.getElementById('modalTitle').innerText = 'Edit User';
             form.action = `/admin/users/${user.id}`;
             document.getElementById('formMethod').value = 'PUT';
             document.getElementById('userName').value = user.name;
+            document.getElementById('userDescription').value = user.description || '';
             document.getElementById('userEmail').value = user.email;
             document.getElementById('userRole').value = user.role;
             if(document.getElementById('userIsAdmin')) document.getElementById('userIsAdmin').checked = user.is_admin;
