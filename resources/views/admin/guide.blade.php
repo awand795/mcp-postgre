@@ -726,7 +726,7 @@
                         'title' => '7C. Import & Export Data User',
                         'steps' => [
                             [
-                                'no' => 10,
+                                'no' => 12,
                                 'text' => 'Unduh Template CSV',
                                 'desc' => 'Klik tombol <strong>"Template"</strong> (kotak merah) untuk mengunduh file CSV contoh dengan header: name, email, password, role, is_admin. Gunakan file ini sebagai dasar sebelum impor massal.',
                                 'img' => 'real_user_template_btn.png',
@@ -734,7 +734,7 @@
                             ],
 
                             [
-                                'no' => 11,
+                                'no' => 13,
                                 'text' => 'Import User dari File Excel/CSV',
                                 'desc' => 'Klik tombol <strong>"Import"</strong> (kotak merah) untuk membuka modal impor. Unggah file Excel/CSV sesuai template. Sistem memvalidasi setiap baris dan membuat akun secara massal. Error per baris akan dilaporkan.',
                                 'img' => 'real_user_import_modal.png',
@@ -742,7 +742,7 @@
                             ],
 
                             [
-                                'no' => 12,
+                                'no' => 14,
                                 'text' => 'Export Data User',
                                 'desc' => 'Klik tombol <strong>"Export"</strong> (kotak merah) untuk mengunduh seluruh data user. Data yang diekspor mencakup semua informasi user kecuali password.',
                                 'img' => 'real_user_export_btn.png',
@@ -755,15 +755,15 @@
                         'title' => '7D. Konfigurasi AI per User (Delegasi)',
                         'steps' => [
                             [
-                                'no' => 13,
+                                'no' => 15,
                                 'text' => 'Tombol AI Config (per User)',
-                                'desc' => 'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus untuk satu user.',
+                                'desc' => 'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus for satu user.',
                                 'img' => 'real_user_ai_config2.png',
                                 'label' => 'TOMBOL AI CONFIG PER USER'
                             ],
 
                             [
-                                'no' => 14,
+                                'no' => 16,
                                 'text' => 'Modal Konfigurasi AI per User',
                                 'desc' => 'Modal AI Config menampilkan daftar semua model dan API key yang tersedia. Centang model dan yang ingin didelegasikan untuk user ini sehingga penggunaan AI dapat dikontrol per individu.',
                                 'img' => 'real_model_ai_user_management.png',
@@ -771,7 +771,7 @@
                             ],
 
                             [
-                                'no' => 15,
+                                'no' => 17,
                                 'text' => 'Setting API Key per User',
                                 'desc' => 'Untuk menyetting api key user anda tinggal click yang saya lingkari di gambar, yang bertuliskan API keys di modal agar memunculkan semua api key yang sudah kita input, dan pastikan API Key Sesuai dengan Provider dari model yang sudah anda pilih',
                                 'img' => 'real_click_api_key_per_user.png',
@@ -779,7 +779,7 @@
                             ],
 
                             [
-                                'no' => 16,
+                                'no' => 18,
                                 'text' => 'Setting API Key Per User',
                                 'desc' => 'Centang API key yang ingin didelegasikan untuk user ini. API key yang dipilih akan digunakan oleh AI untuk user tersebut saat melakukan analisis data.',
                                 'img' => 'real_api_key_list.png',
@@ -792,7 +792,7 @@
                         'title' => '7E. Row Level Security (RLS) — Filter Data Baris',
                         'steps' => [
                             [
-                                'no' => 17,
+                                'no' => 19,
                                 'text' => 'Apa itu Row Level Security?',
                                 'desc' => 'Row Level Security (RLS) adalah fitur pembatasan data di level baris. Dengan RLS, Admin dapat membatasi baris data yang bisa dianalisis AI untuk user tertentu. <br><br>Contoh kasus: <br>• User <strong>Cabang Jakarta</strong> → hanya bisa melihat data di mana <code>kode_cabang = \'JKT\'</code> <br>• User <strong>Salesman A</strong> → hanya bisa melihat data di mana <code>id_salesman = 12</code> <br>• User <strong>Divisi Finance</strong> → hanya bisa melihat data di mana <code>divisi = \'finance\'</code> <br><br>Tanpa RLS, user dapat melihat seluruh isi tabel yang diizinkan rolenya.',
                                 'img' => 'real_user_rls_open.png',
@@ -800,7 +800,7 @@
                             ],
 
                             [
-                                'no' => 18,
+                                'no' => 20,
                                 'text' => 'Tombol RLS — Buka Modal Filter Data',
                                 'desc' => 'Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol <i class="fas fa-filter" style="color:#10b981"></i> hijau (kotak merah). Jika user sudah memiliki filter aktif, badge angka kecil berwarna akan muncul di atas tombol menunjukkan jumlah filter yang terpasang.',
                                 'img' => 'real_button_rls_per_user.png',
@@ -808,7 +808,7 @@
                             ],
 
                             [
-                                'no' => 19,
+                                'no' => 21,
                                 'text' => 'Modal RLS — Daftar Tabel Terdeteksi',
                                 'desc' => 'Modal <strong>Pembatasan Data (Row-Level Security)</strong> terbuka menampilkan daftar tabel yang terdeteksi di panel kiri (kotak merah). Setiap tabel yang sudah memiliki filter menampilkan badge <span style="background:#d1fae5;color:#065f46;padding:1px 7px;border-radius:10px;font-size:.75rem">N filter</span>. <br><br>Di pojok kanan atas terdapat tombol <strong>"Salin"</strong> untuk menyalin konfigurasi RLS dari user lain.',
                                 'img' => 'real_user_rls_modal.png',
@@ -816,7 +816,7 @@
                             ],
 
                             [
-                                'no' => 20,
+                                'no' => 22,
                                 'text' => 'Pilih Tabel & Tambah Kondisi Filter',
                                 'desc' => 'Klik nama tabel di panel kiri untuk membuka area pengaturan kondisi di panel kanan. Panel kanan menampilkan: <br>• <strong>Nama tabel</strong> yang dipilih <br>• <strong>Daftar aturan filter</strong> yang sudah ada <br>• <strong>Tombol "+ Tambah Kondisi"</strong> (kotak merah) untuk menambah rule baru <br><br>Setiap aturan filter terdiri dari 3 bagian: <br>1. <strong>Kolom</strong> — pilih kolom dari dropdown (beserta tipe data) <br>2. <strong>Operator</strong> — pilih dari: <code>=</code> sama dengan, <code>!=</code> tidak sama, <code>&gt;</code> lebih besar, <code>&lt;</code> lebih kecil, <code>LIKE</code> mengandung teks, <code>IN</code> dalam daftar <br>3. <strong>Nilai</strong> — ketik nilai yang menjadi batasan (contoh: <code>1271</code>, <code>Jakarta</code>)',
                                 'img' => 'real_rls_add_rule.png',
@@ -824,12 +824,26 @@
                             ],
 
                             [
-                                'no' => 21,
+                                'no' => 23,
                                 'text' => 'Preview Data & Simpan Perubahan',
                                 'desc' => 'Sebelum menyimpan, klik tombol <strong>"Preview Data (5 Baris)"</strong> (kotak merah) untuk melihat contoh 5 baris data yang akan tampil sesuai kondisi filter yang diset. Ini memastikan filter sudah benar sebelum diterapkan ke user. <br><br>Setelah yakin, klik <strong>"Simpan Perubahan"</strong> biru di bawah modal. Klik <strong>"Batal"</strong> untuk menutup tanpa menyimpan. <br><br><strong>Tips penting:</strong><br>• Kosongkan semua kondisi untuk mengizinkan user melihat seluruh data tabel tersebut <br>• Satu tabel bisa memiliki lebih dari satu kondisi (AND logic) <br>• Kondisi berlaku untuk semua pertanyaan AI yang melibatkan tabel tersebut',
                                 'img' => 'real_rls_preview.png',
                                 'label' => 'PREVIEW DATA & SIMPAN RLS'
                             ],
+                            [
+                                'no' => 24,
+                                'text' => 'Salin User',
+                                'desc' => 'Klik tombol Salin User untuk mengambil data settingan rls dari user lain dan akan muncul pilihan form daftar user yang akan disalin',
+                                'img' => 'real_rls_copyrls_user.png',
+                                'label' => 'SALIN USER'
+                            ],
+                            [
+                                'no' => 25,
+                                'text' => 'Pilih User yang akan disalin',
+                                'desc' => 'Pilih user yang akan disalin dengan mengklik user yang akan disalin dan semua settingan rls dari user yang akan disalin akan tersimpan',
+                                'img' => 'real_rls_copyrls_user_list.png',
+                                'label' => 'PILIH USER'
+                            ]
                         ],
                     ],
                     [
@@ -837,7 +851,7 @@
                         'title' => '7F. Menghapus User',
                         'steps' => [
                             [
-                                'no' => 22,
+                                'no' => 26,
                                 'text' => 'Tombol Hapus User',
                                 'desc' => 'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul.',
                                 'img' => 'real_button_delete_user.png',
@@ -845,7 +859,7 @@
                             ],
 
                             [
-                                'no' => 23,
+                                'no' => 27,
                                 'text' => 'Konfirmasi Hapus User',
                                 'desc' => 'Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.',
                                 'img' => 'real_confirm_delete_user.png',
