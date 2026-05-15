@@ -3662,8 +3662,11 @@
             function isLikelyCurrencyLabel(label) {
                 if (!label) return false;
                 const h = String(label).toLowerCase();
+                if (/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/.test(h)) {
+                    return false;
+                }
                 // Extended keywords for better detection
-                return /(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/.test(h);
+                return /(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/.test(h);
             }
 
             // Smart match: cocokkan currencyColumns (nama DB) dengan nama header/dataset (nama display)
@@ -3678,9 +3681,15 @@
                 const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                 
                 const cleanColName = stripHtml(colName);
+                if (/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i.test(cleanColName)) {
+                    return false;
+                }
                 const normalizedCol = normalize(cleanColName);
                 
                 return currencyColumns.some(c => {
+                    if (/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i.test(stripHtml(c))) {
+                        return false;
+                    }
                     const nc = normalize(stripHtml(c));
                     return nc === normalizedCol || normalizedCol.includes(nc) || nc.includes(normalizedCol);
                 });

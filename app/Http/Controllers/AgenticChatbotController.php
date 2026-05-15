@@ -234,6 +234,7 @@ class AgenticChatbotController extends Controller
                 break;
             }
         }
+        $originalUserMessage = $this->extractOriginalUserMessage($messages);
         if ($chatSessionId) {
             echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
         }
@@ -615,6 +616,7 @@ class AgenticChatbotController extends Controller
                 $toolName = $toolCall['function']['name'] ?? '';
                 $argsRaw = $toolCall['function']['arguments'] ?? '{}';
                 $arguments = is_string($argsRaw) ? (json_decode($argsRaw, true) ?? []) : $argsRaw;
+                $arguments = $this->enforceNumberedBranchIntent($originalUserMessage, $toolName, $arguments);
 
                 $countWithoutWhereWarning = false;
                 if ($toolName === 'execute_query') {
@@ -1532,6 +1534,10 @@ LIMIT 10
 **MENGAPA:** "hm yamin" tidak akan match `%hm yamin%` jika di database ada titik ("HM. YAMIN") atau spasi berbeda. Memecah per kata memastikan hasil selalu ditemukan.
 
 **Aturan pemecahan kata kunci:**
+- Jika user menyebut nama cabang diikuti angka, angka itu adalah bagian dari nama cabang. Contoh: "cabang binjai 2 tahun ini" berarti cabang `BINJAI 2` pada tahun berjalan, BUKAN "Binjai selama 2 tahun" dan BUKAN gabungan `BINJAI 1/2/3`.
+- Untuk pola `cabang [nama] [angka] tahun ini`, probe wajib menyertakan angka: `nama_cabang ILIKE '%binjai%' AND nama_cabang ILIKE '%2%'`, lalu query utama wajib memakai nama eksak hasil probe, misalnya `nama_cabang = 'BINJAI 2'`.
+- Jangan menggabungkan beberapa cabang bernomor hanya karena hasil probe menemukan banyak pilihan. Jika user menyebut angka cabang, pilih nama eksak yang mengandung angka tersebut.
+- Frasa periode multi-tahun hanya valid jika user menulis jelas seperti "2 tahun terakhir", "dua tahun terakhir", "2025 vs 2026", atau "dua tahun". Frasa "cabang binjai 2 tahun ini" harus dibaca sebagai cabang `Binjai 2` + periode `tahun ini`.
 - Input 1 kata ("yamin") → 1 kondisi ILIKE: `ILIKE '%yamin%'`
 - Input 2 kata ("hm yamin") → 2 kondisi OR: `ILIKE '%hm%' OR ILIKE '%yamin%'`
 - Input 3 kata ("kapt muslim barat") → 3 kondisi OR: `ILIKE '%kapt%' OR ILIKE '%muslim%' OR ILIKE '%barat%'`
@@ -2212,6 +2218,98 @@ PROMPT;
         }
 
         return $content;
+    }
+
+    private function extractOriginalUserMessage(array $messages): string
+    {
+        for ($i = count($messages) - 1; $i >= 0; $i--) {
+            $message = $messages[$i] ?? [];
+            if (($message['role'] ?? '') !== 'user') {
+                continue;
+            }
+
+            $content = (string) ($message['content'] ?? '');
+            if ($content === '' || str_starts_with($content, '[')) {
+                continue;
+            }
+
+            return $content;
+        }
+
+        return '';
+    }
+
+    private function enforceNumberedBranchIntent(string $userMessage, string $toolName, array $arguments): array
+    {
+        if ($toolName !== 'execute_query' || empty($arguments['sql'])) {
+            return $arguments;
+        }
+
+        $intent = $this->extractNumberedBranchIntent($userMessage);
+        if (!$intent) {
+            return $arguments;
+        }
+
+        $sql = $arguments['sql'];
+        $originalSql = $sql;
+        $branchName = preg_quote($intent['name'], '/');
+        $branchNumber = preg_quote($intent['number'], '/');
+        $exactBranch = strtoupper($intent['name'] . ' ' . $intent['number']);
+        $exactSql = str_replace("'", "''", $exactBranch);
+
+        if (preg_match('/\bnama_cabang\s+IN\s*\(([^)]*)\)/i', $sql, $m)) {
+            $items = $m[1];
+            if (preg_match("/'[^']*{$branchName}[^']*{$branchNumber}[^']*'/i", $items)) {
+                $sql = preg_replace('/\bnama_cabang\s+IN\s*\(([^)]*)\)/i', "nama_cabang = '{$exactSql}'", $sql, 1);
+            }
+        }
+
+        if (preg_match("/\bnama_cabang\s+ILIKE\s+'%{$branchName}%'/i", $sql) && !preg_match("/\bnama_cabang\s+ILIKE\s+'%{$branchNumber}%'/i", $sql)) {
+            $sql = preg_replace(
+                "/\bnama_cabang\s+ILIKE\s+'%{$branchName}%'/i",
+                "nama_cabang ILIKE '%{$intent['name']}%' AND nama_cabang ILIKE '%{$intent['number']}%'",
+                $sql,
+                1
+            );
+        }
+
+        if (preg_match('/\btahun\s+ini\b/i', $userMessage) && !preg_match('/\b(2|dua)\s+tahun\s+(terakhir|lalu|sebelumnya)\b/i', $userMessage)) {
+            $currentYear = (int) date('Y');
+            $sql = preg_replace('/EXTRACT\s*\(\s*YEAR\s+FROM\s+([^)]+)\)\s+IN\s*\(\s*\d{4}\s*,\s*\d{4}\s*\)/i', "EXTRACT(YEAR FROM $1) = {$currentYear}", $sql);
+            $sql = preg_replace('/\bperiode_tahun\s+IN\s*\(\s*\d{4}\s*,\s*\d{4}\s*\)/i', "periode_tahun = {$currentYear}", $sql);
+        }
+
+        if ($sql !== $originalSql) {
+            Log::info('[Agentic] Corrected numbered branch intent SQL for ' . $exactBranch);
+            $arguments['sql'] = $sql;
+            if (!empty($arguments['label'])) {
+                $arguments['label'] = preg_replace('/binjai\s*\(gabungan\)|binjai\s*1,\s*binjai\s*2,\s*dan\s*binjai\s*3/i', $exactBranch, $arguments['label']);
+            }
+        }
+
+        return $arguments;
+    }
+
+    private function extractNumberedBranchIntent(string $userMessage): ?array
+    {
+        $normalized = strtolower($userMessage);
+        $normalized = preg_replace('/[^a-z0-9\s]/i', ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', trim($normalized));
+
+        if (!preg_match('/\bcabang\s+([a-z][a-z\s]*?)\s+(\d+)\s+tahun\s+ini\b/i', $normalized, $m)) {
+            return null;
+        }
+
+        $name = trim($m[1]);
+        $number = trim($m[2]);
+        if ($name === '' || $number === '') {
+            return null;
+        }
+
+        return [
+            'name' => $name,
+            'number' => $number,
+        ];
     }
 
     private function convertMarkdownToSmartTable(array $tableLines): string
