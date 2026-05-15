@@ -463,13 +463,20 @@
         </p>
         
         <div class="form-group">
-            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Pilih User Sumber</label>
-            <select id="copySourceUser" class="form-control" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main);">
-                <option value="">-- Pilih User --</option>
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Cari & Pilih User Sumber</label>
+            <div style="position: relative; margin-bottom: 0.5rem;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); font-size: 0.8rem;"></i>
+                <input type="text" id="searchCopyUser" placeholder="Ketik nama atau email..." 
+                       style="width: 100%; padding: 0.6rem 0.6rem 0.6rem 2.2rem; border-radius: 8px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; outline: none;"
+                       oninput="filterCopySourceUsers(this.value)">
+            </div>
+            <select id="copySourceUser" class="form-control" size="8" style="width: 100%; padding: 0.5rem; border-radius: 10px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main); font-family: inherit;">
+                <option value="" disabled selected>-- Pilih dari daftar di bawah --</option>
                 @foreach($allUsers as $u)
                     <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
                 @endforeach
             </select>
+            <p id="copySearchEmpty" style="display: none; font-size: 0.75rem; color: #ef4444; margin-top: 0.5rem; text-align: center;">User tidak ditemukan.</p>
         </div>
         
         <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
@@ -1573,8 +1580,12 @@
 
     function showCopyFilterModal() {
         const select = document.getElementById('copySourceUser');
+        const searchInput = document.getElementById('searchCopyUser');
+        if (searchInput) searchInput.value = "";
+        if (document.getElementById('copySearchEmpty')) document.getElementById('copySearchEmpty').style.display = 'none';
+
         if (select) {
-            // Hide the current target user from the selection options
+            // Hide the current target user from the selection options and show all others
             Array.from(select.options).forEach(opt => {
                 if (opt.value == _tfTargetUser.id) {
                     opt.style.display = 'none';
@@ -1585,6 +1596,25 @@
             select.value = "";
         }
         document.getElementById('copyFilterModal').style.display = 'flex';
+    }
+
+    function filterCopySourceUsers(query) {
+        query = query.toLowerCase().trim();
+        const select = document.getElementById('copySourceUser');
+        const options = Array.from(select.options).filter(opt => opt.value !== "");
+        let visibleCount = 0;
+
+        options.forEach(opt => {
+            const text = opt.text.toLowerCase();
+            // Don't show the user we are currently editing
+            const isTarget = (opt.value == _tfTargetUser.id);
+            const match = text.includes(query) && !isTarget;
+            
+            opt.style.display = match ? 'block' : 'none';
+            if (match) visibleCount++;
+        });
+
+        document.getElementById('copySearchEmpty').style.display = (visibleCount === 0 && query !== "") ? 'block' : 'none';
     }
 
     async function executeCopyFilter() {
