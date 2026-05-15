@@ -59,14 +59,11 @@
                     <th class="th-sticky">Aksi</th>
                 </tr>
             </thead>
-            <tbody>
-                @forelse($users as $user)
-                <tr>
+            @forelse($users as $user)
+            <tbody class="user-group">
+                <tr class="user-main-row {{ $user->description ? 'no-border' : '' }}">
                     <td class="td-name">
                         <div style="font-weight: 600; color: var(--text-main);">{{ $user->name }}</div>
-                        @if($user->description)
-                            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; font-weight: 400; line-height: 1.2;">{{ $user->description }}</div>
-                        @endif
                     </td>
                     <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
                     <td>
@@ -164,15 +161,28 @@
                         </div>
                     </td>
                 </tr>
-                @empty
+                @if($user->description)
+                <tr class="description-row">
+                    <td colspan="8">
+                        <div class="user-description-content">
+                            <i class="fas fa-info-circle"></i>
+                            {{ $user->description }}
+                        </div>
+                    </td>
+                    <td class="td-sticky"></td>
+                </tr>
+                @endif
+            </tbody>
+            @empty
+            <tbody>
                 <tr>
                     <td colspan="9" class="empty-state">
                         <i class="fas fa-user-slash"></i>
                         <p>Tidak ada user yang ditemukan</p>
                     </td>
                 </tr>
-                @endforelse
             </tbody>
+            @endforelse
         </table>
     </div>
 </div>
@@ -632,6 +642,31 @@
     .checkbox-group label { margin-bottom: 0; cursor: pointer; color: var(--text-main); }
     .pagination-container { margin-top: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
     .pagination-info { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* User Description Row Styles */
+    .user-main-row.no-border td { border-bottom: none; }
+    .description-row td { padding-top: 0; padding-bottom: 0.8rem; border-top: none; }
+    .user-description-content {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 400;
+        line-height: 1.3;
+        max-width: 850px;
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .user-description-content i {
+        margin-top: 2px;
+        opacity: 0.6;
+        font-size: 0.7rem;
+    }
+
+    /* Hover link between main row and description row */
+    .user-group:hover .user-main-row td,
+    .user-group:hover .description-row td {
+        background: var(--table-row-hover) !important;
+    }
 
     .btn-cancel {
         background: #fff1f2; color: #e11d48; border: 1px solid #fda4af;
