@@ -220,7 +220,13 @@
             </div>
             <div class="form-group">
                 <label>Password</label>
-                <input type="password" name="password" id="userPassword">
+                <div style="position: relative;">
+                    <input type="password" name="password" id="userPassword">
+                    <button type="button" onclick="togglePasswordVisibility('userPassword', this)" 
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
             <div class="form-group">
                 <label>Role</label>
@@ -1349,6 +1355,20 @@
     function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
     function downloadTemplate() { window.location.href = "{{ route('admin.users.template') }}"; }
     function exportUsers()      { window.location.href = "{{ route('admin.users.export') }}"; }
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
 
     window.onclick = function(e) {
         if (e.target.classList.contains('modal-overlay')) {
