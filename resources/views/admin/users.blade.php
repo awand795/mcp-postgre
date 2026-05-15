@@ -450,6 +450,37 @@
     </div>
 </div>
 
+<!-- Copy Filter Modal -->
+<div id="copyFilterModal" class="modal-overlay">
+    <div class="glass-card modal-content" style="max-width: 400px;">
+        <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-copy" style="color: var(--primary);"></i>
+            Salin Filter RLS
+        </h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; line-height: 1.5;">
+            Pilih user sumber untuk menyalin seluruh konfigurasi Row Level Security (RLS) ke user tujuan. 
+            <br><span style="color: #ef4444; font-weight: 600;">Peringatan:</span> Filter yang sudah ada pada user tujuan akan ditimpa.
+        </p>
+        
+        <div class="form-group">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem;">Pilih User Sumber</label>
+            <select id="copySourceUser" class="form-control" style="width: 100%; padding: 0.75rem; border-radius: 10px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main);">
+                <option value="">-- Pilih User --</option>
+                @foreach($allUsers as $u)
+                    <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                @endforeach
+            </select>
+        </div>
+        
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
+            <button type="button" class="btn btn-cancel" onclick="document.getElementById('copyFilterModal').style.display='none'">Batal</button>
+            <button type="button" class="btn btn-primary" onclick="executeCopyFilter()">
+                <i class="fas fa-check"></i> Salin Sekarang
+            </button>
+        </div>
+    </div>
+</div>
+
 <style>
     /* ── Existing styles (unchanged) ─────────────────────────────────── */
     .filter-group select option { background: var(--select-bg); color: var(--input-text); }
@@ -1541,6 +1572,18 @@
     }
 
     function showCopyFilterModal() {
+        const select = document.getElementById('copySourceUser');
+        if (select) {
+            // Hide the current target user from the selection options
+            Array.from(select.options).forEach(opt => {
+                if (opt.value == _tfTargetUser.id) {
+                    opt.style.display = 'none';
+                } else {
+                    opt.style.display = 'block';
+                }
+            });
+            select.value = "";
+        }
         document.getElementById('copyFilterModal').style.display = 'flex';
     }
 

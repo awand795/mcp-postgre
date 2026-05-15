@@ -51,6 +51,14 @@ class AdminController extends Controller
         }
         
         $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
+        
+        // For copy filter modal, we need all users the admin can see (unpaginated)
+        $allUsersQuery = User::orderBy('name');
+        if (!auth()->user()->is_super_admin) {
+            $allUsersQuery->where('added_by', auth()->id());
+        }
+        $allUsers = $allUsersQuery->get();
+
         $roles = Role::with('addedBy')->get();
         $aiModels = \App\Models\AiModel::with('provider')->where('is_active', true)->get();
         $aiKeysQuery = \App\Models\AiApiKey::with(['provider', 'addedBy'])->where('is_active', true);
@@ -59,7 +67,7 @@ class AdminController extends Controller
         }
         $aiKeys = $aiKeysQuery->get();
         
-        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys'));
+        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys', 'allUsers'));
     }
 
     public function userStore(Request $request)
