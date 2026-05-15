@@ -644,8 +644,8 @@
     .pagination-info { color: var(--text-muted); font-size: 0.9rem; }
 
     /* User Description Row Styles */
-    .user-main-row.no-border td { border-bottom: none; }
-    .description-row td { padding-top: 0; padding-bottom: 0.8rem; border-top: none; }
+    .user-main-row.no-border td { border-bottom: none; padding-bottom: 0.2rem; }
+    .description-row td { padding-top: 0; padding-bottom: 0.6rem; border-top: none; }
     .user-description-content {
         font-size: 0.72rem;
         color: var(--text-muted);
