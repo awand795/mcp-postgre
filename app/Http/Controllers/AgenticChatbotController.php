@@ -1006,12 +1006,8 @@ class AgenticChatbotController extends Controller
             ], 400);
         }
 
-        $isCurrencyHeader = function (string $header) use ($currencyColumns): bool {
-            return in_array($header, $currencyColumns);
-        };
-
-        $columnTypes = array_map(function ($header) use ($isCurrencyHeader) {
-            if ($isCurrencyHeader($header))
+        $columnTypes = array_map(function ($header) use ($currencyColumns) {
+            if ($this->isExportCurrencyHeader((string) $header, $currencyColumns))
                 return 'currency';
             if (preg_match('/(^qty$|^jumlah$|^count$|^no$|^no\.$)/i', $header))
                 return 'number';
@@ -1036,6 +1032,46 @@ class AgenticChatbotController extends Controller
         $pdf->setPaper([0, 0, $paperWidth, 595]);
 
         return $pdf->download($filename);
+    }
+
+    private function isExportCurrencyHeader(string $header, array $currencyColumns): bool
+    {
+        if ($this->isNonCurrencyExportLabel($header)) {
+            return false;
+        }
+
+        $normalizedHeader = $this->normalizeExportLabel($header);
+        foreach ($currencyColumns as $column) {
+            $column = (string) $column;
+            if ($this->isNonCurrencyExportLabel($column)) {
+                continue;
+            }
+
+            $normalizedColumn = $this->normalizeExportLabel($column);
+            if ($normalizedColumn !== '' && (
+                $normalizedHeader === $normalizedColumn ||
+                str_contains($normalizedHeader, $normalizedColumn) ||
+                str_contains($normalizedColumn, $normalizedHeader)
+            )) {
+                return true;
+            }
+        }
+
+        return (bool) preg_match('/(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/i', $header);
+    }
+
+    private function normalizeExportLabel(string $label): string
+    {
+        $label = strtolower($label);
+        $label = preg_replace('/\s+/', '_', $label);
+        $label = preg_replace('/[^a-z0-9_]/', '', $label);
+        $label = preg_replace('/_+/', '_', $label);
+        return trim($label, '_');
+    }
+
+    private function isNonCurrencyExportLabel(string $label): bool
+    {
+        return (bool) preg_match('/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|no|nomor|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i', $label);
     }
 
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = '', int $loopCount = 1): ?array

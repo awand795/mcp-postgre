@@ -3007,15 +3007,29 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
 
                 try {
+                    // Identify currency columns before cleaning rows so exported files keep "Rp" visibly.
+                    const currencyColsIdx = [];
+                    headers.forEach((h, i) => {
+                        if (isCurrencyColumn(h, tableId)) {
+                            currencyColsIdx.push(i);
+                        }
+                    });
+
                     // Clean data: remove HTML tags only AND force string format for large numbers
                     const cleanRows = rows.map(row =>
-                        row.map(cell => {
+                        row.map((cell, i) => {
                             if (cell === null || cell === undefined) return '';
 
                             // 1. Handle already numeric values first
-                            if (typeof cell === 'number') return cell;
+                            if (typeof cell === 'number') {
+                                return currencyColsIdx.includes(i) ? currencyFormatter.format(cell) : cell;
+                            }
 
                             let value = stripHtmlTags(cell);
+
+                            if (currencyColsIdx.includes(i)) {
+                                return currencyFormatter.format(parseAnyNumber(value));
+                            }
                             
                             // Check if it's a number (including currency strings)
                             const vLower = value.toLowerCase();
@@ -3027,13 +3041,6 @@
                             return value;
                         })
                     );
-                    // Identify currency columns for Excel formatting
-                    const currencyColsIdx = [];
-                    headers.forEach((h, i) => {
-                        if (isCurrencyColumn(h, tableId)) {
-                            currencyColsIdx.push(i);
-                        }
-                    });
 
                     const cleanHeaders = headers.map(h => {
                         const rawLabel = stripHtmlTags(h);
