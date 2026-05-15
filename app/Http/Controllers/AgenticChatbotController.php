@@ -1071,6 +1071,10 @@ class AgenticChatbotController extends Controller
 
     private function isNonCurrencyExportLabel(string $label): bool
     {
+        if (preg_match('/^\s*\d{4}\s*$/', $label)) {
+            return true;
+        }
+
         return (bool) preg_match('/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|no|nomor|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i', $label);
     }
 

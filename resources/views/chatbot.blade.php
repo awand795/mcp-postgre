@@ -3254,10 +3254,11 @@
                         if (storedCols) currencyColumns = JSON.parse(storedCols);
                     } catch (e) {}
 
+                    const chartDatasetLabels = getChartExportDatasetLabels(chartTitle, datasets, currencyColumns, chartType);
                     const chartCurrencyColumns = getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns, chartType);
 
                     // Build headers & rows for server-side
-                    const headers = ['No', 'Label', ...datasets.map((d, i) => d.label || `${chartType} ${i + 1}`)];
+                    const headers = ['No', 'Label', ...chartDatasetLabels];
                     const rows = [];
                     const maxLength = Math.max(labels.length, ...datasets.map(d => d.data?.length || 0));
 
@@ -3515,18 +3516,19 @@
                     const chartType = chartConfig.type || 'bar';
 
                     // AI-detect currency columns untuk chart PDF export
+                    const chartDatasetLabels = getChartExportDatasetLabels(chartTitle, datasets, currencyColumns, chartType);
                     const finalPdfCurrencyCols = getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns, chartType);
 
                     // Prepare table data from chart
                     const rows = [];
-                    const headers = ['No', 'Label', ...datasets.map((d, i) => d.label || `${chartType} ${i + 1}`)];
+                    const headers = ['No', 'Label', ...chartDatasetLabels];
                     const maxLength = Math.max(labels.length, ...datasets.map(d => d.data?.length || 0));
 
                     for (let i = 0; i < maxLength; i++) {
                         const row = [i + 1, labels[i] || '-'];
                         datasets.forEach((d, dsIdx) => {
                             let value = d.data?.[i];
-                            const dsLabel = d.label || `${chartType} ${dsIdx + 1}`;
+                            const dsLabel = chartDatasetLabels[dsIdx] || d.label || `${chartType} ${dsIdx + 1}`;
                             const isCurrency = finalPdfCurrencyCols.includes(dsLabel) || finalPdfCurrencyCols.includes(String(dsLabel).toLowerCase());
                             
                             if (value === null || value === undefined || value === '') {
@@ -3660,12 +3662,29 @@
                 return isLikelyCurrencyLabel(header);
             }
 
-            function getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
+            function isChartExportMonetary(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
                 const baseCurrencyColumns = Array.isArray(currencyColumns) ? currencyColumns : [];
                 const datasetLabels = (datasets || []).map((d, i) => d?.label || `${chartType} ${i + 1}`);
-                const chartLooksMonetary = isLikelyCurrencyLabel(chartTitle)
+                return isLikelyCurrencyLabel(chartTitle)
                     || baseCurrencyColumns.some(col => isLikelyCurrencyLabel(col))
                     || datasetLabels.some(label => isLikelyCurrencyLabel(label) || isColumnCurrencyByAI(label, baseCurrencyColumns));
+            }
+
+            function getChartExportDatasetLabels(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
+                const chartLooksMonetary = isChartExportMonetary(chartTitle, datasets, currencyColumns, chartType);
+                return (datasets || []).map((d, i) => {
+                    const label = d?.label || `${chartType} ${i + 1}`;
+                    if (chartLooksMonetary && /^\d{4}$/.test(String(label).trim())) {
+                        return `Penjualan ${label}`;
+                    }
+                    return label;
+                });
+            }
+
+            function getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
+                const baseCurrencyColumns = Array.isArray(currencyColumns) ? currencyColumns : [];
+                const datasetLabels = getChartExportDatasetLabels(chartTitle, datasets, currencyColumns, chartType);
+                const chartLooksMonetary = isChartExportMonetary(chartTitle, datasets, currencyColumns, chartType);
 
                 if (!chartLooksMonetary) {
                     return baseCurrencyColumns;
