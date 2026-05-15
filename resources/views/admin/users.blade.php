@@ -452,13 +452,14 @@
 
 <!-- Copy Filter Modal -->
 <div id="copyFilterModal" class="modal-overlay">
-    <div class="glass-card modal-content" style="max-width: 550px; height: 500px; display: flex; flex-direction: column;">
+    <div class="glass-card modal-content" style="max-width: 550px; height: 520px; display: flex; flex-direction: column;">
         <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
             <i class="fas fa-copy" style="color: var(--primary);"></i>
             Salin Filter RLS
         </h3>
-        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4; flex-shrink: 0;">
-            Pilih user sumber untuk menyalin konfigurasi RLS. Filter tujuan akan ditimpa.
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; flex-shrink: 0;">
+            Pilih user sumber untuk menyalin seluruh konfigurasi Row Level Security (RLS) ke user tujuan. 
+            <br><span style="color: #ef4444; font-weight: 600;">Peringatan:</span> Filter yang sudah ada pada user tujuan akan ditimpa dengan data baru.
         </p>
         
         <div class="form-group" style="margin-bottom: 0.75rem; flex-shrink: 0;">
