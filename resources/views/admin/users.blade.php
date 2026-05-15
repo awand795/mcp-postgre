@@ -644,22 +644,23 @@
     .pagination-info { color: var(--text-muted); font-size: 0.9rem; }
 
     /* User Description Row Styles */
-    .user-main-row.no-border td { border-bottom: none; padding-bottom: 0.2rem; }
-    .description-row td { padding-top: 0; padding-bottom: 0.6rem; border-top: none; }
+    .user-main-row.no-border td { border-bottom: none; padding-bottom: 0px; }
+    .description-row td { padding-top: 0px; padding-bottom: 0.5rem; border-top: none; }
     .user-description-content {
-        font-size: 0.72rem;
+        font-size: 0.68rem;
         color: var(--text-muted);
         font-weight: 400;
-        line-height: 1.3;
+        line-height: 1;
         max-width: 850px;
         display: flex;
-        align-items: flex-start;
-        gap: 6px;
+        align-items: center;
+        gap: 4px;
+        opacity: 0.85;
+        margin-top: -2px;
     }
     .user-description-content i {
-        margin-top: 2px;
-        opacity: 0.6;
-        font-size: 0.7rem;
+        font-size: 0.65rem;
+        opacity: 0.5;
     }
 
     /* Hover link between main row and description row */
