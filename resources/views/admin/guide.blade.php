@@ -497,9 +497,17 @@
 
                             [
                                 'no' => 16,
+                                'text' => 'Pop UP untuk mengecek Kesehatan',
+                                'desc' => 'Pilih model yang ingin anda gunakan untuk mengecek AI atau biarkan saja untuk mode auto biar AI sendiri yang memilih model yang akan digunakan untuk mengecek kondisi kesehatan AI dan setelah itu anda bisa klik tombol cek sekarang',
+                                'img' => 'real_ai_health_modal.png',
+                                'label' => 'TOMBOL HEALTH CHECK'
+                            ],
+
+                            [
+                                'no' => 17,
                                 'text' => 'Hasil Health Check',
                                 'desc' => 'Modal Health Check (kotak merah) menampilkan hasil pengujian: status key (Valid/Invalid/Rate Limited/Expired), waktu respons, pesan error jika ada, dan rekomendasi tindakan.',
-                                'img' => 'real_ai_health_modal.png',
+                                'img' => 'real_ai_health_modal2.png',
                                 'label' => 'HASIL HEALTH CHECK'
                             ],
                         ],
