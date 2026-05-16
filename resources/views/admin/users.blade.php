@@ -208,7 +208,7 @@
             <input type="hidden" name="_method" id="formMethod" value="POST">
             <div class="form-group">
                 <label>Nama Lengkap</label>
-                <input type="text" name="name" id="userName" required>
+                <input type="text" name="name" id="userName" placeholder="Masukkan nama lengkap" required>
             </div>
             <div class="form-group">
                 <label>Keterangan</label>
@@ -216,12 +216,12 @@
             </div>
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" id="userEmail" required>
+                <input type="email" name="email" id="userEmail" placeholder="alamat@email.com" required>
             </div>
             <div class="form-group">
                 <label>Password</label>
                 <div style="position: relative;">
-                    <input type="password" name="password" id="userPassword">
+                    <input type="password" name="password" id="userPassword" placeholder="••••••••">
                     <button type="button" onclick="togglePasswordVisibility('userPassword', this)" 
                             style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; z-index: 10;">
                         <i class="fas fa-eye"></i>
@@ -239,7 +239,7 @@
             </div>
             <div class="form-group">
                 <label>Max Tokens</label>
-                <input type="number" name="max_tokens" id="userMaxTokens" value="32768" required>
+                <input type="number" name="max_tokens" id="userMaxTokens" value="32768" placeholder="32768" required>
             </div>
             
             @if(auth()->user()->is_super_admin)
@@ -1328,12 +1328,17 @@
         }
         const modal = document.getElementById('userModal');
         const form  = document.getElementById('userForm');
+        
+        // Always reset form and clear password to prevent data carry-over
+        form.reset();
+        const pwdField = document.getElementById('userPassword');
+        if (pwdField) pwdField.value = '';
+
         modal.style.display = 'flex';
         if (type === 'create') {
             document.getElementById('modalTitle').innerText = 'Tambah User';
             form.action = "{{ route('admin.users.store') }}";
             document.getElementById('formMethod').value = 'POST';
-            form.reset();
             document.getElementById('userMaxTokens').value = 32768;
             document.getElementById('userDescription').value = '';
         } else {

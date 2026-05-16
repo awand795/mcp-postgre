@@ -120,12 +120,14 @@
                     <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Nama Role</label>
                     <input type="text" name="name" id="roleNameInput"
                         style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); font-family: 'Outfit', sans-serif;"
+                        placeholder="Contoh: Analyst, Viewer, dll"
                         required>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Deskripsi</label>
                     <textarea name="description" id="roleDescInput"
                         style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); resize: none; font-family: 'Outfit', sans-serif;"
+                        placeholder="Deskripsi singkat mengenai role ini..."
                         rows="3"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
