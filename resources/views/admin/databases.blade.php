@@ -1392,6 +1392,72 @@ function showSchemaSelect(schemas) {
 }
 
 // ═══════════════════════════════════════
+// DYNAMIC CARD UPDATE HELPER (NO RELOAD)
+// ═══════════════════════════════════════
+function updateCardVisuals(dbId, success, responseTime, version, errorMsg, lastTestedAt) {
+    const card = document.getElementById(`dbCard${dbId}`);
+    if (!card) return;
+
+    // Update dataset status for filtering
+    card.dataset.teststatus = success ? 'success' : 'failed';
+
+    // 1. Update Pulsing Status Dot
+    const dot = card.querySelector('.status-dot');
+    if (dot) {
+        dot.className = `status-dot ${success ? 'dot-success' : 'dot-failed'}`;
+        dot.title = success ? 'Connected' : 'Connection Failed';
+    }
+
+    // 2. Update Status Chip in Footer (Left side)
+    const statusLeft = card.querySelector('.status-left');
+    if (statusLeft) {
+        if (success) {
+            statusLeft.innerHTML = `
+                <span class="status-chip chip-success">
+                    <i class="fas fa-check-circle"></i> Connected
+                </span>
+            `;
+        } else {
+            let errorHtml = '';
+            if (errorMsg) {
+                const truncated = errorMsg.length > 40 ? errorMsg.substring(0, 40) + '...' : errorMsg;
+                errorHtml = `
+                    <span class="error-hint" title="${errorMsg}">
+                        <i class="fas fa-exclamation-circle"></i>
+                        ${truncated}
+                    </span>
+                `;
+            }
+            statusLeft.innerHTML = `
+                <span class="status-chip chip-failed">
+                    <i class="fas fa-times-circle"></i> Failed
+                </span>
+                ${errorHtml}
+            `;
+        }
+    }
+
+    // 3. Update Status Right (Latency and last tested time)
+    const statusRight = card.querySelector('.status-right');
+    if (statusRight) {
+        let lastTestedHtml = '';
+        if (lastTestedAt) {
+            lastTestedHtml = `
+                <span class="last-tested">
+                    <i class="fas fa-clock"></i>
+                    1 second ago
+                </span>
+            `;
+        }
+        let latencyHtml = '';
+        if (success && responseTime) {
+            latencyHtml = `<span class="latency-badge">${responseTime}ms</span>`;
+        }
+        statusRight.innerHTML = lastTestedHtml + latencyHtml;
+    }
+}
+
+// ═══════════════════════════════════════
 // TEST CONNECTION (individual card)
 // ═══════════════════════════════════════
 window.testConnection = async function(dbId) {
@@ -1412,14 +1478,13 @@ window.testConnection = async function(dbId) {
         });
         const data = await r.json();
 
+        // Update visuals dynamically
+        updateCardVisuals(dbId, data.success, data.response_time_ms, data.version, data.error, new Date().toISOString());
+
         if (data.success) {
-            if (dot) { dot.className = 'status-dot dot-success'; dot.title = 'Connected'; }
             showToast(`✓ ${data.version || 'Connected'} (${data.response_time_ms || '–'}ms)`, 'success');
-            setTimeout(() => location.reload(), 1500);
         } else {
-            if (dot) { dot.className = 'status-dot dot-failed'; dot.title = data.error || 'Failed'; }
             showToast('Koneksi gagal: ' + (data.error || 'Unknown'), 'error');
-            setTimeout(() => location.reload(), 1500);
         }
     } catch (err) {
         showToast('Error: ' + err.message, 'error');
@@ -1495,23 +1560,38 @@ window.testAllConnections = async function() {
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
     showToast('Menguji semua koneksi...', 'info');
 
+    // Turn all dots into pending first
+    document.querySelectorAll('.status-dot').forEach(dot => {
+        dot.className = 'status-dot dot-pending';
+    });
+
     try {
         const r = await fetch("{{ route('admin.databases.test-all') }}");
         const data = await r.json();
 
-        // Show health bar
-        document.getElementById('hTotal').textContent = data.total;
-        document.getElementById('hHealthy').textContent = data.healthy;
-        document.getElementById('hUnhealthy').textContent = data.unhealthy;
-        document.getElementById('healthBar').style.display = 'flex';
+        // Show health bar stats
+        const hTotalEl = document.getElementById('hTotal');
+        const hHealthyEl = document.getElementById('hHealthy');
+        const hUnhealthyEl = document.getElementById('hUnhealthy');
+        const healthBarEl = document.getElementById('healthBar');
+
+        if (hTotalEl) hTotalEl.textContent = data.total;
+        if (hHealthyEl) hHealthyEl.textContent = data.healthy;
+        if (hUnhealthyEl) hUnhealthyEl.textContent = data.unhealthy;
+        if (healthBarEl) healthBarEl.style.display = 'flex';
+
+        // Dynamically update each card
+        if (data.databases && Array.isArray(data.databases)) {
+            data.databases.forEach(db => {
+                updateCardVisuals(db.id, db.success, db.response_time_ms, db.version, db.error, db.last_tested_at);
+            });
+        }
 
         if (data.unhealthy === 0) {
             showToast(`Semua ${data.total} koneksi aktif ✓`, 'success');
         } else {
             showToast(`${data.healthy} OK, ${data.unhealthy} gagal`, 'error');
         }
-
-        setTimeout(() => location.reload(), 2500);
     } catch (err) {
         showToast('Error: ' + err.message, 'error');
     } finally {
