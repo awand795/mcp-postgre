@@ -847,7 +847,44 @@
                             ],
                             [
                                 'no' => 25,
-                        <style>
+                                'text' => 'Pilih User yang akan disalin',
+                                'desc' => 'Pilih user yang akan disalin dengan mengklik user yang akan disalin dan semua settingan rls dari user yang akan disalin akan tersimpan',
+                                'img' => 'real_rls_copyrls_user_list.png',
+                                'label' => 'PILIH USER'
+                            ]
+                        ],
+                    ],
+                    [
+                        'id' => 'user-del',
+                        'title' => '7F. Menghapus User',
+                        'steps' => [
+                            [
+                                'no' => 26,
+                                'text' => 'Tombol Hapus User',
+                                'desc' => 'Klik tombol <i class="fas fa-trash" style="color:#ef4444"></i> merah (kotak merah) di kolom Aksi pada baris user yang ingin dihapus. Dialog konfirmasi SweetAlert akan muncul.',
+                                'img' => 'real_button_delete_user.png',
+                                'label' => 'TOMBOL HAPUS USER'
+                            ],
+
+                            [
+                                'no' => 27,
+                                'text' => 'Konfirmasi Hapus User',
+                                'desc' => 'Dialog SweetAlert (kotak merah) menampilkan nama user yang akan dihapus. Klik <strong>"Ya, Hapus"</strong> untuk menghapus akun secara permanen beserta seluruh data terkait (konfigurasi AI, filter RLS, riwayat chat). Tindakan ini <strong>tidak dapat dibatalkan</strong>.',
+                                'img' => 'real_confirm_delete_user.png',
+                                'label' => 'KONFIRMASI HAPUS USER'
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+
+        ]; // end $guideData
+    @endphp
+
+    {{-- ══════════════════════════════════════════════════════════════
+    CSS
+    ══════════════════════════════════════════════════════════════ --}}
+    <style>
         /* ── Modern Design Tokens & Scrollbars ── */
         .guide-wrap {
             display: flex;
