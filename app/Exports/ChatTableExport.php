@@ -213,11 +213,12 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             'alignment' => [
                 'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
             ],
         ]);
 
-        // Explicitly set header row height
-        $sheet->getRowDimension($startRow)->setRowHeight(25);
+        // Explicitly set header row height - increased to handle potential wrapping
+        $sheet->getRowDimension($startRow)->setRowHeight(35);
 
         // Add thin black/grey borders and center vertical alignment to the entire data table
         if ($lastRow >= $startRow) {
@@ -225,7 +226,11 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['rgb' => 'CCCCCC'],
+                        'color' => ['rgb' => 'EEEEEE'], // Softer border color
+                    ],
+                    'outline' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM,
+                        'color' => ['rgb' => 'D32F2F'], // Red outline for the table
                     ],
                 ],
                 'alignment' => [
@@ -233,20 +238,15 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 ],
             ]);
             
-            // Set a comfortable row height for all data rows (Spasi)
-            // Use default for speed if data is large
-            if ($this->isLargeData) {
-                $sheet->getDefaultRowDimension()->setRowHeight(20);
-            } else {
-                // Zebra striping - disabled for very large tables for performance
+            // Set a comfortable row height for all data rows
+            $sheet->getDefaultRowDimension()->setRowHeight(25); 
+
+            if (!$this->isLargeData) {
+                // Zebra striping - very subtle
                 for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
                     $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                        'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FDFDFD']],
+                        'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FAFAFA']],
                     ]);
-                }
-
-                for ($row = $startRow + 1; $row <= $lastRow; $row++) {
-                    $sheet->getRowDimension($row)->setRowHeight(20);
                 }
             }
         }
@@ -266,19 +266,26 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 // 1. Set Title at Row 1
                 $reportTitle = strtoupper($this->fullTitle ?: 'MBI DATA REPORT');
                 $sheet->setCellValue('A1', $reportTitle);
-                $sheet->mergeCells("A1:{$lastCol}1");
+                
+                // Ensure title is fully visible even if columns are few
+                $mergeEndCol = $lastCol;
+                if ($lastColIndex < 6) {
+                    $mergeEndCol = Coordinate::stringFromColumnIndex(max($lastColIndex, 6));
+                }
+                $sheet->mergeCells("A1:{$mergeEndCol}1");
                 
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => [
                         'bold' => true,
-                        'size' => 16,
-                        'color' => ['rgb' => '333333'],
+                        'size' => 18,
+                        'color' => ['rgb' => 'D32F2F'], // Use brand color for title
                     ],
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                        'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
                     ],
                 ]);
-                $sheet->getRowDimension(1)->setRowHeight(30);
+                $sheet->getRowDimension(1)->setRowHeight(50);
 
                 // 2. Set Metadata at Row 2
                 $generatedAt = 'Generated on: ' . date('d M Y H:i');
@@ -289,35 +296,39 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                     'font' => [
                         'italic' => true,
                         'size' => 10,
-                        'color' => ['rgb' => '666666'],
+                        'color' => ['rgb' => '999999'],
                     ],
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                     ],
                 ]);
 
-                // 3. Add column padding (Extra Spasi) and Sizing
+                // 3. Add column padding and Sizing
                 $dataTableStart = $this->chartInfo ? 28 : 4;
-                foreach (range(1, $lastColIndex) as $columnIndex) {
+                for ($columnIndex = 1; $columnIndex <= $lastColIndex; $columnIndex++) {
                     $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
                     
-                    if ($this->isLargeData) {
-                        // For large tables, use a fixed comfortable width for speed
-                        $sheet->getColumnDimension($columnLetter)->setWidth(20);
+                    // For smaller tables, use AutoSize for perfection
+                    $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
+                    
+                    if ($this->isLargeData && $columnIndex > 25) {
+                        $sheet->getColumnDimension($columnLetter)->setAutoSize(false);
+                        $sheet->getColumnDimension($columnLetter)->setWidth(22);
                     } else {
-                        // For smaller tables, use AutoSize for perfection
-                        $sheet->getColumnDimension($columnLetter)->setAutoSize(true);
-                        // Force calculate width so we can add padding
                         $event->sheet->calculateColumnWidths(); 
                         $currentWidth = $sheet->getColumnDimension($columnLetter)->getWidth();
+                        
+                        // Set minimum width to avoid cramped columns
+                        if ($currentWidth < 15) $currentWidth = 15;
+                        
                         $sheet->getColumnDimension($columnLetter)->setAutoSize(false);
-                        $sheet->getColumnDimension($columnLetter)->setWidth($currentWidth + 4);
+                        $sheet->getColumnDimension($columnLetter)->setWidth($currentWidth + 10); // Generous padding
                     }
                     
-                    // Add indent to make text not touch the borders, starting from data table headers
+                    // Add indent to make text not touch the borders
                     $sheet->getStyle("{$columnLetter}{$dataTableStart}:{$columnLetter}{$sheet->getHighestRow()}")
                         ->getAlignment()
-                        ->setIndent(1);
+                        ->setIndent(2); // Increased indent
                 }
             },
         ];

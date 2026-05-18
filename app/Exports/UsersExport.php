@@ -113,13 +113,32 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             ],
             'alignment' => [
                 'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
             ],
         ]);
+
+        // Explicitly set header row height
+        $sheet->getRowDimension(1)->setRowHeight(30);
 
         // Auto-size columns (export: A-F, template: A-E)
         $lastCol = $this->isTemplate ? 'E' : 'F';
         foreach (range('A', $lastCol) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
+            
+            // Force calculate width so we can add padding
+            $sheet->getParent()->getActiveSheet()->calculateColumnWidths();
+            $currentWidth = $sheet->getColumnDimension($col)->getWidth();
+            
+            if ($currentWidth < 12) $currentWidth = 12;
+            
+            $sheet->getColumnDimension($col)->setAutoSize(false);
+            $sheet->getColumnDimension($col)->setWidth($currentWidth + 8); // Added generous padding
+            
+            // Add indentation for aesthetics
+            $sheet->getStyle($col . '1:' . $col . $sheet->getHighestRow())
+                ->getAlignment()
+                ->setIndent(2);
         }
 
         // Add example data for template
@@ -162,7 +181,18 @@ class UsersExport implements FromCollection, WithHeadings, WithMapping, WithStyl
                     'alignment' => [
                         'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
                     ],
+                    'borders' => [
+                        'allBorders' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                            'color' => ['rgb' => 'EEEEEE'],
+                        ],
+                    ],
                 ]);
+                
+                // Set uniform row height for data
+                for ($i = 2; $i <= $highestRow; $i++) {
+                    $sheet->getRowDimension($i)->setRowHeight(25);
+                }
             }
         }
     }
