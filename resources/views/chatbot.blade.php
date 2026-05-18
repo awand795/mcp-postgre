@@ -3078,11 +3078,12 @@
                     // Create Worksheet
                     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-                    // Merge Title Cells
+                    // Merge Title Cells across at least 8 columns to prevent squishing on narrow tables
+                    const titleMergeEnd = Math.max(7, cleanHeaders.length - 1);
                     ws['!merges'] = [
-                        { s: { r: 0, c: 0 }, e: { r: 0, c: cleanHeaders.length - 1 } },
-                        { s: { r: 1, c: 0 }, e: { r: 1, c: cleanHeaders.length - 1 } },
-                        { s: { r: 2, c: 0 }, e: { r: 2, c: cleanHeaders.length - 1 } }
+                        { s: { r: 0, c: 0 }, e: { r: 0, c: titleMergeEnd } },
+                        { s: { r: 1, c: 0 }, e: { r: 1, c: titleMergeEnd } },
+                        { s: { r: 2, c: 0 }, e: { r: 2, c: titleMergeEnd } }
                     ];
 
                     // --- Apply Premium Styling ---
@@ -3133,19 +3134,19 @@
                     if (ws['A1']) {
                         ws['A1'].s = {
                             font: { bold: true, sz: 16, color: { rgb: "D32F2F" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A2']) {
                         ws['A2'].s = {
                             font: { italic: true, sz: 10, color: { rgb: "666666" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A3']) {
                         ws['A3'].s = {
                             font: { italic: true, sz: 8, color: { rgb: "999999" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
 
@@ -3328,11 +3329,12 @@
 
                     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-                    // Merge Title Cells
+                    // Merge Title Cells across at least 8 columns to prevent squishing on narrow tables
+                    const titleMergeEnd = Math.max(7, cleanHeaders.length - 1);
                     ws['!merges'] = [
-                        { s: { r: 0, c: 0 }, e: { r: 0, c: cleanHeaders.length - 1 } },
-                        { s: { r: 1, c: 0 }, e: { r: 1, c: cleanHeaders.length - 1 } },
-                        { s: { r: 2, c: 0 }, e: { r: 2, c: cleanHeaders.length - 1 } }
+                        { s: { r: 0, c: 0 }, e: { r: 0, c: titleMergeEnd } },
+                        { s: { r: 1, c: 0 }, e: { r: 1, c: titleMergeEnd } },
+                        { s: { r: 2, c: 0 }, e: { r: 2, c: titleMergeEnd } }
                     ];
 
                     const range = XLSX.utils.decode_range(ws['!ref']);
@@ -3392,19 +3394,19 @@
                     if (ws['A1']) {
                         ws['A1'].s = {
                             font: { bold: true, sz: 16, color: { rgb: "D32F2F" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A2']) {
                         ws['A2'].s = {
                             font: { italic: true, sz: 10, color: { rgb: "666666" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A3']) {
                         ws['A3'].s = {
                             font: { italic: true, sz: 8, color: { rgb: "999999" } },
-                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                            alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
 
