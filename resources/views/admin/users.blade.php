@@ -227,6 +227,10 @@
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
+                <div id="passwordHint" style="display: none; align-items: center; gap: 8px; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                    <i class="fas fa-info-circle" style="color: var(--primary); font-size: 0.85rem; flex-shrink: 0;"></i>
+                    <span><strong>Petunjuk:</strong> Kosongkan kolom ini jika Anda tidak ingin mengubah kata sandi pengguna saat ini.</span>
+                </div>
             </div>
             <div class="form-group">
                 <label>Role</label>
@@ -1341,6 +1345,7 @@
             document.getElementById('formMethod').value = 'POST';
             document.getElementById('userMaxTokens').value = 32768;
             document.getElementById('userDescription').value = '';
+            document.getElementById('passwordHint').style.display = 'none';
         } else {
             document.getElementById('modalTitle').innerText = 'Edit User';
             form.action = `/admin/users/${user.id}`;
@@ -1353,6 +1358,7 @@
             if(document.getElementById('userIsSuperAdmin')) document.getElementById('userIsSuperAdmin').checked = user.is_super_admin;
             document.getElementById('userScopeLimited').checked = user.analysis_scope_limited ?? true;
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
+            document.getElementById('passwordHint').style.display = 'flex';
         }
     }
 
