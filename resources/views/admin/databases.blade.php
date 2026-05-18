@@ -500,20 +500,20 @@
 }
 .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
-/* ── Live Beating Test All Button ── */
+/* ── Premium Live Beating Test All Button ── */
 #testAllBtn {
-    background: linear-gradient(135deg, #10b981, #06b6d4);
-    border: none;
+    background: linear-gradient(135deg, #4f46e5, #ec4899); /* Deep Indigo to Rose Pink - extremely luxurious */
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: white !important;
-    padding: 0.65rem 1.4rem;
+    padding: 0.7rem 1.6rem;
     border-radius: 12px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
     position: relative;
     overflow: hidden;
 }
@@ -523,7 +523,7 @@
     position: absolute;
     top: 0; left: -100%;
     width: 100%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
     transition: 0.5s;
 }
 
@@ -533,53 +533,61 @@
 }
 
 #testAllBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
-    filter: brightness(1.05);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.45);
+    background: linear-gradient(135deg, #4338ca, #d946ef); /* Indigo to Fuchsia */
 }
 
 #testAllBtn:active {
-    transform: translateY(0);
+    transform: translateY(-1px);
 }
 
 /* Dark Mode Overrides for premium cyber glow */
 html.dark #testAllBtn {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
-    border: 1.5px solid rgba(6, 182, 212, 0.45);
-    color: #22d3ee !important;
-    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(236, 72, 153, 0.12));
+    border: 1.5px solid rgba(236, 72, 153, 0.45);
+    color: #f472b6 !important; /* Soft rose pink */
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
 html.dark #testAllBtn:hover {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25));
-    border-color: #22d3ee;
-    box-shadow: 0 0 20px rgba(6, 182, 212, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(236, 72, 153, 0.22));
+    border-color: #f472b6;
+    color: white !important;
+    box-shadow: 0 0 25px rgba(236, 72, 153, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
 }
 
-/* Heartbeat Icon Animation */
-@keyframes heartbeat {
+/* Heartbeat Icon Animation - Realistic Double-Beat (Ba-bum... pause) */
+@keyframes doubleHeartbeat {
     0% { transform: scale(1); }
-    14% { transform: scale(1.3); }
-    28% { transform: scale(1); }
-    42% { transform: scale(1.3); }
-    70% { transform: scale(1); }
+    12% { transform: scale(1.35); }
+    24% { transform: scale(1.1); }
+    36% { transform: scale(1.45); }
+    55% { transform: scale(1); }
+    100% { transform: scale(1); }
 }
 
 #testAllBtn i.fa-heartbeat {
     display: inline-block;
-    animation: heartbeat 1.4s infinite ease-in-out;
+    animation: doubleHeartbeat 1.6s infinite ease-in-out;
     transform-origin: center;
-    color: #f43f5e; /* Vibrant crimson red pulse */
+    color: white; /* Clean, matching icon color */
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.4));
 }
 
 /* Make it neon glow in dark mode */
 html.dark #testAllBtn i.fa-heartbeat {
-    color: #ff2e93; 
-    filter: drop-shadow(0 0 5px rgba(255, 46, 147, 0.7));
+    color: #f472b6; 
+    filter: drop-shadow(0 0 6px rgba(244, 114, 182, 0.8));
+}
+
+html.dark #testAllBtn:hover i.fa-heartbeat {
+    color: white;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
 }
 
 #testAllBtn:hover i.fa-heartbeat {
-    animation-duration: 0.9s; /* beats faster on hover! */
+    animation-duration: 1.0s; /* beats faster on hover! */
 }
 
 /* ── Health Bar ── */
