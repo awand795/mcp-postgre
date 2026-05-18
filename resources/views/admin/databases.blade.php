@@ -500,6 +500,88 @@
 }
 .header-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 
+/* ── Live Beating Test All Button ── */
+#testAllBtn {
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    border: none;
+    color: white !important;
+    padding: 0.65rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    position: relative;
+    overflow: hidden;
+}
+
+#testAllBtn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transition: 0.5s;
+}
+
+#testAllBtn:hover::after {
+    left: 100%;
+    transition: 0.6s ease-in-out;
+}
+
+#testAllBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    filter: brightness(1.05);
+}
+
+#testAllBtn:active {
+    transform: translateY(0);
+}
+
+/* Dark Mode Overrides for premium cyber glow */
+html.dark #testAllBtn {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
+    border: 1.5px solid rgba(6, 182, 212, 0.45);
+    color: #22d3ee !important;
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+html.dark #testAllBtn:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.25));
+    border-color: #22d3ee;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+/* Heartbeat Icon Animation */
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    14% { transform: scale(1.3); }
+    28% { transform: scale(1); }
+    42% { transform: scale(1.3); }
+    70% { transform: scale(1); }
+}
+
+#testAllBtn i.fa-heartbeat {
+    display: inline-block;
+    animation: heartbeat 1.4s infinite ease-in-out;
+    transform-origin: center;
+    color: #f43f5e; /* Vibrant crimson red pulse */
+}
+
+/* Make it neon glow in dark mode */
+html.dark #testAllBtn i.fa-heartbeat {
+    color: #ff2e93; 
+    filter: drop-shadow(0 0 5px rgba(255, 46, 147, 0.7));
+}
+
+#testAllBtn:hover i.fa-heartbeat {
+    animation-duration: 0.9s; /* beats faster on hover! */
+}
+
 /* ── Health Bar ── */
 .health-bar {
     display: flex;
