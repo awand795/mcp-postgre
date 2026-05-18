@@ -3015,27 +3015,31 @@
                         }
                     });
 
-                    // Clean data: remove HTML tags only AND force string format for large numbers
+                    // Clean data: keep numbers as raw numbers so Excel can apply proper cell formats (.z) and formulas
                     const cleanRows = rows.map(row =>
                         row.map((cell, i) => {
                             if (cell === null || cell === undefined) return '';
 
-                            // 1. Handle already numeric values first
+                            // If it's a currency column, convert to raw number for Excel formatting
+                            if (currencyColsIdx.includes(i)) {
+                                return parseAnyNumber(cell);
+                            }
+
+                            // Handle numeric values
                             if (typeof cell === 'number') {
-                                return currencyColsIdx.includes(i) ? currencyFormatter.format(cell) : cell;
+                                return cell;
                             }
 
                             let value = stripHtmlTags(cell);
 
-                            if (currencyColsIdx.includes(i)) {
-                                return currencyFormatter.format(parseAnyNumber(value));
-                            }
-                            
-                            // Check if it's a number (including currency strings)
+                            // Check if it's a number (including numeric strings with dots/commas)
                             const vLower = value.toLowerCase();
-                            if (vLower.includes('rp') || /^-?[\d.,]+$/.test(value.replace(/\s/g, ''))) {
-                                const num = parseAnyNumber(value);
-                                return num;
+                            // Skip non-numeric styled values like factor numbers, years, etc.
+                            const h = headers[i] || '';
+                            const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
+
+                            if (!isNonNumericStyled && (vLower.includes('rp') || /^-?[\d.,]+$/.test(value.replace(/\s/g, '')))) {
+                                return parseAnyNumber(value);
                             }
 
                             return value;
@@ -3082,7 +3086,6 @@
                     ];
 
                     // --- Apply Premium Styling ---
-
                     const range = XLSX.utils.decode_range(ws['!ref']);
                     const borderStyle = {
                         top: { style: "thin", color: { rgb: "CCCCCC" } },
@@ -3102,11 +3105,18 @@
                             ws[cellRef].s.border = borderStyle;
                             ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
 
+                            if (C === 0 || C === 1) {
+                                ws[cellRef].s.alignment.horizontal = C === 0 ? "center" : "left";
+                            } else {
+                                ws[cellRef].s.alignment.horizontal = "right";
+                            }
+
                             // Apply currency format (z) if it's a data row and a currency column
                             if (R > 4 && currencyColsIdx.includes(C)) {
-                                // Excel format for Rupiah: "Rp" #,##0
                                 ws[cellRef].z = '"Rp" #,##0';
-                                ws[cellRef].s.alignment.horizontal = "right";
+                            } else if (R > 4 && C > 1) {
+                                // Standard numeric thousand separator formatting
+                                ws[cellRef].z = '#,##0';
                             }
 
                             // If it's the header row (R === 4)
@@ -3114,6 +3124,7 @@
                                 ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                                 ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
                                 ws[cellRef].s.alignment.horizontal = "center";
+                                ws[cellRef].s.alignment.wrapText = true;
                             }
                         }
                     }
@@ -3121,32 +3132,52 @@
                     // 2. Titles & Metadata
                     if (ws['A1']) {
                         ws['A1'].s = {
-                            font: { bold: true, sz: 16, color: { rgb: "333333" } },
-                            alignment: { horizontal: "center", vertical: "center" }
+                            font: { bold: true, sz: 16, color: { rgb: "D32F2F" } },
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
                         };
                     }
                     if (ws['A2']) {
                         ws['A2'].s = {
                             font: { italic: true, sz: 10, color: { rgb: "666666" } },
-                            alignment: { horizontal: "center", vertical: "center" }
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
                         };
                     }
                     if (ws['A3']) {
                         ws['A3'].s = {
                             font: { italic: true, sz: 8, color: { rgb: "999999" } },
-                            alignment: { horizontal: "center", vertical: "center" }
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
                         };
                     }
 
                     // 3. Auto-size Columns & Row Heights
-                    ws['!cols'] = cleanHeaders.map(h => ({ wch: Math.max(15, h.length + 5) }));
-                    ws['!rows'] = [
-                        { hpt: 35 }, // Row 1 (Title)
-                        { hpt: 20 }, // Row 2
-                        { hpt: 15 }, // Row 3
+                    // Dynamically calculate the maximum width of each column (including headers and row data)
+                    const colsWidth = cleanHeaders.map((h, i) => {
+                        let maxLen = h.length;
+                        cleanRows.forEach(row => {
+                            const cellValue = row[i];
+                            if (cellValue !== null && cellValue !== undefined) {
+                                const valStr = String(cellValue);
+                                if (valStr.length > maxLen) {
+                                    maxLen = valStr.length;
+                                }
+                            }
+                        });
+                        return { wch: Math.max(15, maxLen + 5) }; // Ensure at least 15 width, plus padding
+                    });
+                    ws['!cols'] = colsWidth;
+
+                    const rowsHeight = [
+                        { hpt: 45 }, // Row 1 (Title)
+                        { hpt: 22 }, // Row 2
+                        { hpt: 18 }, // Row 3
                         { hpt: 10 }, // Row 4 (Empty)
-                        { hpt: 25 }  // Row 5 (Header)
+                        { hpt: 38 }  // Row 5 (Header) - Spacious to handle wrapText
                     ];
+                    // Comfortable height for all data rows
+                    for (let r = 5; r <= range.e.r; r++) {
+                        rowsHeight.push({ hpt: 25 });
+                    }
+                    ws['!rows'] = rowsHeight;
 
                     // Create Workbook
                     const wb = XLSX.utils.book_new();
@@ -3257,7 +3288,7 @@
                     const chartDatasetLabels = getChartExportDatasetLabels(chartTitle, datasets, currencyColumns, chartType);
                     const chartCurrencyColumns = getChartExportCurrencyColumns(chartTitle, datasets, currencyColumns, chartType);
 
-                    // Build headers & rows for server-side
+                    // Build headers & rows
                     const headers = ['No', 'Label', ...chartDatasetLabels];
                     const rows = [];
                     const maxLength = Math.max(labels.length, ...datasets.map(d => d.data?.length || 0));
@@ -3272,60 +3303,163 @@
                         rows.push(row);
                     }
 
-                    // Prepare chart info for server-side
-                    const chartInfo = {
-                        type: chartType,
-                        title: chartTitle,
-                        dataPoints: rows.length,
-                        datasetCount: datasets.length
-                    };
-
+                    const cleanHeaders = headers.map(h => toHumanLabel(stripHtmlTags(h)));
                     const filename = `chart-${chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}-${new Date().getTime()}.xlsx`;
 
-                    // Call Server-Side Export
-                    const response = await fetch('/chatbot/export/excel', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({
-                            headers: headers,
-                            rows: rows,
-                            title: chartTitle,
-                            currency_columns: chartCurrencyColumns,
-                            chart_info: chartInfo,
-                            filename: filename
-                        })
+                    // Generate client-side Excel (SheetJS)
+                    const wsData = [];
+                    wsData.push([chartTitle.toUpperCase()]);
+                    wsData.push([`Generated on: ${new Date().toLocaleString('id-ID')}`]);
+                    wsData.push(['Generated by DarkoTech AI']);
+                    wsData.push([]); // Empty row
+                    wsData.push(cleanHeaders);
+                    wsData.push(...rows);
+
+                    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+                    // Merge Title Cells
+                    ws['!merges'] = [
+                        { s: { r: 0, c: 0 }, e: { r: 0, c: cleanHeaders.length - 1 } },
+                        { s: { r: 1, c: 0 }, e: { r: 1, c: cleanHeaders.length - 1 } },
+                        { s: { r: 2, c: 0 }, e: { r: 2, c: cleanHeaders.length - 1 } }
+                    ];
+
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    const borderStyle = {
+                        top: { style: "thin", color: { rgb: "CCCCCC" } },
+                        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                        left: { style: "thin", color: { rgb: "CCCCCC" } },
+                        right: { style: "thin", color: { rgb: "CCCCCC" } }
+                    };
+
+                    const currencyColsIdx = [];
+                    cleanHeaders.forEach((h, i) => {
+                        const isCurr = chartCurrencyColumns.some(col => {
+                            const cleanCol = toHumanLabel(stripHtmlTags(col));
+                            return h.toLowerCase() === cleanCol.toLowerCase() ||
+                                   h.toLowerCase().includes(cleanCol.toLowerCase()) ||
+                                   cleanCol.toLowerCase().includes(h.toLowerCase());
+                        }) || isCurrencyColumn(h);
+                        if (isCurr) currencyColsIdx.push(i);
                     });
 
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || 'Gagal export Excel');
+                    for (let R = 4; R <= range.e.r; ++R) {
+                        for (let C = 0; C <= range.e.c; ++C) {
+                            const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                            if (!ws[cellRef]) {
+                                ws[cellRef] = { t: 's', v: '' };
+                            }
+
+                            ws[cellRef].s = ws[cellRef].s || {};
+                            ws[cellRef].s.border = borderStyle;
+                            ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
+
+                            if (C === 0 || C === 1) {
+                                ws[cellRef].s.alignment.horizontal = C === 0 ? "center" : "left";
+                            } else {
+                                ws[cellRef].s.alignment.horizontal = "right";
+                            }
+
+                            // Apply currency format if it's a data row and a currency column
+                            if (R > 4 && currencyColsIdx.includes(C)) {
+                                ws[cellRef].z = '"Rp" #,##0';
+                            } else if (R > 4 && C > 1) {
+                                ws[cellRef].z = '#,##0';
+                            }
+
+                            // Header row styling (R === 4)
+                            if (R === 4) {
+                                ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
+                                ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
+                                ws[cellRef].s.alignment.horizontal = "center";
+                                ws[cellRef].s.alignment.wrapText = true;
+                            }
+                        }
                     }
 
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    window.URL.revokeObjectURL(url);
+                    // Style titles
+                    if (ws['A1']) {
+                        ws['A1'].s = {
+                            font: { bold: true, sz: 16, color: { rgb: "D32F2F" } },
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                        };
+                    }
+                    if (ws['A2']) {
+                        ws['A2'].s = {
+                            font: { italic: true, sz: 10, color: { rgb: "666666" } },
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                        };
+                    }
+                    if (ws['A3']) {
+                        ws['A3'].s = {
+                            font: { italic: true, sz: 8, color: { rgb: "999999" } },
+                            alignment: { horizontal: "center", vertical: "center", wrapText: true }
+                        };
+                    }
+
+                    // Auto-size columns & rows
+                    const colsWidth = cleanHeaders.map((h, i) => {
+                        let maxLen = h.length;
+                        rows.forEach(row => {
+                            const cellValue = row[i];
+                            if (cellValue !== null && cellValue !== undefined) {
+                                const valStr = String(cellValue);
+                                if (valStr.length > maxLen) {
+                                    maxLen = valStr.length;
+                                }
+                            }
+                        });
+                        return { wch: Math.max(15, maxLen + 5) };
+                    });
+                    ws['!cols'] = colsWidth;
+
+                    const rowsHeight = [
+                        { hpt: 45 }, // Row 1 (Title)
+                        { hpt: 22 }, // Row 2
+                        { hpt: 18 }, // Row 3
+                        { hpt: 10 }, // Row 4 (Empty)
+                        { hpt: 38 }  // Row 5 (Header)
+                    ];
+                    for (let r = 5; r <= range.e.r; r++) {
+                        rowsHeight.push({ hpt: 25 });
+                    }
+                    ws['!rows'] = rowsHeight;
+
+                    const wb = XLSX.utils.book_new();
+                    const sheetName = chartTitle.replace(/[\[\]\*\\\/\?]/g, '').substring(0, 31);
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName || 'Data');
+                    XLSX.writeFile(wb, filename);
+
+                    Swal.close();
 
                     Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success',
-                        title: '✅ Excel berhasil diunduh',
-                        showConfirmButton: false, timer: 3000, timerProgressBar: true,
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: '✅ Export Excel grafik berhasil!',
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
                     });
 
                 } catch (error) {
                     console.error('[Chart Excel Export Error]', error);
                     Swal.fire({
-                        toast: true, position: 'top-end', icon: 'error',
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'error',
                         title: `❌ Gagal export Excel: ${error.message}`,
-                        showConfirmButton: false, timer: 4000, timerProgressBar: true,
+                        showConfirmButton: false,
+                        timer: 4000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
                     });
                 } finally {
                     if (exportBtn) {
