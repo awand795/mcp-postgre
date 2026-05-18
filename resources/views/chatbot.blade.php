@@ -3032,10 +3032,15 @@
 
                             let value = stripHtmlTags(cell);
 
+                            const h = headers[i] || '';
+                            // Convert month numbers to localized month names dynamically in Excel export
+                            if (/(bulan|month|extract|date_part|periode_bulan)/i.test(h)) {
+                                return getLocalizedMonthName(value);
+                            }
+
                             // Check if it's a number (including numeric strings with dots/commas)
                             const vLower = value.toLowerCase();
                             // Skip non-numeric styled values like factor numbers, years, etc.
-                            const h = headers[i] || '';
                             const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
 
                             if (!isNonNumericStyled && (vLower.includes('rp') || /^-?[\d.,]+$/.test(value.replace(/\s/g, '')))) {
@@ -3450,6 +3455,12 @@
                             if (cell === null || cell === undefined) return '';
                             let value = stripHtmlTags(cell);
 
+                            const h = headers[i] || '';
+                            // Convert month numbers to localized month names dynamically in PDF export
+                            if (/(bulan|month|extract|date_part|periode_bulan)/i.test(h)) {
+                                return getLocalizedMonthName(value);
+                            }
+
                             if (currencyColsIdx.includes(i)) {
                                 const num = parseAnyNumber(value);
                                 if (typeof currencyFormatter !== 'undefined') {
@@ -3457,7 +3468,6 @@
                                 }
                                 return value;
                             } else if (/^-?\d+(\.\d+)?$/.test(value.replace(/\./g, '').replace(',', '.'))) {
-                                const h = headers[i] || '';
                                 const isNonNumericStyled = /(id|no|telepon|phone|nik|faktur|polis|rangka|mesin|periode|bulan|tahun|nama|alamat|cabang|merek|model|tipe|kode|code|sku|ref)/i.test(h);
                                 if (!isNonNumericStyled) {
                                     const num = parseAnyNumber(value);
@@ -3794,29 +3804,85 @@
                 });
             }
 
+            function getTranslation(key) {
+                const lang = (document.documentElement.lang || 'id').toLowerCase().substring(0, 2);
+                const translations = {
+                    'id': {
+                        'bulan': 'Bulan',
+                        'tahun': 'Tahun',
+                        'laba_kotor': 'Laba Kotor',
+                        'gpm': 'GPM (%)',
+                        'hpp': 'HPP',
+                        'qty': 'Qty',
+                        'dpp': 'DPP',
+                        'total': 'Total',
+                        'total_netto': 'Total Netto',
+                        'total_dpp': 'Total DPP',
+                        'pencapaian': 'Pencapaian (%)',
+                        'pencapaian_qty': 'Pencapaian Qty (%)'
+                    },
+                    'en': {
+                        'bulan': 'Month',
+                        'tahun': 'Year',
+                        'laba_kotor': 'Gross Profit',
+                        'gpm': 'GPM (%)',
+                        'hpp': 'COGS',
+                        'qty': 'Qty',
+                        'dpp': 'DPP',
+                        'total': 'Total',
+                        'total_netto': 'Total Net',
+                        'total_dpp': 'Total DPP',
+                        'pencapaian': 'Achievement (%)',
+                        'pencapaian_qty': 'Achievement Qty (%)'
+                    }
+                };
+                const dict = translations[lang] || translations['id'];
+                return dict[key] || key;
+            }
+
+            function getLocalizedMonthName(monthNumber) {
+                const monthVal = parseInt(monthNumber, 10);
+                if (!isNaN(monthVal) && monthVal >= 1 && monthVal <= 12) {
+                    const date = new Date(2000, monthVal - 1, 1);
+                    const lang = document.documentElement.lang || navigator.language || 'id';
+                    const monthName = date.toLocaleString(lang, { month: 'long' });
+                    return monthName.charAt(0).toUpperCase() + monthName.slice(1);
+                }
+                return monthNumber;
+            }
+
             function toHumanLabel(str) {
                 if (!str) return '';
 
+                const lower = str.toLowerCase();
+
+                // Dynamically resolve month/year headers to ensure dynamic multi-language translation
+                if (['extract', 'date_part', 'bulan', 'month', 'periode_bulan'].includes(lower)) {
+                    return getTranslation('bulan');
+                }
+                if (['tahun', 'year', 'periode_tahun'].includes(lower)) {
+                    return getTranslation('tahun');
+                }
+
                 // Custom mappings for technical abbreviations
                 const mapping = {
-                    'gpn': 'Laba Kotor',
-                    'gpm': 'GPM (%)',
-                    'cogs': 'HPP',
-                    'qty': 'Qty',
-                    'dpp': 'DPP',
-                    'ttl': 'Total',
+                    'gpn': getTranslation('laba_kotor'),
+                    'gpm': getTranslation('gpm'),
+                    'cogs': getTranslation('hpp'),
+                    'qty': getTranslation('qty'),
+                    'dpp': getTranslation('dpp'),
+                    'ttl': getTranslation('total'),
                     'ssr': 'SSR (Sales Summary)',
                     'trm': 'TRM (Target Realisasi)',
-                    'hpp': 'HPP',
-                    'pencapaian_amount': 'Pencapaian (%)',
-                    'pencapaian_qty': 'Pencapaian Qty (%)',
-                    'total_netto': 'Total Netto',
-                    'total_dpp': 'Total DPP',
-                    'periode_tahun': 'Tahun',
-                    'periode_bulan': 'Bulan'
+                    'hpp': getTranslation('hpp'),
+                    'pencapaian_amount': getTranslation('pencapaian'),
+                    'pencapaian_qty': getTranslation('pencapaian_qty'),
+                    'total_netto': getTranslation('total_netto'),
+                    'total_dpp': getTranslation('total_dpp'),
+                    'periode_tahun': getTranslation('tahun'),
+                    'periode_bulan': getTranslation('bulan')
                 };
 
-                const lower = str.toLowerCase();
                 if (mapping[lower]) return mapping[lower];
 
                 // General formatting: snake_case to Title Case
@@ -3836,6 +3902,11 @@
                 const isMoney = header && isCurrencyColumn(header, tableId);
                 const strVal = String(val).trim();
                 const h = header ? header.toLowerCase() : '';
+
+                // Dynamically translate numeric months using user browser / document language
+                if (/(bulan|month|extract|date_part|periode_bulan)/i.test(h)) {
+                    return getLocalizedMonthName(strVal);
+                }
 
                 if (isMoney) {
                     // Helper: parse angka dari string, support format Indonesia (titik=ribuan, koma=desimal)
