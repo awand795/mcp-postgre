@@ -1289,12 +1289,39 @@ window.togglePassword = function() {
 // COPY TO CLIPBOARD
 // ═══════════════════════════════════════
 window.copyToClipboard = function(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Disalin ke clipboard!', 'success');
-    }).catch(() => {
-        showToast('Gagal menyalin', 'error');
-    });
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Disalin ke clipboard!', 'success');
+        }).catch(() => {
+            fallbackCopyToClipboard(text);
+        });
+    } else {
+        fallbackCopyToClipboard(text);
+    }
 };
+
+function fallbackCopyToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showToast('Disalin ke clipboard!', 'success');
+        } else {
+            showToast('Gagal menyalin', 'error');
+        }
+    } catch (err) {
+        showToast('Gagal menyalin: ' + err.message, 'error');
+    }
+    document.body.removeChild(textArea);
+}
 
 // ═══════════════════════════════════════
 // LOAD SCHEMAS
