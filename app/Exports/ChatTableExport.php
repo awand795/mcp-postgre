@@ -283,9 +283,10 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                         'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                        'wrapText' => true, // ENABLE WRAP TEXT FOR TITLE
                     ],
                 ]);
-                $sheet->getRowDimension(1)->setRowHeight(50);
+                $sheet->getRowDimension(1)->setRowHeight(60); // Increased for wrapText safety
 
                 // 2. Set Metadata at Row 2
                 $generatedAt = 'Generated on: ' . date('d M Y H:i');
