@@ -3124,7 +3124,7 @@
                                 ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                                 ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
                                 ws[cellRef].s.alignment.horizontal = "center";
-                                ws[cellRef].s.alignment.wrapText = true;
+                                // Removed wrapText so header stretches horizontally on a single line
                             }
                         }
                     }
@@ -3156,13 +3156,24 @@
                         cleanRows.forEach(row => {
                             const cellValue = row[i];
                             if (cellValue !== null && cellValue !== undefined) {
-                                const valStr = String(cellValue);
-                                if (valStr.length > maxLen) {
-                                    maxLen = valStr.length;
+                                let valStr = String(cellValue);
+                                // If it is a currency column, estimate the rendered formatted length
+                                if (currencyColsIdx.includes(i) && typeof cellValue === 'number') {
+                                    const digits = Math.floor(Math.abs(cellValue)).toString().length;
+                                    const dots = Math.max(0, Math.floor((digits - 1) / 3));
+                                    maxLen = Math.max(maxLen, digits + dots + 4); // "Rp " + dots + digits
+                                } else if (typeof cellValue === 'number') {
+                                    const digits = Math.floor(Math.abs(cellValue)).toString().length;
+                                    const dots = Math.max(0, Math.floor((digits - 1) / 3));
+                                    maxLen = Math.max(maxLen, digits + dots);
+                                } else {
+                                    if (valStr.length > maxLen) {
+                                        maxLen = valStr.length;
+                                    }
                                 }
                             }
                         });
-                        return { wch: Math.max(15, maxLen + 5) }; // Ensure at least 15 width, plus padding
+                        return { wch: Math.max(18, maxLen + 8) }; // Minimum 18 width, plus generous padding
                     });
                     ws['!cols'] = colsWidth;
 
@@ -3171,7 +3182,7 @@
                         { hpt: 22 }, // Row 2
                         { hpt: 18 }, // Row 3
                         { hpt: 10 }, // Row 4 (Empty)
-                        { hpt: 38 }  // Row 5 (Header) - Spacious to handle wrapText
+                        { hpt: 28 }  // Row 5 (Header) - Standard sleek header height since wrapText is disabled
                     ];
                     // Comfortable height for all data rows
                     for (let r = 5; r <= range.e.r; r++) {
@@ -3372,7 +3383,7 @@
                                 ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
                                 ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
                                 ws[cellRef].s.alignment.horizontal = "center";
-                                ws[cellRef].s.alignment.wrapText = true;
+                                // Removed wrapText so header stretches horizontally on a single line
                             }
                         }
                     }
@@ -3403,13 +3414,23 @@
                         rows.forEach(row => {
                             const cellValue = row[i];
                             if (cellValue !== null && cellValue !== undefined) {
-                                const valStr = String(cellValue);
-                                if (valStr.length > maxLen) {
-                                    maxLen = valStr.length;
+                                let valStr = String(cellValue);
+                                if (currencyColsIdx.includes(i) && typeof cellValue === 'number') {
+                                    const digits = Math.floor(Math.abs(cellValue)).toString().length;
+                                    const dots = Math.max(0, Math.floor((digits - 1) / 3));
+                                    maxLen = Math.max(maxLen, digits + dots + 4);
+                                } else if (typeof cellValue === 'number') {
+                                    const digits = Math.floor(Math.abs(cellValue)).toString().length;
+                                    const dots = Math.max(0, Math.floor((digits - 1) / 3));
+                                    maxLen = Math.max(maxLen, digits + dots);
+                                } else {
+                                    if (valStr.length > maxLen) {
+                                        maxLen = valStr.length;
+                                    }
                                 }
                             }
                         });
-                        return { wch: Math.max(15, maxLen + 5) };
+                        return { wch: Math.max(18, maxLen + 8) }; // Minimum 18, plus 8 padding
                     });
                     ws['!cols'] = colsWidth;
 
@@ -3418,7 +3439,7 @@
                         { hpt: 22 }, // Row 2
                         { hpt: 18 }, // Row 3
                         { hpt: 10 }, // Row 4 (Empty)
-                        { hpt: 38 }  // Row 5 (Header)
+                        { hpt: 28 }  // Row 5 (Header)
                     ];
                     for (let r = 5; r <= range.e.r; r++) {
                         rowsHeight.push({ hpt: 25 });
