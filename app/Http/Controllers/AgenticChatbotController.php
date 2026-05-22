@@ -2588,8 +2588,14 @@ PROMPT;
             $trimmed = trim($line);
             $isThinkingLine = false;
 
-            // Checklist question: bullet + 'apakah/sudahkah' anywhere + system keyword
-            if (!$isThinkingLine && preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed)) {
+            // Checklist question: bullet + 'apakah/sudahkah' anywhere + system keyword + ends with '?'
+            // Syarat '?' wajib: checklist selalu berupa pertanyaan, tapi insight bisnis biasanya tidak.
+            // Contoh BENAR diblokir: "- Untuk data historis, apakah Anda sudah menggunakan tanggal...?"
+            // Contoh SALAH BLOKIR: "2. Perlu dikaji apakah penurunan ini... insight dari data cabang."
+            if (!$isThinkingLine
+                && substr($trimmed, -1) === '?'
+                && preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed)
+            ) {
                 foreach ($checklistSystemKeywords as $kw) {
                     if (stripos($trimmed, $kw) !== false) {
                         $isThinkingLine = true;
@@ -2679,9 +2685,15 @@ PROMPT;
         }
 
         // 3. Block checklist questions using a keyword matrix.
-        // If a line starts with a list bullet (optionally) and contains "Apakah" or "Sudahkah"
-        // AND matches any system-prompt keyword, it's blocked.
-        if (preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed) || preg_match('/^(apakah|sudahkah)\b/i', $trimmed)) {
+        // Untuk baris yang DIMULAI dengan bullet + apakah/sudahkah:
+        //   → Wajib diakhiri '?' karena checklist = pertanyaan, insight bisnis = tidak.
+        // Untuk baris yang LANGSUNG dimulai apakah/sudahkah (tanpa bullet):
+        //   → Cukup cek keyword matrix (tidak butuh '?' karena konteks sudah jelas).
+        $isBulletWithApakah = substr($trimmed, -1) === '?'
+            && preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed);
+        $isDirectApakah = preg_match('/^(apakah|sudahkah)\b/i', $trimmed);
+
+        if ($isBulletWithApakah || $isDirectApakah) {
             $systemKeywords = [
                 'sapaan', 'ringkasan', 'eksekutif', 'insight', 'prompt',
                 'smart_table', 'chart', 'currency', 'nominal', 'echoing', 'tabel', 'kolom',
