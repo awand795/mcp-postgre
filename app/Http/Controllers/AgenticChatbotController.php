@@ -736,13 +736,13 @@ class AgenticChatbotController extends Controller
                 $aiContent = $toolResult;
                 if (is_array($decodedRes) && isset($decodedRes['rows'])) {
                     $rowCount = count($decodedRes['rows']);
-                    if ($rowCount > 100) {
+                    if ($rowCount > 500) {
                         $aiContent = json_encode([
                             'rows_returned' => $rowCount,
                             'columns' => $decodedRes['columns'] ?? [],
                             'currency_columns' => $decodedRes['currency_columns'] ?? [],
-                            'rows' => array_slice($decodedRes['rows'], 0, 100),
-                            'instruction' => "ANALYST NOTE: Hasil ditampilkan terbatas (100 baris) untuk efisiensi, namun sistem sudah memproses total " . $rowCount . " baris. Gunakan data ini untuk menyusun ringkasan dan 'smart_table'. Tidak perlu melakukan query tambahan untuk baris sisanya karena data tersebut sudah tertangani oleh sistem frontend. Gunakan contoh data ini sebagai referensi struktur kolom Anda."
+                            'rows' => array_slice($decodedRes['rows'], 0, 500),
+                            'instruction' => "ANALYST NOTE: Hasil ditampilkan terbatas (500 baris) untuk efisiensi, namun sistem sudah memproses total " . $rowCount . " baris. Gunakan data ini untuk menyusun ringkasan dan 'smart_table'. Tidak perlu melakukan query tambahan untuk baris sisanya karena data tersebut sudah tertangani oleh sistem frontend. Gunakan contoh data ini sebagai referensi struktur kolom Anda."
                         ]);
                     } elseif ($rowCount === 0 && $toolName === 'execute_query') {
                         $zeroRowsInstruction = $scopeLimited
@@ -2075,18 +2075,19 @@ Jika `execute_query` timeout, 0 rows, atau error database/kolom:
 
 **Aturan default jika user tidak menyebut jumlah spesifik:**
 - Untuk pertanyaan "terlaris", "terpopuler", "terbanyak", "terbaik", "terburuk" → gunakan `LIMIT 10` (minimal 10)
-- Untuk pertanyaan "tampilkan data", "lihat data", "rekap", "semua" → JANGAN gunakan LIMIT, tampilkan SEMUA data
-- Untuk pertanyaan deskriptif tanpa agregasi → gunakan `LIMIT 100` sebagai safeguard
+- Untuk pertanyaan "tampilkan data", "lihat data", "rekap", "semua", serta pertanyaan deskriptif tanpa agregasi → **JANGAN gunakan LIMIT, tampilkan SEMUA data secara utuh**
 
 **Aturan jika user menyebut jumlah spesifik:**
+- Jika user menyebut angka (misal: "top 5", "20 terlaris", "tampilkan 200 data", "lihat 50 baris") → **WAJIB gunakan LIMIT sesuai angka yang diminta user.**
 - "top 5" / "5 terlaris" → `LIMIT 5`
 - "top 20" / "20 terlaris" → `LIMIT 20`
+- "tampilkan 200" → `LIMIT 200`
 - "tampilkan semua" / "semua data" → TANPA LIMIT
-- Ikuti persis apa yang diminta user
+- Ikuti persis angka yang diminta user tanpa modifikasi.
 
 **Aturan presentasi hasil:**
-- Jika hasil query LEBIH SEDIKIT dari LIMIT yang diminta → tampilkan semua yang ada, sebutkan di Ringkasan Eksekutif: "Hanya ditemukan X produk baterai di database."
-- JANGAN menyebut "5 produk terlaris" jika LIMIT-nya 10 dan data hanya ada 5 — katakan "Seluruh X produk baterai yang tersedia"
+- Jika hasil query LEBIH SEDIKIT dari LIMIT yang diminta → tampilkan semua yang ada, sebutkan di Ringkasan Eksekutif: "Hanya ditemukan X data di database."
+- JANGAN menyebut "10 produk terlaris" jika LIMIT-nya 10 dan data hanya ada 5 — katakan "Seluruh 5 produk yang tersedia"
 - Jika user minta top 10 tapi data hanya 5, tampilkan 5 dan jelaskan bahwa hanya ada 5 data
 
 ## REKOMENDASI PROMPT
@@ -2484,7 +2485,6 @@ PROMPT;
             '/^tulis\s+\d+\-\d+\s+kalimat/i',
             '/^tulis\s+\d+\-\d+\s+poin/i',
             '/pertanyaan\s+(lanjutan spesifik|analisis lebih dalam|tren atau perbandingan|cross-analysis)/i',
-            '/^data berhasil diambil\s*(\(\d+\s+baris\))?/i',
             '/anda\s+wajib\s+menyajikan\s+jawaban/i',
             '/mohon\s+berikan\s+jawaban\s+atau\s+panggil\s+tool/i',
             '/jangan\s+hanya\s+berpikir\s+tanpa\s+output/i',
@@ -2745,7 +2745,6 @@ PROMPT;
             '/^tulis\s+\d+\-\d+\s+kalimat/i',
             '/^tulis\s+\d+\-\d+\s+poin/i',
             '/pertanyaan\s+(lanjutan spesifik|analisis lebih dalam|tren atau perbandingan|cross-analysis)/i',
-            '/^data berhasil diambil\s*(\(\d+\s+baris\))?/i',
             '/anda\s+wajib\s+menyajikan\s+jawaban/i',
             '/mohon\s+berikan\s+jawaban\s+atau\s+panggil\s+tool/i',
             '/jangan\s+hanya\s+berpikir\s+tanpa\s+output/i',
