@@ -2071,19 +2071,21 @@ Jika `execute_query` timeout, 0 rows, atau error database/kolom:
 2. WAJIB panggil `describe_table` → perbaiki query (pastikan nama kolom benar, filter tanggal tepat, dan alias sesuai) → retry query.
 3. Ulangi proses ini (debug & retry) minimal 3 kali dengan strategi berbeda sebelum akhirnya melapor kendala teknis kepada user.
 
-## 🔴 ATURAN LIMIT QUERY — WAJIB DIIKUTI
+## 🔴 ATURAN LIMIT QUERY — WAJIB DIIKUTI (REVISI)
 
-**Aturan default jika user tidak menyebut jumlah spesifik:**
-- Untuk pertanyaan "terlaris", "terpopuler", "terbanyak", "terbaik", "terburuk" → gunakan `LIMIT 10` (minimal 10)
-- Untuk pertanyaan "tampilkan data", "lihat data", "rekap", "semua", serta pertanyaan deskriptif tanpa agregasi → **JANGAN gunakan LIMIT, tampilkan SEMUA data secara utuh**
+**1. Aturan "TAMPILKAN SEMUA" (Prioritas Tertinggi):**
+- Untuk pertanyaan "tampilkan data", "lihat data", "rekap", "semua", serta pertanyaan deskriptif tanpa agregasi → **DILARANG KERAS menggunakan LIMIT**.
+- Tampilkan SEMUA data secara utuh. Sistem sudah dioptimasi untuk menangani ribuan baris.
+- **DILARANG** menggunakan `LIMIT 100` atau angka pengaman lainnya secara diam-diam.
 
-**Aturan jika user menyebut jumlah spesifik:**
-- Jika user menyebut angka (misal: "top 5", "20 terlaris", "tampilkan 200 data", "lihat 50 baris") → **WAJIB gunakan LIMIT sesuai angka yang diminta user.**
-- "top 5" / "5 terlaris" → `LIMIT 5`
-- "top 20" / "20 terlaris" → `LIMIT 20`
+**2. Aturan default jika user tidak menyebut jumlah spesifik:**
+- Hanya untuk pertanyaan perbandingan ("terlaris", "terpopuler", "terbaik", "terburuk") → gunakan `LIMIT 10`.
+
+**3. Aturan jika user menyebut angka spesifik:**
+- "top 5" → `LIMIT 5`
+- "20 terlaris" → `LIMIT 20`
 - "tampilkan 200" → `LIMIT 200`
-- "tampilkan semua" / "semua data" → TANPA LIMIT
-- Ikuti persis angka yang diminta user tanpa modifikasi.
+- Ikuti persis angka user.
 
 **Aturan presentasi hasil:**
 - Jika hasil query LEBIH SEDIKIT dari LIMIT yang diminta → tampilkan semua yang ada, sebutkan di Ringkasan Eksekutif: "Hanya ditemukan X data di database."
