@@ -3099,10 +3099,22 @@
                     // --- Apply Premium Styling ---
                     const range = XLSX.utils.decode_range(ws['!ref']);
                     const borderStyle = {
-                        top: { style: "thin", color: { rgb: "CCCCCC" } },
-                        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                        left: { style: "thin", color: { rgb: "CCCCCC" } },
-                        right: { style: "thin", color: { rgb: "CCCCCC" } }
+                        top: { style: "thin", color: { rgb: "E2E8F0" } },
+                        bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                        left: { style: "thin", color: { rgb: "E2E8F0" } },
+                        right: { style: "thin", color: { rgb: "E2E8F0" } }
+                    };
+
+                    const getColumnAlignment = (header, colIndex) => {
+                        const h = (header || '').toLowerCase();
+                        if (currencyColsIdx.includes(colIndex) || 
+                            /(jumlah|qty|kuantitas|count|total|harga|nilai|subtotal|diskon|pajak|omset|omzet|nominal|sales)/i.test(h)) {
+                            return 'right';
+                        }
+                        if (/(^id$|^no$|tanggal|date|status|telepon|phone|nik|faktur|polis|rangka|mesin|periode|tahun|kode|code|sku|ref)/i.test(h)) {
+                            return 'center';
+                        }
+                        return 'left';
                     };
 
                     for (let R = 4; R <= range.e.r; ++R) {
@@ -3114,28 +3126,46 @@
 
                             ws[cellRef].s = ws[cellRef].s || {};
                             ws[cellRef].s.border = borderStyle;
+                            ws[cellRef].s.font = { name: "Segoe UI", sz: 10 };
                             ws[cellRef].s.alignment = ws[cellRef].s.alignment || { vertical: "center" };
 
-                            if (C === 0 || C === 1) {
-                                ws[cellRef].s.alignment.horizontal = C === 0 ? "center" : "left";
+                            // Determine alignment
+                            const colHeader = cleanHeaders[C] || '';
+                            const alignmentType = getColumnAlignment(colHeader, C);
+                            ws[cellRef].s.alignment.horizontal = alignmentType;
+
+                            if (alignmentType === 'left') {
+                                ws[cellRef].s.alignment.indent = 1;
                             } else {
-                                ws[cellRef].s.alignment.horizontal = "right";
+                                ws[cellRef].s.alignment.indent = 0;
                             }
 
                             // Apply currency format (z) if it's a data row and a currency column
                             if (R > 4 && currencyColsIdx.includes(C)) {
                                 ws[cellRef].z = '"Rp" #,##0';
-                            } else if (R > 4 && C > 1) {
+                            } else if (R > 4 && C < cleanHeaders.length) {
                                 // Standard numeric thousand separator formatting
-                                ws[cellRef].z = '#,##0';
+                                const cellVal = cleanRows[R - 5]?.[C];
+                                if (typeof cellVal === 'number') {
+                                    ws[cellRef].z = '#,##0';
+                                }
                             }
 
                             // If it's the header row (R === 4)
                             if (R === 4) {
-                                ws[cellRef].s.font = { bold: true, color: { rgb: "FFFFFF" } };
-                                ws[cellRef].s.fill = { fgColor: { rgb: "D32F2F" }, patternType: "solid" }; // Premium Red
-                                ws[cellRef].s.alignment.horizontal = "center";
-                                // Removed wrapText so header stretches horizontally on a single line
+                                ws[cellRef].s.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "FFFFFF" } };
+                                ws[cellRef].s.fill = { fgColor: { rgb: "8A1C14" }, patternType: "solid" }; // Premium brand Burgundy
+                                ws[cellRef].s.alignment.horizontal = alignmentType;
+                                if (alignmentType === 'left') {
+                                    ws[cellRef].s.alignment.indent = 1;
+                                } else {
+                                    ws[cellRef].s.alignment.indent = 0;
+                                }
+                            }
+
+                            // Apply alternating row backgrounds
+                            if (R > 4 && (R - 5) % 2 === 1) {
+                                ws[cellRef].s.fill = { fgColor: { rgb: "F8FAFC" }, patternType: "solid" };
                             }
                         }
                     }
@@ -3143,26 +3173,31 @@
                     // 2. Titles & Metadata
                     if (ws['A1']) {
                         ws['A1'].s = {
-                            font: { bold: true, sz: 16, color: { rgb: "D32F2F" } },
+                            font: { name: "Segoe UI", bold: true, sz: 16, color: { rgb: "8A1C14" } },
                             alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A2']) {
                         ws['A2'].s = {
-                            font: { italic: true, sz: 10, color: { rgb: "666666" } },
+                            font: { name: "Segoe UI", italic: true, sz: 10, color: { rgb: "666666" } },
                             alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
                     if (ws['A3']) {
                         ws['A3'].s = {
-                            font: { italic: true, sz: 8, color: { rgb: "999999" } },
+                            font: { name: "Segoe UI", italic: true, sz: 8, color: { rgb: "999999" } },
                             alignment: { horizontal: "center", vertical: "center" }
                         };
                     }
 
+                    // Force gridlines to remain visible
+                    ws['!views'] = [{ showGridLines: true }];
+
                     // 3. Auto-size Columns & Row Heights
-                    // Dynamically calculate the maximum width of each column (including headers and row data)
-                    const colsWidth = cleanHeaders.map((h, i) => {
+                    const colsWidth = [];
+                    const maxCols = Math.max(titleMergeEnd + 1, cleanHeaders.length);
+                    for (let i = 0; i < maxCols; i++) {
+                        const h = cleanHeaders[i] || '';
                         let maxLen = h.length;
                         cleanRows.forEach(row => {
                             const cellValue = row[i];
@@ -3172,11 +3207,11 @@
                                 if (currencyColsIdx.includes(i) && typeof cellValue === 'number') {
                                     const digits = Math.floor(Math.abs(cellValue)).toString().length;
                                     const dots = Math.max(0, Math.floor((digits - 1) / 3));
-                                    maxLen = Math.max(maxLen, digits + dots + 4); // "Rp " + dots + digits
+                                    maxLen = Math.max(maxLen, digits + dots + 7); // "Rp " (3) + dots + digits + margin
                                 } else if (typeof cellValue === 'number') {
                                     const digits = Math.floor(Math.abs(cellValue)).toString().length;
                                     const dots = Math.max(0, Math.floor((digits - 1) / 3));
-                                    maxLen = Math.max(maxLen, digits + dots);
+                                    maxLen = Math.max(maxLen, digits + dots + 2);
                                 } else {
                                     if (valStr.length > maxLen) {
                                         maxLen = valStr.length;

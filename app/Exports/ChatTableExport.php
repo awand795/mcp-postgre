@@ -184,38 +184,44 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
         $lastCol = $sheet->getHighestColumn();
         $lastRow = $sheet->getHighestRow();
         
-        // Apply header styling (Premium Red Theme)
+        // Set default font globally
+        $sheet->getParent()->getDefaultStyle()->getFont()->setName('Segoe UI');
+        
+        // Explicitly show gridlines
+        $sheet->setShowGridlines(true);
+        
+        // Apply header styling (Premium Burgundy Theme)
         $sheet->getStyle("A{$startRow}:{$lastCol}{$startRow}")->applyFromArray([
             'font' => [
+                'name' => 'Segoe UI',
                 'bold' => true, 
                 'color' => ['rgb' => 'FFFFFF'],
                 'size' => 11
             ],
             'fill' => [
                 'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 
-                'startColor' => ['rgb' => 'D32F2F'] // Slightly deeper red for premium look
+                'startColor' => ['rgb' => '8A1C14'] // Brand Burgundy
             ],
             'alignment' => [
-                'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                 'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
-                'wrapText' => true,
+                'wrapText' => false,
             ],
         ]);
 
-        // Explicitly set header row height - increased to handle potential wrapping
-        $sheet->getRowDimension($startRow)->setRowHeight(35);
+        // Explicitly set header row height
+        $sheet->getRowDimension($startRow)->setRowHeight(28);
 
-        // Add thin black/grey borders and center vertical alignment to the entire data table
+        // Add thin soft borders and vertical alignment to the entire data table
         if ($lastRow >= $startRow) {
             $sheet->getStyle("A{$startRow}:{$lastCol}{$lastRow}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                        'color' => ['rgb' => 'EEEEEE'], // Softer border color
+                        'color' => ['rgb' => 'E2E8F0'], // Soft slate border
                     ],
                     'outline' => [
                         'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM,
-                        'color' => ['rgb' => 'D32F2F'], // Red outline for the table
+                        'color' => ['rgb' => '8A1C14'], // Burgundy outline
                     ],
                 ],
                 'alignment' => [
@@ -227,10 +233,13 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             $sheet->getDefaultRowDimension()->setRowHeight(25); 
 
             if (!$this->isLargeData) {
-                // Zebra striping - very subtle
+                // Zebra striping - very subtle slate-50
                 for ($row = $startRow + 1; $row <= $lastRow; $row += 2) {
                     $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
-                        'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FAFAFA']],
+                        'fill' => [
+                            'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 
+                            'startColor' => ['rgb' => 'F8FAFC']
+                        ],
                     ]);
                 }
             }
@@ -261,17 +270,18 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 
                 $sheet->getStyle('A1')->applyFromArray([
                     'font' => [
+                        'name' => 'Segoe UI',
                         'bold' => true,
-                        'size' => 18,
-                        'color' => ['rgb' => 'D32F2F'], // Use brand color for title
+                        'size' => 16,
+                        'color' => ['rgb' => '8A1C14'], // Brand Burgundy
                     ],
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                         'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
-                        'wrapText' => true, // ENABLE WRAP TEXT FOR TITLE
+                        'wrapText' => true,
                     ],
                 ]);
-                $sheet->getRowDimension(1)->setRowHeight(60); // Increased for wrapText safety
+                $sheet->getRowDimension(1)->setRowHeight(45); // Standard clean title height
 
                 // 2. Set Metadata at Row 2
                 $generatedAt = 'Generated on: ' . date('d M Y H:i');
@@ -280,17 +290,23 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                 
                 $sheet->getStyle('A2')->applyFromArray([
                     'font' => [
+                        'name' => 'Segoe UI',
                         'italic' => true,
                         'size' => 10,
-                        'color' => ['rgb' => '999999'],
+                        'color' => ['rgb' => '666666'],
                     ],
                     'alignment' => [
                         'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
                     ],
                 ]);
 
-                // 3. Add column padding and Sizing
+                // 3. Add column padding, sizing, and dynamic alignments
                 $dataTableStart = $this->chartInfo ? 28 : 4;
+                
+                $normalizedCurrencyCols = array_map(function($col) {
+                    return $this->normalizeLabel($col);
+                }, $this->currencyColumns);
+
                 for ($columnIndex = 1; $columnIndex <= $lastColIndex; $columnIndex++) {
                     $columnLetter = Coordinate::stringFromColumnIndex($columnIndex);
                     
@@ -305,16 +321,33 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
                         $currentWidth = $sheet->getColumnDimension($columnLetter)->getWidth();
                         
                         // Set minimum width to avoid cramped columns
-                        if ($currentWidth < 15) $currentWidth = 15;
+                        if ($currentWidth < 18) $currentWidth = 18;
                         
                         $sheet->getColumnDimension($columnLetter)->setAutoSize(false);
                         $sheet->getColumnDimension($columnLetter)->setWidth($currentWidth + 10); // Generous padding
                     }
                     
-                    // Add indent to make text not touch the borders
-                    $sheet->getStyle("{$columnLetter}{$dataTableStart}:{$columnLetter}{$sheet->getHighestRow()}")
-                        ->getAlignment()
-                        ->setIndent(2); // Increased indent
+                    // Determine alignment dynamically
+                    $headerName = $this->headers[$columnIndex - 1] ?? '';
+                    $align = \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT;
+                    $indent = 1;
+                    
+                    // A. Right align: currency or numeric
+                    if ($this->isCurrencyCol($headerName, $normalizedCurrencyCols) || 
+                        preg_match('/(jumlah|qty|kuantitas|count|total|harga|nilai|subtotal|diskon|pajak|omset|omzet|nominal|sales)/i', $headerName)) {
+                        $align = \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT;
+                        $indent = 0;
+                    }
+                    // B. Center align: short codes, IDs, dates, status
+                    elseif (preg_match('/(^id$|^no$|tanggal|date|status|telepon|phone|nik|faktur|polis|rangka|mesin|periode|tahun|kode|code|sku|ref)/i', $headerName)) {
+                        $align = \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER;
+                        $indent = 0;
+                    }
+                    
+                    // Apply to the column style (both header and data cells)
+                    $colStyle = $sheet->getStyle("{$columnLetter}{$dataTableStart}:{$columnLetter}{$sheet->getHighestRow()}");
+                    $colStyle->getAlignment()->setHorizontal($align);
+                    $colStyle->getAlignment()->setIndent($indent);
                 }
             },
         ];
