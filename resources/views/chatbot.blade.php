@@ -3850,7 +3850,13 @@
                         'total_netto': 'Total Netto',
                         'total_dpp': 'Total DPP',
                         'pencapaian': 'Pencapaian (%)',
-                        'pencapaian_qty': 'Pencapaian Qty (%)'
+                        'pencapaian_qty': 'Pencapaian Qty (%)',
+                        'total_hpp': 'Total HPP',
+                        'netto': 'Netto',
+                        'diskon': 'Diskon',
+                        'total_disc': 'Total Diskon',
+                        'profit': 'Profit',
+                        'laba': 'Laba'
                     },
                     'en': {
                         'bulan': 'Month',
@@ -3864,7 +3870,13 @@
                         'total_netto': 'Total Net',
                         'total_dpp': 'Total DPP',
                         'pencapaian': 'Achievement (%)',
-                        'pencapaian_qty': 'Achievement Qty (%)'
+                        'pencapaian_qty': 'Achievement Qty (%)',
+                        'total_hpp': 'Total COGS',
+                        'netto': 'Net',
+                        'diskon': 'Discount',
+                        'total_disc': 'Total Discount',
+                        'profit': 'Profit',
+                        'laba': 'Profit'
                     }
                 };
                 const dict = translations[lang] || translations['id'];
@@ -3885,13 +3897,13 @@
             function toHumanLabel(str) {
                 if (!str) return '';
 
-                const lower = str.toLowerCase();
+                const cleanStr = str.toLowerCase().replace(/\s+/g, '_');
 
                 // Dynamically resolve month/year headers to ensure dynamic multi-language translation
-                if (['extract', 'date_part', 'bulan', 'month', 'periode_bulan'].includes(lower)) {
+                if (['extract', 'date_part', 'bulan', 'month', 'periode_bulan'].includes(cleanStr)) {
                     return getTranslation('bulan');
                 }
-                if (['tahun', 'year', 'periode_tahun'].includes(lower)) {
+                if (['tahun', 'year', 'periode_tahun'].includes(cleanStr)) {
                     return getTranslation('tahun');
                 }
 
@@ -3906,6 +3918,12 @@
                     'ssr': 'SSR (Sales Summary)',
                     'trm': 'TRM (Target Realisasi)',
                     'hpp': getTranslation('hpp'),
+                    'total_hpp': getTranslation('total_hpp'),
+                    'netto': getTranslation('netto'),
+                    'diskon': getTranslation('diskon'),
+                    'total_disc': getTranslation('total_disc'),
+                    'profit': getTranslation('profit'),
+                    'laba': getTranslation('laba'),
                     'pencapaian_amount': getTranslation('pencapaian'),
                     'pencapaian_qty': getTranslation('pencapaian_qty'),
                     'total_netto': getTranslation('total_netto'),
@@ -3914,13 +3932,14 @@
                     'periode_bulan': getTranslation('bulan')
                 };
 
-                if (mapping[lower]) return mapping[lower];
+                if (mapping[cleanStr]) return mapping[cleanStr];
 
                 // General formatting: snake_case to Title Case
                 return str
                     .split('_')
                     .map(word => {
-                        const mappedWord = mapping[word.toLowerCase()];
+                        const cleanWord = word.toLowerCase().trim();
+                        const mappedWord = mapping[cleanWord];
                         if (mappedWord) return mappedWord;
                         return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
                     })
