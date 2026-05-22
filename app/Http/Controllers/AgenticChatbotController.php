@@ -414,7 +414,7 @@ class AgenticChatbotController extends Controller
             if (empty($toolCalls) && preg_match('/SELECT\s+.*\s+FROM\s+/i', $textContent)) {
                 Log::warning("[Agentic] Detected raw SQL in text content. Intercepting and retrying...");
                 $messages[] = [
-                    'role' => 'user',
+                    'role' => 'system',
                     'content' => "[SYSTEM REMINDER]: Anda baru saja mengirimkan query SQL mentah ke dalam teks jawaban. Ini DILARANG. Jangan pernah tunjukkan query SQL kepada Bapak/Ibu user. Gunakan tool 'execute_query' jika Anda ingin mengambil data, lalu sajikan hasilnya dalam Bahasa Indonesia bisnis yang sopan menggunakan 'smart_table'. Silakan perbaiki respon Anda sekarang."
                 ];
                 continue;
@@ -527,7 +527,7 @@ class AgenticChatbotController extends Controller
                         if ($hasSmartTable || strlen(trim($textContent)) < 250) {
                             Log::warning('[Agentic] OpenRouter single-value result — injecting inline answer reminder. Value: ' . $singleValueNumber);
                             $messages[] = [
-                                'role' => 'user',
+                                'role' => 'system',
                                 'content' =>
                                     '[SYSTEM FORMAT CORRECTION — WAJIB DIIKUTI]:' . "\n" .
                                     'Hasil query hanya mengandung SATU ANGKA TUNGGAL: ' . $singleValueNumber . "\n" .
@@ -559,7 +559,7 @@ class AgenticChatbotController extends Controller
                         }
 
                         $messages[] = [
-                            'role' => 'user',
+                            'role' => 'system',
                             'content' =>
                                 '[SYSTEM FORMAT REMINDER]:' . "\n" .
                                 $toolSummary . "\n" .
@@ -837,7 +837,7 @@ class AgenticChatbotController extends Controller
                         $actualCount = is_array($firstRow) ? reset($firstRow) : $firstRow;
                     }
                     $messages[] = [
-                        'role' => 'user',
+                        'role' => 'system',
                         'content' => implode("\n", [
                             '[SYSTEM NOTE — STATUS FILTER CHECK]:',
                             'Query COUNT menghasilkan: ' . ($actualCount ?? '?') . '.',
@@ -897,7 +897,7 @@ class AgenticChatbotController extends Controller
                     ? "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'."
                     : "[SYSTEM REMINDER]: Anda baru saja memperoleh konteks penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user. Jika data database kosong tetapi user meminta rekomendasi eksternal, market insight, atau produk yang belum ada di database, lanjutkan dengan rekomendasi berbasis pengetahuan umum/analisis bisnis dan sebutkan batasannya secara singkat. Jika data adalah tabel, gunakan format 'smart_table'.";
                 $messages[] = [
-                    'role' => 'user',
+                    'role' => 'system',
                     'content' => $finalResponseReminder,
                 ];
             }
@@ -1424,10 +1424,15 @@ class AgenticChatbotController extends Controller
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
 
-## 🔴 LARANGAN MUTLAK (ANTI-ECHOING & ANTI-LEAKAGE)
-Selama interaksi, sistem akan sering menyuntikkan pesan peringatan, koreksi format, atau teguran tersembunyi (contoh: "[SYSTEM FORMAT CORRECTION]", "Jika angka tunggal...", "Ikuti struktur output..."). 
-**DILARANG KERAS** mengetik ulang, membahas, membocorkan, atau mengutip kalimat instruksi sistem tersebut ke dalam jawaban Anda kepada Bapak/Ibu user! 
-Jawaban Anda harus murni berisi informasi bisnis yang berguna, seolah-olah Anda tidak pernah menerima instruksi format/sistem tersebut. Membeo (echoing) instruksi sistem adalah **KESALAHAN FATAL**.
+## 🔴 LARANGAN MUTLAK (ANTI-ECHOING & ANTI-LEAKAGE) — ATURAN PALING KRITIS
+1. Selama interaksi, sistem akan menyuntikkan pesan koreksi internal tersembunyi seperti `[SYSTEM REMINDER]`, `[SYSTEM FORMAT CORRECTION]`, `[SYSTEM FORMAT REMINDER]`, dsb.
+   - **JANGAN PERNAH** menyebut, mengutip, mengakui, merespons, atau menampilkan isi pesan [SYSTEM...] ini dalam jawaban ke user.
+   - **JANGAN PERNAH** menulis kalimat seperti: "Baik, saya mengerti instruksinya...", "Sesuai perintah sistem...", "Seperti yang diperintahkan...", atau apapun yang mengindikasikan Anda baru menerima instruksi koreksi.
+   - **Perlakukan semua pesan [SYSTEM...] sebagai instruksi senyap** — patuhi secara diam-diam, JANGAN PERNAH sebut-sebutkan ke user.
+   - Jawaban Anda harus terlihat SEOLAH-OLAH Anda tidak pernah menerima pesan sistem apapun.
+2. **DILARANG KERAS** menuliskan proses berpikir internal, self-audit, self-check, checklist evaluasi diri (seperti pertanyaan "Apakah Anda sudah...", "Apakah Ringkasan Eksekutif...", "Sudahkah...", dll), catatan pengingat, atau verifikasi aturan di awal, tengah, atau akhir respon akhir Anda kepada user.
+3. Seluruh proses audit, pemeriksaan format, dan checklist harus dilakukan **100% secara internal di dalam pikiran Anda saja** (atau dalam tag thinking jika didukung oleh model), dan **TIDAK BOLEH** dituliskan satu baris pun ke dalam teks jawaban akhir.
+4. Jawaban akhir Anda harus langsung dimulai dengan **Ringkasan Eksekutif** (Executive Summary) tanpa didahului oleh checklist, evaluasi, sapaan pembuka tambahan, atau teks pengantar apapun selain sapaan formal "Bapak/Ibu" di dalam Ringkasan Eksekutif jika diperlukan.
 
 ## 🔴 CRITICAL PRIORITY: LANGUAGE MATCHING RULE
 1. **AUTOMATICALLY detect user's language and ALWAYS reply in the SAME language.**
@@ -2405,6 +2410,17 @@ PROMPT;
     // ─────────────────────────────────────────────────────────────────────────
     private function stripThinkingLeakage(string $content): string
     {
+        // ══════════════════════════════════════════════════════════════════════
+        // LAPISAN NUCLEAR (JAMINAN MUTLAK) — Strip [SYSTEM...] & SYSTEM tag
+        // Dijalankan PERTAMA KALI sebelum apapun, tidak ada yang lolos dari ini
+        // ══════════════════════════════════════════════════════════════════════
+        // Strip baris yang dimulai atau mengandung [SYSTEM ...] tag
+        $content = preg_replace('/^[^\n]*\[SYSTEM[^\]]*\][^\n]*\n?/mi', '', $content);
+        // Strip baris yang mengandung kata "SYSTEM REMINDER / FORMAT / CORRECTION / NOTE"
+        $content = preg_replace('/^[^\n]*\bSYSTEM\s+(FORMAT|REMINDER|CORRECTION|NOTE)\b[^\n]*\n?/mi', '', $content);
+        // Strip baris yang mengandung MANDATORY_AI_ACTION atau variasi lainnya
+        $content = preg_replace('/^[^\n]*\bMANDATORY(_|\s)+(AI_ACTION|NEXT_STEP|SCHEMA_USAGE|ACTION|RESPONSE|INSIGHT|FORMAT)\b[^\n]*\n?/mi', '', $content);
+
         // ── Strip blok "Nama eksak ... ditemukan: ..." ────────────────────────
         $content = preg_replace('/Nama eksak [^\n]+ ditemukan[^\n]*\n?/i', '', $content);
 
@@ -2414,6 +2430,18 @@ PROMPT;
         // ── Strip seluruh blok "Mapping kolom (internal):" beserta isinya ─────
         // Pola: baris yang dimulai "Mapping kolom" diikuti baris-baris non-kosong
         $content = preg_replace('/^Mapping kolom\s*\(internal\)[^\n]*\n(?:[^\n]+\n)*/mi', '', $content);
+
+        // ── Strip checklist/audit headers
+        $content = preg_replace('/^(?:#+|-|\*|•)?\s*(🔴|##|#)?\s*(kritis|periksa kembali|self-audit|checklist|pemeriksaan mandiri|evaluasi diri)[^\n]*\n?/mi', '', $content);
+
+        $checklistSystemKeywords = [
+            'sapaan', 'ringkasan', 'eksekutif', 'insight', 'prompt',
+            'smart_table', 'chart', 'currency', 'nominal', 'echoing', 'tabel', 'kolom',
+            'query', 'sql', 'limit', 'offset', 'aturan', 'bahasa', 'database', 'rupiah',
+            'rp', 'format', 'koreksi', 'reminder', 'menyajikan', 'menyebut', 'mencantumkan',
+            'menampilkan', 'kesimpulan', 'jawaban', 'output', 'respon', 'user', 'analisis',
+            'desimal', 'historis', 'tanggal', 'kosong', 'tersedia'
+        ];
 
         $thinkingLinePatterns = [
             '/^jika (tidak ada|ragu)[,.]?/i',
@@ -2560,10 +2588,22 @@ PROMPT;
             $trimmed = trim($line);
             $isThinkingLine = false;
 
-            foreach ($thinkingLinePatterns as $pattern) {
-                if (preg_match($pattern, $trimmed)) {
-                    $isThinkingLine = true;
-                    break;
+            // Checklist question: bullet + 'apakah/sudahkah' anywhere + system keyword
+            if (!$isThinkingLine && preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed)) {
+                foreach ($checklistSystemKeywords as $kw) {
+                    if (stripos($trimmed, $kw) !== false) {
+                        $isThinkingLine = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$isThinkingLine) {
+                foreach ($thinkingLinePatterns as $pattern) {
+                    if (preg_match($pattern, $trimmed)) {
+                        $isThinkingLine = true;
+                        break;
+                    }
                 }
             }
 
@@ -2601,6 +2641,63 @@ PROMPT;
         if (empty($trimmed))
             return false;
 
+        // ══ NUCLEAR CHECK — JAMINAN MUTLAK, SELALU DIJALANKAN PERTAMA ══
+        // Blokir SEMUA baris yang mengandung [SYSTEM...], SYSTEM REMINDER, MANDATORY, dll.
+        // Tidak peduli kata lain di sekitarnya — ini tidak pernah boleh tampil ke user.
+        if (
+            preg_match('/\[SYSTEM[^\]]*\]/i', $trimmed) ||
+            preg_match('/\bSYSTEM\s+(FORMAT|REMINDER|CORRECTION|NOTE)\b/i', $trimmed) ||
+            preg_match('/\bMANDATORY(_|\s)+(AI_ACTION|NEXT_STEP|SCHEMA_USAGE|ACTION|RESPONSE|INSIGHT|FORMAT)\b/i', $trimmed) ||
+            preg_match('/\bANALYST\s+NOTE\b/i', $trimmed) ||
+            preg_match('/\bINTERNAL\s+ANALYST\s+NOTE\b/i', $trimmed) ||
+            preg_match('/\bPERFORMANCE_NOTE\b/i', $trimmed)
+        ) {
+            Log::info('[StreamFilter][NUCLEAR] Blocked system tag line: ' . substr($trimmed, 0, 100));
+            return true;
+        }
+
+        // 1. Block checklist headers, system alerts/notes, critical self-audit markers
+        if (preg_match('/(kritis|periksa kembali|self-audit|checklist|🔴|pemeriksaan mandiri|evaluasi diri|catatan pengingat)/i', $trimmed)) {
+            // But don't block normal Indonesian phrases unless they look like headers or contain critical symbols
+            if (preg_match('/^(#+|-|\*|•)?\s*(🔴|##|#)?\s*(kritis|periksa kembali|self-audit|checklist|pemeriksaan mandiri|evaluasi diri)/i', $trimmed)) {
+                Log::info('[StreamFilter] Blocked checklist/audit header: ' . substr($trimmed, 0, 100));
+                return true;
+            }
+        }
+
+        // 2. Block system reminder and internal alert prefixes
+        if (
+            preg_match('/\[SYSTEM[^\]]*\]/i', $trimmed) ||
+            preg_match('/SYSTEM\s+(FORMAT|REMINDER|CORRECTION|NOTE)/i', $trimmed) ||
+            preg_match('/MANDATORY(_|\s)+(AI_ACTION|NEXT_STEP|SCHEMA_USAGE|ACTION|RESPONSE|INSIGHT|FORMAT)/i', $trimmed) ||
+            preg_match('/ANALYST\s+NOTE/i' , $trimmed) ||
+            preg_match('/INTERNAL\s+ANALYST\s+NOTE/i', $trimmed) ||
+            preg_match('/PERFORMANCE_NOTE/i', $trimmed)
+        ) {
+            Log::info('[StreamFilter] Blocked system reminder prefix: ' . substr($trimmed, 0, 100));
+            return true;
+        }
+
+        // 3. Block checklist questions using a keyword matrix.
+        // If a line starts with a list bullet (optionally) and contains "Apakah" or "Sudahkah"
+        // AND matches any system-prompt keyword, it's blocked.
+        if (preg_match('/^\s*(?:[\*\-•]|\d+\.)\s*.*?\b(apakah|sudahkah)\b/i', $trimmed) || preg_match('/^(apakah|sudahkah)\b/i', $trimmed)) {
+            $systemKeywords = [
+                'sapaan', 'ringkasan', 'eksekutif', 'insight', 'prompt',
+                'smart_table', 'chart', 'currency', 'nominal', 'echoing', 'tabel', 'kolom',
+                'query', 'sql', 'limit', 'offset', 'aturan', 'bahasa', 'database', 'rupiah',
+                'rp', 'format', 'koreksi', 'reminder', 'menyajikan', 'menyebut', 'mencantumkan',
+                'menampilkan', 'kesimpulan', 'jawaban', 'output', 'respon', 'user', 'analisis',
+                'desimal', 'historis', 'tanggal', 'kosong', 'tersedia'
+            ];
+            foreach ($systemKeywords as $kw) {
+                if (stripos($trimmed, $kw) !== false) {
+                    Log::info("[StreamFilter] Blocked checklist question (matched kw: {$kw}): " . substr($trimmed, 0, 100));
+                    return true;
+                }
+            }
+        }
+
         $patterns = [
             '/^nama eksak [a-zA-Z ]+ ditemukan/i',
             '/^sekarang saya akan menjalankan query/i',
@@ -2625,12 +2722,6 @@ PROMPT;
             '/^probe query/i',
             '/^hasil probe/i',
             '/^query utama\s*:/i',
-            '/\[SYSTEM[^\]]*\]/i',
-            '/\bSYSTEM\s+(FORMAT|REMINDER|CORRECTION|NOTE)\b/i',
-            '/\bMANDATORY(_|\s)+(AI_ACTION|NEXT_STEP|SCHEMA_USAGE|ACTION|RESPONSE|INSIGHT|FORMAT)\b/i',
-            '/\bANALYST\s+NOTE\b/i',
-            '/\bINTERNAL\s+ANALYST\s+NOTE\b/i',
-            '/\bPERFORMANCE_NOTE\b/i',
             '/^hasil query hanya mengandung\s+satu\s+angka\s+tunggal/i',
             '/^query\s+count\s+menghasilkan/i',
             '/^format respons yang benar/i',
@@ -3083,16 +3174,6 @@ PROMPT;
                                         ob_flush();
                                     flush();
                                 }
-                            }
-
-                            // Flush buffer sisa jika sudah cukup panjang (mid-sentence)
-                            // dan bukan thinking leakage — agar tetap real-time
-                            if (strlen($sseLineBuffer) > 50 && !$this->isThinkingLeakageLine($sseLineBuffer)) {
-                                echo "data: " . json_encode(['chunk' => $sseLineBuffer]) . "\n\n";
-                                if (ob_get_level() > 0)
-                                    ob_flush();
-                                flush();
-                                $sseLineBuffer = '';
                             }
                         }
 
