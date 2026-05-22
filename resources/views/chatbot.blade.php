@@ -3731,19 +3731,16 @@
 
                 // 0. AI & Backend Selected Priority (DEFACTO SOURCE OF TRUTH)
                 if (tableId && smartTables[tableId] && smartTables[tableId].currencyColumns) {
-                    if (isColumnCurrencyByAI(header, smartTables[tableId].currencyColumns)) return true;
+                    return isColumnCurrencyByAI(header, smartTables[tableId].currencyColumns);
                 }
 
-                // 1. Fallback to keyword-based detection (Very robust)
-                return isLikelyCurrencyLabel(header);
+                return false;
             }
 
             function isChartExportMonetary(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
                 const baseCurrencyColumns = Array.isArray(currencyColumns) ? currencyColumns : [];
                 const datasetLabels = (datasets || []).map((d, i) => d?.label || `${chartType} ${i + 1}`);
-                return isLikelyCurrencyLabel(chartTitle)
-                    || baseCurrencyColumns.some(col => isLikelyCurrencyLabel(col))
-                    || datasetLabels.some(label => isLikelyCurrencyLabel(label) || isColumnCurrencyByAI(label, baseCurrencyColumns));
+                return baseCurrencyColumns.length > 0 && datasetLabels.some(label => isColumnCurrencyByAI(label, baseCurrencyColumns));
             }
 
             function getChartExportDatasetLabels(chartTitle, datasets, currencyColumns = [], chartType = 'bar') {
@@ -4240,7 +4237,7 @@
                     }
 
                     // Auto-detect kolom currency dari nama header
-                    const autoCurrencyCols = headers.filter(h => isLikelyCurrencyLabel(h));
+                    const autoCurrencyCols = [];
 
                     const tableId = 'st-md-' + Math.random().toString(36).substr(2, 9);
                     const hb64 = btoa(unescape(encodeURIComponent(JSON.stringify(headers))));
@@ -5280,10 +5277,8 @@
                         label: function (context) {
                             let label = context.dataset.label || '';
                             let isMoney = false;
-                            if (currencyColumns && (currencyColumns.includes(label) || currencyColumns.includes(label.toLowerCase()))) {
-                                isMoney = true;
-                            } else {
-                                isMoney = isCurrencyColumn(label);
+                            if (currencyColumns && currencyColumns.length > 0) {
+                                isMoney = isColumnCurrencyByAI(label, currencyColumns);
                             }
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
@@ -5316,10 +5311,10 @@
                         scales[axis].ticks.callback = function (value) {
                             let isCurrencyChart = false;
                             if (currencyColumns && currencyColumns.length > 0) {
-                                isCurrencyChart = true;
-                            } else {
                                 const firstLabel = config.data?.datasets?.[0]?.label;
-                                if (firstLabel && isLikelyCurrencyLabel(firstLabel)) isCurrencyChart = true;
+                                if (firstLabel) {
+                                    isCurrencyChart = isColumnCurrencyByAI(firstLabel, currencyColumns);
+                                }
                             }
                             const numVal = typeof value === 'number' ? value : parseFloat(value);
                             if (isNaN(numVal)) return value;

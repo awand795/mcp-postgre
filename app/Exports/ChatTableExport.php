@@ -157,7 +157,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             return false;
         }
 
-        // 1. Check against AI-provided currency columns
+        // Check against AI-provided currency columns
         if (!empty($normalizedCurrencyCols)) {
             $normalizedHeader = $this->normalizeLabel($headerName);
             
@@ -174,9 +174,7 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
             }
         }
 
-        // 2. Fallback to keyword-based detection (Very robust)
-        $h = strtolower($headerName);
-        return (bool) preg_match('/(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|growth|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/i', $h);
+        return false;
     }
 
     private function isNonCurrencyLabel(string $label): bool

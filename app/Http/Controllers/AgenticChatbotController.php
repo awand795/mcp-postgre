@@ -1063,7 +1063,7 @@ class AgenticChatbotController extends Controller
             }
         }
 
-        return (bool) preg_match('/(sales|amount|harga|nominal|tagihan|piutang|hutang|balance|netto|dpp|gpn|cogs|hpp|saldo|realisasi|target|pencapaian|omset|revenue|pendapatan|penjualan|laba|profit|cost|biaya|nilai|total|sum|rupiah|rp)/i', $header);
+        return false;
     }
 
     private function normalizeExportLabel(string $label): string
