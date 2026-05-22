@@ -3219,8 +3219,8 @@
                                 }
                             }
                         });
-                        return { wch: Math.max(18, maxLen + 8) }; // Minimum 18 width, plus generous padding
-                    });
+                        colsWidth.push({ wch: Math.max(18, maxLen + 8) });
+                    }
                     ws['!cols'] = colsWidth;
 
                     const rowsHeight = [
