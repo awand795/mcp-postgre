@@ -1042,17 +1042,9 @@ class AgenticChatbotController extends Controller
 
     private function isExportCurrencyHeader(string $header, array $currencyColumns): bool
     {
-        if ($this->isNonCurrencyExportLabel($header)) {
-            return false;
-        }
-
         $normalizedHeader = $this->normalizeExportLabel($header);
         foreach ($currencyColumns as $column) {
             $column = (string) $column;
-            if ($this->isNonCurrencyExportLabel($column)) {
-                continue;
-            }
-
             $normalizedColumn = $this->normalizeExportLabel($column);
             if ($normalizedColumn !== '' && (
                 $normalizedHeader === $normalizedColumn ||
@@ -1073,15 +1065,6 @@ class AgenticChatbotController extends Controller
         $label = preg_replace('/[^a-z0-9_]/', '', $label);
         $label = preg_replace('/_+/', '_', $label);
         return trim($label, '_');
-    }
-
-    private function isNonCurrencyExportLabel(string $label): bool
-    {
-        if (preg_match('/^\s*\d{4}\s*$/', $label)) {
-            return true;
-        }
-
-        return (bool) preg_match('/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|no|nomor|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i', $label);
     }
 
     private function callAiApi(array $messages, array $tools, $apiKey, $model, $maxTokens = 32768, string $systemPrompt = '', int $loopCount = 1): ?array

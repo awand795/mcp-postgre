@@ -3792,15 +3792,9 @@
                 const normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                 
                 const cleanColName = stripHtml(colName);
-                if (/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i.test(cleanColName)) {
-                    return false;
-                }
                 const normalizedCol = normalize(cleanColName);
                 
                 return currencyColumns.some(c => {
-                    if (/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|qty|quantity|count|persen|persentase|percent|percentage|rate|growth|cabang|dealer|pelanggan|produk|barang|item)/i.test(stripHtml(c))) {
-                        return false;
-                    }
                     const nc = normalize(stripHtml(c));
                     return nc === normalizedCol || normalizedCol.includes(nc) || nc.includes(normalizedCol);
                 });

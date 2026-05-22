@@ -1062,29 +1062,13 @@ class QueryService extends BaseService
 
     /**
      * Keep currency metadata limited to actual monetary columns.
-     * Models sometimes mark year/month columns as currency when their alias
-     * contains words like "penjualan" (e.g. tahun_penjualan).
+     * Maps the AI-provided currency columns to actual result column names (case-insensitively).
      */
     private function sanitizeCurrencyColumns(array $currencyColumns, array $actualColumns = [], array $rows = []): array
     {
         if (empty($currencyColumns)) {
             return [];
         }
-
-        $currencyKeywords = [
-            'netto', 'harga', 'hpp', 'revenue', 'amount', 'nominal', 'omset',
-            'dpp', 'profit', 'laba', 'bruto', 'diskon', 'disc', 'cost',
-            'sales', 'value', 'penjualan', 'pendapatan', 'biaya', 'piutang',
-            'hutang', 'rupiah', 'rp',
-        ];
-
-        $nonCurrencyKeywords = [
-            'tahun', 'year', 'bulan', 'month', 'tanggal', 'date', 'periode',
-            'id', 'kode', 'code', 'no', 'nomor', 'qty', 'quantity', 'unit',
-            'count', 'jumlah_item', 'jumlah_cabang', 'jumlah_dealer',
-            'persentase', 'persen', 'percent', 'percentage', 'rate', 'growth',
-            'cabang', 'dealer', 'pelanggan', 'produk', 'barang', 'item',
-        ];
 
         $actualByLower = [];
         foreach ($actualColumns as $col) {
@@ -1098,38 +1082,12 @@ class QueryService extends BaseService
                 continue;
             }
 
-            $actualCol = $actualByLower[strtolower($col)] ?? $col;
-            $lower = strtolower($actualCol);
-
-            foreach ($nonCurrencyKeywords as $keyword) {
-                if (str_contains($lower, $keyword)) {
-                    Log::info("[QueryService] currency_columns sanitized: removed non-currency column '{$actualCol}'");
-                    continue 2;
-                }
+            $actualCol = $actualByLower[strtolower($col)] ?? null;
+            if ($actualCol !== null) {
+                $clean[] = $actualCol;
+            } else {
+                Log::info("[QueryService] currency_columns sanitized: removed non-existent column '{$col}'");
             }
-
-            $hasCurrencyKeyword = false;
-            foreach ($currencyKeywords as $keyword) {
-                if (str_contains($lower, $keyword)) {
-                    $hasCurrencyKeyword = true;
-                    break;
-                }
-            }
-
-            if (!$hasCurrencyKeyword) {
-                Log::info("[QueryService] currency_columns sanitized: removed unknown column '{$actualCol}'");
-                continue;
-            }
-
-            if (!empty($rows) && array_key_exists($actualCol, (array) $rows[0])) {
-                $sampleVal = ((array) $rows[0])[$actualCol];
-                if (!is_numeric($sampleVal) || abs((float) $sampleVal) < 1000) {
-                    Log::info("[QueryService] currency_columns sanitized: removed non-monetary sample '{$actualCol}'");
-                    continue;
-                }
-            }
-
-            $clean[] = $actualCol;
         }
 
         return array_values(array_unique($clean));

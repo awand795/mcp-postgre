@@ -153,10 +153,6 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
      */
     private function isCurrencyCol(string $headerName, array $normalizedCurrencyCols): bool
     {
-        if ($this->isNonCurrencyLabel($headerName)) {
-            return false;
-        }
-
         // Check against AI-provided currency columns
         if (!empty($normalizedCurrencyCols)) {
             $normalizedHeader = $this->normalizeLabel($headerName);
@@ -168,22 +164,13 @@ class ChatTableExport implements FromArray, WithHeadings, WithStyles, WithTitle,
 
             // Partial match (to handle "Total Netto (Rp)" vs "total_netto")
             foreach ($normalizedCurrencyCols as $nc) {
-                if (!empty($nc) && !$this->isNonCurrencyLabel($nc) && (strpos($normalizedHeader, $nc) !== false || strpos($nc, $normalizedHeader) !== false)) {
+                if (!empty($nc) && (strpos($normalizedHeader, $nc) !== false || strpos($nc, $normalizedHeader) !== false)) {
                     return true;
                 }
             }
         }
 
         return false;
-    }
-
-    private function isNonCurrencyLabel(string $label): bool
-    {
-        if (preg_match('/^\s*\d{4}\s*$/', $label)) {
-            return true;
-        }
-
-        return (bool) preg_match('/(tahun|year|bulan|month|tanggal|date|periode|id|kode|code|no|nomor|qty|quantity|count|persen|persentase|percent|percentage|rate|cabang|dealer|pelanggan|produk|barang|item)/i', $label);
     }
 
     /**
