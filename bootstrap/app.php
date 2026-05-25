@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'mcp',
             'api/sso/generate-token',
+            'login', // Dikecewakan dari CSRF untuk mendukung testing login di iframe HTTP
             // Route chatbot dikecualikan dari CSRF karena pakai Bearer token saat di iframe
             // Saat akses langsung (session), CSRF tetap dikirim dari meta tag
             'chatbot/*',

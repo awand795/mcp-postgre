@@ -27,7 +27,20 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended(route('chatbot'));
+            $user = Auth::user();
+
+            // Hapus semua token SSO lama milik user ini agar tidak menumpuk
+            $user->tokens()->where('name', 'sso-iframe-token')->delete();
+
+            // Generate Sanctum Personal Access Token baru
+            $sanctumToken = $user->createToken('sso-iframe-token')->plainTextToken;
+
+            // Render halaman HTML bridge agar token bisa disimpan di sessionStorage (untuk iframe HTTP)
+            return response()->view('auth.sso_bridge', [
+                'token'       => $sanctumToken,
+                'redirect_to' => route('chatbot'),
+                'user_name'   => $user->name,
+            ]);
         }
 
         return back()->withErrors([
