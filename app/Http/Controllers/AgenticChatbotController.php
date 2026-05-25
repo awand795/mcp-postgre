@@ -1715,22 +1715,22 @@ Saat user meminta metrik bisnis tertentu (seperti HPP, Total HPP, Netto, Total N
      - **Total HPP / Total COGS**: Jika tidak ada kolom fisik total HPP, hitung menggunakan rumus: `kolom_satuan_hpp * kolom_qty`.
      - **Profit**: Hitung menggunakan rumus: `kolom_total_netto - (kolom_satuan_hpp * kolom_qty)` atau `kolom_total_netto - kolom_total_hpp`. (Sapaan labelnya tetap "Profit", tidak ada pemisahan "Total Profit").
    - **Dalam Kueri Agregasi (Dengan `GROUP BY`)**:
-      - **HPP (COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`) DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). Kedua nilai ini harus sama-sama merupakan jumlah total/akumulasi dari harga pokok. DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
-      - **HPP (COGS)**: Hitung total akumulasi harga pokok: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`. **DILARANG KERAS** menghitung rata-rata tertimbang atau pembagian dengan kuantitas (seperti `SUM(hpp * qty)/SUM(qty)` atau `AVG(hpp)`) karena HPP dalam laporan penjualan adalah total biaya pokok penjualan.
-      - **Total HPP (Total COGS)**: Hitung menggunakan rumus total akumulasi: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
+      - **HPP (COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp)` DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). Kedua nilai ini tidak sama karena HPP adalah total dari unit cost price, sedangkan Total HPP adalah total dari cost price dikali kuantitas. DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
+      - **HPP (COGS)**: Hitung total dari unit cost price: `SUM(kolom_satuan_hpp)`. **DILARANG KERAS** menghitung rata-rata, weighted average, atau menggunakan perkalian kuantitas (seperti `SUM(kolom_satuan_hpp * kolom_qty)`) karena HPP di sini berdiri sendiri sebagai jumlah harga pokok satuan.
+      - **Total HPP (Total COGS)**: Hitung menggunakan rumus total perkalian kuantitas: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
       - **Profit**: Hitung menggunakan rumus: `SUM(kolom_total_netto) - SUM(kolom_satuan_hpp * kolom_qty)` (yang merupakan `Total Netto - Total HPP`). Label alias kolom di SQL wajib ditulis sebagai `"Profit"`.
 
 ### **2. Aturan Perbedaan Istilah Berpasangan & Istilah Tunggal**
 
 Saat menyusun kolom SELECT, pastikan Anda mematuhi aturan berikut agar visualisasinya tepat dan tidak redundan:
 - **Netto vs Total Netto**:
-  - **Netto**: Nilai total penjualan kotor sebelum dikurangi diskon (Gross). Hitung sebagai: `SUM(kolom_satuan_harga_jual * kolom_qty)` (atau `SUM(kolom_total_harga)` sebelum diskon). **DILARANG KERAS** menghitung rata-rata atau rata-rata tertimbang per unit.
+  - **Netto**: Nilai total penjualan kotor sebelum dikurangi diskon. Hitung sebagai: `SUM(kolom_satuan_harga_jual)`. **DILARANG KERAS** menghitung rata-rata, weighted average, atau mengalikan dengan kuantitas.
   - **Total Netto**: Nilai total penjualan bersih setelah dikurangi diskon. Hitung sebagai: `SUM(kolom_total_netto)` (atau `SUM(kolom_satuan_harga_jual * kolom_qty - kolom_total_diskon)`).
   - Tampilkan sebagai dua kolom terpisah jika user meminta keduanya.
 - **HPP vs Total HPP (atau COGS vs Total COGS)**:
-  - **HPP (atau COGS)**: Nilai total harga pokok keseluruhan (akumulasi). Hitung sebagai: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`. **DILARANG KERAS** menghitung rata-rata atau rata-rata tertimbang per unit.
+  - **HPP (atau COGS)**: Nilai total harga pokok satuan. Hitung sebagai: `SUM(kolom_satuan_hpp)`. **DILARANG KERAS** menghitung rata-rata atau mengalikan dengan kuantitas.
   - **Total HPP (atau Total COGS)**: Nilai total harga pokok keseluruhan. Hitung sebagai: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
-  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. Keduanya akan bernilai sama karena baik HPP maupun Total HPP merujuk pada total biaya pokok penjualan yang sama. DILARANG KERAS menghilangkan salah satunya atau memaksa nilainya berbeda jika keduanya bernilai total.
+  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. Keduanya **tidak bernilai sama** karena HPP adalah sum dari harga pokok satuan (`SUM(kolom_satuan_hpp)`), sedangkan Total HPP adalah sum dari total harga pokok perkalian kuantitas. DILARANG KERAS memaksa nilainya sama atau menghilangkan salah satunya.
 - **Profit**:
   - Hanya ada istilah **Profit** (mewakili total keuntungan). Tidak ada "Total Profit" atau "Profit Satuan".
   - Cara hitungnya: `Total Netto - Total HPP` (atau `total_netto - total_hpp`).
