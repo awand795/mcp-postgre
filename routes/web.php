@@ -31,27 +31,28 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
+// ── CHATBOT ROUTES ───────────────────────────────────────────────────────────────
+// Pakai auth.smart: support session (login biasa) DAN Bearer token (SSO iframe HTTP)
+Route::middleware('auth.smart')->group(function () {
+    Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
+    Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
+    Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
+    Route::post('/chatbot/export/pdf', [AgenticChatbotController::class, 'exportPdf'])->name('chatbot.export.pdf');
+
+    Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
+    Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
+
+    Route::get('/chatbot/sessions', [AgenticChatbotController::class, 'getSessions'])->name('chatbot.sessions');
+    Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
+    Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
+    Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
+});
+
 // Protected Routes
 Route::middleware('auth')->group(function () {
 
     Route::get('/', function () {
         return redirect()->route('chatbot');
-    });
-
-    // ── CHATBOT ROUTES (Agentic Tool Calling) ──────────────────────────────
-    Route::middleware('auth.smart')->group(function () {
-        Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
-        Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
-        Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
-        Route::post('/chatbot/export/pdf', [AgenticChatbotController::class, 'exportPdf'])->name('chatbot.export.pdf');
-
-        Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
-        Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
-
-        Route::get('/chatbot/sessions', [AgenticChatbotController::class, 'getSessions'])->name('chatbot.sessions');
-        Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
-        Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
-        Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
     });
 
     // ── ADMIN ROUTES ─────────────────────────────────────────────────────────
