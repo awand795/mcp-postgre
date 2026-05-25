@@ -180,7 +180,8 @@ class AgenticChatbotController extends Controller
 
         $scopeLimited = (bool) ($user->analysis_scope_limited ?? true);
 
-        $systemPrompt = $this->buildSystemPrompt($allowedDatabases, $scopeLimited);
+        $detectedLanguage = $this->detectLanguage($message);
+        $systemPrompt = $this->buildSystemPrompt($allowedDatabases, $scopeLimited, $detectedLanguage);
 
         $messages = $this->buildMessages($systemPrompt, $history, $message);
         $maxTokens = $user->max_tokens ?? 32768;
@@ -193,9 +194,9 @@ class AgenticChatbotController extends Controller
         ob_implicit_flush(true);
 
         return response()->stream(
-            function () use ($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited) {
+            function () use ($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited, $detectedLanguage) {
                 try {
-                    $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited);
+                    $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited, $detectedLanguage);
                 } catch (\Throwable $e) {
                     Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
                     $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
@@ -215,7 +216,7 @@ class AgenticChatbotController extends Controller
         );
     }
 
-    private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null, bool $scopeLimited = true): void
+    private function runAgenticLoop(array $messages, \Illuminate\Support\Collection $apiKeys, $model, array $allowedDatabases = [], $chatSessionId = null, $maxTokens = null, bool $scopeLimited = true, string $detectedLanguage = 'id'): void
     {
         $apiKey = ApiKeyResolver::pickAvailable($apiKeys);
         if (!$apiKey) {
@@ -236,7 +237,10 @@ class AgenticChatbotController extends Controller
         }
         $originalUserMessage = $this->extractOriginalUserMessage($messages);
         if ($chatSessionId) {
-            echo "data: " . json_encode(['chat_session_id' => $chatSessionId]) . "\n\n";
+            echo "data: " . json_encode([
+                'chat_session_id' => $chatSessionId,
+                'detected_language' => $detectedLanguage
+            ]) . "\n\n";
         }
         echo "data: " . json_encode(['chunk' => '', 'status' => 'thinking']) . "\n\n";
         if (ob_get_level() > 0)
@@ -933,9 +937,20 @@ class AgenticChatbotController extends Controller
         $messages = $messages->take($limit)->sortBy('created_at')->values();
         $oldestCursor = $hasMore ? ($messages->first()?->created_at?->toISOString() ?? null) : null;
 
+        // Compute detected language from the last user message in the session
+        $detectedLanguage = 'id'; // default fallback
+        $lastUserMessage = ChatMessage::where('chat_session_id', $session->id)
+            ->where('role', 'user')
+            ->orderBy('created_at', 'desc')
+            ->first();
+        if ($lastUserMessage) {
+            $detectedLanguage = $this->detectLanguage($lastUserMessage->content);
+        }
+
         return response()->json([
             'session' => $session,
             'history' => $messages,
+            'detected_language' => $detectedLanguage,
             'pagination' => [
                 'has_more' => $hasMore,
                 'oldest_cursor' => $oldestCursor,
@@ -1373,7 +1388,7 @@ class AgenticChatbotController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     // SYSTEM PROMPT
     // ─────────────────────────────────────────────────────────────────────────
-    private function buildSystemPrompt(array $allowedDatabases = [], bool $scopeLimited = true): string
+    private function buildSystemPrompt(array $allowedDatabases = [], bool $scopeLimited = true, string $detectedLanguage = 'id'): string
     {
         $dbSummaries = [];
         foreach ($allowedDatabases as $dbCode => $schemas) {
@@ -1419,10 +1434,79 @@ class AgenticChatbotController extends Controller
 
         $freeScopeBusinessSection = $scopeLimited
             ? ""
-            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum dan perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum and perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+
+        $langInstruction = "";
+        if ($detectedLanguage === 'id') {
+            $langInstruction = "## 🔴 MANDATORI BAHASA UTAMA: BAHASA INDONESIA
+1. **User menggunakan Bahasa Indonesia.** Anda WAJIB merespons sepenuhnya dalam Bahasa Indonesia.
+2. Anda WAJIB menggunakan alias kolom SQL dalam istilah Bahasa Indonesia yang persis diminta user:
+   - Cabang / Dealer / (atau nama dimensi lainnya)
+   - HPP
+   - Total HPP
+   - Netto
+   - Total Netto
+   - Diskon
+   - Profit
+3. DILARANG menggunakan istilah Bahasa Inggris seperti \"COGS\", \"Total COGS\", \"Net\", \"Total Net\", \"Discount\" jika user bertanya dalam Bahasa Indonesia.
+
+## 🔴 LANGUAGE-BASED SQL ALIAS RULE
+You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
+If user is using Indonesian:
+- Use alias \"Cabang\" or \"Dealer\" or other dimension name.
+- Use alias \"HPP\" for unit HPP (Weighted Average or Average).
+- Use alias \"Total HPP\" for sum of HPP.
+- Use alias \"Netto\" for unit net selling price.
+- Use alias \"Total Netto\" for sum of net selling price.
+- Use alias \"Diskon\" for discount.
+- Use alias \"Profit\" for profit.
+
+If user is using English:
+- Use alias \"Branch\" or \"Dealer\" or other dimension name.
+- Use alias \"COGS\" for unit COGS (Weighted Average or Average).
+- Use alias \"Total COGS\" for sum of COGS.
+- Use alias \"Net\" for unit net selling price.
+- Use alias \"Total Net\" for sum of net selling price.
+- Use alias \"Discount\" for discount.
+- Use alias \"Profit\" for profit.";
+        } else {
+            $langInstruction = "## 🔴 PRIMARY LANGUAGE MANDATE: ENGLISH
+1. **User is using English.** You MUST reply completely in English.
+2. You MUST use SQL column aliases in English terms:
+   - Branch / Dealer / (or other dimension names)
+   - COGS
+   - Total COGS
+   - Net
+   - Total Net
+   - Discount
+   - Profit
+3. DO NOT use Indonesian terms like \"HPP\", \"Total HPP\", \"Netto\", \"Total Netto\", \"Diskon\" if user asks in English.
+
+## 🔴 LANGUAGE-BASED SQL ALIAS RULE
+You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
+If user is using Indonesian:
+- Use alias \"Cabang\" or \"Dealer\" or other dimension name.
+- Use alias \"HPP\" for unit HPP (Weighted Average or Average).
+- Use alias \"Total HPP\" for sum of HPP.
+- Use alias \"Netto\" for unit net selling price.
+- Use alias \"Total Netto\" for sum of net selling price.
+- Use alias \"Diskon\" for discount.
+- Use alias \"Profit\" for profit.
+
+If user is using English:
+- Use alias \"Branch\" or \"Dealer\" or other dimension name.
+- Use alias \"COGS\" for unit COGS (Weighted Average or Average).
+- Use alias \"Total COGS\" for sum of COGS.
+- Use alias \"Net\" for unit net selling price.
+- Use alias \"Total Net\" for sum of net selling price.
+- Use alias \"Discount\" for discount.
+- Use alias \"Profit\" for profit.";
+        }
 
         return <<<PROMPT
 Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke berbagai database bisnis** melalui alat (tools).
+
+{$langInstruction}
 
 ## 🔴 LARANGAN MUTLAK (ANTI-ECHOING & ANTI-LEAKAGE) — ATURAN PALING KRITIS
 1. Selama interaksi, sistem akan menyuntikkan pesan koreksi internal tersembunyi seperti `[SYSTEM REMINDER]`, `[SYSTEM FORMAT CORRECTION]`, `[SYSTEM FORMAT REMINDER]`, dsb.
@@ -1618,13 +1702,14 @@ Saat user meminta metrik bisnis tertentu (seperti HPP, Total HPP, Netto, Total N
 4. **Prioritaskan Kolom Fisik**: Jika ada kolom fisik di database yang secara langsung menyimpan nilai metrik tersebut (misal: terdapat kolom bernama `total_hpp` atau `profit` atau `laba`), gunakan kolom fisik tersebut secara langsung dalam query.
 5. **Formulasikan secara Dinamis jika Kolom Fisik Tidak Ada**: Jika kolom fisik tidak tersedia secara langsung, gunakan kolom-kolom yang berhasil Anda temukan untuk merumuskan perhitungan secara akurat:
    - **Dalam Kueri Detail (Tanpa `GROUP BY`)**:
-     - **HPP**: Gunakan kolom satuan harga pokok yang ditemukan.
-     - **Total HPP**: Jika tidak ada kolom fisik total HPP, hitung menggunakan rumus: `kolom_satuan_hpp * kolom_qty`.
+     - **HPP / COGS**: Gunakan kolom satuan harga pokok yang ditemukan.
+     - **Total HPP / Total COGS**: Jika tidak ada kolom fisik total HPP, hitung menggunakan rumus: `kolom_satuan_hpp * kolom_qty`.
      - **Profit**: Hitung menggunakan rumus: `kolom_total_netto - (kolom_satuan_hpp * kolom_qty)` atau `kolom_total_netto - kolom_total_hpp`. (Sapaan labelnya tetap "Profit", tidak ada pemisahan "Total Profit").
    - **Dalam Kueri Agregasi (Dengan `GROUP BY`)**:
-     - **HPP (Unit Cost)**: Hitung rata-rata tertimbang (weighted average): `SUM(kolom_satuan_hpp * kolom_qty) / SUM(kolom_qty)`. Jika kolom qty tidak ada atau query tidak logis menggunakan weighted average, gunakan `AVG(kolom_satuan_hpp)`. **DILARANG KERAS** menggunakan `SUM(kolom_satuan_hpp)` karena secara matematis salah dan menghasilkan nilai yang identik dengan Total HPP.
-     - **Total HPP**: Hitung menggunakan rumus: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
-     - **Profit**: Hitung menggunakan rumus: `SUM(kolom_total_netto) - SUM(kolom_satuan_hpp * kolom_qty)` (yang merupakan `Total Netto - Total HPP`). Label alias kolom di SQL wajib ditulis sebagai `"Profit"`.
+      - **HPP (Unit Cost / COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp * kolom_qty) / SUM(kolom_qty)` (atau `AVG(kolom_satuan_hpp)` jika qty tidak tersedia) DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
+      - **HPP (Unit Cost / COGS)**: Hitung rata-rata tertimbang (weighted average): `SUM(kolom_satuan_hpp * kolom_qty) / SUM(kolom_qty)`. Jika kolom qty tidak ada atau query tidak logis menggunakan weighted average, gunakan `AVG(kolom_satuan_hpp)`. **DILARANG KERAS** menggunakan `SUM(kolom_satuan_hpp)` karena secara matematis salah dan menghasilkan nilai yang identik dengan Total HPP.
+      - **Total HPP (Total COGS)**: Hitung menggunakan rumus: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
+      - **Profit**: Hitung menggunakan rumus: `SUM(kolom_total_netto) - SUM(kolom_satuan_hpp * kolom_qty)` (yang merupakan `Total Netto - Total HPP`). Label alias kolom di SQL wajib ditulis sebagai `"Profit"`.
 
 ### **2. Aturan Perbedaan Istilah Berpasangan & Istilah Tunggal**
 
@@ -1633,10 +1718,10 @@ Saat menyusun kolom SELECT, pastikan Anda mematuhi aturan berikut agar visualisa
   - **Netto**: Nilai penjualan sebelum dikurangi diskon (Gross).
   - **Total Netto**: Nilai penjualan bersih setelah dikurangi diskon.
   - Tampilkan sebagai dua kolom terpisah jika user meminta keduanya.
-- **HPP vs Total HPP**:
-  - **HPP**: Nilai harga pokok per unit (satuan).
-  - **Total HPP**: Nilai total harga pokok keseluruhan (HPP Satuan * Qty).
-  - Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. **DILARANG** menghasilkan nilai yang sama untuk HPP dan Total HPP pada query GROUP BY.
+- **HPP vs Total HPP (atau COGS vs Total COGS)**:
+  - **HPP (atau COGS)**: Nilai harga pokok per unit (satuan).
+  - **Total HPP (atau Total COGS)**: Nilai total harga pokok keseluruhan (HPP Satuan * Qty).
+  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. DILARANG KERAS menghilangkan salah satunya. Keduanya harus muncul sebagai kolom SELECT yang terpisah dengan alias yang sesuai. DILARANG menghasilkan nilai yang sama untuk HPP dan Total HPP pada query GROUP BY.
 - **Profit**:
   - Hanya ada istilah **Profit** (mewakili total keuntungan). Tidak ada "Total Profit" atau "Profit Satuan".
   - Cara hitungnya: `Total Netto - Total HPP` (atau `total_netto - total_hpp`).
@@ -3532,5 +3617,57 @@ PROMPT;
             ->post($url, $payload);
 
         return $this->handleProviderResponse($response, $providerCode);
+    }
+
+    private function detectLanguage(string $message): string
+    {
+        $messageLower = strtolower($message);
+
+        // Keywords for Indonesian language detection
+        $idKeywords = [
+            'tampilkan', 'berapa', 'cabang', 'penjualan', 'bulan', 'tahun', 'diskon', 
+            'selisih', 'total', 'maret', 'laba', 'rinci', 'detail', 'dan', 'dari', 
+            'untuk', 'yang', 'ini', 'semua', 'per', 'dengan', 'ada', 'tidak', 'hpp',
+            'maret', 'mret', 'nopember', 'desember', 'januari', 'pebruari', 'omset',
+            'keuntungan', 'harga', 'pokok'
+        ];
+
+        // Keywords for English language detection
+        $enKeywords = [
+            'show', 'how', 'many', 'branch', 'sales', 'month', 'year', 'discount', 
+            'difference', 'profit', 'march', 'cogs', 'detail', 'and', 'from', 
+            'for', 'that', 'this', 'all', 'per', 'with', 'is', 'no', 'not',
+            'english', 'inggris'
+        ];
+
+        $idScore = 0;
+        $enScore = 0;
+
+        // Split into words
+        $words = preg_split('/[^a-zA-Z]/', $messageLower, -1, PREG_SPLIT_NO_EMPTY);
+        foreach ($words as $w) {
+            if (in_array($w, $idKeywords)) {
+                $idScore++;
+            }
+            if (in_array($w, $enKeywords)) {
+                $enScore++;
+            }
+        }
+
+        // If no word matched, try simple substring check
+        if ($idScore === 0 && $enScore === 0) {
+            foreach ($idKeywords as $w) {
+                if (str_contains($messageLower, $w)) {
+                    $idScore++;
+                }
+            }
+            foreach ($enKeywords as $w) {
+                if (str_contains($messageLower, $w)) {
+                    $enScore++;
+                }
+            }
+        }
+
+        return $enScore > $idScore ? 'en' : 'id';
     }
 }

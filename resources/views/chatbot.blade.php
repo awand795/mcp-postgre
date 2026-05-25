@@ -1844,6 +1844,7 @@
             const statusBar = document.getElementById('status-bar');
 
             let conversationHistory = [];
+            let currentChatLanguage = 'id';
             let currentToolResults = [];
             let isLoading = false;
             let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
@@ -2785,6 +2786,7 @@
 
                     chatMessages.innerHTML = '';
                     conversationHistory = [];
+                    currentChatLanguage = data.detected_language || 'id';
 
                     if (data.history.length === 0) {
                         addWelcomeMessage();
@@ -3836,7 +3838,55 @@
             }
 
             function getTranslation(key) {
-                const lang = (document.documentElement.lang || 'id').toLowerCase().substring(0, 2);
+                // Primary language source: synchronized variable from the server or loaded session
+                let lang = currentChatLanguage || 'id';
+
+                // Look back through history to classify language for short/contextless messages
+                let userMsgs = [];
+                if (typeof conversationHistory !== 'undefined' && Array.isArray(conversationHistory)) {
+                    userMsgs = conversationHistory.filter(m => m.role === 'user');
+                }
+                if (userMsgs.length === 0) {
+                    const userBubbles = document.querySelectorAll('.chat-bubble-user');
+                    userBubbles.forEach(bubble => {
+                        userMsgs.push({ role: 'user', content: bubble.textContent });
+                    });
+                }
+
+                // Check from newest to oldest user message to find the first classifiable language
+                for (let i = userMsgs.length - 1; i >= 0; i--) {
+                    const msgText = (userMsgs[i].content || '').toLowerCase();
+                    if (!msgText) continue;
+
+                    const idKeywords = [
+                        'tampilkan', 'berapa', 'cabang', 'penjualan', 'bulan', 'tahun', 'diskon', 
+                        'selisih', 'total', 'maret', 'laba', 'rinci', 'detail', 'dan', 'dari', 
+                        'untuk', 'yang', 'ini', 'semua', 'per', 'dengan', 'ada', 'tidak', 'hpp',
+                        'maret', 'mret', 'nopember', 'desember', 'januari', 'pebruari', 'omset',
+                        'keuntungan', 'harga', 'pokok', 'lanjut', 'ya', 'oke', 'baik', 'bisa', 'tolong'
+                    ];
+                    const enKeywords = [
+                        'show', 'how', 'many', 'branch', 'sales', 'month', 'year', 'discount', 
+                        'difference', 'profit', 'march', 'cogs', 'detail', 'and', 'from', 
+                        'for', 'that', 'this', 'all', 'per', 'with', 'is', 'no', 'not',
+                        'english', 'inggris', 'ok', 'yes', 'please', 'continue'
+                    ];
+                    
+                    let idScore = 0;
+                    let enScore = 0;
+                    
+                    const words = msgText.split(/[^a-zA-Z0-9]/);
+                    words.forEach(w => {
+                        if (idKeywords.includes(w)) idScore++;
+                        if (enKeywords.includes(w)) enScore++;
+                    });
+                    
+                    if (idScore > 0 || enScore > 0) {
+                        lang = idScore >= enScore ? 'id' : 'en';
+                        break;
+                    }
+                }
+
                 const translations = {
                     'id': {
                         'bulan': 'Bulan',
@@ -3919,9 +3969,15 @@
                     'trm': 'TRM (Target Realisasi)',
                     'hpp': getTranslation('hpp'),
                     'total_hpp': getTranslation('total_hpp'),
+                    'total_cogs': getTranslation('total_hpp'),
                     'netto': getTranslation('netto'),
+                    'net': getTranslation('netto'),
+                    'total_netto': getTranslation('total_netto'),
+                    'total_net': getTranslation('total_netto'),
                     'diskon': getTranslation('diskon'),
+                    'discount': getTranslation('diskon'),
                     'total_disc': getTranslation('total_disc'),
+                    'total_discount': getTranslation('total_disc'),
                     'profit': getTranslation('profit'),
                     'laba': getTranslation('laba'),
                     'pencapaian_amount': getTranslation('pencapaian'),
@@ -4957,6 +5013,10 @@
                                     currentSessionId = parsed.chat_session_id;
                                     window.history.pushState({}, '', '?chat=' + currentSessionId);
                                     loadSessions();
+                                }
+
+                                if (parsed.detected_language !== undefined) {
+                                    currentChatLanguage = parsed.detected_language;
                                 }
 
                                 if (parsed.status === 'thinking') {
