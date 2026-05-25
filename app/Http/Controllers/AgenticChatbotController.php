@@ -1648,26 +1648,27 @@ Sebelum `execute_query`, **WAJIB** panggil `describe_table` untuk mendapatkan na
 
 User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis. Nama di database bisa berbeda: "hm yamin" → "HM. YAMIN", "kapt muslim" → "KAPT. MUSLIM 1", dll.
 
-**SANGAT PENTING (OPTIMASI PERFORMA & PENGHINDARAN DISK FULL)**:
-Untuk database Masterban Indonesia (`data_mbi`), **DILARANG KERAS** menjalankan `SELECT DISTINCT` pencarian/resolusi nama pada tabel/view detail transaksi besar (seperti `view_data_penjualan_rinci_mbi`, `view_data_intransit_pembelian_mbi`, `view_data_kartu_stock_barang_mbi`, dll). Melakukan `DISTINCT` pada jutaan data transaksi akan menyebabkan database kehabisan ruang disk/temp space (`Disk full: 7 ERROR: could not write to file ... No space left on device`).
-Sebagai gantinya, Anda **WAJIB** menjalankan query probe penemu/resolusi nama pada tabel/view master yang jauh lebih kecil dan cepat:
-- Untuk mencari/resolusi Nama Cabang: gunakan `sch_mbi.view_master_cabang_mbi` (kolom `nama_cabang`)
-- Untuk mencari/resolusi Nama Barang: gunakan `sch_mbi.view_master_barang_mbi` (kolom `nama_barang`)
-- Untuk mencari/resolusi Nama Pelanggan: gunakan `sch_mbi.view_master_pelanggan_mbi` (kolom `nama_pelanggan`)
+**SANGAT PENTING (OPTIMASI PERFORMA & PENGHINDARAN DISK FULL - SECARA DINAMIS)**:
+**DILARANG KERAS** menjalankan `SELECT DISTINCT` pencarian/resolusi nama entitas (cabang, dealer, barang, pelanggan, dll) pada tabel/view transaksi/detail yang berukuran besar (biasanya mengandung kata `penjualan`, `pembelian`, `kartu_stock`, `intransit`, `rinci`, `detail`, `transaksi`). Melakukan `DISTINCT` pada jutaan data transaksi akan menyebabkan database kehabisan ruang disk/temp space (`Disk full: 7 ERROR: could not write to file ... No space left on device`).
+Sebagai gantinya, Anda **WAJIB** mencari dan menggunakan tabel/view master yang berukuran jauh lebih kecil untuk query resolusi nama/probe:
+- Untuk mencari/resolusi Nama Cabang: gunakan tabel/view master cabang (biasanya memiliki kata kunci `master` dan `cabang` atau `dealer`, contoh: `view_master_cabang_...` atau `mst_cabang`).
+- Untuk mencari/resolusi Nama Barang/Produk: gunakan tabel/view master barang (biasanya memiliki kata kunci `master` dan `barang` atau `produk` atau `item`, contoh: `view_master_barang_...` atau `mst_barang`).
+- Untuk mencari/resolusi Nama Pelanggan: gunakan tabel/view master pelanggan (biasanya memiliki kata kunci `master` dan `pelanggan` atau `customer`, contoh: `view_master_pelanggan_...` atau `mst_pelanggan`).
 
 **WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas SPESIFIK (bukan wilayah/propinsi/kota):**
 
 **Langkah 1 — Resolve nama eksak dengan MULTI-KEYWORD OR (wajib dilakukan SEKALI saja):**
 
-Jika nama user terdiri dari beberapa kata (misal: "hm yamin"), buat filter yang mencari SETIAP kata secara terpisah menggunakan OR:
+Jika nama user terdiri dari beberapa kata (misal: "hm yamin"), buat filter yang mencari SETIAP kata secara terpisah menggunakan OR pada tabel master yang relevan:
 ```sql
 SELECT DISTINCT nama_cabang
-FROM sch_mbi.view_master_cabang_mbi -- Selalu gunakan view_master_cabang_mbi untuk MBI!
+FROM schema_name.view_master_cabang -- Ganti dengan tabel master cabang riil yang terdeteksi di database saat ini!
 WHERE nama_cabang ILIKE '%hm%'
    OR nama_cabang ILIKE '%yamin%'
 LIMIT 10
 ```
 **MENGAPA:** "hm yamin" tidak akan match `%hm yamin%` jika di database ada titik ("HM. YAMIN") atau spasi berbeda. Memecah per kata memastikan hasil selalu ditemukan.
+
 
 
 **Aturan pemecahan kata kunci:**
