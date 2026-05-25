@@ -49,7 +49,7 @@ Route::middleware('auth.smart')->group(function () {
 });
 
 // Protected Routes
-Route::middleware('auth')->group(function () {
+Route::middleware('auth.smart')->group(function () {
 
     Route::get('/', function () {
         return redirect()->route('chatbot');

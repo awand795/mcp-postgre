@@ -14,19 +14,30 @@
     --}}
     <script>
         (function () {
-            // Bersihkan token dari URL query string agar tidak terpapar di address bar
+            var token = null;
+            // 1. Ambil token dari query parameter jika ada
             try {
-                if (window.location.search.indexOf('token=') !== -1) {
+                var urlParams = new URLSearchParams(window.location.search);
+                var urlToken = urlParams.get('token');
+                if (urlToken) {
+                    sessionStorage.setItem('_darkoai_bearer', urlToken);
+                    token = urlToken;
+                    
+                    // Bersihkan token dari URL query string agar tidak terpapar di address bar
                     var url = new URL(window.location.href);
                     url.searchParams.delete('token');
-                    var newUrl = url.pathname + url.search;
-                    window.history.replaceState({}, document.title, newUrl);
+                    window.history.replaceState({}, document.title, url.pathname + url.search);
                 }
             } catch (e) {}
 
-            // Baca token dari sessionStorage (diset oleh sso_bridge.blade.php)
-            var _ssoToken = null;
-            try { _ssoToken = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
+            // 2. Baca token dari sessionStorage jika tidak ada di URL
+            if (!token) {
+                try { token = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
+            }
+
+            // Expose ke window
+            window._ssoToken = token;
+            window._isSSOMode = !!token;
 
             /**
              * apiFetch(url, options) — pengganti fetch() yang SSO-aware.
@@ -37,9 +48,9 @@
                 options = options || {};
                 options.headers = options.headers || {};
 
-                if (_ssoToken) {
+                if (window._ssoToken) {
                     // Mode iframe: Bearer token, tanpa CSRF
-                    options.headers['Authorization'] = 'Bearer ' + _ssoToken;
+                    options.headers['Authorization'] = 'Bearer ' + window._ssoToken;
                     // Hapus CSRF kalau ada (tidak perlu, bisa konflik)
                     delete options.headers['X-CSRF-TOKEN'];
                 } else {
@@ -53,8 +64,29 @@
                 return fetch(url, options);
             };
 
-            // Expose ke window untuk debugging (aman, token tidak diekspor)
-            window._isSSOMode = !!_ssoToken;
+            // 3. Intercept local link clicks untuk menyertakan token di query string
+            if (token) {
+                document.addEventListener('click', function (e) {
+                    var anchor = e.target.closest('a');
+                    if (anchor && anchor.href) {
+                        try {
+                            var url = new URL(anchor.href, window.location.origin);
+                            // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
+                            if (url.origin === window.location.origin && 
+                                !anchor.href.startsWith('javascript:') && 
+                                !anchor.getAttribute('href').startsWith('#') &&
+                                anchor.target !== '_blank') {
+                                
+                                if (!url.searchParams.has('token')) {
+                                    e.preventDefault();
+                                    url.searchParams.set('token', window._ssoToken);
+                                    window.location.href = url.toString();
+                                }
+                            }
+                        } catch (err) {}
+                    }
+                }, true); // Gunakan capturing phase agar terpanggil paling awal
+            }
         })();
     </script>
     <title>darkotech AI</title>
