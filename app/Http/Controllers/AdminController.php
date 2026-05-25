@@ -18,12 +18,32 @@ class AdminController extends Controller
 {
     public function index()
     {
-        $stats = [
-            'users_count' => User::count(),
-            'roles_count' => Role::count(),
-            'databases_count' => DatabaseConnection::active()->count(),
-            'tables_count' => count($this->getAllTables()),
-        ];
+        $user = auth()->user();
+        if ($user->is_super_admin) {
+            $stats = [
+                'users_count' => User::count(),
+                'roles_count' => Role::count(),
+                'databases_count' => DatabaseConnection::active()->count(),
+                'tables_count' => count($this->getAllTables()),
+            ];
+        } else {
+            $allowedDbCodes = DatabaseConnection::active()
+                ->where('added_by', $user->id)
+                ->pluck('database')
+                ->toArray();
+            $allTables = $this->getAllTables();
+            $tablesCount = count(array_filter($allTables, function($table) use ($allowedDbCodes) {
+                return in_array($table['database_code'], $allowedDbCodes);
+            }));
+
+            $stats = [
+                'users_count' => User::where('added_by', $user->id)->count(),
+                'roles_count' => Role::where('added_by', $user->id)->count(),
+                'databases_count' => count($allowedDbCodes),
+                'tables_count' => $tablesCount,
+            ];
+        }
+
         return view('admin.dashboard', compact('stats'));
     }
 
