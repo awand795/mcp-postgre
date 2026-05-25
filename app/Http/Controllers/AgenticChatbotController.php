@@ -1648,6 +1648,13 @@ Sebelum `execute_query`, **WAJIB** panggil `describe_table` untuk mendapatkan na
 
 User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis. Nama di database bisa berbeda: "hm yamin" → "HM. YAMIN", "kapt muslim" → "KAPT. MUSLIM 1", dll.
 
+**SANGAT PENTING (OPTIMASI PERFORMA & PENGHINDARAN DISK FULL)**:
+Untuk database Masterban Indonesia (`data_mbi`), **DILARANG KERAS** menjalankan `SELECT DISTINCT` pencarian/resolusi nama pada tabel/view detail transaksi besar (seperti `view_data_penjualan_rinci_mbi`, `view_data_intransit_pembelian_mbi`, `view_data_kartu_stock_barang_mbi`, dll). Melakukan `DISTINCT` pada jutaan data transaksi akan menyebabkan database kehabisan ruang disk/temp space (`Disk full: 7 ERROR: could not write to file ... No space left on device`).
+Sebagai gantinya, Anda **WAJIB** menjalankan query probe penemu/resolusi nama pada tabel/view master yang jauh lebih kecil dan cepat:
+- Untuk mencari/resolusi Nama Cabang: gunakan `sch_mbi.view_master_cabang_mbi` (kolom `nama_cabang`)
+- Untuk mencari/resolusi Nama Barang: gunakan `sch_mbi.view_master_barang_mbi` (kolom `nama_barang`)
+- Untuk mencari/resolusi Nama Pelanggan: gunakan `sch_mbi.view_master_pelanggan_mbi` (kolom `nama_pelanggan`)
+
 **WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas SPESIFIK (bukan wilayah/propinsi/kota):**
 
 **Langkah 1 — Resolve nama eksak dengan MULTI-KEYWORD OR (wajib dilakukan SEKALI saja):**
@@ -1655,12 +1662,13 @@ User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis. Nama 
 Jika nama user terdiri dari beberapa kata (misal: "hm yamin"), buat filter yang mencari SETIAP kata secara terpisah menggunakan OR:
 ```sql
 SELECT DISTINCT nama_cabang
-FROM schema.tabel
+FROM sch_mbi.view_master_cabang_mbi -- Selalu gunakan view_master_cabang_mbi untuk MBI!
 WHERE nama_cabang ILIKE '%hm%'
    OR nama_cabang ILIKE '%yamin%'
 LIMIT 10
 ```
 **MENGAPA:** "hm yamin" tidak akan match `%hm yamin%` jika di database ada titik ("HM. YAMIN") atau spasi berbeda. Memecah per kata memastikan hasil selalu ditemukan.
+
 
 **Aturan pemecahan kata kunci:**
 - Jika user menyebut nama cabang diikuti angka, angka itu adalah bagian dari nama cabang. Contoh: "cabang binjai 2 tahun ini" berarti cabang `BINJAI 2` pada tahun berjalan, BUKAN "Binjai selama 2 tahun" dan BUKAN gabungan `BINJAI 1/2/3`.
@@ -2040,13 +2048,14 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
 - ✅ BENAR: `SELECT DISTINCT kolom_wilayah FROM schema_name.table_name LIMIT 20` → tampil semua nilai wilayah yang tersedia.
 - ✅ BENAR: Dari hasil terlihat nilai eksak → gunakan nilai tersebut di query utama.
 
-**WAJIB LAKUKAN**: Eksekusi query probe TANPA FILTER untuk mendapatkan semua nilai valid:
+**WAJIB LAKUKAN**: Eksekusi query probe TANPA FILTER untuk mendapatkan semua nilai valid (jika tabel/view master tersedia, seperti `view_master_cabang_mbi` untuk wilayah/cabang, **WAJIB** query ke tabel master tersebut demi performa dan menghindari disk full error):
 ```sql
 SELECT DISTINCT nama_kolom_yang_dibutuhkan
-FROM schema_name.nama_view
+FROM schema_name.nama_master_tabel_atau_view -- Prioritaskan tabel master (contoh: view_master_cabang_mbi)
 LIMIT 20
 ```
 Kemudian cocokkan nilai EKSAK dari hasil dengan kata kunci user, lalu gunakan di query utama dengan `=` (bukan ILIKE).
+
 
 Contoh nyata — user tanya "cabang di Medan":
 - ❌ SALAH: `SELECT DISTINCT nama_propinsi_cabang WHERE ILIKE '%medan%'` → hasilnya KOSONG karena nilai aslinya `'SUMATERA UTARA'`
