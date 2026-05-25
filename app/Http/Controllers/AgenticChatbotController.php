@@ -1454,19 +1454,19 @@ class AgenticChatbotController extends Controller
 You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
 If user is using Indonesian:
 - Use alias \"Cabang\" or \"Dealer\" or other dimension name.
-- Use alias \"HPP\" for unit HPP (Weighted Average or Average).
+- Use alias \"HPP\" for sum of HPP (which is identical to Total HPP).
 - Use alias \"Total HPP\" for sum of HPP.
-- Use alias \"Netto\" for unit net selling price.
-- Use alias \"Total Netto\" for sum of net selling price.
+- Use alias \"Netto\" for sum of gross selling price before discount.
+- Use alias \"Total Netto\" for sum of net selling price after discount.
 - Use alias \"Diskon\" for discount.
 - Use alias \"Profit\" for profit.
 
 If user is using English:
 - Use alias \"Branch\" or \"Dealer\" or other dimension name.
-- Use alias \"COGS\" for unit COGS (Weighted Average or Average).
+- Use alias \"COGS\" for sum of COGS (which is identical to Total COGS).
 - Use alias \"Total COGS\" for sum of COGS.
-- Use alias \"Net\" for unit net selling price.
-- Use alias \"Total Net\" for sum of net selling price.
+- Use alias \"Net\" for sum of gross selling price before discount.
+- Use alias \"Total Net\" for sum of net selling price after discount.
 - Use alias \"Discount\" for discount.
 - Use alias \"Profit\" for profit.";
         } else {
@@ -1486,19 +1486,19 @@ If user is using English:
 You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
 If user is using Indonesian:
 - Use alias \"Cabang\" or \"Dealer\" or other dimension name.
-- Use alias \"HPP\" for unit HPP (Weighted Average or Average).
+- Use alias \"HPP\" for sum of HPP (which is identical to Total HPP).
 - Use alias \"Total HPP\" for sum of HPP.
-- Use alias \"Netto\" for unit net selling price.
-- Use alias \"Total Netto\" for sum of net selling price.
+- Use alias \"Netto\" for sum of gross selling price before discount.
+- Use alias \"Total Netto\" for sum of net selling price after discount.
 - Use alias \"Diskon\" for discount.
 - Use alias \"Profit\" for profit.
 
 If user is using English:
 - Use alias \"Branch\" or \"Dealer\" or other dimension name.
-- Use alias \"COGS\" for unit COGS (Weighted Average or Average).
+- Use alias \"COGS\" for sum of COGS (which is identical to Total COGS).
 - Use alias \"Total COGS\" for sum of COGS.
-- Use alias \"Net\" for unit net selling price.
-- Use alias \"Total Net\" for sum of net selling price.
+- Use alias \"Net\" for sum of gross selling price before discount.
+- Use alias \"Total Net\" for sum of net selling price after discount.
 - Use alias \"Discount\" for discount.
 - Use alias \"Profit\" for profit.";
         }
@@ -1691,18 +1691,18 @@ WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
 Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
 
 ## 🔴 ATURAN WILAYAH/PROPINSI/KOTA
-Jika user bertanya tentang wilayah (Medan, Jakarta, Sumatera Utara, dll):
-1. **LANGSUNG gunakan `ILIKE`** pada kolom propinsi/kota yang relevan dalam query utama.
-2. Jika query utama tidak menghasilkan data, lakukan penelusuran otomatis (misal: cari berdasarkan nama kota jika propinsi kosong) TANPA meminta izin kepada Bapak/Ibu user.
-3. **DILARANG KERAS** membelokkan jawaban ke data Nasional secara diam-diam jika data regional tidak ditemukan. Jika data regional benar-benar tidak ada setelah semua upaya (termasuk cek kota), laporkan dengan bahasa bisnis: "Berdasarkan data yang tersedia, belum ditemukan catatan aktivitas bisnis untuk wilayah [Wilayah] pada periode ini."
+If user asks about regions:
+1. **DIRECTLY use `ILIKE`** on relevant province/city columns in the main query.
+2. If no data, do automatic search (e.g., search by city if province is empty) WITHOUT asking user for permission.
+3. **ABSOLUTELY PROHIBITED** from diverting to National data if regional data is not found. Report using business language: "Berdasarkan data yang tersedia, belum ditemukan catatan aktivitas bisnis untuk wilayah [Wilayah] pada periode ini."
 
-- User tanya "cabang di Medan" / "cabang di Sumatera Utara" / "cabang di Jakarta" →### **1. Protokol Penemuan & Pemetaan Dinamis (Dynamic Discovery & Semantic Mapping Protocol)**
+### **1. Protokol Penemuan & Pemetaan Dinamis (Dynamic Discovery & Semantic Mapping Protocol)**
 
 Saat user meminta metrik bisnis tertentu (seperti HPP, Total HPP, Netto, Total Netto, Diskon, Profit), Anda **WAJIB** mengikuti langkah-langkah berikut secara berurutan untuk memetakan istilah bisnis ke kolom database nyata secara dinamis tanpa melakukan hardcoding nama kolom:
 
 1. **Panggil `describe_table` (WAJIB)**: Dapatkan daftar kolom beserta tipenya secara eksak untuk tabel yang sedang dianalisis.
 2. **Pecahkan secara Semantik**: Jangan berasumsi nama kolom. Cocokkan istilah bisnis dengan kata kunci yang ada pada nama kolom fisik dari tabel:
-   - **Harga Pokok / HPP / COGS (Unit Cost)**: Cari kolom fisik yang mengandung kata kunci `hpp`, `pokok`, `cogs`, `cost`, `purchase`, `price_cost`.
+   - **Harga Pokok / HPP / COGS**: Cari kolom fisik yang mengandung kata kunci `hpp`, `pokok`, `cogs`, `cost`, `purchase`, `price_cost`.
    - **Netto / Selling Price**: Cari kolom fisik yang mengandung kata kunci `netto`, `net`, `jual`, `price`, `selling`.
    - **Discount / Potongan (Total)**: Cari kolom fisik yang mengandung kata kunci `disc`, `potongan`, `discount`, `rabat`, `pot`.
    - **Qty / Kuantitas**: Cari kolom fisik yang mengandung kata kunci `qty`, `jumlah`, `kuantitas`, `quantity`, `jual_qty`.
@@ -1715,22 +1715,22 @@ Saat user meminta metrik bisnis tertentu (seperti HPP, Total HPP, Netto, Total N
      - **Total HPP / Total COGS**: Jika tidak ada kolom fisik total HPP, hitung menggunakan rumus: `kolom_satuan_hpp * kolom_qty`.
      - **Profit**: Hitung menggunakan rumus: `kolom_total_netto - (kolom_satuan_hpp * kolom_qty)` atau `kolom_total_netto - kolom_total_hpp`. (Sapaan labelnya tetap "Profit", tidak ada pemisahan "Total Profit").
    - **Dalam Kueri Agregasi (Dengan `GROUP BY`)**:
-      - **HPP (Unit Cost / COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp * kolom_qty) / SUM(kolom_qty)` (atau `AVG(kolom_satuan_hpp)` jika qty tidak tersedia) DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
-      - **HPP (Unit Cost / COGS)**: Hitung rata-rata tertimbang (weighted average): `SUM(kolom_satuan_hpp * kolom_qty) / SUM(kolom_qty)`. Jika kolom qty tidak ada atau query tidak logis menggunakan weighted average, gunakan `AVG(kolom_satuan_hpp)`. **DILARANG KERAS** menggunakan `SUM(kolom_satuan_hpp)` karena secara matematis salah dan menghasilkan nilai yang identik dengan Total HPP.
-      - **Total HPP (Total COGS)**: Hitung menggunakan rumus: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
+      - **HPP (COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`) DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). Kedua nilai ini harus sama-sama merupakan jumlah total/akumulasi dari harga pokok. DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
+      - **HPP (COGS)**: Hitung total akumulasi harga pokok: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`. **DILARANG KERAS** menghitung rata-rata tertimbang atau pembagian dengan kuantitas (seperti `SUM(hpp * qty)/SUM(qty)` atau `AVG(hpp)`) karena HPP dalam laporan penjualan adalah total biaya pokok penjualan.
+      - **Total HPP (Total COGS)**: Hitung menggunakan rumus total akumulasi: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
       - **Profit**: Hitung menggunakan rumus: `SUM(kolom_total_netto) - SUM(kolom_satuan_hpp * kolom_qty)` (yang merupakan `Total Netto - Total HPP`). Label alias kolom di SQL wajib ditulis sebagai `"Profit"`.
 
 ### **2. Aturan Perbedaan Istilah Berpasangan & Istilah Tunggal**
 
 Saat menyusun kolom SELECT, pastikan Anda mematuhi aturan berikut agar visualisasinya tepat dan tidak redundan:
 - **Netto vs Total Netto**:
-  - **Netto**: Nilai penjualan sebelum dikurangi diskon (Gross).
-  - **Total Netto**: Nilai penjualan bersih setelah dikurangi diskon.
+  - **Netto**: Nilai total penjualan kotor sebelum dikurangi diskon (Gross). Hitung sebagai: `SUM(kolom_satuan_harga_jual * kolom_qty)` (atau `SUM(kolom_total_harga)` sebelum diskon). **DILARANG KERAS** menghitung rata-rata atau rata-rata tertimbang per unit.
+  - **Total Netto**: Nilai total penjualan bersih setelah dikurangi diskon. Hitung sebagai: `SUM(kolom_total_netto)` (atau `SUM(kolom_satuan_harga_jual * kolom_qty - kolom_total_diskon)`).
   - Tampilkan sebagai dua kolom terpisah jika user meminta keduanya.
 - **HPP vs Total HPP (atau COGS vs Total COGS)**:
-  - **HPP (atau COGS)**: Nilai harga pokok per unit (satuan).
-  - **Total HPP (atau Total COGS)**: Nilai total harga pokok keseluruhan (HPP Satuan * Qty).
-  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. DILARANG KERAS menghilangkan salah satunya. Keduanya harus muncul sebagai kolom SELECT yang terpisah dengan alias yang sesuai. DILARANG menghasilkan nilai yang sama untuk HPP dan Total HPP pada query GROUP BY.
+  - **HPP (atau COGS)**: Nilai total harga pokok keseluruhan (akumulasi). Hitung sebagai: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`. **DILARANG KERAS** menghitung rata-rata atau rata-rata tertimbang per unit.
+  - **Total HPP (atau Total COGS)**: Nilai total harga pokok keseluruhan. Hitung sebagai: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
+  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. Keduanya akan bernilai sama karena baik HPP maupun Total HPP merujuk pada total biaya pokok penjualan yang sama. DILARANG KERAS menghilangkan salah satunya atau memaksa nilainya berbeda jika keduanya bernilai total.
 - **Profit**:
   - Hanya ada istilah **Profit** (mewakili total keuntungan). Tidak ada "Total Profit" atau "Profit Satuan".
   - Cara hitungnya: `Total Netto - Total HPP` (atau `total_netto - total_hpp`).
@@ -1796,10 +1796,10 @@ Saat user meminta istilah yang tampak mirip secara berpasangan, keduanya HARUS m
 
 | Istilah User | Makna Bisnis |
 |---|---|
-| **Netto** | Nilai penjualan kotor — harga jual sebelum dikurangi diskon |
-| **Total Netto** | Nilai penjualan bersih — sudah dikurangi diskon |
-| **HPP (Unit Cost)** | Harga pokok per satuan barang |
-| **Total HPP** | Total harga pokok keseluruhan (HPP Satuan × Qty) |
+| **Netto** | Nilai total penjualan kotor — total harga jual sebelum dikurangi diskon (SUM(harga_jual * qty)) |
+| **Total Netto** | Nilai total penjualan bersih — total penjualan setelah dikurangi diskon (SUM(total_netto)) |
+| **HPP** | Total harga pokok keseluruhan (SUM(harga_pokok * qty)) |
+| **Total HPP** | Total harga pokok keseluruhan (SUM(harga_pokok * qty)) |
 | **Profit** | Keuntungan bersih keseluruhan — dihitung sebagai (Total Netto - Total HPP). Tidak ada pemisahan "Total Profit" atau "Profit Satuan" |
 
 **Prinsip utama: Jika user minta N kolom, tampilkan N kolom.** Jangan kurangi, jangan gabung. Jika setelah query dijalankan dua kolom ternyata bernilai sama, itu adalah hasil data yang valid — bukan alasan untuk menghapus salah satunya. Tentukan rumus tiap kolom sendiri berdasarkan hasil `describe_table` dan `get_table_preview`.
