@@ -31,7 +31,7 @@ class SSOController extends Controller
         $request->validate([
             'email' => 'required|email',
             'name' => 'required|string',
-            'erp_user_id' => 'nullable|string',
+            'erp_user_id' => 'nullable|string|max:255',
         ]);
 
         $email = strtolower($request->email);
@@ -44,20 +44,24 @@ class SSOController extends Controller
             // They will be registered but "Locked" until Admin configures them.
             
             $user = User::create([
-                'name' => $request->name,
-                'email' => $email,
-                'password' => Hash::make(Str::random(32)),
-                'role' => null, // NO ROLE: Admin must manually assign one
-                'is_admin' => false,
-                'is_super_admin' => false,
-                'analysis_scope_limited' => true, 
-                'max_tokens' => 4096, // Give very small limit initially
+                'name'                   => $request->name,
+                'email'                  => $email,
+                'erp_user_id'            => $request->erp_user_id,
+                'password'               => Hash::make(Str::random(32)),
+                'role'                   => null, // NO ROLE: Admin must manually assign one
+                'is_admin'               => false,
+                'is_super_admin'         => false,
+                'analysis_scope_limited' => true,
+                'max_tokens'             => 4096, // Give very small limit initially
             ]);
 
             Log::info("[SSO] Auto-registered user (PENDING ADMIN APPROVAL): {$email}");
         } else {
-            // Update name if changed in ERP
-            $user->update(['name' => $request->name]);
+            // Update name & erp_user_id jika berubah di ERP
+            $user->update([
+                'name'        => $request->name,
+                'erp_user_id' => $request->erp_user_id ?? $user->erp_user_id,
+            ]);
         }
 
         // 3. Generate One-Time-Token (OTT)

@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'description',
         'email',
+        'erp_user_id',
         'password',
         'role',
         'is_admin',

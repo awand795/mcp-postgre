@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // CORS harus paling depan agar header dikirim sebelum response lain
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+
         $middleware->append(\App\Http\Middleware\AllowIframeMiddleware::class);
 
         $middleware->validateCsrfTokens(except: [
