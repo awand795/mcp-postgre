@@ -2991,6 +2991,7 @@ PROMPT;
             if (ob_get_level() > 0)
                 ob_flush();
             flush();
+            usleep(15000); // 15ms delay per 32-char chunk for a smooth, readable typing speed
         }
     }
 
@@ -3293,7 +3294,6 @@ PROMPT;
         $sseBuffer = '';
         $toolCallsRaw = [];
         $totalTokens = 0;
-        $sseLineBuffer = ''; // Buffer per-baris untuk filter real-time
 
         $ch = curl_init();
         curl_setopt_array($ch, [
@@ -3306,7 +3306,7 @@ PROMPT;
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode, &$sseLineBuffer) {
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
                 $sseBuffer .= $data;
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
                     $line = substr($sseBuffer, 0, $pos);
@@ -3327,22 +3327,6 @@ PROMPT;
                         $token = $this->extractTokenFromSseChunk($parsed, $providerCode);
                         if ($token !== '') {
                             $fullText .= $token;
-
-                            // ── Real-time filter: buffer per baris ────────────
-                            $sseLineBuffer .= $token;
-
-                            // Flush baris-baris yang sudah ada newline-nya
-                            while (($nlPos = strpos($sseLineBuffer, "\n")) !== false) {
-                                $completeLine = substr($sseLineBuffer, 0, $nlPos + 1);
-                                $sseLineBuffer = substr($sseLineBuffer, $nlPos + 1);
-
-                                if (!$this->isThinkingLeakageLine($completeLine)) {
-                                    echo "data: " . json_encode(['chunk' => $completeLine]) . "\n\n";
-                                    if (ob_get_level() > 0)
-                                        ob_flush();
-                                    flush();
-                                }
-                            }
                         }
 
                         if (isset($parsed['usage']['total_tokens'])) {
@@ -3408,15 +3392,6 @@ PROMPT;
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
-
-        // Flush sisa line buffer setelah streaming selesai
-        if (!empty($sseLineBuffer) && !$this->isThinkingLeakageLine($sseLineBuffer)) {
-            echo "data: " . json_encode(['chunk' => $sseLineBuffer]) . "\n\n";
-            if (ob_get_level() > 0)
-                ob_flush();
-            flush();
-            $sseLineBuffer = '';
-        }
 
         if ($curlError) {
             Log::error("[StreamSSE] curl error ({$providerCode}): {$curlError}");
