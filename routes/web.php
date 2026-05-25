@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Route;
 // Authentication Routes
 Route::get('/auth/sso', [App\Http\Controllers\Auth\SSOController::class, 'loginWithToken'])->name('sso.login');
 Route::post('/api/sso/generate-token', [App\Http\Controllers\Auth\SSOController::class, 'generateToken'])->name('sso.generate_token');
+Route::get('/api/sso/check', [App\Http\Controllers\Auth\SSOController::class, 'checkToken'])->middleware('auth.smart')->name('sso.check');
+Route::get('/sso/expired', function () {
+    return view('auth.sso_error', ['message' => 'Sesi SSO telah berakhir. Silakan muat ulang halaman ERP.']);
+})->name('sso.expired');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -35,20 +39,20 @@ Route::middleware('auth')->group(function () {
     });
 
     // ── CHATBOT ROUTES (Agentic Tool Calling) ──────────────────────────────
-    Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
-    Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
-    Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
-    Route::post('/chatbot/export/pdf', [AgenticChatbotController::class, 'exportPdf'])->name('chatbot.export.pdf');
+    Route::middleware('auth.smart')->group(function () {
+        Route::get('/chatbot', [AgenticChatbotController::class, 'index'])->name('chatbot');
+        Route::post('/chatbot/send', [AgenticChatbotController::class, 'send'])->name('chatbot.send');
+        Route::post('/chatbot/export/excel', [AgenticChatbotController::class, 'exportExcel'])->name('chatbot.export.excel');
+        Route::post('/chatbot/export/pdf', [AgenticChatbotController::class, 'exportPdf'])->name('chatbot.export.pdf');
 
-    // Alias agentic (backward compat — mengarah ke controller yang sama)
-    Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
-    Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
+        Route::get('/chatbot/agentic', [AgenticChatbotController::class, 'index'])->name('chatbot.agentic');
+        Route::post('/chatbot/agentic/send', [AgenticChatbotController::class, 'send'])->name('chatbot.agentic.send');
 
-    // Chat History API Endpoints
-    Route::get('/chatbot/sessions', [AgenticChatbotController::class, 'getSessions'])->name('chatbot.sessions');
-    Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
-    Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
-    Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
+        Route::get('/chatbot/sessions', [AgenticChatbotController::class, 'getSessions'])->name('chatbot.sessions');
+        Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
+        Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
+        Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
+    });
 
     // ── ADMIN ROUTES ─────────────────────────────────────────────────────────
     Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {

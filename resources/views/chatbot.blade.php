@@ -5,6 +5,48 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {{-- SSO Bearer Token Injector --
+         Saat chatbot dibuka via iframe SSO (HTTP cross-domain), cookie session tidak bisa
+         dikirim. Sebagai gantinya, sso_bridge.blade.php menyimpan Sanctum token di
+         sessionStorage. Script ini membacanya dan menyediakan helper apiFetch() yang
+         otomatis inject Authorization: Bearer ke setiap request.
+    --}}
+    <script>
+        (function () {
+            // Baca token dari sessionStorage (diset oleh sso_bridge.blade.php)
+            var _ssoToken = null;
+            try { _ssoToken = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
+
+            /**
+             * apiFetch(url, options) — pengganti fetch() yang SSO-aware.
+             * - Kalau token ada (mode iframe): pakai Authorization: Bearer
+             * - Kalau tidak ada (mode session langsung): pakai X-CSRF-TOKEN seperti biasa
+             */
+            window.apiFetch = function (url, options) {
+                options = options || {};
+                options.headers = options.headers || {};
+
+                if (_ssoToken) {
+                    // Mode iframe: Bearer token, tanpa CSRF
+                    options.headers['Authorization'] = 'Bearer ' + _ssoToken;
+                    // Hapus CSRF kalau ada (tidak perlu, bisa konflik)
+                    delete options.headers['X-CSRF-TOKEN'];
+                } else {
+                    // Mode akses langsung: CSRF seperti biasa
+                    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    if (csrfMeta && !options.headers['X-CSRF-TOKEN']) {
+                        options.headers['X-CSRF-TOKEN'] = csrfMeta.content;
+                    }
+                }
+
+                return fetch(url, options);
+            };
+
+            // Expose ke window untuk debugging (aman, token tidak diekspor)
+            window._isSSOMode = !!_ssoToken;
+        })();
+    </script>
     <title>darkotech AI</title>
     <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
 
@@ -2016,12 +2058,11 @@
 
                 try {
                     const selectedModelId = document.getElementById('ai-model-select')?.value;
-                    const response = await fetch('{{ route("chatbot.send") }}', {
+                    const response = await apiFetch('{{ route("chatbot.send") }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         },
                         body: JSON.stringify({
                             message,
@@ -2272,7 +2313,7 @@
 
             async function loadSessions() {
                 try {
-                    const res = await fetch('{{ route("chatbot.sessions") }}');
+                    const res = await apiFetch('{{ route("chatbot.sessions") }}');
                     const sessions = await res.json();
 
                     historyList.innerHTML = '';
@@ -2684,7 +2725,7 @@
                 sessionPagination.isLoadingMore = true;
 
                 try {
-                    const res = await fetch(`{{ url('/chatbot/sessions') }}/${currentSessionId}?before=${encodeURIComponent(sessionPagination.oldestCursor)}&limit=50`, { signal });
+                    const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${currentSessionId}?before=${encodeURIComponent(sessionPagination.oldestCursor)}&limit=50`, { signal });
 
                     if (!res.ok) throw new Error('HTTP ' + res.status);
 
@@ -2778,7 +2819,7 @@
                 chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
 
                 try {
-                    const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, { signal });
+                    const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}`, { signal });
 
                     if (!res.ok) throw new Error('HTTP ' + res.status);
 
@@ -2864,9 +2905,9 @@
                 historyList.style.pointerEvents = 'none';
 
                 try {
-                    const res = await fetch(`{{ url('/chatbot/sessions') }}/${id}`, {
+                    const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}`, {
                         method: 'DELETE',
-                        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                        headers: {}
                     });
                     if (res.ok) {
                         if (currentSessionId == id) {
@@ -3373,11 +3414,10 @@
                     const filename = `chart-${chartTitle.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}-${new Date().getTime()}.xlsx`;
 
                     // Call Server-Side Export to generate native PhpSpreadsheet charts
-                    const response = await fetch('/chatbot/export/excel', {
+                    const response = await apiFetch('/chatbot/export/excel', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                         },
                         body: JSON.stringify({
                             headers: headers,
@@ -4993,12 +5033,11 @@
 
                 try {
                     const selectedModelId = document.getElementById('ai-model-select')?.value;
-                    const response = await fetch('{{ route("chatbot.send") }}', {
+                    const response = await apiFetch('{{ route("chatbot.send") }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         },
                         body: JSON.stringify({
                             message,

@@ -199,6 +199,15 @@ return [
     |
     */
 
+    /*
+    | Jika APP_ENV=production DAN HTTPS aktif, gunakan 'none' agar iframe cross-domain bisa
+    | membawa cookie. Jika masih HTTP, WAJIB 'lax' karena browser menolak SameSite=None
+    | tanpa Secure flag — akibatnya login biasa tidak bisa jalan.
+    |
+    | Set SESSION_SAME_SITE di .env:
+    |   - HTTP  (dev/staging) : SESSION_SAME_SITE=lax
+    |   - HTTPS (production)  : SESSION_SAME_SITE=none
+    */
     'same_site' => env('SESSION_SAME_SITE', 'lax'),
 
     /*

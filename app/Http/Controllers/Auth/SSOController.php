@@ -4,9 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Role;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -15,12 +13,12 @@ use Illuminate\Support\Facades\Log;
 class SSOController extends Controller
 {
     /**
-     * Step 1: Handshake from ERP Backend
-     * ERP sends user data, Chatbot returns a One-Time-Token (OTT)
+     * Step 1: Handshake dari ERP Backend (Server-to-Server)
+     * ERP kirim data user → Chatbot balas dengan One-Time-Token (OTT)
      */
     public function generateToken(Request $request)
     {
-        // 1. Validate fixed API Key for security (Server-to-Server)
+        // 1. Validasi SSO API Key
         $expectedKey = config('app.sso_api_key');
         $providedKey = $request->header('X-SSO-KEY') ?: $request->bearerToken();
 
@@ -29,84 +27,113 @@ class SSOController extends Controller
         }
 
         $request->validate([
-            'email' => 'required|email',
-            'name' => 'required|string',
-            'erp_user_id' => 'nullable|string|max:255',
+            'email'        => 'required|email',
+            'name'         => 'required|string',
+            'erp_user_id'  => 'nullable|string|max:255',
         ]);
 
         $email = strtolower($request->email);
 
-        // 2. Auto-Register or Find User
+        // 2. Auto-Register atau temukan user
         $user = User::where('email', $email)->first();
 
         if (!$user) {
-            // NEW USER: We do NOT assign a role or database access automatically.
-            // They will be registered but "Locked" until Admin configures them.
-            
             $user = User::create([
                 'name'                   => $request->name,
                 'email'                  => $email,
                 'erp_user_id'            => $request->erp_user_id,
                 'password'               => Hash::make(Str::random(32)),
-                'role'                   => null, // NO ROLE: Admin must manually assign one
+                'role'                   => null,
                 'is_admin'               => false,
                 'is_super_admin'         => false,
                 'analysis_scope_limited' => true,
-                'max_tokens'             => 4096, // Give very small limit initially
+                'max_tokens'             => 4096,
             ]);
-
             Log::info("[SSO] Auto-registered user (PENDING ADMIN APPROVAL): {$email}");
         } else {
-            // Update name & erp_user_id jika berubah di ERP
             $user->update([
                 'name'        => $request->name,
                 'erp_user_id' => $request->erp_user_id ?? $user->erp_user_id,
             ]);
         }
 
-        // 3. Generate One-Time-Token (OTT)
-        $token = 'ott_' . Str::random(64);
-        
-        // Store in cache for 60 seconds
-        Cache::put('sso_token_' . $token, $user->id, 60);
+        // 3. Generate One-Time-Token (OTT) — berlaku 60 detik
+        $ott = 'ott_' . Str::random(64);
+        Cache::put('sso_token_' . $ott, $user->id, 60);
 
         return response()->json([
-            'token' => $token,
+            'token'      => $ott,
             'expires_in' => 60,
-            'login_url' => route('sso.login', ['token' => $token])
+            'login_url'  => route('sso.login', ['token' => $ott]),
         ]);
     }
 
     /**
-     * Step 2: Redirect from ERP Iframe
-     * Browser hits this with the token, we perform Auto-Login
+     * Step 2: Browser (iframe) hit endpoint ini dengan OTT
+     *
+     * Karena HTTP + cross-domain, kita TIDAK bisa andalkan cookie session.
+     * Solusi: generate Sanctum Personal Access Token, lalu kirim ke parent
+     * ERP via window.postMessage. Iframe JS akan simpan token di memory
+     * dan inject ke setiap fetch request sebagai Authorization: Bearer.
      */
     public function loginWithToken(Request $request)
     {
-        $token = $request->query('token');
+        $ott = $request->query('token');
 
-        if (!$token) {
-            return abort(400, 'Token missing');
+        if (!$ott) {
+            return $this->ssoErrorPage('Token tidak ditemukan.');
         }
 
-        $userId = Cache::pull('sso_token_' . $token);
+        $userId = Cache::pull('sso_token_' . $ott);
 
         if (!$userId) {
-            return abort(403, 'SSO Token expired or invalid');
+            return $this->ssoErrorPage('SSO Token sudah kadaluarsa atau tidak valid. Silakan muat ulang halaman ERP.');
         }
 
         $user = User::find($userId);
 
         if (!$user) {
-            return abort(404, 'User not found');
+            return $this->ssoErrorPage('User tidak ditemukan.');
         }
 
-        // Perform login
-        Auth::login($user);
+        // Hapus semua token SSO lama milik user ini agar tidak menumpuk
+        $user->tokens()->where('name', 'sso-iframe-token')->delete();
 
-        Log::info("[SSO] User logged in via SSO: {$user->email}");
+        // Generate Sanctum Personal Access Token baru
+        $sanctumToken = $user->createToken('sso-iframe-token')->plainTextToken;
 
-        // Redirect to main chatbot page
-        return redirect()->route('chatbot');
+        Log::info("[SSO] Iframe token generated for: {$user->email}");
+
+        // Render halaman HTML kecil yang:
+        // 1. Kirim token ke parent ERP via postMessage
+        // 2. Redirect ke /chatbot dengan token di JS memory
+        return response()->view('auth.sso_bridge', [
+            'token'       => $sanctumToken,
+            'redirect_to' => route('chatbot'),
+            'user_name'   => $user->name,
+        ]);
+    }
+
+    /**
+     * Cek apakah Sanctum token masih valid (untuk refresh check dari iframe)
+     */
+    public function checkToken(Request $request)
+    {
+        // Guard sanctum sudah handle validasi di middleware
+        return response()->json([
+            'valid' => true,
+            'user'  => [
+                'name'  => $request->user()->name,
+                'email' => $request->user()->email,
+            ],
+        ]);
+    }
+
+    /**
+     * Render halaman error SSO yang rapi
+     */
+    private function ssoErrorPage(string $message)
+    {
+        return response()->view('auth.sso_error', ['message' => $message], 403);
     }
 }

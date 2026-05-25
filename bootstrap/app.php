@@ -19,10 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'mcp',
             'api/sso/generate-token',
+            // Route chatbot dikecualikan dari CSRF karena pakai Bearer token saat di iframe
+            // Saat akses langsung (session), CSRF tetap dikirim dari meta tag
+            'chatbot/*',
         ]);
-        
+
         $middleware->alias([
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'admin'            => \App\Http\Middleware\AdminMiddleware::class,
+            'auth.smart'       => \App\Http\Middleware\SanctumOrSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
