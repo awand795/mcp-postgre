@@ -23,7 +23,7 @@ class SanctumOrSession
     public function handle(Request $request, Closure $next): Response
     {
         // Mode 1: Bearer token (iframe HTTP cross-domain)
-        $bearerToken = $request->bearerToken();
+        $bearerToken = $request->bearerToken() ?: $request->query('token');
         if ($bearerToken) {
             $accessToken = PersonalAccessToken::findToken($bearerToken);
 

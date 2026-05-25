@@ -14,6 +14,16 @@
     --}}
     <script>
         (function () {
+            // Bersihkan token dari URL query string agar tidak terpapar di address bar
+            try {
+                if (window.location.search.indexOf('token=') !== -1) {
+                    var url = new URL(window.location.href);
+                    url.searchParams.delete('token');
+                    var newUrl = url.pathname + url.search;
+                    window.history.replaceState({}, document.title, newUrl);
+                }
+            } catch (e) {}
+
             // Baca token dari sessionStorage (diset oleh sso_bridge.blade.php)
             var _ssoToken = null;
             try { _ssoToken = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}

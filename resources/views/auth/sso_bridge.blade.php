@@ -59,8 +59,9 @@
             sessionStorage.setItem('_darkoai_bearer', token);
         } catch (e) {}
 
-        // 3. Redirect ke halaman chatbot
-        window.location.href = redirectTo;
+        // 3. Redirect ke halaman chatbot dengan menyertakan token di query parameter
+        //    agar middleware auth.smart bisa melakukan handshake pertama kali.
+        window.location.href = redirectTo + (redirectTo.indexOf('?') === -1 ? '?' : '&') + 'token=' + encodeURIComponent(token);
     })();
 </script>
 </body>

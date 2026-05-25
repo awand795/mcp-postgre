@@ -102,7 +102,10 @@ class SSOController extends Controller
         // Generate Sanctum Personal Access Token baru
         $sanctumToken = $user->createToken('sso-iframe-token')->plainTextToken;
 
-        Log::info("[SSO] Iframe token generated for: {$user->email}");
+        // Login session biasa sebagai fallback (aman jika cookies aktif/diakses langsung di browser/Postman)
+        \Illuminate\Support\Facades\Auth::login($user);
+
+        Log::info("[SSO] Iframe token generated and session started for: {$user->email}");
 
         // Render halaman HTML kecil yang:
         // 1. Kirim token ke parent ERP via postMessage
