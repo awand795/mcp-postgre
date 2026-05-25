@@ -4756,7 +4756,41 @@
 
                         if (langClean === 'chart') {
                             try {
-                                const chartData = JSON.parse(code.trim());
+                                // Helper: repair truncated JSON by appending missing closing braces/brackets
+                                function repairJsonBraces(jsonStr) {
+                                    let inString = false;
+                                    let escape = false;
+                                    const stack = [];
+                                    const pairs = { '{': '}', '[': ']' };
+                                    const closers = new Set(['}', ']']);
+
+                                    for (let i = 0; i < jsonStr.length; i++) {
+                                        const ch = jsonStr[i];
+                                        if (escape) { escape = false; continue; }
+                                        if (ch === '\\' && inString) { escape = true; continue; }
+                                        if (ch === '"') { inString = !inString; continue; }
+                                        if (inString) continue;
+                                        if (pairs[ch]) { stack.push(pairs[ch]); }
+                                        else if (closers.has(ch)) {
+                                            if (stack.length > 0 && stack[stack.length - 1] === ch) stack.pop();
+                                        }
+                                    }
+                                    // Append missing closers in reverse order
+                                    return jsonStr + stack.reverse().join('');
+                                }
+
+                                let chartData;
+                                const trimmedCode = code.trim();
+                                try {
+                                    chartData = JSON.parse(trimmedCode);
+                                } catch (parseErr) {
+                                    // Attempt repair: fix truncated JSON (missing closing braces/brackets)
+                                    console.warn('[Chart Renderer] Initial parse failed, attempting JSON repair...');
+                                    const repaired = repairJsonBraces(trimmedCode);
+                                    chartData = JSON.parse(repaired); // throws if still invalid
+                                    console.info('[Chart Renderer] JSON repair successful');
+                                }
+
                                 let chartIdx = -1;
                                 let chartLabel = null;
                                 let currencyColumns = [];
@@ -4811,7 +4845,7 @@
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
                             } catch (e) {
-                                console.error('[Chart Renderer] Parse error:', e);
+                                console.error('[Chart Renderer] Parse error (after repair attempt):', e, 'Raw code:', code.substring(0, 200));
                                 return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Error memproses grafik</span></div></div>';
                             }
                         }

@@ -2351,7 +2351,61 @@ PROMPT;
             }
         }
 
+        // Repair truncated chart/smart_table JSON blocks (fix missing closing braces/brackets)
+        $content = preg_replace_callback('/```(chart|smart_table)\s*\n([\s\S]*?)```/m', function ($matches) {
+            $blockType = $matches[1];
+            $jsonStr = trim($matches[2]);
+            if (empty($jsonStr)) return $matches[0];
+
+            // Check if JSON is already valid
+            $decoded = json_decode($jsonStr);
+            if ($decoded !== null) return $matches[0]; // Already valid
+
+            // Attempt repair: count opening vs closing braces/brackets and append missing closers
+            $repaired = $this->repairJsonBraces($jsonStr);
+            $decoded = json_decode($repaired);
+            if ($decoded !== null) {
+                Log::info("[ChartRepair] Fixed truncated {$blockType} JSON (appended missing closers)");
+                return "```{$blockType}\n{$repaired}\n```";
+            }
+
+            // If repair failed, return original
+            Log::warning("[ChartRepair] Failed to repair {$blockType} JSON: " . substr($jsonStr, -50));
+            return $matches[0];
+        }, $content);
+
         return $content;
+    }
+
+    /**
+     * Repair truncated JSON by appending missing closing braces/brackets.
+     * Handles strings (including escaped quotes) correctly.
+     */
+    private function repairJsonBraces(string $jsonStr): string
+    {
+        $inString = false;
+        $escape = false;
+        $stack = [];
+        $pairs = ['{' => '}', '[' => ']'];
+        $closers = ['}' => true, ']' => true];
+
+        for ($i = 0; $i < strlen($jsonStr); $i++) {
+            $ch = $jsonStr[$i];
+            if ($escape) { $escape = false; continue; }
+            if ($ch === '\\' && $inString) { $escape = true; continue; }
+            if ($ch === '"') { $inString = !$inString; continue; }
+            if ($inString) continue;
+            if (isset($pairs[$ch])) {
+                $stack[] = $pairs[$ch];
+            } elseif (isset($closers[$ch])) {
+                if (!empty($stack) && end($stack) === $ch) {
+                    array_pop($stack);
+                }
+            }
+        }
+
+        // Append missing closers in reverse order
+        return $jsonStr . implode('', array_reverse($stack));
     }
 
     private function extractOriginalUserMessage(array $messages): string
@@ -3207,7 +3261,11 @@ PROMPT;
         }
         if (!empty($tools)) {
             $payload['tools'] = $tools;
-            $payload['toolConfig'] = ['functionCallingConfig' => ['mode' => 'AUTO']];
+            $toolMode = ($loopCount === 1) ? 'ANY' : 'AUTO';
+            $payload['toolConfig'] = [
+                'functionCallingConfig' => ['mode' => $toolMode],
+            ];
+            Log::info("[Agentic] Gemini stream toolConfig mode={$toolMode} loop={$loopCount}");
         }
         $headers = ['Content-Type: application/json'];
         return $this->curlStreamSse($url, $headers, $payload, 'gemini');
