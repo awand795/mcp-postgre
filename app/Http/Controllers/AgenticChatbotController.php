@@ -333,12 +333,15 @@ class AgenticChatbotController extends Controller
                         if ($chatSessionId) {
                             $textContent = $this->injectSmartTableDataIntoContent($textContent, $allTurnToolResults);
                             ChatMessage::create([
-                                'chat_session_id' => $chatSessionId,
-                                'role' => 'assistant',
-                                'content' => $textContent,
-                                'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
-                            ]);
+                                    'chat_session_id' => $chatSessionId,
+                                    'role' => 'assistant',
+                                    'content' => $textContent,
+                                    'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
+                                ]);
                         }
+                        
+                        // Kirim text yang bersih ke user untuk me-overwrite teks thinking sebelumnya
+                        $this->streamText($textContent);
                         echo "data: [DONE]\n\n";
                         if (ob_get_level() > 0)
                             ob_flush();
@@ -2606,6 +2609,10 @@ PROMPT;
             '/^mapping kolom/i',
             '/^nama eksak\b/i',
             '/^sekarang saya akan menjalankan/i',
+            '/^saya akan mencari nama tabel/i',
+            '/^saya akan memeriksa struktur tabel/i',
+            '/^saya telah menemukan kolom/i',
+            '/^berdasarkan hasil pencarian/i',
             '/^saya menyimpulkan bahwa/i',
             '/^probe query/i',
             '/^hasil probe/i',
@@ -2872,6 +2879,10 @@ PROMPT;
             '/^dari hasil\s+`?describe_table`?/i',
             '/^tidak ada kolom yang secara eksplisit/i',
             '/^oleh karena itu[,]?\s+(kita|saya) akan/i',
+            '/^saya akan mencari nama tabel/i',
+            '/^saya akan memeriksa struktur tabel/i',
+            '/^saya telah menemukan kolom/i',
+            '/^berdasarkan hasil pencarian/i',
             '/^saya menyimpulkan bahwa/i',
             '/^probe query/i',
             '/^hasil probe/i',
