@@ -519,18 +519,28 @@
 
         /* SweetAlert2 Toast Custom Styles */
         .swal2-toast {
-            background: rgba(0, 0, 0, 0.85) !important;
+            background: rgba(255, 255, 255, 0.9) !important;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
             border-radius: 12px !important;
             padding: 12px 16px !important;
         }
 
         .swal2-toast .swal2-title {
-            color: #fff !important;
+            color: #1f2937 !important;
             font-size: 13px !important;
             font-weight: 500 !important;
+        }
+
+        html.dark .swal2-toast {
+            background: rgba(30, 41, 59, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        html.dark .swal2-toast .swal2-title {
+            color: #f1f5f9 !important;
         }
 
         .swal2-toast.swal2-success {
@@ -538,7 +548,7 @@
         }
 
         .swal2-toast.swal2-success .swal2-title {
-            color: #34d399 !important;
+            color: #10b981 !important;
         }
 
         .swal2-toast.swal2-error {
@@ -546,7 +556,7 @@
         }
 
         .swal2-toast.swal2-error .swal2-title {
-            color: #f87171 !important;
+            color: #ef4444 !important;
         }
 
         .swal2-toast.swal2-info {
@@ -554,20 +564,104 @@
         }
 
         .swal2-toast.swal2-info .swal2-title {
-            color: #60a5fa !important;
+            color: #3b82f6 !important;
         }
 
+        /* SweetAlert2 Popup Modals */
+        .swal2-popup {
+            background: #ffffff !important;
+            border-radius: 20px !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            border: 1px solid rgba(0, 0, 0, 0.05) !important;
+            padding: 1.5rem !important;
+        }
+
+        .swal2-title {
+            font-size: 18px !important;
+            font-weight: 600 !important;
+            color: #1f2937 !important;
+        }
+
+        .swal2-input {
+            border: 1.5px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 10px !important;
+            font-size: 14px !important;
+            font-family: 'Outfit', sans-serif !important;
+            background: #ffffff !important;
+            color: #1f2937 !important;
+            box-shadow: none !important;
+            transition: all 0.2s !important;
+            height: 42px !important;
+            margin-top: 15px !important;
+        }
+
+        .swal2-input:focus {
+            border-color: #f53003 !important;
+            box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.15) !important;
+        }
+
+        html.dark .swal2-popup {
+            background: #111827 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        html.dark .swal2-title {
+            color: #ffffff !important;
+        }
+
+        html.dark .swal2-input {
+            background: rgba(15, 23, 42, 0.8) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+            color: #ffffff !important;
+        }
+
+        html.dark .swal2-input:focus {
+            border-color: #f53003 !important;
+            box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.25) !important;
+        }
+
+        /* Buttons Styling */
         .swal2-confirm {
             background-color: #f53003 !important;
             font-size: 13px !important;
             padding: 8px 16px !important;
             border-radius: 8px !important;
+            font-weight: 500 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 12px rgba(245, 48, 3, 0.2) !important;
+            transition: all 0.2s !important;
+        }
+
+        .swal2-confirm:hover {
+            background-color: #ff4433 !important;
+            transform: translateY(-1px) !important;
         }
 
         .swal2-cancel {
+            background-color: #f3f4f6 !important;
+            color: #4b5563 !important;
             font-size: 13px !important;
             padding: 8px 16px !important;
             border-radius: 8px !important;
+            font-weight: 500 !important;
+            transition: all 0.2s !important;
+        }
+
+        .swal2-cancel:hover {
+            background-color: #e5e7eb !important;
+            color: #1f2937 !important;
+            transform: translateY(-1px) !important;
+        }
+
+        html.dark .swal2-cancel {
+            background-color: #374151 !important;
+            color: #d1d5db !important;
+        }
+
+        html.dark .swal2-cancel:hover {
+            background-color: #4b5563 !important;
+            color: #ffffff !important;
         }
 
 
