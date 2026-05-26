@@ -564,6 +564,12 @@
             border-radius: 8px !important;
         }
 
+        .swal2-cancel {
+            font-size: 13px !important;
+            padding: 8px 16px !important;
+            border-radius: 8px !important;
+        }
+
 
         /* Chat Area */
         #chat-messages {
