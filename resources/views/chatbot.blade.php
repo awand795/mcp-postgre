@@ -517,116 +517,21 @@
             }
         }
 
-        /* SweetAlert2 Toast ELITE Premium Custom Styles */
+        /* SweetAlert2 Toast Custom Styles (Matching User Management) */
         .swal2-toast {
-            background: rgba(255, 255, 255, 0.82) !important;
-            backdrop-filter: blur(32px) saturate(220%) !important;
-            -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.5) !important;
-            box-shadow: 
-                0 4px 6px -1px rgba(0, 0, 0, 0.02),
-                0 20px 40px -8px rgba(0, 0, 0, 0.1),
-                inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
-            border-radius: 24px !important;
-            padding: 18px 26px !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 14px !important;
-            position: relative !important;
-            overflow: visible !important;
-        }
-
-        .swal2-toast::before {
-            content: '';
-            position: absolute;
-            left: 12px;
-            top: 18%;
-            bottom: 18%;
-            width: 4.5px;
-            border-radius: 10px;
-            z-index: 10;
+            border-radius: 12px !important;
+            padding: 12px 16px !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+            font-family: 'Outfit', sans-serif !important;
         }
 
         .swal2-toast .swal2-title {
-            color: #0f172a !important;
-            font-size: 14.5px !important;
-            font-weight: 700 !important;
-            font-family: 'Outfit', sans-serif !important;
-            margin: 0 0 0 8px !important;
-            padding: 0 !important;
-            letter-spacing: -0.01em !important;
-            line-height: 1.4 !important;
-        }
-
-        .swal2-toast .swal2-icon {
-            margin: 0 !important;
-            scale: 0.7 !important;
-            border-width: 2px !important;
-            background: transparent !important;
-            flex-shrink: 0 !important;
-        }
-
-        /* Elite Progress Bar */
-        .swal2-toast .swal2-timer-progress-bar {
-            height: 2.5px !important;
-            background: rgba(0, 0, 0, 0.08) !important;
-            border-radius: 0 0 24px 24px !important;
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
         }
 
         html.dark .swal2-toast {
-            background: rgba(18, 18, 22, 0.85) !important;
-            border: 1px solid rgba(255, 255, 255, 0.12) !important;
-            box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.7),
-                inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
-        }
-
-        html.dark .swal2-toast .swal2-title {
-            color: #f8fafc !important;
-        }
-
-        html.dark .swal2-toast .swal2-timer-progress-bar {
-            background: rgba(255, 255, 255, 0.15) !important;
-        }
-
-        /* Success Elite Variant */
-        .swal2-toast.swal2-success::before {
-            background: linear-gradient(to bottom, #10b981, #059669) !important;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
-        }
-        .swal2-toast.swal2-success .swal2-icon {
-            border-color: #10b981 !important;
-            color: #10b981 !important;
-        }
-
-        /* Error Elite Variant */
-        .swal2-toast.swal2-error::before {
-            background: linear-gradient(to bottom, #ef4444, #dc2626) !important;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
-        }
-        .swal2-toast.swal2-error .swal2-icon {
-            border-color: #ef4444 !important;
-            color: #ef4444 !important;
-        }
-
-        /* Info Elite Variant */
-        .swal2-toast.swal2-info::before {
-            background: linear-gradient(to bottom, #3b82f6, #2563eb) !important;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4) !important;
-        }
-        .swal2-toast.swal2-info .swal2-icon {
-            border-color: #3b82f6 !important;
-            color: #3b82f6 !important;
-        }
-
-        /* Warning Elite Variant */
-        .swal2-toast.swal2-warning::before {
-            background: linear-gradient(to bottom, #f59e0b, #d97706) !important;
-            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4) !important;
-        }
-        .swal2-toast.swal2-warning .swal2-icon {
-            border-color: #f59e0b !important;
-            color: #f59e0b !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
 
         /* Custom SweetAlert Rename Input Styling */
@@ -2147,6 +2052,28 @@
         };
 
         document.addEventListener('DOMContentLoaded', function () {
+            // ── Toast Helper (Matching User Management) ──────────────────────────
+            const fireToast = (icon, title, text = null, color = null) => {
+                const isDark = document.documentElement.classList.contains('dark');
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    background: isDark ? '#1e293b' : '#ffffff',
+                    color: isDark ? '#f1f5f9' : '#1e293b',
+                    icon: icon,
+                    title: title,
+                    text: text,
+                    iconColor: color || (icon === 'success' ? '#10b981' : (icon === 'error' ? '#ef4444' : (icon === 'warning' ? '#f59e0b' : '#3b82f6'))),
+                    didOpen: (t) => {
+                        t.addEventListener('mouseenter', Swal.stopTimer);
+                        t.addEventListener('mouseleave', Swal.resumeTimer);
+                    }
+                });
+            };
+
             // Remove FOUC fix and enable transitions
             const foucFix = document.getElementById('fouc-fix');
             if (foucFix) foucFix.remove();
@@ -3384,15 +3311,7 @@
                         await loadSessions(true);
 
                         // Show success toast
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'success',
-                            title: 'Nama obrolan berhasil diperbarui',
-                            showConfirmButton: false,
-                            timer: 2000,
-                            timerProgressBar: true
-                        });
+                        fireToast('success', 'Nama obrolan berhasil diperbarui');
                     } catch (e) {
                         console.error('[RenameSession] Error:', e);
                         Swal.fire({
@@ -3422,15 +3341,7 @@
                     await loadSessions(true);
 
                     // Show success toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas',
-                        showConfirmButton: false,
-                        timer: 1500,
-                        timerProgressBar: true
-                    });
+                    fireToast('success', data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas');
                 } catch (e) {
                     console.error('[TogglePinSession] Error:', e);
                     Swal.fire({
@@ -3829,19 +3740,7 @@
                     Swal.close();
 
                     // Show success toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: `✅ Export berhasil! ${rows.length} baris data telah diunduh.`,
-                        showConfirmButton: false,
-                        timer: 3000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
+                    fireToast('success', `✅ Export berhasil! ${rows.length} baris data telah diunduh.`);
 
                 } catch (error) {
                     console.error('[Export Error]', error);
@@ -3858,19 +3757,7 @@
                     }
 
                     // Show error toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'error',
-                        title: errorMsg,
-                        showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
+                    fireToast('error', errorMsg);
 
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -3984,35 +3871,11 @@
 
                     Swal.close();
 
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: '✅ Export Excel grafik berhasil!',
-                        showConfirmButton: false,
-                        timer: 3000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
+                    fireToast('success', '✅ Export Excel grafik berhasil!');
 
                 } catch (error) {
                     console.error('[Chart Excel Export Error]', error);
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'error',
-                        title: `❌ Gagal export Excel: ${error.message}`,
-                        showConfirmButton: false,
-                        timer: 4000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
+                    fireToast('error', `❌ Gagal export Excel: ${error.message}`);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -4135,20 +3998,12 @@
                     // Close loading modal
                     Swal.close();
 
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success',
-                        title: `✅ Export PDF berhasil! ${rows.length} baris data telah diunduh.`,
-                        showConfirmButton: false, timer: 3000, timerProgressBar: true,
-                    });
+                    fireToast('success', `✅ Export PDF berhasil! ${rows.length} baris data telah diunduh.`);
 
                 } catch (error) {
                     Swal.close();
                     console.error('[PDF Export Error]', error);
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'error',
-                        title: `❌ Gagal export PDF: ${error.message}`,
-                        showConfirmButton: false, timer: 4000, timerProgressBar: true,
-                    });
+                    fireToast('error', `❌ Gagal export PDF: ${error.message}`);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -4317,20 +4172,12 @@
                     // Close loading modal
                     Swal.close();
 
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success',
-                        title: `✅ Export PDF grafik berhasil!`,
-                        showConfirmButton: false, timer: 3000, timerProgressBar: true,
-                    });
+                    fireToast('success', `✅ Export PDF grafik berhasil!`);
 
                 } catch (error) {
                     Swal.close();
                     console.error('[Chart PDF Export Error]', error);
-                    Swal.fire({
-                        toast: true, position: 'top-end', icon: 'error',
-                        title: `❌ Gagal export PDF grafik: ${error.message}`,
-                        showConfirmButton: false, timer: 4000, timerProgressBar: true,
-                    });
+                    fireToast('error', `❌ Gagal export PDF grafik: ${error.message}`);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
