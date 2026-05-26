@@ -73,6 +73,9 @@ class AgenticChatbotController extends Controller
         }
 
         $chatSessionId = $request->chat_session_id;
+        if ($chatSessionId && !is_numeric($chatSessionId)) {
+            $chatSessionId = \App\Helpers\HashidsHelper::decode($chatSessionId) ?? null;
+        }
 
         $allApiKeys = ApiKeyResolver::getKeysForProvider($user, $selectedModel->provider_id);
 
@@ -238,7 +241,7 @@ class AgenticChatbotController extends Controller
         $originalUserMessage = $this->extractOriginalUserMessage($messages);
         if ($chatSessionId) {
             echo "data: " . json_encode([
-                'chat_session_id' => $chatSessionId,
+                'chat_session_id' => \App\Helpers\HashidsHelper::encode($chatSessionId),
                 'detected_language' => $detectedLanguage
             ]) . "\n\n";
         }
@@ -917,12 +920,26 @@ class AgenticChatbotController extends Controller
 
     public function getSessions(Request $request)
     {
-        return ChatSession::where('user_id', $request->user()->id)->orderBy('updated_at', 'desc')->get(['id', 'title', 'updated_at']);
+        $sessions = ChatSession::where('user_id', $request->user()->id)
+            ->orderBy('updated_at', 'desc')
+            ->get(['id', 'title', 'updated_at']);
+
+        $sessions->transform(function ($session) {
+            $session->id = \App\Helpers\HashidsHelper::encode($session->id);
+            return $session;
+        });
+
+        return $sessions;
     }
 
     public function getSession($id)
     {
-        $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($id);
+        $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
+        if (!$rawId) {
+            abort(404, 'Sesi tidak ditemukan.');
+        }
+
+        $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId);
 
         $limit = (int) request('limit', 50);
         $before = request('before');
@@ -950,6 +967,12 @@ class AgenticChatbotController extends Controller
             $detectedLanguage = $this->detectLanguage($lastUserMessage->content);
         }
 
+        $session->id = \App\Helpers\HashidsHelper::encode($session->id);
+        $messages->transform(function ($msg) {
+            $msg->chat_session_id = \App\Helpers\HashidsHelper::encode($msg->chat_session_id);
+            return $msg;
+        });
+
         return response()->json([
             'session' => $session,
             'history' => $messages,
@@ -963,14 +986,24 @@ class AgenticChatbotController extends Controller
 
     public function deleteSession($id)
     {
-        ChatSession::where('user_id', Auth::user()->id)->findOrFail($id)->delete();
+        $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
+        if (!$rawId) {
+            abort(404, 'Sesi tidak ditemukan.');
+        }
+
+        ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId)->delete();
         return response()->json(['success' => true]);
     }
 
     public function updateSessionTitle(Request $request, $id)
     {
         $request->validate(['title' => 'required|string|max:255']);
-        ChatSession::where('user_id', Auth::user()->id)->findOrFail($id)->update(['title' => $request->title]);
+        $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
+        if (!$rawId) {
+            abort(404, 'Sesi tidak ditemukan.');
+        }
+
+        ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId)->update(['title' => $request->title]);
         return response()->json(['success' => true]);
     }
 

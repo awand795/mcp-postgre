@@ -2382,6 +2382,17 @@
                         <span class="text-[11px] md:text-xs truncate select-none">${s.title}</span>
                     `;
 
+                        // Edit button
+                        const editBtn = document.createElement('button');
+                        editBtn.className = 'edit-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-blue-500/20 hover:text-blue-500 mr-0.5';
+                        editBtn.style.pointerEvents = 'auto'; // Must be clickable
+                        editBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+                        editBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            renameSession(s.id, s.title);
+                        });
+
                         // Delete button
                         const deleteBtn = document.createElement('button');
                         deleteBtn.className = 'delete-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/20 hover:text-red-500';
@@ -2394,13 +2405,13 @@
                         });
 
                         item.appendChild(clickArea);
+                        item.appendChild(editBtn);
                         item.appendChild(deleteBtn);
 
                         // Attach click listener to the entire item
                         item.addEventListener('click', function (e) {
-                            // If delete button was clicked, stopPropagation handles it.
-                            // But we check target just in case
-                            if (e.target.closest('.delete-session')) return;
+                            // If delete button or edit button was clicked, stopPropagation handles it.
+                            if (e.target.closest('.delete-session') || e.target.closest('.edit-session')) return;
 
                             e.preventDefault();
                             // Allow switching chats even if loading (will cancel previous load)
@@ -2973,6 +2984,61 @@
             function deleteSession(id, event) {
                 if (event) event.stopPropagation();
                 showDeleteModal(id, performDelete);
+            }
+
+            // Rename chat session using SweetAlert2
+            async function renameSession(id, oldTitle) {
+                const { value: newTitle } = await Swal.fire({
+                    title: 'Ubah Nama Obrolan',
+                    input: 'text',
+                    inputValue: oldTitle,
+                    inputPlaceholder: 'Masukkan nama baru...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Simpan',
+                    cancelButtonText: 'Batal',
+                    confirmButtonColor: '#f53003',
+                    inputValidator: (value) => {
+                        if (!value || !value.trim()) {
+                            return 'Nama obrolan tidak boleh kosong!';
+                        }
+                    }
+                });
+
+                if (newTitle && newTitle.trim() !== oldTitle) {
+                    try {
+                        const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ title: newTitle.trim() })
+                        });
+
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                        // Reload list sessions
+                        await loadSessions();
+
+                        // Show success toast
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Nama obrolan berhasil diperbarui',
+                            showConfirmButton: false,
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                    } catch (e) {
+                        console.error('[RenameSession] Error:', e);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: 'Gagal mengubah nama obrolan. Silakan coba lagi.'
+                        });
+                    }
+                }
             }
 
             function addWelcomeMessage() {
