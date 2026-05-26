@@ -2414,7 +2414,7 @@
                     sessions.forEach(s => {
                         const isActive = s.id == currentSessionId;
                         const item = document.createElement('div');
-                        item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${s.is_pinned ? 'border border-orange-500/10 bg-orange-500/5 dark:bg-orange-500/5' : ''} ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
+                        item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${s.is_pinned ? 'border border-orange-300 dark:border-orange-500/30 bg-orange-50/70 dark:bg-orange-500/10' : ''} ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
                         item.style.pointerEvents = 'auto';
 
                         // History item click area
@@ -2428,7 +2428,7 @@
 
                         // Pin button
                         const pinBtn = document.createElement('button');
-                        pinBtn.className = `pin-session btn-clear p-1.5 transition-opacity rounded-md hover:bg-orange-500/20 ${s.is_pinned ? 'text-orange-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-orange-500'} mr-0.5`;
+                        pinBtn.className = `pin-session btn-clear p-1.5 rounded-md hover:bg-orange-500/20 ${s.is_pinned ? 'text-orange-500 dark:text-orange-400' : 'text-gray-400 dark:text-[#A1A09A]/60 hover:text-orange-500 dark:hover:text-orange-400'} mr-0.5`;
                         pinBtn.style.pointerEvents = 'auto'; // Must be clickable
                         pinBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="${s.is_pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.48A2 2 0 0 1 15 9.28V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v4.28a2 2 0 0 1-.78 1.24l-2.78 3.48A2 2 0 0 0 5 15.24z"></path></svg>`;
                         pinBtn.addEventListener('click', function (e) {
@@ -2439,7 +2439,7 @@
 
                         // Edit button
                         const editBtn = document.createElement('button');
-                        editBtn.className = 'edit-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-blue-500/20 hover:text-blue-500 mr-0.5';
+                        editBtn.className = 'edit-session btn-clear p-1.5 rounded-md text-gray-400 dark:text-[#A1A09A]/60 hover:bg-blue-500/20 hover:text-blue-500 dark:hover:text-blue-400 mr-0.5';
                         editBtn.style.pointerEvents = 'auto'; // Must be clickable
                         editBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
                         editBtn.addEventListener('click', function (e) {
@@ -2450,7 +2450,7 @@
 
                         // Delete button
                         const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'delete-session btn-clear p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/20 hover:text-red-500';
+                        deleteBtn.className = 'delete-session btn-clear p-1.5 rounded-md text-gray-400 dark:text-[#A1A09A]/60 hover:bg-red-500/20 hover:text-red-500 dark:hover:text-red-400';
                         deleteBtn.style.pointerEvents = 'auto'; // Must be clickable
                         deleteBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
                         deleteBtn.addEventListener('click', function (e) {
