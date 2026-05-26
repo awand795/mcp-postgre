@@ -3865,6 +3865,12 @@
                         throw new Error(err.error || 'Gagal export Excel');
                     }
 
+                    const contentType = response.headers.get('Content-Type') || '';
+                    if (contentType && !contentType.includes('openxmlformats') && !contentType.includes('octet-stream') && !contentType.includes('vnd.ms-excel')) {
+                        const errorText = await response.text();
+                        throw new Error(errorText.substring(0, 300) || 'Respons server tidak valid');
+                    }
+
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -3872,8 +3878,12 @@
                     a.download = filename;
                     document.body.appendChild(a);
                     a.click();
-                    a.remove();
-                    window.URL.revokeObjectURL(url);
+
+                    // Delay revoke untuk memberi browser waktu memulai download
+                    setTimeout(() => {
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                    }, 10000);
 
                     Swal.close();
 
