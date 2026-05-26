@@ -924,12 +924,15 @@ class AgenticChatbotController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get(['id', 'title', 'updated_at']);
 
-        $sessions->transform(function ($session) {
-            $session->id = \App\Helpers\HashidsHelper::encode($session->id);
-            return $session;
+        $data = $sessions->map(function ($session) {
+            return [
+                'id' => \App\Helpers\HashidsHelper::encode($session->id),
+                'title' => $session->title,
+                'updated_at' => $session->updated_at ? $session->updated_at->toISOString() : null
+            ];
         });
 
-        return $sessions;
+        return response()->json($data);
     }
 
     public function getSession($id)
@@ -967,15 +970,20 @@ class AgenticChatbotController extends Controller
             $detectedLanguage = $this->detectLanguage($lastUserMessage->content);
         }
 
-        $session->id = \App\Helpers\HashidsHelper::encode($session->id);
-        $messages->transform(function ($msg) {
-            $msg->chat_session_id = \App\Helpers\HashidsHelper::encode($msg->chat_session_id);
-            return $msg;
+        // Convert session to array and obfuscate ID to avoid Laravel's auto-integer cast
+        $sessionData = $session->toArray();
+        $sessionData['id'] = \App\Helpers\HashidsHelper::encode($session->id);
+
+        // Convert messages to array and obfuscate session IDs
+        $messagesData = $messages->map(function ($msg) {
+            $arr = $msg->toArray();
+            $arr['chat_session_id'] = \App\Helpers\HashidsHelper::encode($msg->chat_session_id);
+            return $arr;
         });
 
         return response()->json([
-            'session' => $session,
-            'history' => $messages,
+            'session' => $sessionData,
+            'history' => $messagesData,
             'detected_language' => $detectedLanguage,
             'pagination' => [
                 'has_more' => $hasMore,
