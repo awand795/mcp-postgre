@@ -131,7 +131,7 @@
                 <label class="form-label">Password Baru</label>
                 <div class="input-wrap">
                     <i class="fas fa-lock"></i>
-                    <input type="password" name="password" id="password" required autofocus
+                    <input type="password" name="password" id="password" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }}
                         class="form-input" placeholder="Min. 8 karakter" style="padding-right: 2.75rem;">
                     <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password', 'eye-icon-1')">
                         <i id="eye-icon-1" class="fas fa-eye"></i>

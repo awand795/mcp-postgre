@@ -266,7 +266,7 @@
                 <label class="form-label">Alamat Email</label>
                 <div class="input-wrap">
                     <i class="fas fa-envelope"></i>
-                    <input type="email" name="email" value="{{ request()->query('email', old('email')) }}" required autofocus
+                    <input type="email" name="email" value="{{ request()->query('email', old('email')) }}" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }}
                         class="form-input" placeholder="email@contoh.com">
                 </div>
                 @error('email')

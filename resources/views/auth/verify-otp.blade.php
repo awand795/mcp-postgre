@@ -465,7 +465,7 @@
                 <label class="form-label">Kode OTP</label>
                 <div class="input-wrap">
                     <i class="fas fa-hashtag"></i>
-                    <input type="text" name="otp" required autofocus maxlength="6" class="form-input"
+                    <input type="text" name="otp" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }} maxlength="6" class="form-input"
                         placeholder="000000" style="text-align:center;">
                 </div>
             </div>
