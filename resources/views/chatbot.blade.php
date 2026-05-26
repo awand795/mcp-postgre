@@ -3385,6 +3385,17 @@
                     
                     // Reload list sessions (reset list to show correct order based on pin)
                     await loadSessions(true);
+
+                    // Show success toast
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas',
+                        showConfirmButton: false,
+                        timer: 1500,
+                        timerProgressBar: true
+                    });
                 } catch (e) {
                     console.error('[TogglePinSession] Error:', e);
                     Swal.fire({
