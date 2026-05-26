@@ -1516,7 +1516,11 @@ class AgenticChatbotController extends Controller
 
         $freeScopeBusinessSection = $scopeLimited
             ? ""
-            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum and perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum and analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum and perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+
+        $limitedScopeSection = $scopeLimited
+            ? "\nUntuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:\n1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan\n"
+            : "";
 
         $langInstruction = "";
         if ($detectedLanguage === 'id') {
@@ -1618,11 +1622,7 @@ Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika in
 ## IDENTITAS & TUGAS UTAMA
 
 {$identitySection}
-{$freeScopeBusinessSection}
-
-Untuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:
-1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia
-2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan
+{$freeScopeBusinessSection}{$limitedScopeSection}
 
 ## KONTEKS WAKTU (SANGAT PENTING):
 - **Tanggal Sekarang**: {$currentTime}
