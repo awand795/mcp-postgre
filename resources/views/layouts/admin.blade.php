@@ -45,57 +45,67 @@
                 try { token = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
             }
 
-            window._ssoToken = token;
-
-            // 3. Override window.fetch secara global untuk menyuntikkan token (jika ada)
-            if (token) {
-                var originalFetch = window.fetch;
-                window.fetch = function (url, options) {
-                    options = options || {};
-                    options.headers = options.headers || {};
-                    options.headers['Authorization'] = 'Bearer ' + token;
-                    return originalFetch(url, options);
-                };
+            // Deteksi apakah sedang diakses di dalam iframe
+            var isIframe = false;
+            try {
+                isIframe = window.self !== window.top;
+            } catch (e) {
+                isIframe = true;
             }
 
-            // 4. Intercept local link clicks untuk menyertakan token di query string
-            if (token) {
-                document.addEventListener('click', function (e) {
-                    var anchor = e.target.closest('a');
-                    if (anchor && anchor.href) {
-                        try {
-                            var url = new URL(anchor.href, window.location.origin);
-                            // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
-                            if (url.origin === window.location.origin && 
-                                !anchor.href.startsWith('javascript:') && 
-                                !anchor.getAttribute('href').startsWith('#') &&
-                                anchor.target !== '_blank') {
-                                
-                                if (!url.searchParams.has('token')) {
-                                    e.preventDefault();
-                                    url.searchParams.set('token', window._ssoToken);
-                                    window.location.href = url.toString();
-                                }
-                            }
-                        } catch (err) {}
-                    }
-                }, true);
+            if (isIframe) {
+                window._ssoToken = token;
 
-                // 5. Intercept local form submissions untuk menyertakan token di action URL
-                document.addEventListener('submit', function (e) {
-                    var form = e.target;
-                    if (form && form.action) {
-                        try {
-                            var url = new URL(form.action, window.location.origin);
-                            if (url.origin === window.location.origin) {
-                                if (!url.searchParams.has('token')) {
-                                    url.searchParams.set('token', window._ssoToken);
-                                    form.action = url.toString();
+                // 3. Override window.fetch secara global untuk menyuntikkan token (jika ada)
+                if (token) {
+                    var originalFetch = window.fetch;
+                    window.fetch = function (url, options) {
+                        options = options || {};
+                        options.headers = options.headers || {};
+                        options.headers['Authorization'] = 'Bearer ' + token;
+                        return originalFetch(url, options);
+                    };
+                }
+
+                // 4. Intercept local link clicks untuk menyertakan token di query string
+                if (token) {
+                    document.addEventListener('click', function (e) {
+                        var anchor = e.target.closest('a');
+                        if (anchor && anchor.href) {
+                            try {
+                                var url = new URL(anchor.href, window.location.origin);
+                                // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
+                                if (url.origin === window.location.origin && 
+                                    !anchor.href.startsWith('javascript:') && 
+                                    !anchor.getAttribute('href').startsWith('#') &&
+                                    anchor.target !== '_blank') {
+                                    
+                                    if (!url.searchParams.has('token')) {
+                                        e.preventDefault();
+                                        url.searchParams.set('token', window._ssoToken);
+                                        window.location.href = url.toString();
+                                    }
                                 }
-                            }
-                        } catch (err) {}
-                    }
-                }, true);
+                            } catch (err) {}
+                        }
+                    }, true);
+
+                    // 5. Intercept local form submissions untuk menyertakan token di action URL
+                    document.addEventListener('submit', function (e) {
+                        var form = e.target;
+                        if (form && form.action) {
+                            try {
+                                var url = new URL(form.action, window.location.origin);
+                                if (url.origin === window.location.origin) {
+                                    if (!url.searchParams.has('token')) {
+                                        url.searchParams.set('token', window._ssoToken);
+                                        form.action = url.toString();
+                                    }
+                                }
+                            } catch (err) {}
+                        }
+                    }, true);
+                }
             }
         })();
     </script>

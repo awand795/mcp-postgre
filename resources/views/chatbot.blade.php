@@ -35,9 +35,17 @@
                 try { token = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
             }
 
+            // Deteksi apakah sedang diakses di dalam iframe
+            var isIframe = false;
+            try {
+                isIframe = window.self !== window.top;
+            } catch (e) {
+                isIframe = true;
+            }
+
             // Expose ke window
             window._ssoToken = token;
-            window._isSSOMode = !!token;
+            window._isSSOMode = isIframe && !!token;
 
             /**
              * apiFetch(url, options) — pengganti fetch() yang SSO-aware.
@@ -48,7 +56,7 @@
                 options = options || {};
                 options.headers = options.headers || {};
 
-                if (window._ssoToken) {
+                if (isIframe && window._ssoToken) {
                     // Mode iframe: Bearer token, tanpa CSRF
                     options.headers['Authorization'] = 'Bearer ' + window._ssoToken;
                     // Hapus CSRF kalau ada (tidak perlu, bisa konflik)
@@ -65,7 +73,7 @@
             };
 
             // 3. Intercept local link clicks untuk menyertakan token di query string
-            if (token) {
+            if (isIframe && token) {
                 document.addEventListener('click', function (e) {
                     var anchor = e.target.closest('a');
                     if (anchor && anchor.href) {

@@ -22,7 +22,7 @@ class SanctumOrSession
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Mode 1: Bearer token (iframe HTTP cross-domain)
+        // 1. Coba autentikasi via Bearer token (iframe mode)
         $bearerToken = $request->bearerToken() ?: $request->query('token');
         if ($bearerToken) {
             $accessToken = PersonalAccessToken::findToken($bearerToken);
@@ -33,20 +33,22 @@ class SanctumOrSession
                 $accessToken->forceFill(['last_used_at' => now()])->save();
                 return $next($request);
             }
+        }
 
-            // Token ada tapi tidak valid
+        // 2. Coba autentikasi via Session (normal browser mode)
+        if (Auth::check()) {
+            return $next($request);
+        }
+
+        // 3. Jika kedua mode autentikasi gagal:
+        if ($bearerToken) {
+            // Jika request membawa token tapi tidak valid
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Token tidak valid atau sudah kadaluarsa.'], 401);
             }
             return redirect()->route('sso.expired');
         }
 
-        // Mode 2: Session (akses langsung browser)
-        if (Auth::check()) {
-            return $next($request);
-        }
-
-        // Tidak ada keduanya
         if ($request->expectsJson()) {
             return response()->json(['error' => 'Unauthenticated.'], 401);
         }
