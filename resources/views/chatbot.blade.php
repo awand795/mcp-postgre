@@ -1606,6 +1606,20 @@
                 </button>
             </div>
 
+            <!-- Search Sidebar -->
+            <div class="px-4 pt-3 flex-shrink-0" style="min-width: 288px;">
+                <div class="relative">
+                    <input type="text" id="search-history" placeholder="Cari obrolan..." 
+                        class="w-full pl-8 pr-3 py-1.5 text-xs text-gray-800 dark:text-white bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#f53003] focus:border-[#f53003] transition-all">
+                    <span class="absolute left-2.5 top-2 text-gray-400 dark:text-white/40">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </span>
+                </div>
+            </div>
+
             <!-- History List -->
             <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider flex-shrink-0"
                 style="min-width: 288px;">Riwayat Terakhir</div>
@@ -1934,6 +1948,13 @@
             let currentSessionId = new URLSearchParams(window.location.search).get('chat') || null;
             let loadSessionAbortController = null; // AbortController for cancelling in-flight load requests
             let loadEarlierAbortController = null; // AbortController for cancelling in-flight load earlier requests
+
+            // State variables for Sidebar Pagination & Search & Pin
+            let sessionOffset = 0;
+            const sessionLimit = 20;
+            let sessionHasMore = true;
+            let sessionIsLoading = false;
+            let sessionSearchQuery = '';
 
             const sidebar = document.getElementById('chat-sidebar');
             const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -2353,24 +2374,47 @@
             // FIX: Fungsi ini dihapus karena duplikat dengan addMessage utama di bawah.
             // addMessage utama sudah handle initSmartTables, initCharts, dll.
 
-            async function loadSessions() {
+            async function loadSessions(reset = false) {
+                if (reset) {
+                    sessionOffset = 0;
+                    sessionHasMore = true;
+                    historyList.innerHTML = '';
+                }
+
+                if (sessionIsLoading || !sessionHasMore) return;
+
+                sessionIsLoading = true;
+
+                // Show a loading spinner at the bottom if loading more (not reset)
+                let loadMoreSpinner = document.getElementById('sidebar-load-spinner');
+                if (!loadMoreSpinner && !reset) {
+                    loadMoreSpinner = document.createElement('div');
+                    loadMoreSpinner.id = 'sidebar-load-spinner';
+                    loadMoreSpinner.className = 'flex justify-center p-2';
+                    loadMoreSpinner.innerHTML = '<svg class="animate-spin h-4 w-4 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+                    historyList.appendChild(loadMoreSpinner);
+                }
+
                 try {
-                    const res = await apiFetch('{{ route("chatbot.sessions") }}');
+                    const res = await apiFetch(`{{ url('/chatbot/sessions') }}?offset=${sessionOffset}&limit=${sessionLimit}&q=${encodeURIComponent(sessionSearchQuery)}`);
                     const sessions = await res.json();
 
-                    historyList.innerHTML = '';
+                    if (loadMoreSpinner) loadMoreSpinner.remove();
+
                     historyList.style.pointerEvents = 'auto';
                     historyList.style.opacity = '1';
 
-                    if (sessions.length === 0) {
+                    if (reset && sessions.length === 0) {
                         historyList.innerHTML = '<div class="flex flex-col items-center justify-center p-4 text-center opacity-50"><svg class="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="text-xs">Belum ada obrolan</span></div>';
+                        sessionHasMore = false;
+                        sessionIsLoading = false;
                         return;
                     }
 
                     sessions.forEach(s => {
                         const isActive = s.id == currentSessionId;
                         const item = document.createElement('div');
-                        item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
+                        item.className = `group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${s.is_pinned ? 'border border-orange-500/10 bg-orange-500/5 dark:bg-orange-500/5' : ''} ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
                         item.style.pointerEvents = 'auto';
 
                         // History item click area
@@ -2378,9 +2422,20 @@
                         clickArea.className = 'flex items-center gap-2 overflow-hidden flex-1';
                         clickArea.style.pointerEvents = 'none'; // Let clicks pass through to parent
                         clickArea.innerHTML = `
-                        <svg class="w-4 h-4 flex-shrink-0 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                        <span class="text-[11px] md:text-xs truncate select-none">${s.title}</span>
-                    `;
+                            <svg class="w-4 h-4 flex-shrink-0 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            <span class="text-[11px] md:text-xs truncate select-none">${s.title}</span>
+                        `;
+
+                        // Pin button
+                        const pinBtn = document.createElement('button');
+                        pinBtn.className = `pin-session btn-clear p-1.5 transition-opacity rounded-md hover:bg-orange-500/20 ${s.is_pinned ? 'text-orange-500 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-orange-500'} mr-0.5`;
+                        pinBtn.style.pointerEvents = 'auto'; // Must be clickable
+                        pinBtn.innerHTML = `<svg class="w-3.5 h-3.5 pointer-events-none" viewBox="0 0 24 24" fill="${s.is_pinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.48A2 2 0 0 1 15 9.28V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v4.28a2 2 0 0 1-.78 1.24l-2.78 3.48A2 2 0 0 0 5 15.24z"></path></svg>`;
+                        pinBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            togglePinSession(s.id);
+                        });
 
                         // Edit button
                         const editBtn = document.createElement('button');
@@ -2405,13 +2460,13 @@
                         });
 
                         item.appendChild(clickArea);
+                        item.appendChild(pinBtn);
                         item.appendChild(editBtn);
                         item.appendChild(deleteBtn);
 
                         // Attach click listener to the entire item
                         item.addEventListener('click', function (e) {
-                            // If delete button or edit button was clicked, stopPropagation handles it.
-                            if (e.target.closest('.delete-session') || e.target.closest('.edit-session')) return;
+                            if (e.target.closest('.delete-session') || e.target.closest('.edit-session') || e.target.closest('.pin-session')) return;
 
                             e.preventDefault();
                             // Allow switching chats even if loading (will cancel previous load)
@@ -2420,8 +2475,21 @@
 
                         historyList.appendChild(item);
                     });
+
+                    // Update offset
+                    sessionOffset += sessions.length;
+
+                    // If sessions returned is less than limit, no more sessions left
+                    if (sessions.length < sessionLimit) {
+                        sessionHasMore = false;
+                    }
                 } catch (e) {
-                    historyList.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">Gagal memuat riwayat</div>';
+                    console.error('[loadSessions] Error:', e);
+                    if (reset) {
+                        historyList.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">Gagal memuat riwayat</div>';
+                    }
+                } finally {
+                    sessionIsLoading = false;
                 }
             }
 
@@ -2884,7 +2952,7 @@
 
                     if (data.history.length === 0) {
                         addWelcomeMessage();
-                        await loadSessions();
+                        await loadSessions(true);
                         return;
                     }
 
@@ -2911,7 +2979,7 @@
                         showLoadEarlierButton();
                     }
 
-                    await loadSessions();
+                    await loadSessions(true);
 
                     // Check if aborted before finalizing UI
                     if (signal.aborted) {
@@ -2967,7 +3035,7 @@
                             startNewChat();
                         } else {
                             // Reload sessions and ensure click handlers are re-attached
-                            await loadSessions();
+                            await loadSessions(true);
                         }
                     }
                 } catch (e) {
@@ -3018,7 +3086,7 @@
                         if (!res.ok) throw new Error('HTTP ' + res.status);
 
                         // Reload list sessions
-                        await loadSessions();
+                        await loadSessions(true);
 
                         // Show success toast
                         Swal.fire({
@@ -3041,6 +3109,73 @@
                 }
             }
 
+            // Pin/Unpin chat session
+            async function togglePinSession(id) {
+                try {
+                    const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}/pin`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    
+                    // Reload list sessions (reset list to show correct order based on pin)
+                    await loadSessions(true);
+
+                    // Show success toast
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas',
+                        showConfirmButton: false,
+                        timer: 1500,
+                        timerProgressBar: true
+                    });
+                } catch (e) {
+                    console.error('[TogglePinSession] Error:', e);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'Gagal mengubah status penyematan. Silakan coba lagi.'
+                    });
+                }
+            }
+
+            // Debounce helper for search
+            function debounce(func, wait) {
+                let timeout;
+                return function (...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
+            }
+
+            // Search history event listener
+            const searchInput = document.getElementById('search-history');
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(function (e) {
+                    sessionSearchQuery = e.target.value.trim();
+                    loadSessions(true);
+                }, 300));
+            }
+
+            // Infinite scroll event listener
+            if (historyList) {
+                historyList.addEventListener('scroll', function () {
+                    // Check if scrolled near the bottom (within 20px)
+                    if (historyList.scrollHeight - historyList.scrollTop - historyList.clientHeight < 20) {
+                        if (sessionHasMore && !sessionIsLoading) {
+                            loadSessions(false);
+                        }
+                    }
+                });
+            }
+
             function addWelcomeMessage() {
                 chatMessages.innerHTML = `
             <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
@@ -3055,7 +3190,7 @@
                 currentSessionId = null;
                 conversationHistory = [];
                 window.history.pushState({}, '', window.location.pathname);
-                loadSessions();
+                loadSessions(true);
                 addWelcomeMessage();
                 if (window.innerWidth < 768) toggleSidebar(false);
             }
@@ -5193,7 +5328,7 @@
                                 if (parsed.chat_session_id !== undefined) {
                                     currentSessionId = parsed.chat_session_id;
                                     window.history.pushState({}, '', '?chat=' + currentSessionId);
-                                    loadSessions();
+                                    loadSessions(true);
                                 }
 
                                 if (parsed.detected_language !== undefined) {
@@ -5774,7 +5909,7 @@
 
             window.onload = () => {
                 messageInput.focus();
-                loadSessions();
+                loadSessions(true);
                 if (currentSessionId) loadSession(currentSessionId);
             };
         });

@@ -11,7 +11,8 @@ class ChatSession extends Model
 
     protected $fillable = [
         'user_id',
-        'title'
+        'title',
+        'is_pinned'
     ];
 
     public function user()

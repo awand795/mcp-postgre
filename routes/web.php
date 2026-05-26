@@ -46,6 +46,7 @@ Route::middleware('auth.smart')->group(function () {
     Route::get('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'getSession'])->name('chatbot.sessions.show');
     Route::delete('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'deleteSession'])->name('chatbot.sessions.destroy');
     Route::put('/chatbot/sessions/{id}', [AgenticChatbotController::class, 'updateSessionTitle'])->name('chatbot.sessions.update');
+    Route::post('/chatbot/sessions/{id}/pin', [AgenticChatbotController::class, 'togglePin'])->name('chatbot.sessions.pin');
 });
 
 // Protected Routes

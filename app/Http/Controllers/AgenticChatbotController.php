@@ -920,14 +920,23 @@ class AgenticChatbotController extends Controller
 
     public function getSessions(Request $request)
     {
-        $sessions = ChatSession::where('user_id', $request->user()->id)
+        $query = ChatSession::where('user_id', $request->user()->id);
+
+        if ($search = $request->query('q')) {
+            $query->where('title', 'like', '%' . $search . '%');
+        }
+
+        $sessions = $query->orderBy('is_pinned', 'desc')
             ->orderBy('updated_at', 'desc')
-            ->get(['id', 'title', 'updated_at']);
+            ->offset((int) $request->query('offset', 0))
+            ->limit((int) $request->query('limit', 20))
+            ->get(['id', 'title', 'is_pinned', 'updated_at']);
 
         $data = $sessions->map(function ($session) {
             return [
                 'id' => \App\Helpers\HashidsHelper::encode($session->id),
                 'title' => $session->title,
+                'is_pinned' => (bool) $session->is_pinned,
                 'updated_at' => $session->updated_at ? $session->updated_at->toISOString() : null
             ];
         });
@@ -1013,6 +1022,22 @@ class AgenticChatbotController extends Controller
 
         ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId)->update(['title' => $request->title]);
         return response()->json(['success' => true]);
+    }
+
+    public function togglePin($id)
+    {
+        $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
+        if (!$rawId) {
+            abort(404, 'Sesi tidak ditemukan.');
+        }
+
+        $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId);
+        $session->update(['is_pinned' => !$session->is_pinned]);
+
+        return response()->json([
+            'success' => true,
+            'is_pinned' => (bool) $session->is_pinned
+        ]);
     }
 
     public function exportExcel(Request $request)
