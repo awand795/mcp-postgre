@@ -24,6 +24,23 @@
     {{-- SSO Token & Interceptor untuk Iframe HTTP --}}
     <script>
         (function () {
+            // Global reload helper untuk iframe SSO agar tidak ter-logout saat reload halaman
+            window.ssoReload = function() {
+                try {
+                    var currentToken = window._ssoToken || sessionStorage.getItem('_darkoai_bearer');
+                    var url = new URL(window.location.href);
+                    var isCurrentIframe = false;
+                    try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
+                    
+                    if (currentToken && isCurrentIframe) {
+                        url.searchParams.set('token', currentToken);
+                    }
+                    window.location.href = url.toString();
+                } catch (e) {
+                    window.location.reload();
+                }
+            };
+
             var token = null;
             // 1. Ambil token dari query parameter jika ada
             try {

@@ -15,18 +15,6 @@ class AllowIframeMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // 0. Spoof CSRF token jika diotentikasi via Bearer token (SSO Iframe) untuk bypass error CSRF mismatch
-        $bearerToken = $request->bearerToken() ?: $request->query('token');
-        if ($bearerToken) {
-            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
-            if ($accessToken && $accessToken->tokenable) {
-                if ($request->hasSession()) {
-                    $csrfToken = $request->header('X-CSRF-TOKEN') ?: $request->input('_token') ?: 'sso_bypass_token';
-                    $request->session()->put('_token', $csrfToken);
-                }
-            }
-        }
-
         $response = $next($request);
 
         // 1. Remove X-Frame-Options to allow iframing (or set to ALLOW-FROM but it's deprecated)

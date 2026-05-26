@@ -24,6 +24,9 @@ class SanctumOrSession
     {
         // 1. Coba autentikasi via Bearer token (iframe mode)
         $bearerToken = $request->bearerToken() ?: $request->query('token');
+        
+        \Illuminate\Support\Facades\Log::info('[SanctumOrSession] Path: ' . $request->path() . ' | Has Token: ' . ($bearerToken ? 'Yes (' . substr($bearerToken, 0, 10) . '...)' : 'No'));
+
         if ($bearerToken) {
             $accessToken = PersonalAccessToken::findToken($bearerToken);
 
@@ -31,14 +34,19 @@ class SanctumOrSession
                 Auth::setUser($accessToken->tokenable);
                 // Update last_used_at
                 $accessToken->forceFill(['last_used_at' => now()])->save();
+                \Illuminate\Support\Facades\Log::info('[SanctumOrSession] Authenticated via Bearer token: ' . $accessToken->tokenable->email);
                 return $next($request);
             }
+            \Illuminate\Support\Facades\Log::warning('[SanctumOrSession] Token present but invalid or expired.');
         }
 
         // 2. Coba autentikasi via Session (normal browser mode)
         if (Auth::check()) {
+            \Illuminate\Support\Facades\Log::info('[SanctumOrSession] Authenticated via Session Cookie: ' . Auth::user()->email);
             return $next($request);
         }
+
+        \Illuminate\Support\Facades\Log::warning('[SanctumOrSession] Authentication failed. No valid token or session.');
 
         // 3. Jika kedua mode autentikasi gagal:
         if ($bearerToken) {

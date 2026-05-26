@@ -688,7 +688,10 @@
                             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
                         }).then(res => res.json())
                         .then(data => {
-                            if (data.success) location.reload();
+                            if (data.success) {
+                                if (window.ssoReload) window.ssoReload();
+                                else location.reload();
+                            }
                         });
                     }
                 });

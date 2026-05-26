@@ -25,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'chatbot/*',
         ]);
 
+        $middleware->replace(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class, \App\Http\Middleware\CustomValidateCsrfToken::class);
+
         $middleware->alias([
             'admin'            => \App\Http\Middleware\AdminMiddleware::class,
             'auth.smart'       => \App\Http\Middleware\SanctumOrSession::class,

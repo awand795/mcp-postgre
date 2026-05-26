@@ -1160,7 +1160,7 @@ function toggleProvider(id, btn) {
         const addKeyBtn = card.querySelector('.pf-btn-key');
         if (addKeyBtn) addKeyBtn.disabled = !on;
     })
-    .catch(() => location.reload());
+    .catch(() => window.ssoReload ? window.ssoReload() : location.reload());
 }
 
 /* ── Toggle model ───────────────────────────────────────── */
@@ -1171,7 +1171,7 @@ function toggleModel(id, chip) {
     })
     .then(r => r.json())
     .then(data => chip.classList.toggle('mc-on', data.is_active))
-    .catch(() => location.reload());
+    .catch(() => window.ssoReload ? window.ssoReload() : location.reload());
 }
 
 /* ── Modal helpers ──────────────────────────────────────── */

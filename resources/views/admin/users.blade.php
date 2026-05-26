@@ -1308,7 +1308,7 @@
                     title: 'Berhasil',
                     text: 'Konfigurasi AI diperbarui!',
                     iconColor: '#10b981'
-                }).then(() => location.reload());
+                }).then(() => window.ssoReload ? window.ssoReload() : location.reload());
             } else {
                 throw new Error(data.message || 'Gagal menyimpan konfigurasi');
             }
