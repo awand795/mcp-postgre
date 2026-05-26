@@ -88,6 +88,22 @@
                         } catch (err) {}
                     }
                 }, true); // Gunakan capturing phase agar terpanggil paling awal
+
+                // 4. Intercept local form submissions untuk menyertakan token di action URL
+                document.addEventListener('submit', function (e) {
+                    var form = e.target;
+                    if (form && form.action) {
+                        try {
+                            var url = new URL(form.action, window.location.origin);
+                            if (url.origin === window.location.origin) {
+                                if (!url.searchParams.has('token')) {
+                                    url.searchParams.set('token', window._ssoToken);
+                                    form.action = url.toString();
+                                }
+                            }
+                        } catch (err) {}
+                    }
+                }, true);
             }
         })();
     </script>

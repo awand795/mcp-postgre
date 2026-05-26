@@ -103,6 +103,14 @@
             document.getElementById('ti').className=document.documentElement.classList.contains('dark')?'fas fa-moon':'fas fa-sun';
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
+
+            // Deteksi apakah sedang diakses dari dalam iframe
+            if (window.self !== window.top) {
+                var iframeInput = document.getElementById('is_iframe_input');
+                if (iframeInput) {
+                    iframeInput.value = '1';
+                }
+            }
         });
     </script>
 </head>
@@ -116,6 +124,7 @@
         </div>
         <form action="{{ route('password.update') }}" method="POST">
             @csrf
+            <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <input type="hidden" name="email" value="{{ $email }}">
             <input type="hidden" name="otp" value="{{ $otp }}">
             <div class="form-group">
@@ -128,7 +137,13 @@
                         <i id="eye-icon-1" class="fas fa-eye"></i>
                     </button>
                 </div>
-                @error('password')<p class="form-error">{{ $message }}</p>@enderror
+                @error('password')
+                    <p class="form-error">{{ $message }}</p>
+                @else
+                    @if(request()->query('sso_error'))
+                        <p class="form-error">{{ request()->query('sso_error') }}</p>
+                    @endif
+                @enderror
             </div>
             <div class="form-group">
                 <label class="form-label">Konfirmasi Password</label>

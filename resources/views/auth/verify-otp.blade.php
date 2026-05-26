@@ -319,6 +319,18 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
 
+            // Deteksi apakah sedang diakses dari dalam iframe
+            if (window.self !== window.top) {
+                var iframeInput = document.getElementById('is_iframe_input');
+                if (iframeInput) {
+                    iframeInput.value = '1';
+                }
+                var resendIframeInput = document.getElementById('resend_is_iframe_input');
+                if (resendIframeInput) {
+                    resendIframeInput.value = '1';
+                }
+            }
+
             @if(session('hard_block'))
                 const resendBtn = document.getElementById('resend-btn');
                 if (resendBtn) {
@@ -359,6 +371,71 @@
                     confirmButtonColor: '#10b981'
                 });
             @endif
+
+            // SSO / Iframe URL Parameter Fallback
+            try {
+                var urlParams = new URLSearchParams(window.location.search);
+                var ssoError = urlParams.get('sso_error');
+                var ssoSuccess = urlParams.get('sso_success');
+                var ssoHardBlock = urlParams.get('sso_hard_block');
+                var ssoThrottle = urlParams.get('sso_throttle_seconds');
+                
+                var cleanUrlNeeded = false;
+                
+                if (ssoHardBlock) {
+                    const resendBtn = document.getElementById('resend-btn');
+                    if (resendBtn) {
+                        resendBtn.disabled = true;
+                        resendBtn.style.opacity = '0.5';
+                        resendBtn.style.cursor = 'not-allowed';
+                        resendBtn.innerText = 'AKSES DIBATASI';
+                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Batas Permintaan Terlampaui',
+                        html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                        confirmButtonColor: '#f53003',
+                        confirmButtonText: 'Saya Mengerti'
+                    });
+                    cleanUrlNeeded = true;
+                } else if (ssoThrottle) {
+                    startResendCountdown(parseInt(ssoThrottle));
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Batas Permintaan Tercapai',
+                        text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                        confirmButtonColor: '#f53003'
+                    });
+                    cleanUrlNeeded = true;
+                } else if (ssoError) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Terjadi Kesalahan',
+                        text: ssoError,
+                        confirmButtonColor: '#f53003'
+                    });
+                    cleanUrlNeeded = true;
+                }
+                
+                if (ssoSuccess) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        text: ssoSuccess,
+                        confirmButtonColor: '#10b981'
+                    });
+                    cleanUrlNeeded = true;
+                }
+
+                if (cleanUrlNeeded) {
+                    var cleanUrl = new URL(window.location.href);
+                    cleanUrl.searchParams.delete('sso_success');
+                    cleanUrl.searchParams.delete('sso_error');
+                    cleanUrl.searchParams.delete('sso_hard_block');
+                    cleanUrl.searchParams.delete('sso_throttle_seconds');
+                    window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+                }
+            } catch (e) {}
         });
 
         function handleResend(form) {
@@ -382,6 +459,7 @@
         
         <form action="{{ route('password.verify.post') }}" method="POST">
             @csrf
+            <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <input type="hidden" name="email" value="{{ $email }}">
             <div class="form-group">
                 <label class="form-label">Kode OTP</label>
@@ -398,6 +476,7 @@
             Belum menerima email?
             <form action="{{ route('password.email') }}" method="POST" style="display:inline;" onsubmit="return handleResend(this)">
                 @csrf
+                <input type="hidden" name="is_iframe" id="resend_is_iframe_input" value="0">
                 <input type="hidden" name="email" value="{{ $email }}">
                 <button type="submit" id="resend-btn" class="resend-btn">Kirim Ulang</button>
             </form>

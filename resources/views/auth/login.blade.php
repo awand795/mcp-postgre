@@ -226,6 +226,14 @@
             // Remove FOUC fix after load
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
+
+            // Deteksi apakah sedang diakses dari dalam iframe
+            if (window.self !== window.top) {
+                var iframeInput = document.getElementById('is_iframe_input');
+                if (iframeInput) {
+                    iframeInput.value = '1';
+                }
+            }
         });
     </script>
 </head>
@@ -233,7 +241,7 @@
     <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme">
         <i id="ti" class="fas fa-sun"></i>
     </button>
-
+ 
     <div class="login-card">
         <div class="login-header">
             <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
@@ -241,18 +249,35 @@
             <p>Masuk untuk mengakses darkotech AI</p>
         </div>
 
+        @if(session('status'))
+            <div class="alert alert-success" style="padding: 0.75rem 1rem; border-radius: 12px; margin-bottom: 1.25rem; font-size: 0.85rem; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #10b981;">
+                <i class="fas fa-check-circle" style="margin-right: 6px;"></i>{{ session('status') }}
+            </div>
+        @elseif(request()->query('sso_success'))
+            <div class="alert alert-success" style="padding: 0.75rem 1rem; border-radius: 12px; margin-bottom: 1.25rem; font-size: 0.85rem; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #10b981;">
+                <i class="fas fa-check-circle" style="margin-right: 6px;"></i>{{ request()->query('sso_success') }}
+            </div>
+        @endif
+
         <form action="{{ route('login.post') }}" method="POST">
             @csrf
+            <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <div class="form-group">
                 <label class="form-label">Alamat Email</label>
                 <div class="input-wrap">
                     <i class="fas fa-envelope"></i>
-                    <input type="email" name="email" value="{{ old('email') }}" required autofocus
+                    <input type="email" name="email" value="{{ request()->query('email', old('email')) }}" required autofocus
                         class="form-input" placeholder="email@contoh.com">
                 </div>
-                @error('email')<p class="form-error">{{ $message }}</p>@enderror
+                @error('email')
+                    <p class="form-error">{{ $message }}</p>
+                @else
+                    @if(request()->query('sso_error'))
+                        <p class="form-error">{{ request()->query('sso_error') }}</p>
+                    @endif
+                @enderror
             </div>
-
+ 
             <div class="form-group">
                 <div class="form-row">
                     <label class="form-label" style="margin:0;">Password</label>
@@ -268,12 +293,12 @@
                 </div>
                 @error('password')<p class="form-error">{{ $message }}</p>@enderror
             </div>
-
+ 
             <div class="remember-wrap">
                 <input type="checkbox" name="remember" id="remember">
                 <label for="remember">Ingat saya</label>
             </div>
-
+ 
             <button type="submit" class="btn-login">
                 <i class="fas fa-sign-in-alt" style="margin-right:8px;"></i>MASUK SEKARANG
             </button>

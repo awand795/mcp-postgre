@@ -20,10 +20,29 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required'],
-        ]);
+        $isIframe = $request->input('is_iframe') === '1';
+
+        if ($isIframe) {
+            // Validasi manual agar tidak memicu auto-redirect Laravel yang menggunakan session
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+                'email' => ['required', 'email'],
+                'password' => ['required'],
+            ]);
+
+            if ($validator->fails()) {
+                return redirect()->route('login', [
+                    'sso_error' => $validator->errors()->first(),
+                    'email' => $request->input('email'),
+                    'is_iframe' => '1'
+                ]);
+            }
+            $credentials = $validator->validated();
+        } else {
+            $credentials = $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required'],
+            ]);
+        }
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
@@ -40,6 +59,14 @@ class AuthController extends Controller
                 'token'       => $sanctumToken,
                 'redirect_to' => route('chatbot'),
                 'user_name'   => $user->name,
+            ]);
+        }
+
+        if ($isIframe) {
+            return redirect()->route('login', [
+                'sso_error' => 'Email atau password salah.',
+                'email' => $request->input('email'),
+                'is_iframe' => '1'
             ]);
         }
 

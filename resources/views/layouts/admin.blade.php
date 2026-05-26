@@ -80,6 +80,22 @@
                         } catch (err) {}
                     }
                 }, true);
+
+                // 5. Intercept local form submissions untuk menyertakan token di action URL
+                document.addEventListener('submit', function (e) {
+                    var form = e.target;
+                    if (form && form.action) {
+                        try {
+                            var url = new URL(form.action, window.location.origin);
+                            if (url.origin === window.location.origin) {
+                                if (!url.searchParams.has('token')) {
+                                    url.searchParams.set('token', window._ssoToken);
+                                    form.action = url.toString();
+                                }
+                            }
+                        } catch (err) {}
+                    }
+                }, true);
             }
         })();
     </script>
@@ -606,6 +622,44 @@
             @if($errors->any())
                 fireToast('error', @json($errors->first()), '#ef4444');
             @endif
+
+            // ── Baca Flash Message dari URL Query Parameter (untuk mode SSO iframe) ──
+            try {
+                var urlParams = new URLSearchParams(window.location.search);
+                var ssoSuccess = urlParams.get('sso_success');
+                var ssoError = urlParams.get('sso_error');
+                var ssoWarning = urlParams.get('sso_warning');
+                var ssoInfo = urlParams.get('sso_info');
+                
+                var cleanUrlNeeded = false;
+                
+                if (ssoSuccess) {
+                    fireToast('success', ssoSuccess, '#10b981');
+                    cleanUrlNeeded = true;
+                }
+                if (ssoError) {
+                    fireToast('error', ssoError, '#ef4444');
+                    cleanUrlNeeded = true;
+                }
+                if (ssoWarning) {
+                    fireToast('warning', ssoWarning, '#f59e0b');
+                    cleanUrlNeeded = true;
+                }
+                if (ssoInfo) {
+                    fireToast('info', ssoInfo, '#3b82f6');
+                    cleanUrlNeeded = true;
+                }
+                
+                if (cleanUrlNeeded) {
+                    // Bersihkan parameter sso_* dari URL address bar agar tidak terpicu lagi jika direfresh
+                    var cleanUrl = new URL(window.location.href);
+                    cleanUrl.searchParams.delete('sso_success');
+                    cleanUrl.searchParams.delete('sso_error');
+                    cleanUrl.searchParams.delete('sso_warning');
+                    cleanUrl.searchParams.delete('sso_info');
+                    window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
+                }
+            } catch (e) {}
         });
 
         function toggleSidebar(){
