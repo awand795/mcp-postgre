@@ -61,6 +61,11 @@
                 options = options || {};
                 options.headers = options.headers || {};
 
+                // Request JSON format agar laravel merespon 401/419 JSON daripada redirect 302 HTML
+                if (!options.headers['Accept']) {
+                    options.headers['Accept'] = 'application/json';
+                }
+
                 var activeToken = window._ssoToken || window.name;
 
                 if (isIframe && activeToken) {
@@ -87,7 +92,30 @@
                     }
                 }
 
-                return fetch(url, options);
+                return fetch(url, options).then(function (res) {
+                    if (res.status === 401 || res.status === 419) {
+                        // Sesi telah berakhir / Token tidak valid!
+                        if (isIframe) {
+                            // Kirim pesan ke parent window (ERP) agar bisa refresh token jika didukung
+                            try {
+                                window.parent.postMessage({
+                                    type: 'DARKOAI_SSO_EXPIRED',
+                                    action: 'sso_session_expired',
+                                    timestamp: Date.now()
+                                }, '*');
+                            } catch (e) {
+                                console.error('[apiFetch] Gagal mengirim postMessage ke parent:', e);
+                            }
+                            
+                            // Arahkan iframe ke halaman SSO expired khusus iframe agar user melihat pesan
+                            window.location.href = "{{ route('sso.expired') }}";
+                        } else {
+                            // Arahkan ke login page biasa untuk direct access
+                            window.location.href = "{{ route('login') }}";
+                        }
+                    }
+                    return res;
+                });
             };
 
             // 3. Intercept local link clicks untuk menyertakan token di query string
@@ -5934,6 +5962,7 @@
 
                     if (axis === 'y') {
                         if (!scales[axis].ticks.maxTicksLimit) scales[axis].ticks.maxTicksLimit = 8;
+                        scales[axis].beginAtZero = true;
                         scales[axis].ticks.beginAtZero = true;
                         scales[axis].ticks.callback = function (value) {
                             let isCurrencyChart = false;
