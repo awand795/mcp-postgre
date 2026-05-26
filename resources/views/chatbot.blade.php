@@ -519,32 +519,38 @@
 
         /* SweetAlert2 Toast Custom Styles */
         .swal2-toast {
-            background: rgba(255, 255, 255, 0.9) !important;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 0, 0, 0.08) !important;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08) !important;
-            border-radius: 12px !important;
-            padding: 12px 16px !important;
+            background: rgba(255, 255, 255, 0.85) !important;
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
+            border: 1.2px solid rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.01), 
+                0 10px 30px -10px rgba(0, 0, 0, 0.06) !important;
+            border-radius: 14px !important;
+            padding: 10px 14px !important;
         }
 
         .swal2-toast .swal2-title {
-            color: #1f2937 !important;
-            font-size: 13px !important;
+            color: #334155 !important;
+            font-size: 12.5px !important;
             font-weight: 500 !important;
+            font-family: 'Outfit', sans-serif !important;
         }
 
         html.dark .swal2-toast {
-            background: rgba(30, 41, 59, 0.95) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+            background: rgba(15, 23, 42, 0.85) !important;
+            border: 1.2px solid rgba(255, 255, 255, 0.07) !important;
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.2), 
+                0 10px 30px -10px rgba(0, 0, 0, 0.4) !important;
         }
 
         html.dark .swal2-toast .swal2-title {
-            color: #f1f5f9 !important;
+            color: #cbd5e1 !important;
         }
 
         .swal2-toast.swal2-success {
-            border-color: rgba(16, 185, 129, 0.3) !important;
+            border-color: rgba(16, 185, 129, 0.25) !important;
         }
 
         .swal2-toast.swal2-success .swal2-title {
@@ -552,7 +558,7 @@
         }
 
         .swal2-toast.swal2-error {
-            border-color: rgba(239, 68, 68, 0.3) !important;
+            border-color: rgba(239, 68, 68, 0.25) !important;
         }
 
         .swal2-toast.swal2-error .swal2-title {
@@ -560,7 +566,7 @@
         }
 
         .swal2-toast.swal2-info {
-            border-color: rgba(59, 130, 246, 0.3) !important;
+            border-color: rgba(59, 130, 246, 0.25) !important;
         }
 
         .swal2-toast.swal2-info .swal2-title {
@@ -570,98 +576,127 @@
         /* SweetAlert2 Popup Modals */
         .swal2-popup {
             background: #ffffff !important;
-            border-radius: 20px !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-            border: 1px solid rgba(0, 0, 0, 0.05) !important;
-            padding: 1.5rem !important;
+            border-radius: 24px !important;
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.03), 
+                0 30px 60px -15px rgba(15, 23, 42, 0.08), 
+                inset 0 0 0 1px rgba(0, 0, 0, 0.03) !important;
+            border: none !important;
+            padding: 2rem !important;
+            font-family: 'Outfit', sans-serif !important;
         }
 
         .swal2-title {
-            font-size: 18px !important;
-            font-weight: 600 !important;
-            color: #1f2937 !important;
+            font-size: 19px !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+            letter-spacing: -0.02em !important;
+            margin-bottom: 8px !important;
         }
 
         .swal2-input {
-            border: 1.5px solid rgba(0, 0, 0, 0.1) !important;
-            border-radius: 10px !important;
-            font-size: 14px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 12px !important;
+            font-size: 13.5px !important;
             font-family: 'Outfit', sans-serif !important;
-            background: #ffffff !important;
-            color: #1f2937 !important;
+            background: #f8fafc !important;
+            color: #0f172a !important;
             box-shadow: none !important;
-            transition: all 0.2s !important;
-            height: 42px !important;
-            margin-top: 15px !important;
+            transition: all 0.25s ease !important;
+            height: 46px !important;
+            margin-top: 18px !important;
+            padding: 0 14px !important;
         }
 
         .swal2-input:focus {
             border-color: #f53003 !important;
             box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.15) !important;
+            background: #ffffff !important;
         }
 
         html.dark .swal2-popup {
-            background: #111827 !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4) !important;
+            background: #0f172a !important;
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.3), 
+                0 30px 60px -15px rgba(0, 0, 0, 0.5), 
+                inset 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
         }
 
         html.dark .swal2-title {
-            color: #ffffff !important;
+            color: #f8fafc !important;
         }
 
         html.dark .swal2-input {
-            background: rgba(15, 23, 42, 0.8) !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
-            color: #ffffff !important;
+            background: #090d16 !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.07) !important;
+            color: #f8fafc !important;
         }
 
         html.dark .swal2-input:focus {
             border-color: #f53003 !important;
             box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.25) !important;
+            background: #0b1120 !important;
         }
 
-        /* Buttons Styling */
+        /* Buttons Styling (Linear/Vercel Premium Outlined) */
         .swal2-confirm {
             background-color: #f53003 !important;
-            font-size: 13px !important;
-            padding: 8px 16px !important;
-            border-radius: 8px !important;
-            font-weight: 500 !important;
+            font-size: 13.5px !important;
+            padding: 10px 22px !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
             color: #ffffff !important;
-            box-shadow: 0 4px 12px rgba(245, 48, 3, 0.2) !important;
-            transition: all 0.2s !important;
+            box-shadow: 0 4px 14px rgba(245, 48, 3, 0.25) !important;
+            transition: all 0.2s ease !important;
+            border: none !important;
+            outline: none !important;
         }
 
         .swal2-confirm:hover {
             background-color: #ff4433 !important;
+            box-shadow: 0 6px 20px rgba(245, 48, 3, 0.35) !important;
             transform: translateY(-1px) !important;
+        }
+
+        .swal2-confirm:active {
+            transform: translateY(0) scale(0.98) !important;
         }
 
         .swal2-cancel {
-            background-color: #f3f4f6 !important;
-            color: #4b5563 !important;
-            font-size: 13px !important;
-            padding: 8px 16px !important;
-            border-radius: 8px !important;
-            font-weight: 500 !important;
-            transition: all 0.2s !important;
+            background-color: #ffffff !important;
+            color: #475569 !important;
+            border: 1.5px solid #e2e8f0 !important;
+            font-size: 13.5px !important;
+            padding: 9px 22px !important;
+            border-radius: 12px !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+            outline: none !important;
         }
 
         .swal2-cancel:hover {
-            background-color: #e5e7eb !important;
-            color: #1f2937 !important;
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
             transform: translateY(-1px) !important;
         }
 
+        .swal2-cancel:active {
+            transform: translateY(0) scale(0.98) !important;
+        }
+
         html.dark .swal2-cancel {
-            background-color: #374151 !important;
-            color: #d1d5db !important;
+            background-color: rgba(255, 255, 255, 0.03) !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+            color: #94a3b8 !important;
+            box-shadow: none !important;
         }
 
         html.dark .swal2-cancel:hover {
-            background-color: #4b5563 !important;
-            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.06) !important;
+            color: #f8fafc !important;
+            border-color: rgba(255, 255, 255, 0.15) !important;
         }
 
 
