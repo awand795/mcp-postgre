@@ -5892,6 +5892,7 @@
 
                     if (axis === 'y') {
                         if (!scales[axis].ticks.maxTicksLimit) scales[axis].ticks.maxTicksLimit = 8;
+                        scales[axis].ticks.beginAtZero = true;
                         scales[axis].ticks.callback = function (value) {
                             let isCurrencyChart = false;
                             if (currencyColumns && currencyColumns.length > 0) {
