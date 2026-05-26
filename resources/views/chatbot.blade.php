@@ -3292,18 +3292,18 @@
                                     <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">Perbarui Judul Diskusi</h3>
+                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">Perbarui Nama Chat</h3>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[240px]">Ubah identitas percakapan ini agar lebih mudah diidentifikasi dalam arsip Anda.</p>
                         </div>
                         <div class="w-full text-left">
                             <div class="relative group">
-                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3.5 text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#f53003]/10 focus:border-[#f53003] transition-all duration-300" placeholder="Masukkan judul diskusi..." value="${oldTitle.replace(/"/g, '&quot;')}">
+                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3.5 text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#f53003]/10 focus:border-[#f53003] transition-all duration-300" placeholder="Masukkan nama chat..." value="${oldTitle.replace(/"/g, '&quot;')}">
                                 <div id="char-counter" class="absolute right-4 top-4 text-[10px] text-gray-400 dark:text-white/30 font-bold tabular-nums">0/100</div>  
                             </div>
                         </div>
                     `,
                     showCancelButton: true,
-                    confirmButtonText: 'Terapkan Perubahan',
+                    confirmButtonText: 'Simpan',
                     cancelButtonText: 'Batalkan',
                     confirmButtonColor: '#f53003',
                     focusConfirm: false,
@@ -3311,7 +3311,7 @@
                         const input = document.getElementById('custom-swal-input');
                         const val = input.value.trim();
                         if (!val) {
-                            Swal.showValidationMessage('Judul diskusi tidak boleh kosong!');
+                            Swal.showValidationMessage('Nama chat tidak boleh kosong!');
                         }
                         return val;
                     },
