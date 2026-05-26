@@ -80,6 +80,18 @@
                         options = options || {};
                         options.headers = options.headers || {};
                         options.headers['Authorization'] = 'Bearer ' + token;
+                        
+                        // Append token ke query parameter untuk redundansi/keamanan ekstra (kebal jika header dihapus Nginx)
+                        try {
+                            if (typeof url === 'string') {
+                                var parsedUrl = new URL(url, window.location.origin);
+                                if (parsedUrl.origin === window.location.origin) {
+                                    parsedUrl.searchParams.set('token', token);
+                                    url = parsedUrl.toString();
+                                }
+                            }
+                        } catch (e) {}
+                        
                         return originalFetch(url, options);
                     };
                 }

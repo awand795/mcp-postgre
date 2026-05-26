@@ -61,6 +61,17 @@
                     options.headers['Authorization'] = 'Bearer ' + window._ssoToken;
                     // Hapus CSRF kalau ada (tidak perlu, bisa konflik)
                     delete options.headers['X-CSRF-TOKEN'];
+
+                    // Append token ke query parameter untuk redundansi/keamanan ekstra (kebal jika header dihapus Nginx)
+                    try {
+                        if (typeof url === 'string') {
+                            var parsedUrl = new URL(url, window.location.origin);
+                            if (parsedUrl.origin === window.location.origin) {
+                                parsedUrl.searchParams.set('token', window._ssoToken);
+                                url = parsedUrl.toString();
+                            }
+                        }
+                    } catch (e) {}
                 } else {
                     // Mode akses langsung: CSRF seperti biasa
                     var csrfMeta = document.querySelector('meta[name="csrf-token"]');
