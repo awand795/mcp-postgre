@@ -73,6 +73,8 @@
                             var url = new URL(anchor.href, window.location.origin);
                             // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
                             if (url.origin === window.location.origin && 
+                                !anchor.href.startsWith("blob:") && 
+                                !anchor.href.startsWith("data:") &&
                                 !anchor.href.startsWith('javascript:') && 
                                 !anchor.getAttribute('href').startsWith('#') &&
                                 anchor.target !== '_blank') {
