@@ -5962,8 +5962,11 @@
 
                     if (axis === 'y') {
                         if (!scales[axis].ticks.maxTicksLimit) scales[axis].ticks.maxTicksLimit = 8;
-                        scales[axis].beginAtZero = true;
-                        scales[axis].ticks.beginAtZero = true;
+                        // Grafik batang (bar) wajib mulai dari 0 agar perbandingan tinggi batang akurat.
+                        // Grafik garis (line) sebaiknya dinamis agar lekukan tren terlihat jelas dan tidak gepeng.
+                        const startAtZero = config.type !== 'line';
+                        scales[axis].beginAtZero = startAtZero;
+                        scales[axis].ticks.beginAtZero = startAtZero;
                         scales[axis].ticks.callback = function (value) {
                             let isCurrencyChart = false;
                             if (currencyColumns && currencyColumns.length > 0) {
