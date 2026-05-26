@@ -517,52 +517,55 @@
             }
         }
 
-        /* SweetAlert2 Toast Custom Styles */
+        /* SweetAlert2 Toast Ultra-Premium Custom Styles */
         .swal2-toast {
-            background: rgba(255, 255, 255, 0.8) !important;
-            backdrop-filter: blur(24px) saturate(200%) !important;
-            -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            background: rgba(255, 255, 255, 0.75) !important;
+            backdrop-filter: blur(28px) saturate(210%) !important;
+            -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
             box-shadow: 
-                0 15px 35px -5px rgba(0, 0, 0, 0.08), 
-                0 5px 15px rgba(0, 0, 0, 0.03) !important;
-            border-radius: 20px !important;
-            padding: 14px 20px !important;
+                0 25px 50px -12px rgba(0, 0, 0, 0.12),
+                0 10px 20px -5px rgba(0, 0, 0, 0.05),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+            border-radius: 22px !important;
+            padding: 16px 24px !important;
             display: flex !important;
             align-items: center !important;
-            gap: 10px !important;
+            gap: 12px !important;
+            overflow: hidden !important;
         }
 
         .swal2-toast .swal2-title {
             color: #0f172a !important;
-            font-size: 13.5px !important;
-            font-weight: 600 !important;
+            font-size: 14px !important;
+            font-weight: 700 !important;
             font-family: 'Outfit', sans-serif !important;
             margin: 0 !important;
             padding: 0 !important;
-            letter-spacing: -0.01em !important;
+            letter-spacing: -0.015em !important;
         }
 
         .swal2-toast .swal2-icon {
             margin: 0 4px 0 0 !important;
-            scale: 0.8 !important;
+            scale: 0.75 !important;
+            border-width: 2px !important;
         }
 
         html.dark .swal2-toast {
-            background: rgba(20, 20, 22, 0.85) !important;
+            background: rgba(15, 15, 18, 0.8) !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             box-shadow: 
-                0 20px 40px -5px rgba(0, 0, 0, 0.7), 
-                inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+                0 30px 60px -12px rgba(0, 0, 0, 0.8),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
         }
 
         html.dark .swal2-toast .swal2-title {
-            color: #f1f5f9 !important;
+            color: #f8fafc !important;
         }
 
-        /* Premium Border Indicator Glows */
+        /* Premium Accent Borders with Inner Glow */
         .swal2-toast.swal2-success {
-            border-left: 5px solid #10b981 !important;
+            border-left: 6px solid #10b981 !important;
         }
         .swal2-toast.swal2-success .swal2-title {
             color: #065f46 !important;
@@ -572,7 +575,7 @@
         }
 
         .swal2-toast.swal2-error {
-            border-left: 5px solid #ef4444 !important;
+            border-left: 6px solid #ef4444 !important;
         }
         .swal2-toast.swal2-error .swal2-title {
             color: #991b1b !important;
@@ -582,7 +585,7 @@
         }
 
         .swal2-toast.swal2-info {
-            border-left: 5px solid #3b82f6 !important;
+            border-left: 6px solid #3b82f6 !important;
         }
         .swal2-toast.swal2-info .swal2-title {
             color: #1e40af !important;
@@ -3382,17 +3385,6 @@
                     
                     // Reload list sessions (reset list to show correct order based on pin)
                     await loadSessions(true);
-
-                    // Show success toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas',
-                        showConfirmButton: false,
-                        timer: 1500,
-                        timerProgressBar: true
-                    });
                 } catch (e) {
                     console.error('[TogglePinSession] Error:', e);
                     Swal.fire({
