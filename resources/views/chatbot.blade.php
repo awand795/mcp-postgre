@@ -3228,10 +3228,16 @@
                             // Reload sessions and ensure click handlers are re-attached
                             await loadSessions(true);
                         }
+                        
+                        fireToast('success', 'Obrolan berhasil dihapus');
                     }
                 } catch (e) {
                     console.error('Gagal menghapus sesi', e);
-                    alert('Gagal menghapus sesi. Silakan coba lagi.');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: 'Gagal menghapus obrolan. Silakan coba lagi.'
+                    });
                 } finally {
                     // Restore pointer events
                     historyList.style.opacity = '1';
