@@ -103,7 +103,7 @@
                 // Inject critical CSS to force dark background immediately
                 const style = document.createElement('style');
                 style.id = 'fouc-fix';
-                style.innerHTML = 'html, body { background: #0b1120 !important; color: #f1f5f9 !important; }';
+                style.innerHTML = 'html, body { background: #000000 !important; color: #f1f5f9 !important; }';
                 document.head.appendChild(style);
             } else {
                 // Force light background immediately too
@@ -146,7 +146,7 @@
         }
 
         html.dark {
-            background-color: #0b1120;
+            background-color: #000000;
         }
 
         body {
@@ -170,7 +170,7 @@
         }
 
         html.dark body {
-            background: linear-gradient(135deg, #0b1120 0%, #0f172a 60%, #111827 100%);
+            background: #000000;
             color: #f1f5f9;
         }
 
@@ -186,9 +186,9 @@
         }
 
         html.dark .glass-panel {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(99, 102, 241, 0.15);
-            box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.7);
+            background: #000000;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.9);
         }
 
         .chat-bubble-user {
@@ -234,9 +234,9 @@
         }
 
         html.dark .chat-bubble-ai {
-            background: rgba(17, 24, 39, 0.9);
+            background: #121214;
             color: #e2e8f0;
-            border: 1px solid rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: none;
         }
 
@@ -615,11 +615,11 @@
         }
 
         html.dark .swal2-popup {
-            background: #0f172a !important;
+            background: #121214 !important;
             box-shadow: 
-                0 20px 25px -5px rgba(0, 0, 0, 0.3), 
-                0 30px 60px -15px rgba(0, 0, 0, 0.5), 
-                inset 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+                0 20px 25px -5px rgba(0, 0, 0, 0.5), 
+                0 30px 60px -15px rgba(0, 0, 0, 0.7), 
+                inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
         }
 
         html.dark .swal2-title {
@@ -627,15 +627,15 @@
         }
 
         html.dark .swal2-input {
-            background: #090d16 !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.07) !important;
+            background: #1c1c1e !important;
+            border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
             color: #f8fafc !important;
         }
 
         html.dark .swal2-input:focus {
             border-color: #f53003 !important;
             box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.25) !important;
-            background: #0b1120 !important;
+            background: #000000 !important;
         }
 
         /* Buttons Styling (Linear/Vercel Premium Outlined) */
@@ -663,23 +663,23 @@
         }
 
         .swal2-cancel {
-            background-color: #ffffff !important;
-            color: #475569 !important;
-            border: 1.5px solid #e2e8f0 !important;
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border: none !important;
             font-size: 13.5px !important;
-            padding: 9px 22px !important;
+            padding: 10px 22px !important;
             border-radius: 12px !important;
             font-weight: 600 !important;
             transition: all 0.2s ease !important;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25) !important;
             outline: none !important;
         }
 
         .swal2-cancel:hover {
-            background-color: #f8fafc !important;
-            color: #0f172a !important;
-            border-color: #cbd5e1 !important;
+            background-color: #b91c1c !important;
+            color: #ffffff !important;
             transform: translateY(-1px) !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35) !important;
         }
 
         .swal2-cancel:active {
@@ -687,16 +687,16 @@
         }
 
         html.dark .swal2-cancel {
-            background-color: rgba(255, 255, 255, 0.03) !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
-            color: #94a3b8 !important;
-            box-shadow: none !important;
+            background-color: #dc2626 !important;
+            color: #ffffff !important;
+            border: none !important;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25) !important;
         }
 
         html.dark .swal2-cancel:hover {
-            background-color: rgba(255, 255, 255, 0.06) !important;
-            color: #f8fafc !important;
-            border-color: rgba(255, 255, 255, 0.15) !important;
+            background-color: #b91c1c !important;
+            color: #ffffff !important;
+            border: none !important;
         }
 
 
@@ -1611,11 +1611,11 @@
         }
 
         html.dark #chat-sidebar {
-            background-color: #0a0a0a !important;
+            background-color: #000000 !important;
         }
 
         html.dark #chat-sidebar.open {
-            background-color: rgba(10, 10, 10, 0.98) !important;
+            background-color: #000000 !important;
         }
 
         #history-list .group {
@@ -1958,7 +1958,7 @@
                 <!-- Modal Footer -->
                 <div class="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3 bg-white/5">
                     <button id="modal-cancel-btn"
-                        class="px-4 py-2 rounded-xl text-[#A1A09A] text-sm font-medium border border-white/10 hover:bg-white/5 hover:text-white transition-all">
+                        class="px-4 py-2 rounded-xl text-red-500 border border-red-500/30 hover:bg-red-500/10 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/20 text-sm font-medium transition-all">
                         Batal
                     </button>
                     <button id="modal-delete-btn"
