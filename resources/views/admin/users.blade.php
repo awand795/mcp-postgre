@@ -1364,8 +1364,8 @@
 
     function hideModal()       { document.getElementById('userModal').style.display = 'none'; }
     function hideImportModal() { document.getElementById('importModal').style.display = 'none'; }
-    function downloadTemplate() { window.location.href = "{{ route('admin.users.template') }}"; }
-    function exportUsers()      { window.location.href = "{{ route('admin.users.export') }}"; }
+    function downloadTemplate() { window.location.href = window.getSsoUrl("{{ route('admin.users.template') }}"); }
+    function exportUsers()      { window.location.href = window.getSsoUrl("{{ route('admin.users.export') }}"); }
 
     function togglePasswordVisibility(inputId, btn) {
         const input = document.getElementById(inputId);

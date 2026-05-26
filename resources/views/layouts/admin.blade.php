@@ -44,6 +44,25 @@
                 }
             };
 
+            // Global helper to append SSO token to programmatic URLs inside iframe
+            window.getSsoUrl = function(urlStr) {
+                try {
+                    var currentToken = window._ssoToken || window.name;
+                    if (!currentToken) {
+                        try { currentToken = sessionStorage.getItem('_darkoai_bearer'); } catch(e){}
+                    }
+                    var isCurrentIframe = false;
+                    try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
+                    
+                    if (currentToken && isCurrentIframe) {
+                        var url = new URL(urlStr, window.location.origin);
+                        url.searchParams.set('token', currentToken);
+                        return url.toString();
+                    }
+                } catch (e) {}
+                return urlStr;
+            };
+
             var token = null;
             // 1. Ambil token dari query parameter jika ada
             try {
