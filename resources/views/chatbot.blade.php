@@ -3293,7 +3293,6 @@
                                 </svg>
                             </div>
                             <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">Perbarui Nama Chat</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[240px]">Berikan nama yang spesifik agar percakapan ini lebih mudah ditemukan dalam arsip Anda.</p>
                         </div>
                         <div class="w-full text-left">
                             <div class="relative group">
