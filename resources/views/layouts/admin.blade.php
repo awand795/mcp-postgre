@@ -23,6 +23,18 @@
 
     {{-- SSO Token & Interceptor untuk Iframe HTTP --}}
     <script>
+        // Global toggleSidebar defined in head to ensure it is available immediately
+        window.toggleSidebar = function() {
+            try {
+                var sidebar = document.getElementById('sidebar');
+                var overlay = document.querySelector('.sidebar-overlay');
+                if (sidebar) sidebar.classList.toggle('active');
+                if (overlay) overlay.classList.toggle('active');
+            } catch (e) {
+                console.error('Error toggling sidebar:', e);
+            }
+        };
+
         (function () {
             // Global reload helper untuk iframe SSO agar tidak ter-logout saat reload halaman
             window.ssoReload = function() {
@@ -728,12 +740,8 @@
             } catch (e) {}
         });
 
-        function toggleSidebar(){
-            document.getElementById('sidebar').classList.toggle('active');
-            document.querySelector('.sidebar-overlay').classList.toggle('active');
-        }
         document.querySelectorAll('.nav-links a').forEach(l=>l.addEventListener('click',()=>{
-            if(window.innerWidth<=1024) toggleSidebar();
+            if(window.innerWidth<=1024) window.toggleSidebar();
         }));
     </script>
 </body>
