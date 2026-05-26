@@ -1536,8 +1536,8 @@ class AgenticChatbotController extends Controller
 You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
 If user is using Indonesian:
 - Use alias \"Cabang\" or \"Dealer\" or other dimension name.
-- Use alias \"HPP\" for sum of HPP (which is identical to Total HPP).
-- Use alias \"Total HPP\" for sum of HPP.
+- Use alias \"HPP\" for SUM of unit cost price (SUM(kolom_satuan_hpp)). HPP is NOT identical to Total HPP — they are DIFFERENT values.
+- Use alias \"Total HPP\" for SUM of total cost (SUM(kolom_satuan_hpp * kolom_qty) or SUM(kolom_total_hpp)). Total HPP is NOT identical to HPP.
 - Use alias \"Netto\" for sum of gross selling price before discount.
 - Use alias \"Total Netto\" for sum of net selling price after discount.
 - Use alias \"Diskon\" for discount.
@@ -1568,8 +1568,8 @@ If user is using English:
 You MUST use the corresponding column aliases in your SELECT statement depending on the user's language.
 If user is using Indonesian:
 - Use alias \"Cabang\" or \"Dealer\" or other dimension name.
-- Use alias \"HPP\" for sum of HPP (which is identical to Total HPP).
-- Use alias \"Total HPP\" for sum of HPP.
+- Use alias \"HPP\" for SUM of unit cost price (SUM(kolom_satuan_hpp)). HPP is NOT identical to Total HPP — they are DIFFERENT values.
+- Use alias \"Total HPP\" for SUM of total cost (SUM(kolom_satuan_hpp * kolom_qty) or SUM(kolom_total_hpp)). Total HPP is NOT identical to HPP.
 - Use alias \"Netto\" for sum of gross selling price before discount.
 - Use alias \"Total Netto\" for sum of net selling price after discount.
 - Use alias \"Diskon\" for discount.
@@ -1577,8 +1577,8 @@ If user is using Indonesian:
 
 If user is using English:
 - Use alias \"Branch\" or \"Dealer\" or other dimension name.
-- Use alias \"COGS\" for sum of COGS (which is identical to Total COGS).
-- Use alias \"Total COGS\" for sum of COGS.
+- Use alias \"COGS\" for SUM of unit cost price (SUM(unit_cost_column)). COGS is NOT identical to Total COGS — they are DIFFERENT values.
+- Use alias \"Total COGS\" for SUM of total cost (SUM(unit_cost_column * qty_column) or SUM(total_cost_column)). Total COGS is NOT identical to COGS.
 - Use alias \"Net\" for sum of gross selling price before discount.
 - Use alias \"Total Net\" for sum of net selling price after discount.
 - Use alias \"Discount\" for discount.
@@ -1880,8 +1880,8 @@ Saat user meminta istilah yang tampak mirip secara berpasangan, keduanya HARUS m
 |---|---|
 | **Netto** | Nilai total penjualan kotor — total harga jual sebelum dikurangi diskon (SUM(harga_jual * qty)) |
 | **Total Netto** | Nilai total penjualan bersih — total penjualan setelah dikurangi diskon (SUM(total_netto)) |
-| **HPP** | Total harga pokok keseluruhan (SUM(harga_pokok * qty)) |
-| **Total HPP** | Total harga pokok keseluruhan (SUM(harga_pokok * qty)) |
+| **HPP** | Jumlah total harga pokok SATUAN — dihitung sebagai SUM(kolom_satuan_hpp). **BERBEDA** dari Total HPP. DILARANG mengalikan dengan qty. |
+| **Total HPP** | Total harga pokok keseluruhan — dihitung sebagai SUM(kolom_satuan_hpp * kolom_qty) atau SUM(kolom_total_hpp). **BERBEDA** dari HPP. |
 | **Profit** | Keuntungan bersih keseluruhan — dihitung sebagai (Total Netto - Total HPP). Tidak ada pemisahan "Total Profit" atau "Profit Satuan" |
 
 **Prinsip utama: Jika user minta N kolom, tampilkan N kolom.** Jangan kurangi, jangan gabung. Jika setelah query dijalankan dua kolom ternyata bernilai sama, itu adalah hasil data yang valid — bukan alasan untuk menghapus salah satunya. Tentukan rumus tiap kolom sendiri berdasarkan hasil `describe_table` dan `get_table_preview`.
