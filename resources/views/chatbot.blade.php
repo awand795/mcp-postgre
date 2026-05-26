@@ -517,45 +517,67 @@
             }
         }
 
-        /* SweetAlert2 Toast Ultra-Premium Custom Styles */
+        /* SweetAlert2 Toast ELITE Premium Custom Styles */
         .swal2-toast {
-            background: rgba(255, 255, 255, 0.75) !important;
-            backdrop-filter: blur(28px) saturate(210%) !important;
-            -webkit-backdrop-filter: blur(28px) saturate(210%) !important;
-            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            background: rgba(255, 255, 255, 0.82) !important;
+            backdrop-filter: blur(32px) saturate(220%) !important;
+            -webkit-backdrop-filter: blur(32px) saturate(220%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
             box-shadow: 
-                0 25px 50px -12px rgba(0, 0, 0, 0.12),
-                0 10px 20px -5px rgba(0, 0, 0, 0.05),
-                inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
-            border-radius: 22px !important;
-            padding: 16px 24px !important;
+                0 4px 6px -1px rgba(0, 0, 0, 0.02),
+                0 20px 40px -8px rgba(0, 0, 0, 0.1),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.3) !important;
+            border-radius: 24px !important;
+            padding: 18px 26px !important;
             display: flex !important;
             align-items: center !important;
-            gap: 12px !important;
-            overflow: hidden !important;
+            gap: 14px !important;
+            position: relative !important;
+            overflow: visible !important;
+        }
+
+        .swal2-toast::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 18%;
+            bottom: 18%;
+            width: 4.5px;
+            border-radius: 10px;
+            z-index: 10;
         }
 
         .swal2-toast .swal2-title {
             color: #0f172a !important;
-            font-size: 14px !important;
+            font-size: 14.5px !important;
             font-weight: 700 !important;
             font-family: 'Outfit', sans-serif !important;
-            margin: 0 !important;
+            margin: 0 0 0 8px !important;
             padding: 0 !important;
-            letter-spacing: -0.015em !important;
+            letter-spacing: -0.01em !important;
+            line-height: 1.4 !important;
         }
 
         .swal2-toast .swal2-icon {
-            margin: 0 4px 0 0 !important;
-            scale: 0.75 !important;
+            margin: 0 !important;
+            scale: 0.7 !important;
             border-width: 2px !important;
+            background: transparent !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* Elite Progress Bar */
+        .swal2-toast .swal2-timer-progress-bar {
+            height: 2.5px !important;
+            background: rgba(0, 0, 0, 0.08) !important;
+            border-radius: 0 0 24px 24px !important;
         }
 
         html.dark .swal2-toast {
-            background: rgba(15, 15, 18, 0.8) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            background: rgba(18, 18, 22, 0.85) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
             box-shadow: 
-                0 30px 60px -12px rgba(0, 0, 0, 0.8),
+                0 25px 50px -12px rgba(0, 0, 0, 0.7),
                 inset 0 1px 0 0 rgba(255, 255, 255, 0.05) !important;
         }
 
@@ -563,35 +585,48 @@
             color: #f8fafc !important;
         }
 
-        /* Premium Accent Borders with Inner Glow */
-        .swal2-toast.swal2-success {
-            border-left: 6px solid #10b981 !important;
-        }
-        .swal2-toast.swal2-success .swal2-title {
-            color: #065f46 !important;
-        }
-        html.dark .swal2-toast.swal2-success .swal2-title {
-            color: #34d399 !important;
+        html.dark .swal2-toast .swal2-timer-progress-bar {
+            background: rgba(255, 255, 255, 0.15) !important;
         }
 
-        .swal2-toast.swal2-error {
-            border-left: 6px solid #ef4444 !important;
+        /* Success Elite Variant */
+        .swal2-toast.swal2-success::before {
+            background: linear-gradient(to bottom, #10b981, #059669) !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4) !important;
         }
-        .swal2-toast.swal2-error .swal2-title {
-            color: #991b1b !important;
-        }
-        html.dark .swal2-toast.swal2-error .swal2-title {
-            color: #f87171 !important;
+        .swal2-toast.swal2-success .swal2-icon {
+            border-color: #10b981 !important;
+            color: #10b981 !important;
         }
 
-        .swal2-toast.swal2-info {
-            border-left: 6px solid #3b82f6 !important;
+        /* Error Elite Variant */
+        .swal2-toast.swal2-error::before {
+            background: linear-gradient(to bottom, #ef4444, #dc2626) !important;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
         }
-        .swal2-toast.swal2-info .swal2-title {
-            color: #1e40af !important;
+        .swal2-toast.swal2-error .swal2-icon {
+            border-color: #ef4444 !important;
+            color: #ef4444 !important;
         }
-        html.dark .swal2-toast.swal2-info .swal2-title {
-            color: #60a5fa !important;
+
+        /* Info Elite Variant */
+        .swal2-toast.swal2-info::before {
+            background: linear-gradient(to bottom, #3b82f6, #2563eb) !important;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4) !important;
+        }
+        .swal2-toast.swal2-info .swal2-icon {
+            border-color: #3b82f6 !important;
+            color: #3b82f6 !important;
+        }
+
+        /* Warning Elite Variant */
+        .swal2-toast.swal2-warning::before {
+            background: linear-gradient(to bottom, #f59e0b, #d97706) !important;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.4) !important;
+        }
+        .swal2-toast.swal2-warning .swal2-icon {
+            border-color: #f59e0b !important;
+            color: #f59e0b !important;
         }
 
         /* Custom SweetAlert Rename Input Styling */
