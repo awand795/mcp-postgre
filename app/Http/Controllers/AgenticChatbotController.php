@@ -162,9 +162,14 @@ class AgenticChatbotController extends Controller
                 ->get()
                 ->toArray();
         } else {
+            $cleanTitle = trim(preg_replace('/\s+/', ' ', $message));
+            $sessionTitle = mb_substr($cleanTitle, 0, 250);
+            if (empty($sessionTitle)) {
+                $sessionTitle = 'New Chat';
+            }
             $session = ChatSession::create([
                 'user_id' => $user->id,
-                'title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')
+                'title' => $sessionTitle
             ]);
             $chatSessionId = $session->id;
             $history = [];
@@ -178,7 +183,11 @@ class AgenticChatbotController extends Controller
         ]);
 
         if (!empty($history) && $session->title === 'New Chat') {
-            $session->update(['title' => substr($message, 0, 50) . (strlen($message) > 50 ? '...' : '')]);
+            $cleanTitle = trim(preg_replace('/\s+/', ' ', $message));
+            $sessionTitle = mb_substr($cleanTitle, 0, 250);
+            if (!empty($sessionTitle)) {
+                $session->update(['title' => $sessionTitle]);
+            }
         }
 
         $scopeLimited = (bool) ($user->analysis_scope_limited ?? true);
