@@ -1806,28 +1806,28 @@
                 <div class="flex items-center gap-2 header-actions flex-shrink-0">
                     @if(auth()->user()->is_admin || auth()->user()->is_super_admin)
                         <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
-                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[#818cf8] text-xs border border-indigo-500/20 bg-indigo-500/10 hover:bg-indigo-500/20 transition-all">
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 text-xs border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all shadow-sm shadow-indigo-500/5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
-                            <span class="btn-text">Admin Dashboard</span>
+                            <span class="btn-text font-bold">Admin Dashboard</span>
                         </a>
                     @endif
                     <button id="btn-clear-chat" title="Hapus riwayat obrolan ini"
-                        class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-red-500/30 hover:bg-black/10 dark:hover:bg-black/20 transition-all focus:ring-1 focus:ring-red-500/20">
+                        class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 text-xs border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all focus:ring-2 focus:ring-rose-500/20 shadow-sm shadow-rose-500/5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                             <path d="M10 11v6M14 11v6M9 6V4h6v2" />
                         </svg>
-                        <span class="btn-text">Hapus Riwayat</span>
+                        <span class="btn-text font-bold">Hapus Riwayat</span>
                     </button>
                     <button id="btn-clear-chat-mobile" title="Hapus riwayat obrolan ini"
-                        class="btn-clear md:hidden flex items-center p-2 rounded-xl text-gray-500 dark:text-[#A1A09A] border border-transparent hover:border-red-500/30 hover:bg-black/10 dark:hover:bg-black/20 hover:text-red-500 transition-all">
+                        class="btn-clear md:hidden flex items-center p-2 rounded-xl text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6" />
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                             <path d="M10 11v6M14 11v6M9 6V4h6v2" />
@@ -1835,21 +1835,21 @@
                     </button>
                     <!-- Theme Toggle Switch -->
                     <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme"
-                        class="flex items-center gap-2 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-indigo-500/30 hover:text-indigo-500 transition-all">
-                        <i class="fas fa-moon" id="theme-icon"></i>
-                        <span class="btn-text" id="theme-toggle-label">Dark</span>
+                        class="flex items-center gap-2 px-3 py-2 rounded-xl text-amber-600 dark:text-cyan-400 text-xs border border-amber-200 dark:border-cyan-500/30 bg-amber-50 dark:bg-cyan-500/10 hover:bg-amber-100 dark:hover:bg-cyan-500/20 transition-all shadow-sm">
+                        <i class="fas fa-sun" id="theme-icon"></i>
+                        <span class="btn-text font-bold" id="theme-toggle-label">Light</span>
                     </button>
                     <form action="{{ route('logout') }}" method="POST" class="inline">
                         @csrf
                         <button type="submit" title="Keluar"
-                            class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-gray-500 dark:text-[#A1A09A] text-xs border border-black/10 dark:border-white/10 hover:border-red-500/30 hover:text-red-500">
+                            class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 text-xs border border-slate-200 dark:border-slate-500/30 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 transition-all shadow-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                                 <polyline points="16 17 21 12 16 7" />
                                 <line x1="21" y1="12" x2="9" y2="12" />
                             </svg>
-                            <span class="btn-text">Logout</span>
+                            <span class="btn-text font-bold">Logout</span>
                         </button>
                     </form>
                 </div>
