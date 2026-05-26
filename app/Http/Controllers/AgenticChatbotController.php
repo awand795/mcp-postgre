@@ -1041,7 +1041,11 @@ class AgenticChatbotController extends Controller
         }
 
         $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId);
-        $session->update(['is_pinned' => !$session->is_pinned]);
+        
+        // Use quiet update to avoid changing updated_at, so unpinned chats return to their original position
+        $session->timestamps = false;
+        $session->is_pinned = !$session->is_pinned;
+        $session->save();
 
         return response()->json([
             'success' => true,
