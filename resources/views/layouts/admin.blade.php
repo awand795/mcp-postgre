@@ -27,7 +27,10 @@
             // Global reload helper untuk iframe SSO agar tidak ter-logout saat reload halaman
             window.ssoReload = function() {
                 try {
-                    var currentToken = window._ssoToken || sessionStorage.getItem('_darkoai_bearer');
+                    var currentToken = window._ssoToken || window.name;
+                    if (!currentToken) {
+                        try { currentToken = sessionStorage.getItem('_darkoai_bearer'); } catch(e){}
+                    }
                     var url = new URL(window.location.href);
                     var isCurrentIframe = false;
                     try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
@@ -47,7 +50,8 @@
                 var urlParams = new URLSearchParams(window.location.search);
                 var urlToken = urlParams.get('token');
                 if (urlToken) {
-                    sessionStorage.setItem('_darkoai_bearer', urlToken);
+                    try { sessionStorage.setItem('_darkoai_bearer', urlToken); } catch (e) {}
+                    try { window.name = urlToken; } catch (e) {}
                     token = urlToken;
                     
                     // Bersihkan token dari URL query string agar tidak terpapar di address bar
@@ -60,6 +64,10 @@
             // 2. Baca token dari sessionStorage jika tidak ada di URL
             if (!token) {
                 try { token = sessionStorage.getItem('_darkoai_bearer'); } catch (e) {}
+            }
+            // Fallback ke window.name jika sessionStorage diblokir oleh browser di iframe
+            if (!token) {
+                try { token = window.name; } catch (e) {}
             }
 
             // Deteksi apakah sedang diakses di dalam iframe
@@ -111,7 +119,7 @@
                                     
                                     if (!url.searchParams.has('token')) {
                                         e.preventDefault();
-                                        url.searchParams.set('token', window._ssoToken);
+                                        url.searchParams.set('token', window._ssoToken || window.name);
                                         window.location.href = url.toString();
                                     }
                                 }
@@ -127,7 +135,7 @@
                                 var url = new URL(form.action, window.location.origin);
                                 if (url.origin === window.location.origin) {
                                     if (!url.searchParams.has('token')) {
-                                        url.searchParams.set('token', window._ssoToken);
+                                        url.searchParams.set('token', window._ssoToken || window.name);
                                         form.action = url.toString();
                                     }
                                 }

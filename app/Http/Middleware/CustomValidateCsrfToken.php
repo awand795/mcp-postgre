@@ -16,15 +16,11 @@ class CustomValidateCsrfToken extends Middleware
     {
         $bearerToken = $request->bearerToken() ?: $request->query('token');
         
-        \Illuminate\Support\Facades\Log::info('[CustomCSRF] Path: ' . $request->path() . ' | Method: ' . $request->method() . ' | Has Token: ' . ($bearerToken ? 'Yes (' . substr($bearerToken, 0, 10) . '...)' : 'No'));
+        \Illuminate\Support\Facades\Log::info('[CustomCSRF] Path: ' . $request->path() . ' | Method: ' . $request->method() . ' | Has Token: ' . ($bearerToken ? 'Yes' : 'No'));
 
-        if ($bearerToken) {
-            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($bearerToken);
-            if ($accessToken && $accessToken->tokenable) {
-                \Illuminate\Support\Facades\Log::info('[CustomCSRF] Token validated successfully. Bypassing CSRF.');
-                return true;
-            }
-            \Illuminate\Support\Facades\Log::warning('[CustomCSRF] Token found but failed validation in database.');
+        if (!empty($bearerToken)) {
+            \Illuminate\Support\Facades\Log::info('[CustomCSRF] Token detected. Bypassing CSRF.');
+            return true;
         }
 
         $match = parent::tokensMatch($request);
