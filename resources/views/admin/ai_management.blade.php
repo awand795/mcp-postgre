@@ -1138,29 +1138,61 @@ function switchTab(btn, panelId, provId) {
     if (target) target.style.display = 'block';
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
 /* ── Toggle provider ────────────────────────────────────── */
 function toggleProvider(id, btn) {
     fetch(`/admin/ai-management/providers/${id}/toggle`, {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
     })
-    .then(r => r.json())
-    .then(data => {
-        const on = data.is_active;
-        const card = document.getElementById('pcard-' + id);
-        btn.classList.toggle('on', on);
-        card.classList.toggle('pcard--off', !on);
-
-        const pill = document.getElementById('pill-' + id);
-        if (pill) {
-            pill.className = 'pill ' + (on ? 'pill-on' : 'pill-off');
-            pill.textContent = on ? 'Active' : 'Off';
+    .then(async r => {
+        const text = await r.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch(e) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Response Non-JSON (' + r.status + ')',
+                html: '<div style="text-align:left;max-height:200px;overflow:auto;font-family:monospace;font-size:0.75rem;">' + 
+                      escapeHtml(text.substring(0, 1000)) + '</div>'
+            });
+            return;
         }
 
-        const addKeyBtn = card.querySelector('.pf-btn-key');
-        if (addKeyBtn) addKeyBtn.disabled = !on;
+        if (r.ok) {
+            const on = data.is_active;
+            const card = document.getElementById('pcard-' + id);
+            btn.classList.toggle('on', on);
+            card.classList.toggle('pcard--off', !on);
+
+            const pill = document.getElementById('pill-' + id);
+            if (pill) {
+                pill.className = 'pill ' + (on ? 'pill-on' : 'pill-off');
+                pill.textContent = on ? 'Active' : 'Off';
+            }
+
+            const addKeyBtn = card.querySelector('.pf-btn-key');
+            if (addKeyBtn) addKeyBtn.disabled = !on;
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error ' + r.status,
+                text: data.error || data.message || 'Gagal mengubah status provider.'
+            });
+        }
     })
-    .catch(() => window.ssoReload ? window.ssoReload() : location.reload());
+    .catch(err => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Fetch Error',
+            text: err.message || err.toString()
+        });
+    });
 }
 
 /* ── Toggle model ───────────────────────────────────────── */
@@ -1169,9 +1201,38 @@ function toggleModel(id, chip) {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
     })
-    .then(r => r.json())
-    .then(data => chip.classList.toggle('mc-on', data.is_active))
-    .catch(() => window.ssoReload ? window.ssoReload() : location.reload());
+    .then(async r => {
+        const text = await r.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch(e) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Response Non-JSON (' + r.status + ')',
+                html: '<div style="text-align:left;max-height:200px;overflow:auto;font-family:monospace;font-size:0.75rem;">' + 
+                      escapeHtml(text.substring(0, 1000)) + '</div>'
+            });
+            return;
+        }
+
+        if (r.ok) {
+            chip.classList.toggle('mc-on', data.is_active);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error ' + r.status,
+                text: data.error || data.message || 'Gagal mengubah status model.'
+            });
+        }
+    })
+    .catch(err => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Fetch Error',
+            text: err.message || err.toString()
+        });
+    });
 }
 
 /* ── Modal helpers ──────────────────────────────────────── */
