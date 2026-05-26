@@ -2414,16 +2414,38 @@
                     sessions.forEach(s => {
                         const isActive = s.id == currentSessionId;
                         const item = document.createElement('div');
-                        item.className = `group flex flex-col gap-1 p-2.5 rounded-xl cursor-pointer transition-colors ${s.is_pinned ? 'border border-orange-300 dark:border-orange-500/30 bg-orange-50/70 dark:bg-orange-500/10' : ''} ${isActive ? 'bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'}`;
+                        
+                        // Determine background and borders based on pinned status and active status
+                        let itemClasses = 'group flex flex-col gap-1 p-2.5 rounded-xl cursor-pointer transition-all border';
+                        if (s.is_pinned) {
+                            if (isActive) {
+                                itemClasses += ' bg-orange-50/90 dark:bg-orange-500/20 border-orange-300 dark:border-orange-500/40 text-gray-900 dark:text-white font-semibold shadow-sm';
+                            } else {
+                                itemClasses += ' bg-orange-50/40 dark:bg-orange-500/5 border-orange-200/60 dark:border-orange-500/20 text-gray-700 dark:text-[#A1A09A] hover:bg-orange-50/70 dark:hover:bg-orange-500/10 hover:border-orange-300 dark:hover:border-orange-500/30';
+                            }
+                        } else {
+                            if (isActive) {
+                                itemClasses += ' bg-black/10 dark:bg-white/10 border-transparent text-gray-900 dark:text-white font-medium';
+                            } else {
+                                itemClasses += ' border-transparent text-gray-700 dark:text-[#A1A09A] hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white';
+                            }
+                        }
+                        item.className = itemClasses;
                         item.style.pointerEvents = 'auto';
 
                         // Title row
                         const titleRow = document.createElement('div');
                         titleRow.className = 'flex items-center gap-2 w-full overflow-hidden';
                         titleRow.style.pointerEvents = 'none'; // Let clicks pass through to parent
+                        
+                        const pinIndicatorHtml = s.is_pinned 
+                            ? `<svg class="w-3.5 h-3.5 flex-shrink-0 text-orange-500 dark:text-orange-400 pointer-events-none" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"></line><path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.78-3.48A2 2 0 0 1 15 9.28V5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v4.28a2 2 0 0 1-.78 1.24l-2.78 3.48A2 2 0 0 0 5 15.24z"></path></svg>`
+                            : '';
+                            
                         titleRow.innerHTML = `
+                            ${pinIndicatorHtml}
                             <svg class="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-[#A1A09A] pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                            <span class="text-xs truncate select-none flex-1 leading-normal">${s.title}</span>
+                            <span class="text-xs truncate select-none flex-1 leading-normal ${s.is_pinned ? 'font-medium' : ''}">${s.title}</span>
                         `;
 
                         // Pin button
