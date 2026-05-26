@@ -519,56 +519,51 @@
 
         /* SweetAlert2 Toast Custom Styles */
         .swal2-toast {
-            background: rgba(255, 255, 255, 0.9) !important;
-            backdrop-filter: blur(20px) saturate(180%) !important;
-            -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-            border: 1px solid rgba(0, 0, 0, 0.06) !important;
+            background: rgba(255, 255, 255, 0.8) !important;
+            backdrop-filter: blur(24px) saturate(200%) !important;
+            -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
             box-shadow: 
-                0 10px 30px -5px rgba(0, 0, 0, 0.08), 
-                0 1px 3px rgba(0, 0, 0, 0.02) !important;
-            border-radius: 16px !important;
-            padding: 12px 18px !important;
+                0 15px 35px -5px rgba(0, 0, 0, 0.08), 
+                0 5px 15px rgba(0, 0, 0, 0.03) !important;
+            border-radius: 20px !important;
+            padding: 14px 20px !important;
             display: flex !important;
             align-items: center !important;
-            gap: 8px !important;
+            gap: 10px !important;
         }
 
         .swal2-toast .swal2-title {
-            color: #1e293b !important;
-            font-size: 13px !important;
+            color: #0f172a !important;
+            font-size: 13.5px !important;
             font-weight: 600 !important;
             font-family: 'Outfit', sans-serif !important;
             margin: 0 !important;
             padding: 0 !important;
+            letter-spacing: -0.01em !important;
         }
 
         .swal2-toast .swal2-icon {
-            margin: 0 6px 0 0 !important;
-            scale: 0.85 !important;
+            margin: 0 4px 0 0 !important;
+            scale: 0.8 !important;
         }
 
         html.dark .swal2-toast {
-            background: rgba(18, 18, 20, 0.95) !important;
-            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            background: rgba(20, 20, 22, 0.85) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             box-shadow: 
-                0 10px 30px -5px rgba(0, 0, 0, 0.6), 
-                inset 0 1px 1px rgba(255, 255, 255, 0.02) !important;
+                0 20px 40px -5px rgba(0, 0, 0, 0.7), 
+                inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
         }
 
         html.dark .swal2-toast .swal2-title {
-            color: #f8fafc !important;
+            color: #f1f5f9 !important;
         }
 
-        /* Border indicator glows depending on type */
+        /* Premium Border Indicator Glows */
         .swal2-toast.swal2-success {
-            border-left: 4px solid #10b981 !important;
-            box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.15) !important;
+            border-left: 5px solid #10b981 !important;
         }
-        html.dark .swal2-toast.swal2-success {
-            box-shadow: 0 10px 30px -5px rgba(16, 185, 129, 0.25) !important;
-            border-left: 4px solid #10b981 !important;
-        }
-
         .swal2-toast.swal2-success .swal2-title {
             color: #065f46 !important;
         }
@@ -577,14 +572,8 @@
         }
 
         .swal2-toast.swal2-error {
-            border-left: 4px solid #ef4444 !important;
-            box-shadow: 0 10px 30px -5px rgba(239, 68, 68, 0.15) !important;
+            border-left: 5px solid #ef4444 !important;
         }
-        html.dark .swal2-toast.swal2-error {
-            box-shadow: 0 10px 30px -5px rgba(239, 68, 68, 0.25) !important;
-            border-left: 4px solid #ef4444 !important;
-        }
-
         .swal2-toast.swal2-error .swal2-title {
             color: #991b1b !important;
         }
@@ -593,16 +582,10 @@
         }
 
         .swal2-toast.swal2-info {
-            border-left: 4px solid #3b82f6 !important;
-            box-shadow: 0 10px 30px -5px rgba(59, 130, 246, 0.15) !important;
+            border-left: 5px solid #3b82f6 !important;
         }
-        html.dark .swal2-toast.swal2-info {
-            box-shadow: 0 10px 30px -5px rgba(59, 130, 246, 0.25) !important;
-            border-left: 4px solid #3b82f6 !important;
-        }
-
         .swal2-toast.swal2-info .swal2-title {
-            color: #075985 !important;
+            color: #1e40af !important;
         }
         html.dark .swal2-toast.swal2-info .swal2-title {
             color: #60a5fa !important;
@@ -613,33 +596,33 @@
             width: 100% !important;
             background: #f8fafc !important;
             border: 1.5px solid #e2e8f0 !important;
-            border-radius: 12px !important;
-            font-size: 13.5px !important;
-            padding: 10px 14px !important;
+            border-radius: 16px !important;
+            font-size: 14px !important;
+            padding: 12px 16px !important;
             color: #0f172a !important;
-            transition: all 0.25s ease !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
             outline: none !important;
-            height: 46px !important;
-            margin-top: 6px !important;
+            height: 52px !important;
+            margin-top: 4px !important;
             font-family: 'Outfit', sans-serif !important;
         }
 
         #custom-swal-input:focus {
             border-color: #f53003 !important;
-            box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.15) !important;
+            box-shadow: 0 0 0 4px rgba(245, 48, 3, 0.1) !important;
             background: #ffffff !important;
         }
 
         html.dark #custom-swal-input {
-            background: #1c1c1e !important;
-            border: 1.5px solid rgba(255, 255, 255, 0.08) !important;
+            background: rgba(255, 255, 255, 0.03) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             color: #f8fafc !important;
         }
 
         html.dark #custom-swal-input:focus {
             border-color: #f53003 !important;
-            box-shadow: 0 0 0 3px rgba(245, 48, 3, 0.25) !important;
-            background: #000000 !important;
+            box-shadow: 0 0 0 4px rgba(245, 48, 3, 0.2) !important;
+            background: rgba(0, 0, 0, 0.2) !important;
         }
 
         /* SweetAlert2 Popup Modals */
@@ -3302,54 +3285,51 @@
                 const { value: newTitle } = await Swal.fire({
                     title: '',
                     html: `
-                        <div class="flex flex-col items-center text-center mt-1 mb-4">
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-[#f53003]/10 to-[#ff4433]/20 dark:from-[#f53003]/20 dark:to-[#ff4433]/30 flex items-center justify-center mb-2 shadow-md shadow-red-500/5">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-[#f53003]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <div class="flex flex-col items-center text-center mt-2 mb-6">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#f53003]/10 to-[#ff4433]/20 dark:from-[#f53003]/20 dark:to-[#ff4433]/30 flex items-center justify-center mb-4 shadow-xl shadow-red-500/10 rotate-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-[#f53003]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                     <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                             </div>
-                            <span class="text-[10px] text-[#A1A09A] dark:text-[#8e8d88] uppercase tracking-widest font-bold">Session Settings</span>
-                            <h3 class="text-gray-900 dark:text-white font-bold text-lg mt-2">Ubah Nama Obrolan</h3>
+                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">Perbarui Judul Diskusi</h3>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-[240px]">Ubah identitas percakapan ini agar lebih mudah diidentifikasi dalam arsip Anda.</p>
                         </div>
                         <div class="w-full text-left">
-                            <label for="custom-swal-input" class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1 ml-1">Nama Obrolan Baru</label>
-                            <div class="relative">
-                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3 text-sm text-gray-900 dark:text-white bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 focus:border-[#f53003] transition-all" placeholder="Masukkan nama obrolan..." value="${oldTitle.replace(/"/g, '&quot;')}">
-                                <div id="char-counter" class="absolute right-3 top-3.5 text-[10px] text-gray-400 dark:text-white/30 font-medium">0/100</div>
+                            <div class="relative group">
+                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3.5 text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#f53003]/10 focus:border-[#f53003] transition-all duration-300" placeholder="Masukkan judul diskusi..." value="${oldTitle.replace(/"/g, '&quot;')}">
+                                <div id="char-counter" class="absolute right-4 top-4 text-[10px] text-gray-400 dark:text-white/30 font-bold tabular-nums">0/100</div>  
                             </div>
-                            <span class="block text-[11px] text-[#A1A09A] mt-1.5 ml-1">Berikan nama obrolan yang ringkas agar mudah ditemukan pada riwayat sidebar.</span>
                         </div>
                     `,
                     showCancelButton: true,
-                    confirmButtonText: 'Simpan',
-                    cancelButtonText: 'Batal',
+                    confirmButtonText: 'Terapkan Perubahan',
+                    cancelButtonText: 'Batalkan',
                     confirmButtonColor: '#f53003',
                     focusConfirm: false,
                     preConfirm: () => {
                         const input = document.getElementById('custom-swal-input');
                         const val = input.value.trim();
                         if (!val) {
-                            Swal.showValidationMessage('Nama obrolan tidak boleh kosong!');
+                            Swal.showValidationMessage('Judul diskusi tidak boleh kosong!');
                         }
                         return val;
                     },
                     didOpen: () => {
                         const input = document.getElementById('custom-swal-input');
                         const counter = document.getElementById('char-counter');
-                        
+
                         const updateCounter = () => {
                             counter.textContent = `${input.value.length}/${input.getAttribute('maxlength')}`;
                         };
-                        
+
                         input.addEventListener('input', updateCounter);
                         updateCounter();
-                        
+
                         input.focus();
                         input.select();
                     }
                 });
-
                 if (newTitle && newTitle.trim() !== oldTitle) {
                     try {
                         const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}`, {
