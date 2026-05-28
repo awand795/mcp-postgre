@@ -241,6 +241,19 @@
                     @endforeach
                 </select>
             </div>
+            
+            @if(auth()->user()->is_super_admin)
+            <div class="form-group">
+                <label>Dikelola Oleh (Admin/Super Admin)</label>
+                <select name="added_by" id="userAddedBy">
+                    <option value="">Pilih Pengelola (System)</option>
+                    @foreach($admins as $admin)
+                        <option value="{{ $admin->id }}" style="color: black;">{{ $admin->name }} ({{ $admin->is_super_admin ? 'Super Admin' : 'Admin' }})</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
+
             <div class="form-group">
                 <label>Max Tokens</label>
                 <input type="number" name="max_tokens" id="userMaxTokens" value="32768" placeholder="32768" required>
@@ -1346,6 +1359,7 @@
             document.getElementById('userMaxTokens').value = 32768;
             document.getElementById('userDescription').value = '';
             document.getElementById('passwordHint').style.display = 'none';
+            if(document.getElementById('userAddedBy')) document.getElementById('userAddedBy').value = "{{ auth()->id() }}";
         } else {
             document.getElementById('modalTitle').innerText = 'Edit User';
             form.action = `/admin/users/${user.id}`;
@@ -1359,6 +1373,7 @@
             document.getElementById('userScopeLimited').checked = user.analysis_scope_limited ?? true;
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
             document.getElementById('passwordHint').style.display = 'flex';
+            if(document.getElementById('userAddedBy')) document.getElementById('userAddedBy').value = user.added_by || '';
         }
     }
 

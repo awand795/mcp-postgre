@@ -87,7 +87,11 @@ class AdminController extends Controller
         }
         $aiKeys = $aiKeysQuery->get();
         
-        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys', 'allUsers'));
+        $admins = User::where(function($q) {
+            $q->where('is_admin', true)->orWhere('is_super_admin', true);
+        })->orderBy('name')->get();
+        
+        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys', 'allUsers', 'admins'));
     }
 
     public function userStore(Request $request)
@@ -128,7 +132,7 @@ class AdminController extends Controller
             'role' => $request->role,
             'is_admin' => $isAdmin,
             'is_super_admin' => $isSuperAdmin,
-            'added_by' => auth()->id(),
+            'added_by' => auth()->user()->is_super_admin && $request->filled('added_by') ? $request->added_by : auth()->id(),
             'max_tokens' => $request->input('max_tokens', 32768),
             'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ]);
@@ -183,6 +187,10 @@ class AdminController extends Controller
             'max_tokens' => $request->input('max_tokens', 32768),
             'analysis_scope_limited' => $request->has('analysis_scope_limited'),
         ];
+
+        if (auth()->user()->is_super_admin) {
+            $data['added_by'] = $request->input('added_by');
+        }
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
