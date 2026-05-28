@@ -748,19 +748,23 @@
                                 'img' => 'real_user_import_modal.png',
                                 'label' => __('MODAL IMPORT FILE')
                             ],
-
-                            [                                'text' => __('Setting API Key per User'),
-                                'desc' => __('Untuk menyetting api key user anda tinggal click yang saya lingkari di gambar, yang bertuliskan API keys di modal agar memunculkan semua api key yang sudah kita input, dan pastikan API Key Sesuai dengan Provider dari model yang sudah anda pilih'),
-                                'img' => 'real_click_api_key_per_user.png',
-                                'label' => __('API KEY MENU')
-                            ],
- 
                             [
-                                'no' => 18,
-                                'text' => __('Setting API Key Per User'),
-                                'desc' => __('Centang API key yang ingin didelegasikan untuk user ini. API key yang dipilih akan digunakan oleh AI untuk user tersebut saat melakukan analisis data.'),
-                                'img' => 'real_api_key_list.png',
-                                'label' => __('LIST API KEY')bot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus for satu user.'),
+                                'no' => 14,
+                                'text' => __('Export Data User'),
+                                'desc' => __('Klik tombol <strong>"Export"</strong> (kotak merah) untuk mengunduh seluruh data user. Data yang diekspor mencakup semua informasi user kecuali password.'),
+                                'img' => 'real_user_export_btn.png',
+                                'label' => __('EXPORT DATA USER')
+                            ],
+                        ],
+                    ],
+                    [
+                        'id' => 'user-advanced',
+                        'title' => __('7D. Konfigurasi AI per User (Delegasi)'),
+                        'steps' => [
+                            [
+                                'no' => 15,
+                                'text' => __('Tombol AI Config (per User)'),
+                                'desc' => __('Pada kolom <strong>Aksi</strong> setiap baris user, klik tombol biru berbentuk robot/chip <i class="fas fa-microchip"></i> (kotak merah). Fitur ini memungkinkan Admin mendelegasikan model dan API key tertentu khusus untuk satu user.'),
                                 'img' => 'real_user_ai_config2.png',
                                 'label' => __('TOMBOL AI CONFIG PER USER')
                             ],

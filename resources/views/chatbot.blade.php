@@ -2456,7 +2456,7 @@
                 addMessage(message, 'user');
                 messageInput.value = '';
                 setLoading(true);
-                typingText.textContent = 'AI sedang berpikir...';
+                typingText.textContent = "{{ __('AI sedang berpikir...') }}";
                 chatMessages.scrollTop = chatMessages.scrollHeight;
 
                 const { bubble, toolArea, wrapper } = createStreamBubble();
@@ -2566,7 +2566,7 @@
                                                 dot.textContent = '✓';
                                             }
                                         }
-                                        typingText.textContent = 'Menyusun laporan...';
+                                        typingText.textContent = "{{ __('Menyusun laporan...') }}";
                                     } else if (tc.status === 'denied') {
                                         const runningBadge = toolArea.querySelector('.tool-call-badge.running');
                                         if (runningBadge) {
@@ -2574,7 +2574,7 @@
                                             const dot = runningBadge.querySelector('.tool-call-dot');
                                             if (dot) { dot.classList.remove('running'); dot.textContent = '🔒'; }
                                         }
-                                        typingText.textContent = 'Akses dibatasi';
+                                        typingText.textContent = "{{ __('Akses dibatasi') }}";
                                     }
 
                                     // CRITICAL: Store tool result data for later use (e.g., ERP guidance video)
@@ -2631,10 +2631,10 @@
 
                 } catch (err) {
                     console.error('[Agentic] Error:', err);
-                    bubble.innerHTML = renderMarkdown('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.');
+                    bubble.innerHTML = renderMarkdown("{{ __('Maaf, terjadi kesalahan koneksi ke server. Silakan coba lagi.') }}");
                 } finally {
                     setLoading(false);
-                    typingText.textContent = 'AI sedang berpikir...';
+                    typingText.textContent = "{{ __('AI sedang berpikir...') }}";
                     chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
                 }
             }
@@ -5693,8 +5693,8 @@
                                     const labelEl = bubble.querySelector('#ai-load-label');
                                     const subEl = bubble.querySelector('#ai-load-sub');
                                     if (labelEl && subEl) {
-                                        labelEl.textContent = 'AI sedang merancang jawaban';
-                                        subEl.textContent = 'Menganalisis permintaan...';
+                                        labelEl.textContent = "{{ __('AI sedang merancang jawaban') }}";
+                                        subEl.textContent = "{{ __('Menganalisis permintaan...') }}";
                                     }
                                 }
 
@@ -5746,7 +5746,7 @@
                                             iconEl.textContent = icon;
                                             labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
                                             labelEl.textContent = label + (detail ? detail : '');
-                                            subEl.textContent = 'Sedang memproses...';
+                                            subEl.textContent = "{{ __('Sedang memproses...') }}";
                                         }
                                     } else if (tc.status === 'success') {
                                         if (tc.result) {
@@ -5760,7 +5760,7 @@
                                             const dot = runningBadge.querySelector('.tool-call-dot');
                                             if (dot) { dot.classList.remove('running'); dot.textContent = '✓'; }
                                         }
-                                        typingText.textContent = 'Menganalisis data...';
+                                        typingText.textContent = '{{ __('Menganalisis data...') }}';
                                         // Update loading card ke state analisis
                                         const iconEl = bubble.querySelector('#ai-load-icon');
                                         const labelEl = bubble.querySelector('#ai-load-label');
@@ -5768,8 +5768,8 @@
                                         if (iconEl && labelEl && subEl) {
                                             iconEl.textContent = '📊';
                                             labelEl.classList.remove('anim'); void labelEl.offsetWidth; labelEl.classList.add('anim');
-                                            labelEl.textContent = 'Menganalisis data';
-                                            subEl.textContent = 'Menyusun hasil...';
+                                            labelEl.textContent = '{{ __('Menganalisis data') }}';
+                                            subEl.textContent = '{{ __('Menyusun hasil...') }}';
                                         }
                                     } else if (tc.status === 'denied') {
                                         const runningBadgeDenied = toolArea.querySelector('.tool-call-badge.running');
@@ -5783,10 +5783,10 @@
                                         const loadSubEl = bubble.querySelector('#ai-load-sub');
                                         if (loadIconEl && loadLabelEl && loadSubEl) {
                                             loadIconEl.textContent = '🔒';
-                                            loadLabelEl.textContent = 'Akses Dibatasi';
-                                            loadSubEl.textContent = 'Data terbatas sesuai kebijakan perusahaan';
+                                            loadLabelEl.textContent = "{{ __('Akses Dibatasi') }}";
+                                            loadSubEl.textContent = "{{ __('Data terbatas sesuai kebijakan perusahaan') }}";
                                         }
-                                        typingText.textContent = 'Akses dibatasi';
+                                        typingText.textContent = "{{ __('Akses dibatasi') }}";
                                     }
                                 }
 
