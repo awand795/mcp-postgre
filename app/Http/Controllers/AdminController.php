@@ -150,6 +150,10 @@ class AdminController extends Controller
 
     public function userUpdate(Request $request, User $user)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'name' => 'required',
             'email' => 'required|email|unique:users,email,' . $user->id,
@@ -223,6 +227,10 @@ class AdminController extends Controller
 
     public function toggleUserAiModel(User $user, $modelId)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $pivot = DB::table('user_ai_models')
             ->where('user_id', $user->id)
             ->where('model_id', $modelId)
@@ -240,6 +248,10 @@ class AdminController extends Controller
 
     public function toggleUserAiKey(User $user, $keyId)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $pivot = DB::table('user_ai_keys')
             ->where('user_id', $user->id)
             ->where('api_key_id', $keyId)
@@ -257,6 +269,10 @@ class AdminController extends Controller
 
     public function updateAiConfig(Request $request, User $user)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $selectedModelIds = $request->input('ai_models', []);
         $selectedKeyIds = $request->input('ai_keys', []);
 
@@ -323,6 +339,10 @@ class AdminController extends Controller
 
     public function userDelete(User $user)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $user->delete();
         return back()->with('success', 'User berhasil dihapus.');
     }
@@ -339,7 +359,7 @@ class AdminController extends Controller
         ]);
 
         try {
-            Excel::import(new UserImport, $request->file('file'));
+            Excel::import(new UserImport(auth()->id()), $request->file('file'));
             return back()->with('success', 'User berhasil diimport.');
         } catch (ValidationException $e) {
             $failures = $e->failures();
@@ -418,6 +438,10 @@ class AdminController extends Controller
 
     public function roleUpdate(Request $request, Role $role)
     {
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate(['name' => 'required|unique:roles,name,' . $role->id]);
         $role->update($request->only('name', 'description'));
         return back()->with('success', 'Role berhasil diperbarui.');
@@ -425,12 +449,20 @@ class AdminController extends Controller
 
     public function roleDelete(Role $role)
     {
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $role->delete();
         return response()->json(['success' => true, 'message' => 'Role berhasil dihapus.']);
     }
 
     public function updatePermissions(Request $request, Role $role)
     {
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $tables = $request->input('tables', []);
 
         // New format: each table is "database_code|schema_name|table_name"
@@ -560,6 +592,10 @@ class AdminController extends Controller
 
     public function databaseUpdate(Request $request, DatabaseConnection $database)
     {
+        if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|unique:database_connections,name,' . $database->id,
             'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
@@ -609,6 +645,10 @@ class AdminController extends Controller
 
     public function databaseDelete(DatabaseConnection $database)
     {
+        if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Prevent deleting default database
         if ($database->is_default) {
             return back()->withErrors(['error' => 'Tidak bisa menghapus database default.']);
@@ -624,6 +664,10 @@ class AdminController extends Controller
 
     public function databaseTest(DatabaseConnection $database)
     {
+        if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'error' => 'Unauthorized action.'], 403);
+        }
+
         $result = $database->testConnection();
 
         return response()->json($result);
@@ -668,6 +712,10 @@ class AdminController extends Controller
 
     public function databaseSchemas(DatabaseConnection $database)
     {
+        if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {
+            return response()->json(['error' => 'Unauthorized action.'], 403);
+        }
+
         $schemas = $database->getSchemas();
         return response()->json(['schemas' => $schemas]);
     }
@@ -786,6 +834,10 @@ class AdminController extends Controller
      */
     public function generateMcpToken(User $user)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $plainToken = bin2hex(random_bytes(32)); // 64 karakter hex
         $hashed     = hash('sha256', $plainToken);
 
@@ -810,6 +862,10 @@ class AdminController extends Controller
      */
     public function revokeMcpToken(User $user)
     {
+        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $user->update(['mcp_api_token' => null]);
 
         return response()->json([

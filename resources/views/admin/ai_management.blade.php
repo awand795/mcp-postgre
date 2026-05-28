@@ -644,10 +644,12 @@ html.dark .limit-alert-bar { color: #f87171; }
         </div>
         AI Management
     </h1>
+    @if(auth()->user()->is_super_admin)
     <button class="aim-btn-primary" type="button"
             onclick="document.getElementById('providerModal').style.display='flex'">
         <i class="fas fa-plus"></i> Add Provider
     </button>
+    @endif
 </div>
 
 {{-- ── STATS ──────────────────────────────────────────────────── --}}
@@ -731,22 +733,28 @@ html.dark .limit-alert-bar { color: #f87171; }
                 <span class="pill pill-off" id="pill-{{ $provider->id }}">Off</span>
             @endif
             <button class="sw {{ $provider->is_active ? 'on' : '' }}"
+                    @if(auth()->user()->is_super_admin)
                     onclick="toggleProvider({{ $provider->id }}, this)"
+                    @else
+                    disabled
+                    @endif
                     title="{{ $provider->is_active ? 'Disable' : 'Enable' }} provider">
                 <span class="sw-track"></span>
                 <span class="sw-thumb"></span>
             </button>
-            @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
-            <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
-                  style="display:inline"
-                  onsubmit="confirmDelete(event, 'Hapus Provider?', 'Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.')">
-                @csrf @method('DELETE')
-                <button type="submit" class="mb mb-del" title="Hapus provider">
-                    <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-                </button>
-            </form>
-            @else
-            <span class="pcard-protected" title="Provider bawaan tidak bisa dihapus"><i class="fas fa-lock"></i></span>
+            @if(auth()->user()->is_super_admin)
+                @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
+                <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
+                      style="display:inline"
+                      onsubmit="confirmDelete(event, 'Hapus Provider?', 'Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="mb mb-del" title="Hapus provider">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                    </button>
+                </form>
+                @else
+                <span class="pcard-protected" title="Provider bawaan tidak bisa dihapus"><i class="fas fa-lock"></i></span>
+                @endif
             @endif
         </div>
 
@@ -867,16 +875,20 @@ html.dark .limit-alert-bar { color: #f87171; }
             <div class="models-wrap">
                 @forelse($provider->models as $model)
                 <div class="model-chip {{ $model->is_active ? 'mc-on' : '' }}"
+                     @if(auth()->user()->is_super_admin)
                      onclick="toggleModel({{ $model->id }}, this)"
+                     @endif
                      title="{{ $model->model_name }}">
                     <span class="mdot"></span>
                     {{ $model->display_name }}
+                    @if(auth()->user()->is_super_admin)
                     <form action="{{ route('admin.ai_management.delete_model', $model->id) }}" method="POST"
                           style="display:inline"
                           onsubmit="event.stopPropagation(); confirmDelete(event, 'Hapus Model AI?', 'Model ini akan dihapus dari daftar pilihan user.')">
                         @csrf @method('DELETE')
                         <button type="submit" class="mc-del" title="Hapus">&times;</button>
                     </form>
+                    @endif
                 </div>
                 @empty
                 <p class="empty-hint">Belum ada model — klik "Add Model" di bawah</p>
@@ -892,22 +904,26 @@ html.dark .limit-alert-bar { color: #f87171; }
                     onclick="openAddKey({{ $provider->id }}, '{{ addslashes($provider->name) }}')">
                 <i class="fas fa-plus" style="font-size:.65rem"></i> Add Key
             </button>
+            @if(auth()->user()->is_super_admin)
             <button type="button"
                     class="pf-btn pf-btn-mod"
                     onclick="openAddModel({{ $provider->id }}, '{{ addslashes($provider->name) }}')">
                 <i class="fas fa-plus" style="font-size:.65rem"></i> Add Model
             </button>
+            @endif
             <span class="pf-last">Last: {{ $lastUsedLabel }}</span>
         </div>
     </div>
     @endforeach
 
     {{-- Add new provider card --}}
+    @if(auth()->user()->is_super_admin)
     <button class="pcard-add-new" type="button"
             onclick="document.getElementById('providerModal').style.display='flex'">
         <span class="add-icon"><i class="fas fa-plus"></i></span>
         <span>Tambah Provider Baru</span>
     </button>
+    @endif
 </div>
 
 

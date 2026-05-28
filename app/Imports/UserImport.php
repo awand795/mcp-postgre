@@ -15,6 +15,13 @@ use Maatwebsite\Excel\Validators\Failure;
 
 class UserImport implements ToModel, WithHeadingRow, WithValidation, SkipsEmptyRows, SkipsOnFailure
 {
+    protected $addedBy;
+
+    public function __construct($addedBy = null)
+    {
+        $this->addedBy = $addedBy;
+    }
+
     /**
      * @param Collection $row
      *
@@ -40,6 +47,7 @@ class UserImport implements ToModel, WithHeadingRow, WithValidation, SkipsEmptyR
             'password' => Hash::make($row['password'] ?? \Illuminate\Support\Str::random(12)),
             'role'     => $role?->id,
             'is_admin' => isset($row['is_admin']) ? ($row['is_admin'] == 1 || strtolower($row['is_admin']) === 'yes' || strtolower($row['is_admin']) === 'true') : false,
+            'added_by' => $this->addedBy ?? auth()->id(),
         ]);
     }
 

@@ -51,6 +51,10 @@ class AiController extends Controller
 
     public function storeModel(Request $request)
     {
+        if (!auth()->user()->is_super_admin) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'provider_id'  => 'required|exists:ai_providers,id',
             'model_name'   => 'required|string|max:255',
@@ -64,12 +68,20 @@ class AiController extends Controller
 
     public function deleteModel(AiModel $model)
     {
+        if (!auth()->user()->is_super_admin) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $model->delete();
         return back()->with('success', 'Model AI berhasil dihapus.');
     }
 
     public function updateKey(Request $request, AiApiKey $key)
     {
+        if (!auth()->user()->is_super_admin && $key->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'key_name'  => 'required|string|max:255',
             'api_key'   => 'nullable|string',
@@ -88,24 +100,40 @@ class AiController extends Controller
 
     public function deleteKey(AiApiKey $key)
     {
+        if (!auth()->user()->is_super_admin && $key->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $key->delete();
         return back()->with('success', 'API Key berhasil dihapus.');
     }
 
     public function toggleModel(AiModel $model)
     {
+        if (!auth()->user()->is_super_admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $model->update(['is_active' => !$model->is_active]);
         return response()->json(['success' => true, 'is_active' => $model->is_active]);
     }
 
     public function toggleProvider(AiProvider $provider)
     {
+        if (!auth()->user()->is_super_admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
+        }
+
         $provider->update(['is_active' => !$provider->is_active]);
         return response()->json(['success' => true, 'is_active' => $provider->is_active]);
     }
 
     public function resetLimit(AiApiKey $key)
     {
+        if (!auth()->user()->is_super_admin && $key->added_by !== auth()->id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $key->update(['limit_reached' => false]);
         return back()->with('success', 'Limit API Key berhasil di-reset.');
     }
@@ -116,9 +144,15 @@ class AiController extends Controller
      */
     public function pollKeyStatus(): \Illuminate\Http\JsonResponse
     {
-        $keys = AiApiKey::with('provider')
-            ->select('id', 'provider_id', 'key_name', 'is_active', 'limit_reached', 'last_used_at', 'usage_count', 'token_count')
-            ->get()
+        $user = auth()->user();
+        $query = AiApiKey::with('provider')
+            ->select('id', 'provider_id', 'key_name', 'is_active', 'limit_reached', 'last_used_at', 'usage_count', 'token_count');
+
+        if (!$user->is_super_admin) {
+            $query->where('added_by', $user->id);
+        }
+
+        $keys = $query->get()
             ->map(function ($key) {
                 return [
                     'id'            => $key->id,
@@ -146,6 +180,10 @@ class AiController extends Controller
 
     public function storeProvider(Request $request)
     {
+        if (!auth()->user()->is_super_admin) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'name'     => 'required|string|max:255',
             'code'     => 'required|string|max:50|unique:ai_providers,code|regex:/^[a-z0-9_]+$/',
@@ -168,6 +206,10 @@ class AiController extends Controller
 
     public function deleteProvider(AiProvider $provider)
     {
+        if (!auth()->user()->is_super_admin) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $builtIn = ['openai', 'gemini', 'claude', 'mistral'];
         if (in_array($provider->code, $builtIn)) {
             return back()->with('error', 'Provider built-in tidak dapat dihapus.');
@@ -202,6 +244,10 @@ class AiController extends Controller
 
     public function healthCheck(AiApiKey $key): \Illuminate\Http\JsonResponse
     {
+        if (!auth()->user()->is_super_admin && $key->added_by !== auth()->id()) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized action.'], 403);
+        }
+
         $key->load('provider');
         $providerCode = strtolower($key->provider->code ?? '');
         $baseUrl      = rtrim($key->provider->base_url ?? '', '/');
