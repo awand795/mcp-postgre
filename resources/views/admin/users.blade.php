@@ -257,7 +257,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="managersFormGroup">
                 <label>Dikelola Oleh (Dapat memilih lebih dari satu Admin)</label>
                 <div style="margin-bottom: 8px; position: relative;">
                     <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
@@ -290,11 +290,11 @@
             
             @if(auth()->user()->is_super_admin)
             <div class="form-group checkbox-group">
-                <input type="checkbox" name="is_admin" id="userIsAdmin" value="1" onchange="document.getElementById('userIsSuperAdmin').checked = false;">
+                <input type="checkbox" name="is_admin" id="userIsAdmin" value="1" onchange="document.getElementById('userIsSuperAdmin').checked = false; toggleManagersGroup();">
                 <label for="userIsAdmin">Jadikan Admin</label>
             </div>
             <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
-                <input type="checkbox" name="is_super_admin" id="userIsSuperAdmin" value="1" onchange="document.getElementById('userIsAdmin').checked = false;">
+                <input type="checkbox" name="is_super_admin" id="userIsSuperAdmin" value="1" onchange="document.getElementById('userIsAdmin').checked = false; toggleManagersGroup();">
                 <label for="userIsSuperAdmin">Jadikan Super Admin</label>
             </div>
             @endif
@@ -1424,6 +1424,22 @@
                     if (cb) cb.checked = true;
                 });
             }
+        }
+        toggleManagersGroup();
+    }
+
+    function toggleManagersGroup() {
+        const group = document.getElementById('managersFormGroup');
+        if (!group) return;
+        
+        const isAdmin = document.getElementById('userIsAdmin') && document.getElementById('userIsAdmin').checked;
+        const isSuperAdmin = document.getElementById('userIsSuperAdmin') && document.getElementById('userIsSuperAdmin').checked;
+        
+        if (isAdmin || isSuperAdmin) {
+            group.style.display = 'none';
+            group.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+        } else {
+            group.style.display = 'block';
         }
     }
 

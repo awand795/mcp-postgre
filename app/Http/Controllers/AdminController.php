@@ -154,14 +154,19 @@ class AdminController extends Controller
             $user->aiKeys()->sync($request->ai_keys);
         }
 
+
         // Sync managers
-        if (auth()->user()->is_super_admin) {
-            if ($request->has('managers')) {
-                $user->managers()->sync($request->managers);
-            }
+        if ($isAdmin || $isSuperAdmin) {
+            $user->managers()->sync([]);
         } else {
-            // Standard admin automatically owns/manages the user they created
-            $user->managers()->sync([auth()->id()]);
+            if (auth()->user()->is_super_admin) {
+                if ($request->has('managers')) {
+                    $user->managers()->sync($request->managers);
+                }
+            } else {
+                // Standard admin automatically owns/manages the user they created
+                $user->managers()->sync([auth()->id()]);
+            }
         }
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
@@ -235,11 +240,15 @@ class AdminController extends Controller
         $user->update($data);
 
         // Sync managers
-        if (auth()->user()->is_super_admin) {
-            if ($request->has('managers')) {
-                $user->managers()->sync($request->managers);
-            } else {
-                $user->managers()->sync([]);
+        if ($isAdmin || $isSuperAdmin) {
+            $user->managers()->sync([]);
+        } else {
+            if (auth()->user()->is_super_admin) {
+                if ($request->has('managers')) {
+                    $user->managers()->sync($request->managers);
+                } else {
+                    $user->managers()->sync([]);
+                }
             }
         }
 
