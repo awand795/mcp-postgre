@@ -259,15 +259,26 @@
             </div>
             <div class="form-group">
                 <label>Dikelola Oleh (Dapat memilih lebih dari satu Admin)</label>
-                <div style="max-height: 140px; overflow-y: auto; border: 1.5px solid var(--input-border); padding: 10px; border-radius: 12px; background: var(--input-bg); scrollbar-width: thin;">
+                <div style="margin-bottom: 8px; position: relative;">
+                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
+                    <input type="text" id="searchAdminManager" placeholder="Cari nama admin..." 
+                           style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--text-main); font-size: 0.82rem; outline: none;"
+                           oninput="filterAdminManagers(this.value)">
+                </div>
+                <div id="adminCheckboxList" style="max-height: 140px; overflow-y: auto; border: 1.5px solid var(--input-border); padding: 10px; border-radius: 12px; background: var(--input-bg); scrollbar-width: thin;">
                     @foreach($admins as $admin)
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                            <input type="checkbox" name="managers[]" value="{{ $admin->id }}" id="manager_{{ $admin->id }}" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
-                            <label for="manager_{{ $admin->id }}" style="margin: 0; font-size: 0.82rem; color: var(--text-main); font-weight: normal; cursor: pointer; display: inline;">
-                                {{ $admin->name }} ({{ $admin->is_super_admin ? 'Super Admin' : 'Admin' }})
-                            </label>
-                        </div>
+                        @if($admin->is_admin && !$admin->is_super_admin)
+                            <div class="admin-manager-item" data-name="{{ strtolower($admin->name) }}" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                <input type="checkbox" name="managers[]" value="{{ $admin->id }}" id="manager_{{ $admin->id }}" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+                                <label for="manager_{{ $admin->id }}" style="margin: 0; font-size: 0.82rem; color: var(--text-main); font-weight: normal; cursor: pointer; display: inline;">
+                                    {{ $admin->name }} (Admin)
+                                </label>
+                            </div>
+                        @endif
                     @endforeach
+                    <div id="noAdminFound" style="display: none; padding: 10px; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
+                        Tidak ada admin yang cocok
+                    </div>
                 </div>
             </div>
             @endif
@@ -1369,6 +1380,11 @@
         const pwdField = document.getElementById('userPassword');
         if (pwdField) pwdField.value = '';
 
+        // Reset search input and show all admin checkboxes
+        const searchInput = document.getElementById('searchAdminManager');
+        if (searchInput) searchInput.value = '';
+        filterAdminManagers('');
+
         // Reset all checkboxes for managers
         const managerCheckboxes = document.querySelectorAll('input[name="managers[]"]');
         managerCheckboxes.forEach(cb => cb.checked = false);
@@ -1408,6 +1424,25 @@
                     if (cb) cb.checked = true;
                 });
             }
+        }
+    }
+
+    function filterAdminManagers(query) {
+        const q = query.toLowerCase().trim();
+        const items = document.querySelectorAll('.admin-manager-item');
+        let found = false;
+        items.forEach(item => {
+            const name = item.getAttribute('data-name');
+            if (name.includes(q)) {
+                item.style.display = 'flex';
+                found = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        const noAdminFound = document.getElementById('noAdminFound');
+        if (noAdminFound) {
+            noAdminFound.style.display = found || items.length === 0 ? 'none' : 'block';
         }
     }
 
