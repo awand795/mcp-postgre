@@ -134,7 +134,12 @@
                     </td>
                     <td>
                         <div class="metadata-wrap">
-                            <span class="metadata-user"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
+                            <span class="metadata-user" title="Pencipta"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
+                            @if($user->managers->isNotEmpty())
+                                <span class="metadata-user" style="font-size: 0.72rem; color: var(--primary);" title="Pengelola: {{ $user->managers->pluck('name')->implode(', ') }}">
+                                    <i class="fas fa-user-shield"></i> {{ Str::limit($user->managers->pluck('name')->implode(', '), 15) }}
+                                </span>
+                            @endif
                             <span class="metadata-date"><i class="far fa-calendar-alt"></i> {{ $user->created_at->format('d/m/y') }}</span>
                             <span class="metadata-time" style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 5px; opacity: 0.8;">
                                 <i class="far fa-clock"></i> {{ $user->created_at->format('H:i') }}
@@ -243,14 +248,27 @@
             </div>
             
             @if(auth()->user()->is_super_admin)
-            <div class="form-group">
-                <label>Dikelola Oleh (Admin/Super Admin)</label>
+            <div class="form-group" style="display: none;">
+                <label>Pencipta / Owner Asli (System)</label>
                 <select name="added_by" id="userAddedBy">
-                    <option value="">Pilih Pengelola (System)</option>
+                    <option value="">Pilih Pencipta (System)</option>
                     @foreach($admins as $admin)
                         <option value="{{ $admin->id }}" style="color: black;">{{ $admin->name }} ({{ $admin->is_super_admin ? 'Super Admin' : 'Admin' }})</option>
                     @endforeach
                 </select>
+            </div>
+            <div class="form-group">
+                <label>Dikelola Oleh (Dapat memilih lebih dari satu Admin)</label>
+                <div style="max-height: 140px; overflow-y: auto; border: 1.5px solid var(--input-border); padding: 10px; border-radius: 12px; background: var(--input-bg); scrollbar-width: thin;">
+                    @foreach($admins as $admin)
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <input type="checkbox" name="managers[]" value="{{ $admin->id }}" id="manager_{{ $admin->id }}" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
+                            <label for="manager_{{ $admin->id }}" style="margin: 0; font-size: 0.82rem; color: var(--text-main); font-weight: normal; cursor: pointer; display: inline;">
+                                {{ $admin->name }} ({{ $admin->is_super_admin ? 'Super Admin' : 'Admin' }})
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
             </div>
             @endif
 
@@ -1351,6 +1369,10 @@
         const pwdField = document.getElementById('userPassword');
         if (pwdField) pwdField.value = '';
 
+        // Reset all checkboxes for managers
+        const managerCheckboxes = document.querySelectorAll('input[name="managers[]"]');
+        managerCheckboxes.forEach(cb => cb.checked = false);
+
         modal.style.display = 'flex';
         if (type === 'create') {
             document.getElementById('modalTitle').innerText = 'Tambah User';
@@ -1360,6 +1382,10 @@
             document.getElementById('userDescription').value = '';
             document.getElementById('passwordHint').style.display = 'none';
             if(document.getElementById('userAddedBy')) document.getElementById('userAddedBy').value = "{{ auth()->id() }}";
+
+            // By default, check current admin's checkbox in create mode
+            const currentAdminCb = document.getElementById("manager_{{ auth()->id() }}");
+            if (currentAdminCb) currentAdminCb.checked = true;
         } else {
             document.getElementById('modalTitle').innerText = 'Edit User';
             form.action = `/admin/users/${user.id}`;
@@ -1374,6 +1400,14 @@
             document.getElementById('userMaxTokens').value = user.max_tokens || 32768;
             document.getElementById('passwordHint').style.display = 'flex';
             if(document.getElementById('userAddedBy')) document.getElementById('userAddedBy').value = user.added_by || '';
+
+            // Check the checkboxes for associated managers
+            if (user.managers) {
+                user.managers.forEach(m => {
+                    const cb = document.getElementById(`manager_${m.id}`);
+                    if (cb) cb.checked = true;
+                });
+            }
         }
     }
 

@@ -49,11 +49,16 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $query = User::with(['roleModel', 'aiModels', 'aiKeys', 'addedBy', 'tableFilters']);
+        $query = User::with(['roleModel', 'aiModels', 'aiKeys', 'addedBy', 'tableFilters', 'managers']);
         
-        // Visibility filter: Admins see only users they added, Super Admins see all
+        // Visibility filter: Admins see only users they added or manage, Super Admins see all
         if (!auth()->user()->is_super_admin) {
-            $query->where('added_by', auth()->id());
+            $query->where(function($q) {
+                $q->where('added_by', auth()->id())
+                  ->orWhereHas('managers', function($q2) {
+                      $q2->where('admin_id', auth()->id());
+                  });
+            });
         }
         
         // Search functionality
@@ -75,7 +80,12 @@ class AdminController extends Controller
         // For copy filter modal, we need all users the admin can see (unpaginated)
         $allUsersQuery = User::orderBy('name');
         if (!auth()->user()->is_super_admin) {
-            $allUsersQuery->where('added_by', auth()->id());
+            $allUsersQuery->where(function($q) {
+                $q->where('added_by', auth()->id())
+                  ->orWhereHas('managers', function($q2) {
+                      $q2->where('admin_id', auth()->id());
+                  });
+            });
         }
         $allUsers = $allUsersQuery->get();
 
@@ -144,13 +154,23 @@ class AdminController extends Controller
             $user->aiKeys()->sync($request->ai_keys);
         }
 
+        // Sync managers
+        if (auth()->user()->is_super_admin) {
+            if ($request->has('managers')) {
+                $user->managers()->sync($request->managers);
+            }
+        } else {
+            // Standard admin automatically owns/manages the user they created
+            $user->managers()->sync([auth()->id()]);
+        }
+
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
         return $redirect->with('success', 'User berhasil ditambahkan.');
     }
 
     public function userUpdate(Request $request, User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -214,6 +234,15 @@ class AdminController extends Controller
 
         $user->update($data);
 
+        // Sync managers
+        if (auth()->user()->is_super_admin) {
+            if ($request->has('managers')) {
+                $user->managers()->sync($request->managers);
+            } else {
+                $user->managers()->sync([]);
+            }
+        }
+
         if ($request->has('ai_models')) {
             $user->aiModels()->sync($request->ai_models);
         }
@@ -227,7 +256,7 @@ class AdminController extends Controller
 
     public function toggleUserAiModel(User $user, $modelId)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -248,7 +277,7 @@ class AdminController extends Controller
 
     public function toggleUserAiKey(User $user, $keyId)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -269,7 +298,7 @@ class AdminController extends Controller
 
     public function updateAiConfig(Request $request, User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -339,7 +368,7 @@ class AdminController extends Controller
 
     public function userDelete(User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -834,7 +863,7 @@ class AdminController extends Controller
      */
     public function generateMcpToken(User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -862,7 +891,7 @@ class AdminController extends Controller
      */
     public function revokeMcpToken(User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -879,7 +908,7 @@ class AdminController extends Controller
      */
     public function getTableFilters(User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -1089,7 +1118,7 @@ class AdminController extends Controller
      */
     public function copyUserFilters(Request $request, User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['error' => 'Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.'], 403);    
         }
 
@@ -1133,7 +1162,7 @@ class AdminController extends Controller
      */
     public function updateTableFilters(Request $request, User $user)
     {
-        if (!auth()->user()->is_super_admin && $user->added_by !== auth()->id()) {
+        if (!$this->checkUserAuthorization($user)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -1277,5 +1306,21 @@ class AdminController extends Controller
     public function guide()
     {
         return view('admin.guide');
+    }
+
+    /**
+     * Check if current user is authorized to manage the target user.
+     */
+    private function checkUserAuthorization(User $user): bool
+    {
+        if (auth()->user()->is_super_admin) {
+            return true;
+        }
+
+        if ($user->added_by === auth()->id()) {
+            return true;
+        }
+
+        return $user->managers()->where('admin_id', auth()->id())->exists();
     }
 }

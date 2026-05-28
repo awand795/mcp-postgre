@@ -88,4 +88,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserTableFilter::class);
     }
+
+    public function managers()
+    {
+        return $this->belongsToMany(User::class, 'user_managers', 'user_id', 'admin_id');
+    }
 }
