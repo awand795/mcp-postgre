@@ -2124,6 +2124,16 @@
         };
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Hide logout button if loaded in an iframe
+            var isCurrentIframe = false;
+            try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
+            if (isCurrentIframe) {
+                const logoutForms = document.querySelectorAll('form[action*="logout"]');
+                logoutForms.forEach(form => {
+                    form.style.setProperty('display', 'none', 'important');
+                });
+            }
+
             // ── Toast Helper (Matching User Management) ──────────────────────────
             const fireToast = (icon, title, text = null, color = null) => {
                 const isDark = document.documentElement.classList.contains('dark');

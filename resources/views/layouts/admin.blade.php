@@ -651,6 +651,16 @@
             icon.className=dark?'fas fa-moon':'fas fa-sun';
         }
         document.addEventListener('DOMContentLoaded', function() {
+            // Hide logout button if loaded in an iframe
+            var isCurrentIframe = false;
+            try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
+            if (isCurrentIframe) {
+                var logoutForm = document.getElementById('logout-form');
+                if (logoutForm) {
+                    logoutForm.style.setProperty('display', 'none', 'important');
+                }
+            }
+
             // Remove FOUC fix now that styles have loaded
             const foucFix = document.getElementById('fouc-fix');
             if (foucFix) foucFix.remove();
