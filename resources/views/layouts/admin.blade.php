@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
     <meta charset="UTF-8">
@@ -424,6 +424,80 @@
         }
         html.dark .theme-switch-thumb { transform: translateX(18px); color: #818cf8; }
 
+        /* ── Language Switcher ── */
+        .lang-switch-dropdown {
+            position: relative;
+        }
+        .lang-switch-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 0.45rem 0.8rem;
+            color: var(--text-main);
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+            font-family: inherit;
+        }
+        .lang-switch-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .lang-switch-btn i {
+            font-size: 0.85rem;
+        }
+        .lang-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--card-bg);
+            border: 1.5px solid var(--glass-border2);
+            border-radius: 12px;
+            padding: 6px;
+            min-width: 170px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            animation: slideDown 0.2s ease-out;
+        }
+        .lang-dropdown-menu.active {
+            display: block;
+        }
+        .lang-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .lang-dropdown-menu a:hover {
+            background: var(--table-row-hover);
+            color: var(--text-main);
+        }
+        .lang-dropdown-menu a.active {
+            background: rgba(99, 102, 241, 0.08);
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .flag-icon {
+            font-size: 0.95rem;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* ── User Chip ── */
         .user-chip {
             display: flex; align-items: center; gap: 8px;
@@ -585,32 +659,32 @@
             </div>
         </div>
 
-        <p class="nav-section-label">Menu Utama</p>
+        <p class="nav-section-label">{{ __('Menu Utama') }}</p>
         <ul class="nav-links">
             <li><a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                 <i class="fas fa-chart-pie"></i><span>Dashboard</span></a></li>
             <li><a href="{{ route('admin.databases') }}" class="{{ request()->routeIs('admin.databases') ? 'active' : '' }}">
-                <i class="fas fa-database"></i><span>Management Database</span></a></li>
+                <i class="fas fa-database"></i><span>{{ __('Management Database') }}</span></a></li>
             <li><a href="{{ route('admin.ai_management') }}" class="{{ request()->routeIs('admin.ai_management') ? 'active' : '' }}">
-                <i class="fas fa-brain"></i><span>Management AI</span></a></li>
+                <i class="fas fa-brain"></i><span>{{ __('Management AI') }}</span></a></li>
             <li><a href="{{ route('admin.roles') }}" class="{{ request()->routeIs('admin.roles') ? 'active' : '' }}">
-                <i class="fas fa-user-shield"></i><span>Management Role</span></a></li>
+                <i class="fas fa-user-shield"></i><span>{{ __('Management Role') }}</span></a></li>
             <li><a href="{{ route('admin.users') }}" class="{{ request()->routeIs('admin.users') ? 'active' : '' }}">
-                <i class="fas fa-users"></i><span>Management User</span></a></li>
+                <i class="fas fa-users"></i><span>{{ __('Management User') }}</span></a></li>
         </ul>
 
         <div class="nav-divider"></div>
-        <p class="nav-section-label">Lainnya</p>
+        <p class="nav-section-label">{{ __('Lainnya') }}</p>
         <ul class="nav-links">
             <li><a href="{{ route('admin.guide') }}" class="{{ request()->routeIs('admin.guide') ? 'active' : '' }}">
-                <i class="fas fa-book"></i><span>Panduan Admin</span></a></li>
-            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i><span>Kembali ke Chatbot</span></a></li>
+                <i class="fas fa-book"></i><span>{{ __('Panduan Admin') }}</span></a></li>
+            <li><a href="{{ route('chatbot') }}"><i class="fas fa-comment-dots"></i><span>{{ __('Kembali ke Chatbot') }}</span></a></li>
         </ul>
 
         <div class="nav-divider"></div>
         <form action="{{ route('logout') }}" method="POST" id="logout-form">@csrf
             <a href="#" class="logout-btn" onclick="document.getElementById('logout-form').submit();">
-                <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                <i class="fas fa-sign-out-alt"></i><span>{{ __('Logout') }}</span>
             </a>
         </form>
     </div>
@@ -621,7 +695,7 @@
                 <button class="mobile-menu-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
                 <div class="top-header-title">
                     <h1>@yield('page-title', 'Admin Panel')</h1>
-                    <p>darkotech AI Management System</p>
+                    <p>{{ __('darkotech AI Management System') }}</p>
                 </div>
             </div>
             <div class="top-header-right">
@@ -634,6 +708,24 @@
                     </div>
                     <span class="theme-switch-label">☾</span>
                 </div>
+                
+                <!-- Language Switcher Dropdown -->
+                <div class="lang-switch-dropdown">
+                    <button class="lang-switch-btn" onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}">
+                        <i class="fas fa-globe"></i>
+                        <span>{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+                        <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
+                    </button>
+                    <div class="lang-dropdown-menu" id="langDropdownMenu">
+                        <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                            <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+                        </a>
+                        <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                            <span class="flag-icon">🇬🇧</span> English
+                        </a>
+                    </div>
+                </div>
+
                 <div class="user-chip">
                     <i class="fas fa-user-circle"></i>
                     <span>{{ auth()->user()->name ?? 'Admin' }}</span>
@@ -646,6 +738,20 @@
 
     @yield('scripts')
     <script>
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
+
         function toggleTheme(){
             const dark=document.documentElement.classList.contains('dark');
             if(dark){

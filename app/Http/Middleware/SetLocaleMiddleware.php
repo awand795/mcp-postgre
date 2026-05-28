@@ -4,9 +4,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Symfony\Component\HttpFoundation\Response;
 
-class AdminMiddleware
+class SetLocaleMiddleware
 {
     /**
      * Handle an incoming request.
@@ -15,10 +16,18 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_super_admin)) {
-            return $next($request);
+        $locale = $request->cookie('locale') ?: session('locale');
+
+        if (!$locale) {
+            $locale = config('app.locale', 'id');
         }
 
-        return redirect('/chatbot')->with('error', __('Anda tidak memiliki hak akses admin.'));
+        if (in_array($locale, ['en', 'id'])) {
+            App::setLocale($locale);
+        } else {
+            App::setLocale('id');
+        }
+
+        return $next($request);
     }
 }

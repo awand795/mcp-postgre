@@ -65,7 +65,7 @@ class AgenticChatbotController extends Controller
                 ->first();
 
             if (!$selectedModel) {
-                return response()->json(['error' => 'Tidak ada model AI yang aktif. Silakan aktifkan di Pengaturan.'], 400);
+                return response()->json(['error' => __('Tidak ada model AI yang aktif. Silakan aktifkan di Pengaturan.')], 400);
             }
             $selectedModelId = $selectedModel->id;
         } else {
@@ -80,12 +80,12 @@ class AgenticChatbotController extends Controller
         $allApiKeys = ApiKeyResolver::getKeysForProvider($user, $selectedModel->provider_id);
 
         if ($allApiKeys->isEmpty()) {
-            return response()->json(['error' => 'Mohon maaf, akses layanan analisis AI belum dikonfigurasi. Harap hubungi Administrator Sistem.'], 403);
+            return response()->json(['error' => __('Mohon maaf, akses layanan analisis AI belum dikonfigurasi. Harap hubungi Administrator Sistem.')], 403);
         }
 
         $firstAvailableKey = ApiKeyResolver::pickAvailable($allApiKeys);
         if (!$firstAvailableKey) {
-            return response()->json(['error' => 'Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok atau hubungi Administrator Sistem.'], 429);
+            return response()->json(['error' => __('Mohon maaf, semua kuota API untuk layanan ini telah habis. Silakan coba kembali besok atau hubungi Administrator Sistem.')], 429);
         }
 
         $allowedDatabases = [];
@@ -211,7 +211,7 @@ class AgenticChatbotController extends Controller
                     $this->runAgenticLoop($messages, $allApiKeys, $selectedModel, $allowedDatabases, $chatSessionId, $maxTokens, $scopeLimited, $detectedLanguage);
                 } catch (\Throwable $e) {
                     Log::error("[Agentic] Fatal Stream Error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
-                    $this->streamText("⚠️ Maaf, terjadi masalah internal saat mengeksekusi AI: " . $e->getMessage());
+                    $this->streamText("⚠️ " . __('Maaf, terjadi masalah internal saat mengeksekusi AI:') . " " . $e->getMessage());
                     echo "data: [DONE]\n\n";
                     if (ob_get_level() > 0)
                         ob_flush();
@@ -958,7 +958,7 @@ class AgenticChatbotController extends Controller
     {
         $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
         if (!$rawId) {
-            abort(404, 'Sesi tidak ditemukan.');
+            abort(404, __('Sesi tidak ditemukan.'));
         }
 
         $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId);
@@ -1015,7 +1015,7 @@ class AgenticChatbotController extends Controller
     {
         $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
         if (!$rawId) {
-            abort(404, 'Sesi tidak ditemukan.');
+            abort(404, __('Sesi tidak ditemukan.'));
         }
 
         ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId)->delete();
@@ -1027,7 +1027,7 @@ class AgenticChatbotController extends Controller
         $request->validate(['title' => 'required|string|max:255']);
         $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
         if (!$rawId) {
-            abort(404, 'Sesi tidak ditemukan.');
+            abort(404, __('Sesi tidak ditemukan.'));
         }
 
         ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId)->update(['title' => $request->title]);
@@ -1038,7 +1038,7 @@ class AgenticChatbotController extends Controller
     {
         $rawId = is_numeric($id) ? $id : \App\Helpers\HashidsHelper::decode($id);
         if (!$rawId) {
-            abort(404, 'Sesi tidak ditemukan.');
+            abort(404, __('Sesi tidak ditemukan.'));
         }
 
         $session = ChatSession::where('user_id', Auth::user()->id)->findOrFail($rawId);
@@ -1106,7 +1106,7 @@ class AgenticChatbotController extends Controller
 
         if (count($normalizedRows) > 1500) {
             return response()->json([
-                'error' => 'Data terlalu besar untuk format PDF (' . count($normalizedRows) . ' baris). Maksimal 1.500 baris. Silakan gunakan Export Excel untuk mengunduh data sebesar ini.'
+                'error' => __('Data terlalu besar untuk format PDF (:rows baris). Maksimal 1.500 baris. Silakan gunakan Export Excel untuk mengunduh data sebesar ini.', ['rows' => count($normalizedRows)])
             ], 400);
         }
 

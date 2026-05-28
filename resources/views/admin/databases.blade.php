@@ -9,18 +9,18 @@
     <div class="header-left">
         <h1 class="page-title">
             <span class="title-icon"><i class="fas fa-database"></i></span>
-            Management Database
+            {{ __('Management Database') }}
         </h1>
-        <p class="page-subtitle">Kelola koneksi database yang terhubung ke sistem</p>
+        <p class="page-subtitle">{{ __('Kelola koneksi database yang terhubung ke sistem') }}</p>
     </div>
     <div class="header-actions">
         <button class="btn btn-secondary" onclick="testAllConnections()" id="testAllBtn">
             <i class="fas fa-heartbeat"></i>
-            <span>Test All</span>
+            <span>{{ __('Test All') }}</span>
         </button>
         <button class="btn btn-primary" onclick="showDatabaseModal('create')">
             <i class="fas fa-plus"></i>
-            <span>Tambah Database</span>
+            <span>{{ __('Tambah Database') }}</span>
         </button>
     </div>
 </div>
@@ -31,17 +31,17 @@
 <div class="health-bar glass-card" id="healthBar" style="display:none;">
     <div class="health-stat">
         <span class="health-num" id="hTotal">0</span>
-        <span class="health-label">Total</span>
+        <span class="health-label">{{ __('Total') }}</span>
     </div>
     <div class="health-divider"></div>
     <div class="health-stat success">
         <span class="health-num" id="hHealthy">0</span>
-        <span class="health-label"><i class="fas fa-check-circle"></i> Connected</span>
+        <span class="health-label"><i class="fas fa-check-circle"></i> {{ __('Connected') }}</span>
     </div>
     <div class="health-divider"></div>
     <div class="health-stat danger">
         <span class="health-num" id="hUnhealthy">0</span>
-        <span class="health-label"><i class="fas fa-times-circle"></i> Failed</span>
+        <span class="health-label"><i class="fas fa-times-circle"></i> {{ __('Failed') }}</span>
     </div>
     <button class="health-close" onclick="document.getElementById('healthBar').style.display='none'">
         <i class="fas fa-times"></i>
@@ -54,32 +54,32 @@
 <div class="toolbar glass-card">
     <div class="toolbar-search">
         <i class="fas fa-search search-icon"></i>
-        <input type="text" id="searchInput" placeholder="Cari nama, kode, host..." oninput="filterDatabases()" />
+        <input type="text" id="searchInput" placeholder="{{ __('Cari nama, kode, host...') }}" oninput="filterDatabases()" />
         <button class="search-clear" id="searchClear" onclick="clearSearch()" style="display:none;">
             <i class="fas fa-times"></i>
         </button>
     </div>
     <div class="toolbar-filters">
         <select id="filterDriver" onchange="filterDatabases()" class="filter-select">
-            <option value="">Semua Driver</option>
+            <option value="">{{ __('Semua Driver') }}</option>
             <option value="pgsql">PostgreSQL</option>
             <option value="mysql">MySQL</option>
             <option value="mariadb">MariaDB</option>
         </select>
         <select id="filterStatus" onchange="filterDatabases()" class="filter-select">
-            <option value="">Semua Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="connected">Connected</option>
-            <option value="failed">Failed</option>
-            <option value="untested">Not Tested</option>
+            <option value="">{{ __('Semua Status') }}</option>
+            <option value="active">{{ __('Active') }}</option>
+            <option value="inactive">{{ __('Inactive') }}</option>
+            <option value="connected">{{ __('Connected') }}</option>
+            <option value="failed">{{ __('Failed') }}</option>
+            <option value="untested">{{ __('Not Tested') }}</option>
         </select>
     </div>
     <div class="toolbar-view">
-        <button class="view-btn active" id="viewGrid" onclick="setView('grid')" title="Grid View">
+        <button class="view-btn active" id="viewGrid" onclick="setView('grid')" title="{{ __('Grid View') }}">
             <i class="fas fa-th-large"></i>
         </button>
-        <button class="view-btn" id="viewList" onclick="setView('list')" title="List View">
+        <button class="view-btn" id="viewList" onclick="setView('list')" title="{{ __('List View') }}">
             <i class="fas fa-list"></i>
         </button>
     </div>
@@ -88,7 +88,7 @@
 {{-- Filter count --}}
 <div class="filter-info" id="filterInfo" style="display:none;">
     <span id="filterCount"></span>
-    <button onclick="clearAllFilters()">Reset Filter <i class="fas fa-times"></i></button>
+    <button onclick="clearAllFilters()">{{ __('Reset Filter') }} <i class="fas fa-times"></i></button>
 </div>
 
 {{-- ═══════════════════════════════════════════════════════
@@ -111,7 +111,7 @@
                 @elseif($db->test_status === 'failed') dot-failed
                 @else dot-pending
                 @endif"
-                title="{{ $db->test_status === 'success' ? 'Connected' : ($db->test_status === 'failed' ? 'Connection Failed' : 'Not Tested') }}">
+                title="{{ $db->test_status === 'success' ? __('Connected') : ($db->test_status === 'failed' ? __('Connection Failed') : __('Not Tested')) }}">
             </div>
 
             {{-- Card Header --}}
@@ -124,23 +124,23 @@
                     <div class="db-badges">
                         <span class="badge badge-driver">{{ strtoupper($db->driver) }}</span>
                         @if($db->is_default)
-                            <span class="badge badge-default"><i class="fas fa-star"></i> Default</span>
+                            <span class="badge badge-default"><i class="fas fa-star"></i> {{ __('Default') }}</span>
                         @endif
                         @if(!$db->is_active)
-                            <span class="badge badge-inactive">Inactive</span>
+                            <span class="badge badge-inactive">{{ __('Inactive') }}</span>
                         @endif
                     </div>
                     <p class="db-code"><i class="fas fa-tag"></i> {{ $db->code }}</p>
                 </div>
                 <div class="db-card-actions">
-                    <button class="btn-icon" onclick="testConnection({{ $db->id }})" title="Test Connection">
+                    <button class="btn-icon" onclick="testConnection({{ $db->id }})" title="{{ __('Test Connection') }}">
                         <i class="fas fa-plug"></i>
                     </button>
-                    <button class="btn-icon btn-icon-edit" onclick="showDatabaseModal('edit', {{ json_encode($db) }})" title="Edit">
+                    <button class="btn-icon btn-icon-edit" onclick="showDatabaseModal('edit', {{ json_encode($db) }})" title="{{ __('Ubah') }}">
                         <i class="fas fa-edit"></i>
                     </button>
                     @if(!$db->is_default)
-                        <button class="btn-icon btn-icon-danger" onclick="deleteDatabase({{ $db->id }}, '{{ $db->name }}')" title="Delete">
+                        <button class="btn-icon btn-icon-danger" onclick="deleteDatabase({{ $db->id }}, '{{ $db->name }}')" title="{{ __('Hapus') }}">
                             <i class="fas fa-trash"></i>
                         </button>
                     @endif
@@ -150,41 +150,41 @@
             {{-- Connection Details --}}
             <div class="db-details">
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-server"></i> Host</span>
+                    <span class="detail-label"><i class="fas fa-server"></i> {{ __('Host') }}</span>
                     <span class="detail-value">
                         {{ $db->host }}:{{ $db->port }}
-                        <button class="copy-btn" onclick="copyToClipboard('{{ $db->host }}:{{ $db->port }}')" title="Copy">
+                        <button class="copy-btn" onclick="copyToClipboard('{{ $db->host }}:{{ $db->port }}')" title="{{ __('Salin') }}">
                             <i class="fas fa-copy"></i>
                         </button>
                     </span>
                 </div>
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-database"></i> Database</span>
+                    <span class="detail-label"><i class="fas fa-database"></i> {{ __('Database') }}</span>
                     <span class="detail-value">
                         {{ $db->database }}
-                        <button class="copy-btn" onclick="copyToClipboard('{{ $db->database }}')" title="Copy">
+                        <button class="copy-btn" onclick="copyToClipboard('{{ $db->database }}')" title="{{ __('Salin') }}">
                             <i class="fas fa-copy"></i>
                         </button>
                     </span>
                 </div>
                 @if($db->schema)
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-layer-group"></i> Schema</span>
+                    <span class="detail-label"><i class="fas fa-layer-group"></i> {{ __('Schema') }}</span>
                     <span class="detail-value">{{ $db->schema }}</span>
                 </div>
                 @endif
                 @if($db->description)
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-info-circle"></i> Info</span>
+                    <span class="detail-label"><i class="fas fa-info-circle"></i> {{ __('Keterangan') }}</span>
                     <span class="detail-value muted">{{ Str::limit($db->description, 60) }}</span>
                 </div>
                 @endif
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-user-plus"></i> Ditambahkan Oleh</span>
+                    <span class="detail-label"><i class="fas fa-user-plus"></i> {{ __('Ditambahkan Oleh') }}</span>
                     <span class="detail-value">{{ $db->addedBy->name ?? 'System' }}</span>
                 </div>
                 <div class="db-detail-row">
-                    <span class="detail-label"><i class="fas fa-calendar-alt"></i> Tanggal</span>
+                    <span class="detail-label"><i class="fas fa-calendar-alt"></i> {{ __('Tanggal') }}</span>
                     <span class="detail-value">{{ $db->created_at->format('d M Y') }}</span>
                 </div>
             </div>
@@ -194,11 +194,11 @@
                 <div class="status-left">
                     @if($db->test_status === 'success')
                         <span class="status-chip chip-success">
-                            <i class="fas fa-check-circle"></i> Connected
+                            <i class="fas fa-check-circle"></i> {{ __('Connected') }}
                         </span>
                     @elseif($db->test_status === 'failed')
                         <span class="status-chip chip-failed">
-                            <i class="fas fa-times-circle"></i> Failed
+                            <i class="fas fa-times-circle"></i> {{ __('Failed') }}
                         </span>
                         @if($db->test_error)
                             <span class="error-hint" title="{{ $db->test_error }}">
@@ -208,7 +208,7 @@
                         @endif
                     @else
                         <span class="status-chip chip-pending">
-                            <i class="fas fa-question-circle"></i> Not Tested
+                            <i class="fas fa-question-circle"></i> {{ __('Not Tested') }}
                         </span>
                     @endif
                 </div>
@@ -237,10 +237,10 @@
                     <circle cx="60" cy="58" r="8" fill="none" stroke="#10b981" stroke-width="2" opacity="0" class="db-empty-pulse"/>
                 </svg>
             </div>
-            <h3>Belum Ada Database</h3>
-            <p>Tambahkan koneksi database untuk mulai mengelola dan menganalisis data Anda.</p>
+            <h3>{{ __('Belum Ada Database') }}</h3>
+            <p>{{ __('Tambahkan koneksi database untuk mulai mengelola dan menganalisis data Anda.') }}</p>
             <button class="btn btn-primary" onclick="showDatabaseModal('create')">
-                <i class="fas fa-plus"></i> Tambah Database Pertama
+                <i class="fas fa-plus"></i> {{ __('Tambah Database Pertama') }}
             </button>
         </div>
     @endforelse
@@ -249,8 +249,8 @@
 {{-- No results state (for filter) --}}
 <div class="no-results" id="noResults" style="display:none;">
     <i class="fas fa-search"></i>
-    <p>Tidak ada database yang cocok dengan filter.</p>
-    <button onclick="clearAllFilters()">Reset Filter</button>
+    <p>{{ __('Tidak ada database yang cocok dengan filter.') }}</p>
+    <button onclick="clearAllFilters()">{{ __('Reset Filter') }}</button>
 </div>
 
 
@@ -262,7 +262,7 @@
 
         {{-- Modal Header --}}
         <div class="modal-header">
-            <h3 id="databaseModalTitle">Tambah Database</h3>
+            <h3 id="databaseModalTitle">{{ __('Tambah Database') }}</h3>
             <button class="modal-close" onclick="document.getElementById('databaseModal').style.display='none'">
                 <i class="fas fa-times"></i>
             </button>
@@ -272,17 +272,17 @@
         <div class="wizard-steps">
             <div class="wz-step active" id="wz1" onclick="goStep(1)">
                 <div class="wz-circle">1</div>
-                <span>Identitas</span>
+                <span>{{ __('Identitas') }}</span>
             </div>
             <div class="wz-line"></div>
             <div class="wz-step" id="wz2" onclick="goStep(2)">
                 <div class="wz-circle">2</div>
-                <span>Koneksi</span>
+                <span>{{ __('Koneksi') }}</span>
             </div>
             <div class="wz-line"></div>
             <div class="wz-step" id="wz3" onclick="goStep(3)">
                 <div class="wz-circle">3</div>
-                <span>Advanced</span>
+                <span>{{ __('Advanced') }}</span>
             </div>
         </div>
 
@@ -294,18 +294,18 @@
             <div class="wizard-panel" id="panel1">
                 <div class="form-row two-col">
                     <div class="form-group">
-                        <label>Nama Koneksi / Alias <span class="req">*</span></label>
+                        <label>{{ __('Nama Koneksi / Alias') }} <span class="req">*</span></label>
                         <input type="text" name="name" id="dbNameInput" placeholder="MBI Production" required>
                     </div>
                     <div class="form-group">
-                        <label>Kode <span class="req">*</span></label>
+                        <label>{{ __('Kode') }} <span class="req">*</span></label>
                         <input type="text" name="code" id="dbCodeInput" placeholder="mbi_prod" required>
-                        <small>Huruf kecil, angka, underscore saja</small>
+                        <small>{{ __('Huruf kecil, angka, underscore saja') }}</small>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Driver Database <span class="req">*</span></label>
+                    <label>{{ __('Driver Database') }} <span class="req">*</span></label>
                     <div class="driver-selector" id="driverSelector">
                         <div class="driver-option active" data-driver="pgsql" onclick="selectDriver('pgsql')">
                             <div class="driver-opt-icon pgsql-icon"><i class="fas fa-database"></i></div>
@@ -324,28 +324,28 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Deskripsi</label>
+                    <label>{{ __('Deskripsi') }}</label>
                     <textarea name="description" id="dbDescriptionInput" rows="2"
-                        placeholder="Database production untuk MBI..."></textarea>
+                        placeholder="{{ __('Database production untuk MBI...') }}"></textarea>
                 </div>
 
                 <div class="form-row two-col">
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_active" id="dbIsActiveInput" value="1" checked>
                         <span class="custom-check"></span>
-                        Aktif
+                        {{ __('Aktif') }}
                     </label>
                     <label class="checkbox-label">
                         <input type="checkbox" name="is_default" id="dbIsDefaultInput" value="1">
                         <span class="custom-check"></span>
-                        Jadikan Default
+                        {{ __('Jadikan Default') }}
                     </label>
                 </div>
 
                 <div class="wizard-nav">
                     <span></span>
                     <button type="button" class="btn btn-primary" onclick="goStep(2)">
-                        Selanjutnya <i class="fas fa-arrow-right"></i>
+                        {{ __('Selanjutnya') }} <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -354,41 +354,41 @@
             <div class="wizard-panel" id="panel2" style="display:none;">
                 <div class="form-row two-col" id="hostPortRow">
                     <div class="form-group">
-                        <label id="hostLabel">Host <span class="req">*</span></label>
+                        <label id="hostLabel">{{ __('Host') }} <span class="req">*</span></label>
                         <input type="text" name="host" id="dbHostInput" placeholder="db.example.com">
                     </div>
                     <div class="form-group">
-                        <label>Port <span class="req">*</span></label>
+                        <label>{{ __('Port') }} <span class="req">*</span></label>
                         <input type="number" name="port" id="dbPortInput" value="5432" required>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label id="databaseLabel">Nama Database <span class="req">*</span></label>
+                    <label id="databaseLabel">{{ __('Nama Database') }} <span class="req">*</span></label>
                     <input type="text" name="database" id="dbDatabaseInput" placeholder="my_database" required>
-                    <small id="databaseHint">Nama database sebenarnya pada server</small>
+                    <small id="databaseHint">{{ __('Nama database sebenarnya pada server') }}</small>
                 </div>
 
                 <div class="form-row two-col" id="credentialsRow">
                     <div class="form-group" id="usernameGroup">
-                        <label>Username <span class="req" id="usernameRequiredMark">*</span></label>
+                        <label>{{ __('Username') }} <span class="req" id="usernameRequiredMark">*</span></label>
                         <input type="text" name="username" id="dbUsernameInput" placeholder="postgres">
                     </div>
                     <div class="form-group" id="passwordGroup">
-                        <label>Password <span class="req" id="passwordRequiredMark">*</span></label>
+                        <label>{{ __('Password') }} <span class="req" id="passwordRequiredMark">*</span></label>
                         <div class="input-with-icon">
                             <input type="password" name="password" id="dbPasswordInput" placeholder="••••••••">
-                            <button type="button" class="toggle-pass" onclick="togglePassword()" title="Tampilkan/sembunyikan">
+                            <button type="button" class="toggle-pass" onclick="togglePassword()" title="{{ __('Tampilkan/sembunyikan') }}">
                                 <i class="fas fa-eye" id="passEyeIcon"></i>
                             </button>
                         </div>
-                        <small id="passwordHint" style="display:none;">Kosongkan jika tidak ingin mengubah</small>
+                        <small id="passwordHint" style="display:none;">{{ __('Kosongkan jika tidak ingin mengubah') }}</small>
                     </div>
                 </div>
 
                 <div class="form-row two-col">
                     <div class="form-group">
-                        <label>SSL Mode</label>
+                        <label>{{ __('SSL Mode') }}</label>
                         <select name="ssl_mode" id="dbSslModeInput">
                             <option value="">None</option>
                             <option value="prefer">Prefer</option>
@@ -396,33 +396,33 @@
                             <option value="verify-ca">Verify CA</option>
                             <option value="verify-full">Verify Full</option>
                         </select>
-                        <small>Keamanan koneksi SSL/TLS</small>
+                        <small>{{ __('Keamanan koneksi SSL/TLS') }}</small>
                     </div>
                     <div class="form-group">
-                        <label>Connection Timeout (detik)</label>
+                        <label>{{ __('Connection Timeout (detik)') }}</label>
                         <input type="number" name="connection_timeout" id="dbTimeoutInput" value="30" min="5" max="300">
-                        <small>Default: 30 detik</small>
+                        <small>{{ __('Default: 30 detik') }}</small>
                     </div>
                 </div>
 
                 <div class="form-group" id="schemaGroup">
-                    <label id="schemaLabel">Schema <span class="req">*</span></label>
+                    <label id="schemaLabel">{{ __('Schema') }} <span class="req">*</span></label>
                     <div class="schema-input-row">
                         <input type="text" name="schema" id="dbSchemaInput" placeholder="public">
                         <button type="button" class="btn btn-secondary" onclick="loadSchemas()" id="loadSchemasBtn">
-                            <i class="fas fa-sync-alt"></i> Load
+                            <i class="fas fa-sync-alt"></i> {{ __('Load') }}
                         </button>
                     </div>
                     <select id="dbSchemaSelect" style="display:none;"></select>
-                    <small id="schemaHint">PostgreSQL: sch_nama / public, SQL Server: dbo</small>
+                    <small id="schemaHint">{{ __('PostgreSQL: public, sch_nama') }} / {{ __('SQL Server: dbo, sch_nama') }}</small>
                 </div>
 
                 <div class="wizard-nav">
                     <button type="button" class="btn btn-cancel" onclick="goStep(1)">
-                        <i class="fas fa-arrow-left"></i> Kembali
+                        <i class="fas fa-arrow-left"></i> {{ __('Kembali') }}
                     </button>
                     <button type="button" class="btn btn-primary" onclick="goStep(3)">
-                        Selanjutnya <i class="fas fa-arrow-right"></i>
+                        {{ __('Selanjutnya') }} <i class="fas fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
@@ -432,21 +432,21 @@
                 {{-- Test Connection Preview --}}
                 <div class="test-preview-box" id="testPreviewBox">
                     <div class="test-preview-header">
-                        <i class="fas fa-plug"></i> Test Koneksi Sebelum Simpan
+                        <i class="fas fa-plug"></i> {{ __('Test Koneksi Sebelum Simpan') }}
                     </div>
-                    <p class="test-preview-desc">Uji koneksi sebelum menyimpan untuk memastikan parameter sudah benar.</p>
+                    <p class="test-preview-desc">{{ __('Uji koneksi sebelum menyimpan untuk memastikan parameter sudah benar.') }}</p>
                     <button type="button" class="btn btn-secondary" onclick="testConnectionPreview()" id="testPreviewBtn">
-                        <i class="fas fa-play-circle"></i> Test Sekarang
+                        <i class="fas fa-play-circle"></i> {{ __('Test Sekarang') }}
                     </button>
                     <div class="test-preview-result" id="testPreviewResult" style="display:none;"></div>
                 </div>
 
                 <div class="wizard-nav">
                     <button type="button" class="btn btn-cancel" onclick="goStep(2)">
-                        <i class="fas fa-arrow-left"></i> Kembali
+                        <i class="fas fa-arrow-left"></i> {{ __('Kembali') }}
                     </button>
                     <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <i class="fas fa-save"></i> Simpan Database
+                        <i class="fas fa-save"></i> {{ __('Simpan Database') }}
                     </button>
                 </div>
             </div>
@@ -1225,11 +1225,11 @@ let currentStep = 1;
 let currentView = 'grid';
 
 const driverConfig = {
-    pgsql:   { port: 5432,  usesSchema: true,  defaultSchema: 'public', hostLabel: 'Host', dbLabel: 'Nama Database', dbHint: 'Nama database pada server PostgreSQL', schemaHint: 'PostgreSQL: public, sch_nama' },
-    mysql:   { port: 3306,  usesSchema: false, defaultSchema: '',       hostLabel: 'Host', dbLabel: 'Nama Database', dbHint: 'Nama database MySQL', schemaHint: 'MySQL: kosongkan untuk otomatis' },
-    mariadb: { port: 3306,  usesSchema: false, defaultSchema: '',       hostLabel: 'Host', dbLabel: 'Nama Database', dbHint: 'Nama database MariaDB', schemaHint: 'MariaDB: kosongkan untuk otomatis' },
-    sqlsrv:  { port: 1433,  usesSchema: true,  defaultSchema: 'dbo',    hostLabel: 'Host', dbLabel: 'Nama Database', dbHint: 'Nama database SQL Server', schemaHint: 'SQL Server: dbo, sch_nama' },
-    sqlite:  { port: 0,     usesSchema: false, defaultSchema: '',       hostLabel: 'Path File', dbLabel: 'Path File SQLite', dbHint: 'Path lengkap ke file .sqlite atau .db', schemaHint: '' },
+    pgsql:   { port: 5432,  usesSchema: true,  defaultSchema: 'public', hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database pada server PostgreSQL') }}", schemaHint: "{{ __('PostgreSQL: public, sch_nama') }}" },
+    mysql:   { port: 3306,  usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database MySQL') }}", schemaHint: "{{ __('MySQL: kosongkan untuk otomatis') }}" },
+    mariadb: { port: 3306,  usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database MariaDB') }}", schemaHint: "{{ __('MariaDB: kosongkan untuk otomatis') }}" },
+    sqlsrv:  { port: 1433,  usesSchema: true,  defaultSchema: 'dbo',    hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database SQL Server') }}", schemaHint: "{{ __('SQL Server: dbo, sch_nama') }}" },
+    sqlite:  { port: 0,     usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Path File') }}", dbLabel: "{{ __('Path File SQLite') }}", dbHint: "{{ __('Path lengkap ke file .sqlite atau .db') }}", schemaHint: '' },
 };
 
 // ═══════════════════════════════════════
@@ -1307,7 +1307,7 @@ window.showDatabaseModal = function(type, db = null) {
     goStep(1);
 
     if (type === 'create') {
-        document.getElementById('databaseModalTitle').textContent = 'Tambah Database';
+        document.getElementById('databaseModalTitle').textContent = "{{ __('Tambah Database') }}";
         form.action = "{{ route('admin.databases.store') }}";
         document.getElementById('databaseFormMethod').value = 'POST';
         editingDatabaseId = null;
@@ -1319,7 +1319,7 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbIsActiveInput').checked = true;
         document.getElementById('dbIsDefaultInput').checked = false;
     } else {
-        document.getElementById('databaseModalTitle').textContent = 'Edit Database';
+        document.getElementById('databaseModalTitle').textContent = "{{ __('Edit Database') }}";
         form.action = `/admin/databases/${db.id}`;
         document.getElementById('databaseFormMethod').value = 'PUT';
         editingDatabaseId = db.id;
@@ -1381,7 +1381,7 @@ window.togglePassword = function() {
 window.copyToClipboard = function(text) {
     if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(() => {
-            showToast('Disalin ke clipboard!', 'success');
+            showToast("{{ __('Disalin ke clipboard!') }}", 'success');
         }).catch(() => {
             fallbackCopyToClipboard(text);
         });
@@ -1403,12 +1403,12 @@ function fallbackCopyToClipboard(text) {
     try {
         const successful = document.execCommand('copy');
         if (successful) {
-            showToast('Disalin ke clipboard!', 'success');
+            showToast("{{ __('Disalin ke clipboard!') }}", 'success');
         } else {
-            showToast('Gagal menyalin', 'error');
+            showToast("{{ __('Gagal menyalin') }}", 'error');
         }
     } catch (err) {
-        showToast('Gagal menyalin: ' + err.message, 'error');
+        showToast("{{ __('Gagal menyalin') }}: " + err.message, 'error');
     }
     document.body.removeChild(textArea);
 }
@@ -1427,7 +1427,7 @@ window.loadSchemas = async function() {
     const connection_timeout = document.getElementById('dbTimeoutInput').value;
 
     if (!host || !dbName || !username || !password) {
-        showToast('Isi host, database, username & password dulu', 'error');
+        showToast("{{ __('Isi host, database, username & password dulu') }}", 'error');
         return;
     }
 
@@ -1452,15 +1452,15 @@ window.loadSchemas = async function() {
 
         if (data.schemas && data.schemas.length > 0) {
             showSchemaSelect(data.schemas);
-            showToast(`${data.schemas.length} schema ditemukan`, 'success');
+            showToast(data.schemas.length + " {{ __('schema ditemukan') }}", 'success');
         } else {
-            showToast('Tidak ada schema ditemukan', 'info');
+            showToast("{{ __('Tidak ada schema ditemukan') }}", 'info');
         }
     } catch (err) {
-        showToast('Gagal load schema: ' + err.message, 'error');
+        showToast("{{ __('Gagal load schema') }}: " + err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Load';
+        btn.innerHTML = '<i class="fas fa-sync-alt"></i> ' + "{{ __('Load') }}";
     }
 };
 
@@ -1468,7 +1468,7 @@ function showSchemaSelect(schemas) {
     const input  = document.getElementById('dbSchemaInput');
     const select = document.getElementById('dbSchemaSelect');
     const cur    = input.value;
-    select.innerHTML = '<option value="">-- Pilih Schema --</option>';
+    select.innerHTML = '<option value="">-- ' + "{{ __('Pilih Schema') }}" + ' --</option>';
     schemas.forEach(s => {
         const o = document.createElement('option');
         o.value = s; o.textContent = s;
@@ -1556,7 +1556,7 @@ window.testConnection = async function(dbId) {
 
     if (dot) { dot.className = 'status-dot dot-pending'; }
 
-    showToast('Menguji koneksi...', 'info');
+    showToast("{{ __('Menguji koneksi...') }}", 'info');
 
     try {
         const r = await fetch(`/admin/databases/${dbId}/test`, {
@@ -1574,10 +1574,10 @@ window.testConnection = async function(dbId) {
         if (data.success) {
             showToast(`✓ ${data.version || 'Connected'} (${data.response_time_ms || '–'}ms)`, 'success');
         } else {
-            showToast('Koneksi gagal: ' + (data.error || 'Unknown'), 'error');
+            showToast("{{ __('Koneksi gagal') }}: " + (data.error || 'Unknown'), 'error');
         }
     } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        showToast("{{ __('Error') }}: " + err.message, 'error');
     }
 };
 
@@ -1599,12 +1599,12 @@ window.testConnectionPreview = async function() {
     if (!host || !dbName || !user) {
         result.className = 'test-preview-result error';
         result.style.display = 'block';
-        result.innerHTML = '<i class="fas fa-exclamation-circle"></i> Lengkapi data koneksi di step 2 dulu.';
+        result.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + "{{ __('Lengkapi data koneksi di step 2 dulu.') }}";
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + "{{ __('Testing...') }}";
     result.style.display = 'none';
 
     try {
@@ -1625,10 +1625,10 @@ window.testConnectionPreview = async function() {
 
         if (data.success) {
             result.className = 'test-preview-result success';
-            result.innerHTML = `<i class="fas fa-check-circle"></i> Koneksi berhasil! ${data.version ? '– ' + data.version : ''} ${data.response_time_ms ? '(' + data.response_time_ms + 'ms)' : ''}`;
+            result.innerHTML = `<i class="fas fa-check-circle"></i> ` + "{{ __('Koneksi berhasil!') }}" + ` ${data.version ? '– ' + data.version : ''} ${data.response_time_ms ? '(' + data.response_time_ms + 'ms)' : ''}`;
         } else {
             result.className = 'test-preview-result error';
-            result.innerHTML = `<i class="fas fa-times-circle"></i> Gagal: ${data.error || 'Unknown error'}`;
+            result.innerHTML = `<i class="fas fa-times-circle"></i> ` + "{{ __('Gagal') }}: " + `${data.error || 'Unknown error'}`;
         }
         result.style.display = 'block';
     } catch (err) {
@@ -1637,7 +1637,7 @@ window.testConnectionPreview = async function() {
         result.style.display = 'block';
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-play-circle"></i> Test Sekarang';
+        btn.innerHTML = '<i class="fas fa-play-circle"></i> ' + "{{ __('Test Sekarang') }}";
     }
 };
 
@@ -1647,8 +1647,8 @@ window.testConnectionPreview = async function() {
 window.testAllConnections = async function() {
     const btn = document.getElementById('testAllBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
-    showToast('Menguji semua koneksi...', 'info');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + "{{ __('Testing...') }}";
+    showToast("{{ __('Menguji semua koneksi...') }}", 'info');
 
     // Turn all dots into pending first
     document.querySelectorAll('.status-dot').forEach(dot => {
@@ -1678,15 +1678,15 @@ window.testAllConnections = async function() {
         }
 
         if (data.unhealthy === 0) {
-            showToast(`Semua ${data.total} koneksi aktif ✓`, 'success');
+            showToast("{{ __('Semua') }} " + data.total + " {{ __('koneksi aktif') }} ✓", 'success');
         } else {
-            showToast(`${data.healthy} OK, ${data.unhealthy} gagal`, 'error');
+            showToast(data.healthy + " OK, " + data.unhealthy + " {{ __('gagal') }}", 'error');
         }
     } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        showToast("{{ __('Error') }}: " + err.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-heartbeat"></i> <span>Test All</span>';
+        btn.innerHTML = '<i class="fas fa-heartbeat"></i> <span>' + "{{ __('Test All') }}" + '</span>';
     }
 };
 
@@ -1696,14 +1696,14 @@ window.testAllConnections = async function() {
 window.deleteDatabase = function(dbId, dbName) {
     const isDark = document.documentElement.classList.contains('dark');
     Swal.fire({
-        title: 'Hapus Database?',
-        html: `Koneksi <strong>${dbName}</strong> akan dihapus.<br><small style="color:#64748b;">Data pada database tidak akan terpengaruh.</small>`,
+        title: "{{ __('Hapus Database?') }}",
+        html: "{{ __('Koneksi') }} <strong>" + dbName + "</strong> {{ __('akan dihapus.<br><small style=\"color:#64748b;\">Data pada database tidak akan terpengaruh.</small>') }}",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#475569',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal',
+        confirmButtonText: "{{ __('Ya, Hapus') }}",
+        cancelButtonText: "{{ __('Batal') }}",
         background: isDark ? '#1e293b' : '#ffffff',
         color: isDark ? '#e2e8f0' : '#0f172a',
     }).then(result => {
@@ -1763,7 +1763,7 @@ window.filterDatabases = function() {
 
     filterInfo.style.display = hasFilter ? 'flex' : 'none';
     if (hasFilter) {
-        document.getElementById('filterCount').textContent = `${visible} dari ${cards.length} database ditampilkan`;
+        document.getElementById('filterCount').textContent = visible + " " + "{{ __('dari') }}" + " " + cards.length + " " + "{{ __('database ditampilkan') }}";
     }
     noResults.style.display = (hasFilter && visible === 0) ? 'block' : 'none';
 };

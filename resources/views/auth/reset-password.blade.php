@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reset Password - darkotech AI</title>
+    <title>{{ __('Reset Password') }} - darkotech AI</title>
     <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function() {
@@ -72,6 +72,21 @@
         .btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,48,3,0.4);}
         .theme-btn{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.06);transition:all 0.2s;}
         .theme-btn:hover{border-color:var(--primary);color:var(--primary);}
+
+        /* ── Language Switcher ── */
+        .lang-switch-dropdown { position: fixed; top: 20px; right: 72px; z-index: 10; }
+        .lang-switch-btn { height: 42px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0 0.8rem; color: var(--text); font-size: 0.85rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.06); font-family: inherit; }
+        .lang-switch-btn:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
+        .lang-switch-btn i { font-size: 0.85rem; }
+        .lang-dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 170px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; animation: slideDown 0.2s ease-out; }
+        .lang-dropdown-menu.active { display: block; }
+        .lang-dropdown-menu a { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--text); text-decoration: none; font-size: 0.8rem; font-weight: 500; border-radius: 8px; transition: all 0.15s; }
+        .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.05); color: var(--primary); }
+        html.dark .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.1); }
+        .lang-dropdown-menu a.active { background: rgba(245,48,3,0.08); color: var(--primary); font-weight: 700; }
+        .flag-icon { font-size: 0.95rem; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
         @media(max-width:480px){body{padding:0;align-items:flex-start;}.auth-card{border-radius:0;min-height:100vh;padding:2rem 1.5rem;display:flex;flex-direction:column;justify-content:center;}}
     </style>
     <script>
@@ -84,6 +99,20 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
         }
+
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
         
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
@@ -115,12 +144,30 @@
     </script>
 </head>
 <body>
-    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme"><i id="ti" class="fas fa-sun"></i></button>
+    <button onclick="toggleTheme()" class="theme-btn" title="{{ __('Toggle Theme') }}"><i id="ti" class="fas fa-sun"></i></button>
+
+    <!-- Language Switcher Dropdown -->
+    <div class="lang-switch-dropdown">
+        <button class="lang-switch-btn" onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}">
+            <i class="fas fa-globe"></i>
+            <span>{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+            <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
+        </button>
+        <div class="lang-dropdown-menu" id="langDropdownMenu">
+            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+            </a>
+            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                <span class="flag-icon">🇬🇧</span> English
+            </a>
+        </div>
+    </div>
+
     <div class="auth-card">
         <div class="auth-header">
             <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
-            <h1>Buat Password Baru</h1>
-            <p>Masukkan password baru untuk akun Anda.</p>
+            <h1>{{ __('Buat Password Baru') }}</h1>
+            <p>{{ __('Masukkan password baru untuk akun Anda.') }}</p>
         </div>
         <form action="{{ route('password.update') }}" method="POST">
             @csrf
@@ -128,11 +175,11 @@
             <input type="hidden" name="email" value="{{ $email }}">
             <input type="hidden" name="otp" value="{{ $otp }}">
             <div class="form-group">
-                <label class="form-label">Password Baru</label>
+                <label class="form-label">{{ __('Password Baru') }}</label>
                 <div class="input-wrap">
                     <i class="fas fa-lock"></i>
                     <input type="password" name="password" id="password" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }}
-                        class="form-input" placeholder="Min. 8 karakter" style="padding-right: 2.75rem;">
+                        class="form-input" placeholder="{{ __('Min. 8 karakter') }}" style="padding-right: 2.75rem;">
                     <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password', 'eye-icon-1')">
                         <i id="eye-icon-1" class="fas fa-eye"></i>
                     </button>
@@ -146,17 +193,17 @@
                 @enderror
             </div>
             <div class="form-group">
-                <label class="form-label">Konfirmasi Password</label>
+                <label class="form-label">{{ __('Konfirmasi Password') }}</label>
                 <div class="input-wrap">
                     <i class="fas fa-lock"></i>
                     <input type="password" name="password_confirmation" id="password_confirmation" required
-                        class="form-input" placeholder="Ulangi password" style="padding-right: 2.75rem;">
+                        class="form-input" placeholder="{{ __('Ulangi password') }}" style="padding-right: 2.75rem;">
                     <button type="button" class="toggle-password" onclick="togglePasswordVisibility('password_confirmation', 'eye-icon-2')">
                         <i id="eye-icon-2" class="fas fa-eye"></i>
                     </button>
                 </div>
             </div>
-            <button type="submit" class="btn-submit"><i class="fas fa-save" style="margin-right:8px;"></i>SIMPAN PASSWORD BARU</button>
+            <button type="submit" class="btn-submit"><i class="fas fa-save" style="margin-right:8px;"></i>{{ __('SIMPAN PASSWORD BARU') }}</button>
         </form>
     </div>
 </body>

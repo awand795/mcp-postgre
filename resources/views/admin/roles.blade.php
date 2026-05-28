@@ -1,19 +1,19 @@
 @extends('layouts.admin')
-@section('page-title', 'Management Role & Permissions')
+@section('page-title', __('Management Role & Permissions'))
 
 @section('content')
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
         <div>
-            <h2 style="font-size:1.1rem;font-weight:700;color:var(--text-main);">Role & Permissions</h2>
-            <p style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;">Kelola hak akses tabel untuk setiap role</p>
+            <h2 style="font-size:1.1rem;font-weight:700;color:var(--text-main);">{{ __('Role & Permissions') }}</h2>
+            <p style="color:var(--text-muted);font-size:0.82rem;margin-top:2px;">{{ __('Kelola hak akses tabel untuk setiap role') }}</p>
         </div>
-        <button class="btn btn-primary" onclick="showRoleModal('create')"><i class="fas fa-plus"></i> <span>Tambah Role</span></button>
+        <button class="btn btn-primary" onclick="showRoleModal('create')"><i class="fas fa-plus"></i> <span>{{ __('Tambah Role') }}</span></button>
     </div>
 
     <div class="roles-container">
         <!-- Role List -->
         <div class="glass-card role-list-card">
-            <h3 style="margin-bottom:1.25rem;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">Daftar Role</h3>
+            <h3 style="margin-bottom:1.25rem;font-size:0.85rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);">{{ __('Daftar Role') }}</h3>
             <ul style="list-style:none;">
                 @foreach($roles as $role)
                     <li style="margin-bottom:6px;">
@@ -27,8 +27,8 @@
                                 </div>
                             </div>
                             <div style="display:flex;gap:6px;">
-                                <i class="fas fa-edit" onclick="event.stopPropagation();showRoleModal('edit',{{ json_encode($role) }})" style="font-size:0.8rem;padding:5px;border-radius:6px;cursor:pointer;color:#f59e0b;" title="Edit"></i>
-                                <i class="fas fa-trash" onclick="event.stopPropagation();deleteRole({{ $role->id }})" style="font-size:0.8rem;padding:5px;cursor:pointer;color:#ef4444;" title="Hapus"></i>
+                                <i class="fas fa-edit" onclick="event.stopPropagation();showRoleModal('edit',{{ json_encode($role) }})" style="font-size:0.8rem;padding:5px;border-radius:6px;cursor:pointer;color:#f59e0b;" title="{{ __('Edit') }}"></i>
+                                <i class="fas fa-trash" onclick="event.stopPropagation();deleteRole({{ $role->id }})" style="font-size:0.8rem;padding:5px;cursor:pointer;color:#ef4444;" title="{{ __('Hapus') }}"></i>
                             </div>
                         </button>
                     </li>
@@ -40,56 +40,56 @@
         <div class="glass-card permissions-card" id="permissions-area">
             <div class="permissions-header">
                 <div>
-                    <h2 id="selected-role-name" style="font-size:1.1rem;font-weight:700;color:var(--text-main);">{{ $roles[0]->name ?? 'Select Role' }}</h2>
+                    <h2 id="selected-role-name" style="font-size:1.1rem;font-weight:700;color:var(--text-main);">{{ $roles[0]->name ?? __('Select Role') }}</h2>
                     <p id="selected-role-desc" style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">{{ $roles[0]->description ?? '' }}</p>
                     <span id="unsaved-indicator" style="display:none;color:#f59e0b;font-size:0.82rem;margin-top:5px;display:none;">
-                        <i class="fas fa-exclamation-triangle"></i> Ada perubahan yang belum disimpan
+                        <i class="fas fa-exclamation-triangle"></i> {{ __('Ada perubahan yang belum disimpan') }}
                     </span>
                 </div>
                 <div class="permissions-actions">
-                    <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> <span class="btn-text">Simpan Akses</span></button>
+                    <button class="btn btn-primary" onclick="savePermissions()"><i class="fas fa-save"></i> <span class="btn-text">{{ __('Simpan Akses') }}</span></button>
                 </div>
             </div>
 
             <!-- Advanced Filter Bar -->
             <div class="filter-bar">
                 <div class="filter-group search-group">
-                    <label><i class="fas fa-search"></i> Cari</label>
-                    <input type="text" id="table-search" placeholder="Cari nama tabel..." oninput="applyFilters()">
+                    <label><i class="fas fa-search"></i> {{ __('Cari') }}</label>
+                    <input type="text" id="table-search" placeholder="{{ __('Cari nama tabel...') }}" oninput="applyFilters()">
                 </div>
                 <div class="filter-group">
-                    <label><i class="fas fa-database"></i> Database</label>
+                    <label><i class="fas fa-database"></i> {{ __('Database') }}</label>
                     <select id="db-filter" onchange="handleDbFilterChange(this.value)">
-                        <option value="">Semua Database</option>
+                        <option value="">{{ __('Semua Database') }}</option>
                         @foreach($databases as $db)
                             <option value="{{ $db->database }}">{{ $db->database }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label><i class="fas fa-layer-group"></i> Schema</label>
+                    <label><i class="fas fa-layer-group"></i> {{ __('Schema') }}</label>
                     <select id="schema-filter" onchange="applyFilters()">
-                        <option value="">Semua Schema</option>
+                        <option value="">{{ __('Semua Schema') }}</option>
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label><i class="fas fa-filter"></i> Status</label>
+                    <label><i class="fas fa-filter"></i> {{ __('Status') }}</label>
                     <select id="status-filter" onchange="applyFilters()">
-                        <option value="all">Semua</option>
-                        <option value="allowed">Diizinkan</option>
-                        <option value="not_allowed">Belum Diizinkan</option>
+                        <option value="all">{{ __('Semua') }}</option>
+                        <option value="allowed">{{ __('Diizinkan') }}</option>
+                        <option value="not_allowed">{{ __('Belum Diizinkan') }}</option>
                     </select>
                 </div>
             </div>
 
             <div class="selection-controls">
                 <div class="stats-info">
-                    Menampilkan <span id="visible-count">0</span> dari <span id="total-count">0</span> tabel
-                    (<span id="selected-count" style="color: #10b981; font-weight: 600;">0</span> terpilih)
+                    {{ __('Menampilkan') }} <span id="visible-count">0</span> {{ __('dari') }} <span id="total-count">0</span> {{ __('tabel') }}
+                    (<span id="selected-count" style="color: #10b981; font-weight: 600;">0</span> {{ __('terpilih') }})
                 </div>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-sm btn-bulk-select" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> Pilih Semua</button>
-                    <button class="btn btn-sm btn-bulk-deselect" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> Hapus Semua</button>
+                    <button class="btn btn-sm btn-bulk-select" onclick="bulkAction('select')"><i class="fas fa-check-square"></i> {{ __('Pilih Semua') }}</button>
+                    <button class="btn btn-sm btn-bulk-deselect" onclick="bulkAction('deselect')"><i class="fas fa-square"></i> {{ __('Hapus Semua') }}</button>
                 </div>
             </div>
 
@@ -112,28 +112,28 @@
     <div id="roleModal"
         style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
         <div class="glass-card modal-content">
-            <h3 id="roleModalTitle">Tambah Role</h3>
+            <h3 id="roleModalTitle">{{ __('Tambah Role') }}</h3>
             <form id="roleForm" method="POST" style="margin-top: 1.5rem;">
                 @csrf
                 <input type="hidden" name="_method" id="roleFormMethod" value="POST">
                 <div style="margin-bottom: 1rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Nama Role</label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">{{ __('Nama Role') }}</label>
                     <input type="text" name="name" id="roleNameInput"
                         style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); font-family: 'Outfit', sans-serif;"
-                        placeholder="Contoh: Analyst, Viewer, dll"
+                        placeholder="{{ __('Contoh: Analyst, Viewer, dll') }}"
                         required>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">Deskripsi</label>
+                    <label style="display: block; margin-bottom: 0.5rem; color: var(--text-muted); font-size: 0.85rem; font-weight: 600;">{{ __('Deskripsi') }}</label>
                     <textarea name="description" id="roleDescInput"
                         style="width: 100%; background: var(--input-bg); border: 1px solid var(--input-border); padding: 0.8rem; border-radius: 12px; color: var(--text-main); resize: none; font-family: 'Outfit', sans-serif;"
-                        placeholder="Deskripsi singkat mengenai role ini..."
+                        placeholder="{{ __('Deskripsi singkat mengenai role ini...') }}"
                         rows="3"></textarea>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
                     <button type="button" class="btn btn-cancel"
-                        onclick="document.getElementById('roleModal').style.display='none'">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                        onclick="document.getElementById('roleModal').style.display='none'">{{ __('Batal') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ __('Simpan') }}</button>
                 </div>
             </form>
         </div>
@@ -498,7 +498,7 @@
                 tablesList.innerHTML = '';
                 
                 if (tablesToRender.length === 0) {
-                    tablesList.innerHTML = '<div style="text-align: center; padding: 3rem; color: #64748b;">Tidak ada tabel yang ditemukan.</div>';
+                    tablesList.innerHTML = '<div style="text-align: center; padding: 3rem; color: #64748b;">'+'{{ __("Tidak ada tabel yang ditemukan.") }}'+'</div>';
                     visibleCountEl.textContent = 0;
                     return;
                 }
@@ -524,7 +524,7 @@
                                 <div class="table-name" style="color:var(--text-main);">${table.table_name}</div>
                                 <span class="badge badge-type" style="${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : 'background: rgba(148, 163, 184, 0.1); color: #94a3b8;'}">${table.table_type === 'view' ? 'VIEW' : 'TABLE'}</span>
                             </div>
-                            <div class="table-description" style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${table.description || 'Tidak ada deskripsi'}</div>
+                            <div class="table-description" style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${table.description || '{{ __("Tidak ada deskripsi") }}'}</div>
                         </div>
                     `;
                     tablesList.appendChild(item);
@@ -561,7 +561,7 @@
 
             window.handleDbFilterChange = async function(dbCode) {
                 const schemaSelect = document.getElementById('schema-filter');
-                schemaSelect.innerHTML = '<option value="">Semua Schema</option>';
+                schemaSelect.innerHTML = '<option value="">{{ __("Semua Schema") }}</option>';
                 
                 if (dbCode) {
                     try {
@@ -597,12 +597,12 @@
             window.selectRole = function(roleId, el) {
                 if (hasChanges) {
                     Swal.fire({
-                        title: 'Perubahan Belum Disimpan',
-                        text: 'Yakin ingin pindah role?',
+                        title: '{{ __("Perubahan Belum Disimpan") }}',
+                        text: '{{ __("Yakin ingin pindah role?") }}',
                         icon: 'warning',
                         showCancelButton: true,
-                        confirmButtonText: 'Ya, Pindah',
-                        cancelButtonText: 'Batal'
+                        confirmButtonText: '{{ __("Ya, Pindah") }}',
+                        cancelButtonText: '{{ __("Batal") }}'
                     }).then((result) => {
                         if (result.isConfirmed) doSelectRole(roleId, el);
                     });
@@ -619,14 +619,12 @@
             }
 
             window.savePermissions = function() {
-                const tables = Array.from(selectedTables);
-                
-                Swal.fire({
-                    title: 'Simpan Perubahan?',
-                    text: `Anda akan menyimpan ${tables.length} tabel untuk role ini.`,
+                const tables = Array.from(selectedTables);                    Swal.fire({
+                    title: '{{ __("Simpan Perubahan?") }}',
+                    text: `{{ __("Anda akan menyimpan") }} ${tables.length} {{ __("tabel untuk role ini.") }}`,
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonText: 'Ya, Simpan'
+                    confirmButtonText: '{{ __("Ya, Simpan") }}'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         fetch(`/admin/roles/${currentRoleId}/permissions`, {
@@ -647,7 +645,7 @@
                                 });
                                 originalSelectedTables = new Set(selectedTables);
                                 setHasChanges(false);
-                                Swal.fire('Berhasil!', 'Hak akses disimpan.', 'success');
+                                Swal.fire('{{ __("Berhasil!") }}', '{{ __("Hak akses disimpan.") }}', 'success');
                             }
                         });
                     }
@@ -661,12 +659,12 @@
 
                 modal.style.display = 'flex';
                 if (type === 'create') {
-                    document.getElementById('roleModalTitle').innerText = 'Tambah Role';
+                    document.getElementById('roleModalTitle').innerText = '{{ __("Tambah Role") }}';
                     form.action = "{{ route('admin.roles.store') }}";
                     method.value = 'POST';
                     form.reset();
                 } else {
-                    document.getElementById('roleModalTitle').innerText = 'Edit Role';
+                    document.getElementById('roleModalTitle').innerText = '{{ __("Edit Role") }}';
                     form.action = `/admin/roles/${role.id}`;
                     method.value = 'PUT';
                     document.getElementById('roleNameInput').value = role.name;
@@ -674,13 +672,12 @@
                 }
             };
 
-            window.deleteRole = function (roleId) {
-                Swal.fire({
-                    title: 'Hapus Role?',
+            window.deleteRole = function (roleId) {                    Swal.fire({
+                    title: '{{ __("Hapus Role?") }}',
                     icon: 'warning',
                     showCancelButton: true,
                     confirmButtonColor: '#ef4444',
-                    confirmButtonText: 'Ya, Hapus'
+                    confirmButtonText: '{{ __("Ya, Hapus") }}'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         fetch(`/admin/roles/${roleId}`, {

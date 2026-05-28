@@ -25,7 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'chatbot/*',
         ]);
 
-        $middleware->web(replace: [
+        $middleware->web(append: [
+            \App\Http\Middleware\SetLocaleMiddleware::class,
+        ], replace: [
             \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class => \App\Http\Middleware\CustomValidateCsrfToken::class,
         ]);
 

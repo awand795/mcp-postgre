@@ -52,13 +52,13 @@ class SanctumOrSession
         if ($bearerToken) {
             // Jika request membawa token tapi tidak valid
             if ($request->expectsJson()) {
-                return response()->json(['error' => 'Token tidak valid atau sudah kadaluarsa.'], 401);
+                return response()->json(['error' => __('Token tidak valid atau sudah kadaluarsa.')], 401);
             }
             return redirect()->route('sso.expired');
         }
 
         if ($request->expectsJson()) {
-            return response()->json(['error' => 'Unauthenticated.'], 401);
+            return response()->json(['error' => __('Unauthenticated.')], 401);
         }
 
         return redirect()->route('login');

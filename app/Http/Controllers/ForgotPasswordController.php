@@ -67,7 +67,7 @@ class ForgotPasswordController extends Controller
                 ]);
             }
             return back()->withErrors([
-                'email' => "Silakan tunggu $seconds detik sebelum meminta OTP baru."
+                'email' => __('Silakan tunggu :seconds detik sebelum meminta OTP baru.', ['seconds' => $seconds])
             ])->with('throttle_seconds', $seconds);
         }
 
@@ -101,11 +101,11 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return back()->withErrors(['email' => 'Gagal mengirim email. Pastikan konfigurasi SMTP benar.']);
+            return back()->withErrors(['email' => __('Gagal mengirim email. Pastikan konfigurasi SMTP benar.')]);
         }
 
         return redirect()->route('password.verify', ['email' => $request->email])
-                         ->with('status', 'Kami telah mengirimkan OTP ke email Anda.');
+                         ->with('status', __('Kami telah mengirimkan OTP ke email Anda.'));
     }
 
     public function showVerifyOtpForm(Request $request)
@@ -152,7 +152,7 @@ class ForgotPasswordController extends Controller
                 ]);
             }
             return back()->withErrors([
-                'otp' => "Terlalu banyak percobaan. Silakan coba lagi dalam $seconds detik."
+                'otp' => __('Terlalu banyak percobaan. Silakan coba lagi dalam :seconds detik.', ['seconds' => $seconds])
             ]);
         }
 
@@ -168,7 +168,7 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return back()->withErrors(['otp' => 'OTP tidak ditemukan atau sudah kadaluarsa.'])->withInput();
+            return back()->withErrors(['otp' => __('OTP tidak ditemukan atau sudah kadaluarsa.')])->withInput();
         }
 
         if (!Hash::check($request->otp, $reset->token)) {
@@ -179,7 +179,7 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return back()->withErrors(['otp' => 'OTP salah.'])->withInput();
+            return back()->withErrors(['otp' => __('OTP salah.')])->withInput();
         }
 
         if (Carbon::parse($reset->created_at)->addMinutes(15)->isPast()) {
@@ -191,7 +191,7 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return back()->withErrors(['otp' => 'OTP sudah kadaluarsa. Silakan minta ulang.'])->withInput();
+            return back()->withErrors(['otp' => __('OTP sudah kadaluarsa. Silakan minta ulang.')])->withInput();
         }
 
         // OTP valid, continue to reset password page
@@ -249,7 +249,7 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return redirect()->route('password.request')->withErrors(['email' => 'Sesi reset password tidak valid atau OTP salah.']);
+            return redirect()->route('password.request')->withErrors(['email' => __('Sesi reset password tidak valid atau OTP salah.')]);
         }
 
         if (Carbon::parse($reset->created_at)->addMinutes(15)->isPast()) {
@@ -260,7 +260,7 @@ class ForgotPasswordController extends Controller
                     'is_iframe' => '1'
                 ]);
             }
-            return redirect()->route('password.request')->withErrors(['email' => 'OTP sudah kadaluarsa.']);
+            return redirect()->route('password.request')->withErrors(['email' => __('OTP sudah kadaluarsa.')]);
         }
 
         // Update User password
@@ -271,6 +271,6 @@ class ForgotPasswordController extends Controller
         // Delete used OTP
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        return redirect()->route('login')->with('status', 'Password berhasil direset. Silakan login dengan password baru Anda.');
+        return redirect()->route('login')->with('status', __('Password berhasil direset. Silakan login dengan password baru Anda.'));
     }
 }

@@ -114,7 +114,7 @@ class AdminController extends Controller
         ]);
 
         if ($request->has('is_admin') && $request->has('is_super_admin')) {
-            return back()->withErrors(['role' => 'Tidak bisa memilih Admin dan Super Admin sekaligus.'])->withInput();
+            return back()->withErrors(['role' => __('Tidak bisa memilih Admin dan Super Admin sekaligus.')])->withInput();
         }
 
         $isAdmin = $request->has('is_admin');
@@ -170,7 +170,7 @@ class AdminController extends Controller
         }
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
-        return $redirect->with('success', 'User berhasil ditambahkan.');
+        return $redirect->with('success', __('User berhasil ditambahkan.'));
     }
 
     public function userUpdate(Request $request, User $user)
@@ -186,7 +186,7 @@ class AdminController extends Controller
         ]);
 
         if ($request->has('is_admin') && $request->has('is_super_admin')) {
-            return back()->withErrors(['role' => 'Tidak bisa memilih Admin dan Super Admin sekaligus.'])->withInput();
+            return back()->withErrors(['role' => __('Tidak bisa memilih Admin dan Super Admin sekaligus.')])->withInput();
         }
 
         $isAdmin = $request->has('is_admin');
@@ -260,7 +260,7 @@ class AdminController extends Controller
         }
 
         $redirect = $request->filled('redirect_url') ? redirect($request->redirect_url) : back();
-        return $redirect->with('success', 'User berhasil diperbarui.');
+        return $redirect->with('success', __('User berhasil diperbarui.'));
     }
 
     public function toggleUserAiModel(User $user, $modelId)
@@ -353,7 +353,7 @@ class AdminController extends Controller
             
             if ($ownedCount < count($keyIds)) {
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'ai_config' => ["Anda hanya dapat memberikan akses API Key yang Anda tambahkan sendiri."]
+                    'ai_config' => [__('Anda hanya dapat memberikan akses API Key yang Anda tambahkan sendiri.')]
                 ]);
             }
         }
@@ -369,7 +369,7 @@ class AdminController extends Controller
             if (!$keyProviderIds->contains($model->provider_id)) {
                 $providerName = $model->provider->name ?? 'Unknown';
                 throw \Illuminate\Validation\ValidationException::withMessages([
-                    'ai_config' => ["Anda memilih model '{$model->display_name}' ({$providerName}), tetapi belum memilih API Key untuk provider tersebut."]
+                    'ai_config' => [__('Anda memilih model :model (:provider), tetapi belum memilih API Key untuk provider tersebut.', ['model' => $model->display_name, 'provider' => $providerName])]
                 ]);
             }
         }
@@ -382,7 +382,7 @@ class AdminController extends Controller
         }
 
         $user->delete();
-        return back()->with('success', 'User berhasil dihapus.');
+        return back()->with('success', __('User berhasil dihapus.'));
     }
 
     public function usersExport()
@@ -398,14 +398,14 @@ class AdminController extends Controller
 
         try {
             Excel::import(new UserImport(auth()->id()), $request->file('file'));
-            return back()->with('success', 'User berhasil diimport.');
+            return back()->with('success', __('User berhasil diimport.'));
         } catch (ValidationException $e) {
             $failures = $e->failures();
             $errors = [];
             foreach ($failures as $failure) {
                 $row = $failure->row();
                 foreach ($failure->errors() as $error) {
-                    $errors[] = "Baris {$row}: {$error}";
+                    $errors[] = __('Baris :row: :error', ['row' => $row, 'error' => $error]);
                 }
             }
             return back()->withErrors(['file' => $errors])->withInput();
@@ -471,7 +471,7 @@ class AdminController extends Controller
         $data = $request->only('name', 'description');
         $data['added_by'] = auth()->id();
         Role::create($data);
-        return back()->with('success', 'Role berhasil ditambahkan.');
+        return back()->with('success', __('Role berhasil ditambahkan.'));
     }
 
     public function roleUpdate(Request $request, Role $role)
@@ -482,7 +482,7 @@ class AdminController extends Controller
 
         $request->validate(['name' => 'required|unique:roles,name,' . $role->id]);
         $role->update($request->only('name', 'description'));
-        return back()->with('success', 'Role berhasil diperbarui.');
+        return back()->with('success', __('Role berhasil diperbarui.'));
     }
 
     public function roleDelete(Role $role)
@@ -492,7 +492,7 @@ class AdminController extends Controller
         }
 
         $role->delete();
-        return response()->json(['success' => true, 'message' => 'Role berhasil dihapus.']);
+        return response()->json(['success' => true, 'message' => __('Role berhasil dihapus.')]);
     }
 
     public function updatePermissions(Request $request, Role $role)
@@ -623,8 +623,8 @@ class AdminController extends Controller
 
         return back()->with($testResult['success'] ? 'success' : 'warning',
             $testResult['success']
-                ? 'Database berhasil ditambahkan dan terhubung.'
-                : 'Database berhasil ditambahkan, tetapi koneksi gagal: ' . ($testResult['error'] ?? 'Unknown error')
+                ? __('Database berhasil ditambahkan dan terhubung.')
+                : __('Database berhasil ditambahkan, tetapi koneksi gagal: :error', ['error' => $testResult['error'] ?? __('Unknown error')])
         );
     }
 
@@ -678,7 +678,7 @@ class AdminController extends Controller
         // Clear table cache in case connection params changed
         $this->clearTableCache();
 
-        return back()->with('success', 'Database berhasil diperbarui.');
+        return back()->with('success', __('Database berhasil diperbarui.'));
     }
 
     public function databaseDelete(DatabaseConnection $database)
@@ -689,7 +689,7 @@ class AdminController extends Controller
 
         // Prevent deleting default database
         if ($database->is_default) {
-            return back()->withErrors(['error' => 'Tidak bisa menghapus database default.']);
+            return back()->withErrors(['error' => __('Tidak bisa menghapus database default.')]);
         }
 
         $database->delete();
@@ -697,7 +697,7 @@ class AdminController extends Controller
         // Clear table cache
         $this->clearTableCache();
 
-        return back()->with('success', 'Database berhasil dihapus.');
+        return back()->with('success', __('Database berhasil dihapus.'));
     }
 
     public function databaseTest(DatabaseConnection $database)
@@ -860,7 +860,7 @@ class AdminController extends Controller
     public function clearCache()
     {
         $this->clearTableCache();
-        return back()->with('success', 'Cache berhasil dibersihkan.');
+        return back()->with('success', __('Cache berhasil dibersihkan.'));
     }
 
     // ── MCP TOKEN MANAGEMENT ─────────────────────────────────────────────────
@@ -886,7 +886,7 @@ class AdminController extends Controller
 
         return response()->json([
             'success'         => true,
-            'message'         => 'Token MCP berhasil dibuat. Salin sekarang — tidak akan ditampilkan lagi.',
+            'message'         => __('Token MCP berhasil dibuat. Salin sekarang — tidak akan ditampilkan lagi.'),
             'mcp_api_token'   => $plainToken,
             'user_id'         => $user->id,
             'user_email'      => $user->email,
@@ -908,7 +908,7 @@ class AdminController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Token MCP user ' . $user->email . ' berhasil di-revoke.',
+            'message' => __('Token MCP user :email berhasil di-revoke.', ['email' => $user->email]),
         ]);
     }
 
@@ -1128,19 +1128,18 @@ class AdminController extends Controller
     public function copyUserFilters(Request $request, User $user)
     {
         if (!$this->checkUserAuthorization($user)) {
-            return response()->json(['error' => 'Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.'], 403);    
+            return response()->json(['error' => __('Unauthorized: Anda tidak memiliki akses untuk mengelola user ini.')], 403);    
         }
 
         $sourceUserId = $request->input('source_user_id');
         $sourceUser = User::find($sourceUserId);
-        if (!$sourceUser) return response()->json(['error' => 'User sumber tidak ditemukan.'], 404);
+        if (!$sourceUser) return response()->json(['error' => __('User sumber tidak ditemukan.')], 404);
 
         $sourceFilters = \App\Models\UserTableFilter::where('user_id', $sourceUserId)->get();
 
-        if ($sourceFilters->isEmpty()) {
-            return response()->json([
+        if ($sourceFilters->isEmpty()) {return response()->json([
                 'success' => false, 
-                'error' => 'User sumber (' . $sourceUser->name . ') tidak memiliki konfigurasi filter RLS untuk disalin.'      
+                'error' => __('User sumber (:name) tidak memiliki konfigurasi filter RLS untuk disalin.', ['name' => $sourceUser->name])     
             ], 422);
         }
 
@@ -1163,7 +1162,7 @@ class AdminController extends Controller
         return response()->json([
             'success' => true, 
             'copied' => $sourceFilters->count(),
-            'message' => $sourceFilters->count() . ' filter RLS dari ' . $sourceUser->name . ' berhasil disalin ke ' . $user->name
+            'message' => __(':count filter RLS dari :source berhasil disalin ke :target', ['count' => $sourceFilters->count(), 'source' => $sourceUser->name, 'target' => $user->name])
         ]);
     }
     /**

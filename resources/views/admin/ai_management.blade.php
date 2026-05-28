@@ -642,12 +642,12 @@ html.dark .limit-alert-bar { color: #f87171; }
         <div class="t-logo">
             <i class="fas fa-robot"></i>
         </div>
-        AI Management
+        {{ __('AI Management') }}
     </h1>
     @if(auth()->user()->is_super_admin)
     <button class="aim-btn-primary" type="button"
             onclick="document.getElementById('providerModal').style.display='flex'">
-        <i class="fas fa-plus"></i> Add Provider
+        <i class="fas fa-plus"></i> {{ __('Add Provider') }}
     </button>
     @endif
 </div>
@@ -663,34 +663,34 @@ html.dark .limit-alert-bar { color: #f87171; }
 @endphp
 <div class="aim-stats">
     <div class="aim-stat s-blue">
-        <div class="aim-stat-label">Providers</div>
+        <div class="aim-stat-label">{{ __('Providers') }}</div>
         <div class="aim-stat-val blue">{{ $totalProviders }}</div>
-        <div class="aim-stat-sub">{{ $activeProviders }} aktif</div>
+        <div class="aim-stat-sub">{{ $activeProviders }} {{ __('aktif') }}</div>
         <span class="aim-stat-icon"><i class="fas fa-server"></i></span>
     </div>
     <div class="aim-stat s-green">
-        <div class="aim-stat-label">API Keys</div>
+        <div class="aim-stat-label">{{ __('API Keys') }}</div>
         <div class="aim-stat-val green">{{ $totalKeys }}</div>
-        <div class="aim-stat-sub">{{ $activeKeys }} aktif</div>
+        <div class="aim-stat-sub">{{ $activeKeys }} {{ __('aktif') }}</div>
         <span class="aim-stat-icon"><i class="fas fa-key"></i></span>
     </div>
     <div class="aim-stat s-yellow">
-        <div class="aim-stat-label">Rate Limited</div>
+        <div class="aim-stat-label">{{ __('Rate Limited') }}</div>
         <div class="aim-stat-val yellow">{{ $limitKeys }}</div>
-        <div class="aim-stat-sub">{{ $limitKeys > 0 ? 'Perlu reset' : 'Semua aman' }}</div>
+        <div class="aim-stat-sub">{{ $limitKeys > 0 ? __('Perlu reset') : __('Semua aman') }}</div>
         <span class="aim-stat-icon"><i class="fas fa-exclamation-triangle"></i></span>
     </div>
     <div class="aim-stat s-cyan">
-        <div class="aim-stat-label">Active Models</div>
+        <div class="aim-stat-label">{{ __('Active Models') }}</div>
         <div class="aim-stat-val cyan">{{ $totalModels }}</div>
-        <div class="aim-stat-sub">Semua provider</div>
+        <div class="aim-stat-sub">{{ __('Semua provider') }}</div>
         <span class="aim-stat-icon"><i class="fas fa-brain"></i></span>
     </div>
 </div>
 
 {{-- ── PROVIDER GRID ──────────────────────────────────────────── --}}
 <div class="aim-section-head">
-    <h2>Providers ({{ $totalProviders }})</h2>
+    <h2>{{ __('Providers') }} ({{ $totalProviders }})</h2>
 </div>
 
 <div class="aim-provider-grid">
@@ -723,14 +723,14 @@ html.dark .limit-alert-bar { color: #f87171; }
             <span class="pcard-name">
                 {{ $provider->name }}
                 @if($hasLimit && $provider->is_active)
-                    <span class="pill pill-limit" style="font-size:.55rem">LIMIT</span>
+                    <span class="pill pill-limit" style="font-size:.55rem">{{ __('LIMIT') }}</span>
                 @endif
             </span>
             <span class="pcard-code">{{ strtoupper($provider->code) }}</span>
             @if($provider->is_active)
-                <span class="pill pill-on" id="pill-{{ $provider->id }}">Active</span>
+                <span class="pill pill-on" id="pill-{{ $provider->id }}">{{ __('Active') }}</span>
             @else
-                <span class="pill pill-off" id="pill-{{ $provider->id }}">Off</span>
+                <span class="pill pill-off" id="pill-{{ $provider->id }}">{{ __('Off') }}</span>
             @endif
             <button class="sw {{ $provider->is_active ? 'on' : '' }}"
                     @if(auth()->user()->is_super_admin)
@@ -738,7 +738,7 @@ html.dark .limit-alert-bar { color: #f87171; }
                     @else
                     disabled
                     @endif
-                    title="{{ $provider->is_active ? 'Disable' : 'Enable' }} provider">
+                    title="{{ $provider->is_active ? __('Disable') : __('Enable') }} provider">
                 <span class="sw-track"></span>
                 <span class="sw-thumb"></span>
             </button>
@@ -746,14 +746,14 @@ html.dark .limit-alert-bar { color: #f87171; }
                 @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
                 <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
                       style="display:inline"
-                      onsubmit="confirmDelete(event, 'Hapus Provider?', 'Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.')">
+                      onsubmit="confirmDelete(event, '{{ __('Hapus Provider?') }}', '{{ __('Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.') }}')">
                     @csrf @method('DELETE')
-                    <button type="submit" class="mb mb-del" title="Hapus provider">
+                    <button type="submit" class="mb mb-del" title="{{ __('Hapus provider') }}">
                         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                     </button>
                 </form>
                 @else
-                <span class="pcard-protected" title="Provider bawaan tidak bisa dihapus"><i class="fas fa-lock"></i></span>
+                <span class="pcard-protected" title="{{ __('Provider bawaan tidak bisa dihapus') }}"><i class="fas fa-lock"></i></span>
                 @endif
             @endif
         </div>
@@ -762,11 +762,11 @@ html.dark .limit-alert-bar { color: #f87171; }
         <div class="pcard-tabs">
             <button class="pcard-tab active" type="button"
                     onclick="switchTab(this,'keys-{{ $provider->id }}','{{ $provider->id }}')">
-                🔑 Keys ({{ $providerKeys->count() }})
+                🔑 {{ __('Keys') }} ({{ $providerKeys->count() }})
             </button>
             <button class="pcard-tab" type="button"
                     onclick="switchTab(this,'models-{{ $provider->id }}','{{ $provider->id }}')">
-                🧠 Models ({{ $provider->models->count() }})
+                🧠 {{ __('Models') }} ({{ $provider->models->count() }})
             </button>
         </div>
 
@@ -776,7 +776,7 @@ html.dark .limit-alert-bar { color: #f87171; }
             @if($limitCount > 0)
             <div class="limit-alert-bar" id="limitbar-{{ $provider->id }}">
                 <span style="font-size:.85rem">⚠️</span>
-                <span><strong>{{ $limitCount }} key</strong> kena rate limit saat dipakai user — klik reset untuk aktifkan kembali</span>
+                <span><strong>{{ $limitCount }} key</strong> {{ __('kena rate limit saat dipakai user — klik reset untuk aktifkan kembali') }}</span>
             </div>
             @else
             <div class="limit-alert-bar" id="limitbar-{{ $provider->id }}" style="display:none"></div>
@@ -790,39 +790,39 @@ html.dark .limit-alert-bar { color: #f87171; }
 
                     {{-- Health dot (status terakhir dicek) --}}
                     <span class="health-dot" id="hdot-{{ $key->id }}"
-                          title="Belum dicek — klik ikon health check untuk cek kesehatan key ini"></span>
+                          title="{{ __('Belum dicek — klik ikon health check untuk cek kesehatan key ini') }}"></span>
 
                     <span class="key-name" title="{{ $key->key_name }}">{{ $key->key_name }}</span>
 
                     <span class="key-when" id="kwhen-{{ $key->id }}">
-                        <i class="far fa-clock"></i> {{ $key->last_used_at ? $key->last_used_at->diffForHumans() : 'Never used' }}
+                        <i class="far fa-clock"></i> {{ $key->last_used_at ? $key->last_used_at->diffForHumans() : __('Never used') }}
                     </span>
 
                     <div style="display:flex;gap:4px; margin-left: 8px;">
-                        <button type="button" class="mb mb-edit" title="Edit key"
+                        <button type="button" class="mb mb-edit" title="{{ __('Edit key') }}"
                                 onclick="openEditKey({{ json_encode(['id'=>$key->id,'key_name'=>$key->key_name,'is_active'=>$key->is_active,'api_key'=>$key->api_key]) }})">
                             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         
                         {{-- Health Check Button --}}
-                        <button type="button" class="mb mb-hc" title="Health Check — ping ke provider"
+                        <button type="button" class="mb mb-hc" title="{{ __('Health Check — ping ke provider') }}"
                                 onclick="runHealthCheck({{ $key->id }}, '{{ addslashes($key->key_name) }}', '{{ addslashes($provider->name) }}', {{ json_encode($provider->models->where('is_active', true)->pluck('model_name')->values()) }})">  
                             <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                         </button>
 
                         @if($key->limit_reached)
-                        <form action="{{ route('admin.ai_management.reset_limit', $key->id) }}" method="POST" style="display:inline" onsubmit="return confirm('Reset status limit?');">
+                        <form action="{{ route('admin.ai_management.reset_limit', $key->id) }}" method="POST" style="display:inline" onsubmit="return confirm('{{ __('Reset status limit?') }}');">
                             @csrf
-                            <button type="submit" class="mb mb-warn" title="Reset limit flag">
+                            <button type="submit" class="mb mb-warn" title="{{ __('Reset limit flag') }}">
                                 <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                             </button>
                         </form>
                         @endif
 
                         <form action="{{ route('admin.ai_management.delete_key', $key->id) }}" method="POST" style="margin:0"
-                              onsubmit="confirmDelete(event, 'Hapus API Key?', 'Key yang dihapus tidak bisa dikembalikan.')">
+                              onsubmit="confirmDelete(event, '{{ __('Hapus API Key?') }}', '{{ __('Key yang dihapus tidak bisa dikembalikan.') }}')">
                             @csrf @method('DELETE')
-                            <button type="submit" class="mb mb-del" title="Hapus">
+                            <button type="submit" class="mb mb-del" title="{{ __('Hapus') }}">
                                 <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                             </button>
                         </form>
@@ -831,7 +831,7 @@ html.dark .limit-alert-bar { color: #f87171; }
 
                 <div class="key-bottom-row">
                     @if($key->limit_reached)
-                        <span class="key-status ks-limit kpill" id="kpill-{{ $key->id }}" title="Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali">
+                        <span class="key-status ks-limit kpill" id="kpill-{{ $key->id }}" title="{{ __('Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali') }}">
                             ⚠ LIMIT
                         </span>
                     @elseif(!$key->is_active)
@@ -843,7 +843,7 @@ html.dark .limit-alert-bar { color: #f87171; }
                     {{-- Usage count badge --}}
                     <span class="key-usage {{ $key->usage_count > 0 ? 'ku-used' : '' }}"
                           id="kusage-{{ $key->id }}"
-                          title="Dipakai {{ $key->usage_count }} kali">  
+                          title="{{ __('Dipakai :count kali', ['count' => $key->usage_count]) }}">  
                         <span class="ku-icon">↗</span>{{ $key->usage_count }}×
                     </span>
 
@@ -856,17 +856,17 @@ html.dark .limit-alert-bar { color: #f87171; }
                     @endphp
                     <span class="key-tokens {{ $tc > 0 ? 'kt-has' : '' }}"
                           id="ktoken-{{ $key->id }}"
-                          title="Total token dipakai: {{ number_format($tc) }} tokens">
+                          title="{{ __('Total token dipakai: :tokens token', ['tokens' => number_format($tc)]) }}">
                         <span class="kt-icon">◈</span>{{ $tcLabel }}
                     </span>
                     
-                    <span class="key-added-by" title="Ditambahkan Oleh: {{ $key->addedBy->name ?? 'System' }} pada {{ $key->created_at->format('d M Y') }}">
+                    <span class="key-added-by" title="{{ __('Ditambahkan Oleh:') }} {{ $key->addedBy->name ?? 'System' }} {{ __('pada') }} {{ $key->created_at->format('d M Y') }}">
                         <i class="fas fa-user-plus"></i> {{ Str::limit($key->addedBy->name ?? 'System', 15) }} &bull; {{ $key->created_at->format('d M Y') }}
                     </span>
                 </div>
             </div>
             @empty
-            <p class="empty-hint">Belum ada API Key — klik "Add Key" di bawah</p>
+            <p class="empty-hint">{{ __('Belum ada API Key — klik "Add Key" di bawah') }}</p>
             @endforelse
         </div>
 
@@ -884,14 +884,14 @@ html.dark .limit-alert-bar { color: #f87171; }
                     @if(auth()->user()->is_super_admin)
                     <form action="{{ route('admin.ai_management.delete_model', $model->id) }}" method="POST"
                           style="display:inline"
-                          onsubmit="event.stopPropagation(); confirmDelete(event, 'Hapus Model AI?', 'Model ini akan dihapus dari daftar pilihan user.')">
+                          onsubmit="event.stopPropagation(); confirmDelete(event, '{{ __('Hapus Model AI?') }}', '{{ __('Model ini akan dihapus dari daftar pilihan user.') }}')">
                         @csrf @method('DELETE')
-                        <button type="submit" class="mc-del" title="Hapus">&times;</button>
+                        <button type="submit" class="mc-del" title="{{ __('Hapus') }}">&times;</button>
                     </form>
                     @endif
                 </div>
                 @empty
-                <p class="empty-hint">Belum ada model — klik "Add Model" di bawah</p>
+                <p class="empty-hint">{{ __('Belum ada model — klik "Add Model" di bawah') }}</p>
                 @endforelse
             </div>
         </div>
@@ -902,16 +902,16 @@ html.dark .limit-alert-bar { color: #f87171; }
                     class="pf-btn pf-btn-key"
                     {{ !$provider->is_active ? 'disabled' : '' }}
                     onclick="openAddKey({{ $provider->id }}, '{{ addslashes($provider->name) }}')">
-                <i class="fas fa-plus" style="font-size:.65rem"></i> Add Key
+                <i class="fas fa-plus" style="font-size:.65rem"></i> {{ __('Add Key') }}
             </button>
             @if(auth()->user()->is_super_admin)
             <button type="button"
                     class="pf-btn pf-btn-mod"
                     onclick="openAddModel({{ $provider->id }}, '{{ addslashes($provider->name) }}')">
-                <i class="fas fa-plus" style="font-size:.65rem"></i> Add Model
+                <i class="fas fa-plus" style="font-size:.65rem"></i> {{ __('Add Model') }}
             </button>
             @endif
-            <span class="pf-last">Last: {{ $lastUsedLabel }}</span>
+            <span class="pf-last">{{ __('Last:') }} {{ $lastUsedLabel }}</span>
         </div>
     </div>
     @endforeach
@@ -921,7 +921,7 @@ html.dark .limit-alert-bar { color: #f87171; }
     <button class="pcard-add-new" type="button"
             onclick="document.getElementById('providerModal').style.display='flex'">
         <span class="add-icon"><i class="fas fa-plus"></i></span>
-        <span>Tambah Provider Baru</span>
+        <span>{{ __('Tambah Provider Baru') }}</span>
     </button>
     @endif
 </div>
@@ -934,33 +934,33 @@ html.dark .limit-alert-bar { color: #f87171; }
 {{-- Add / Edit API Key --}}
 <div id="keyModal" class="modal-overlay">
     <div class="modal-box">
-        <h3 id="keyModalTitle">Add API Key</h3>
+        <h3 id="keyModalTitle">{{ __('Add API Key') }}</h3>
         <p class="modal-sub" id="keyModalSub"></p>
         <form id="keyForm" method="POST">
             @csrf
             <input type="hidden" name="_method" id="keyFormMethod" value="POST">
             <input type="hidden" name="provider_id" id="keyProviderId">
             <div class="form-grp">
-                <label>Nama Key (alias)</label>
-                <input type="text" name="key_name" id="keyName" required placeholder="Contoh: Key Utama Production">
+                <label>{{ __('Nama Key (alias)') }}</label>
+                <input type="text" name="key_name" id="keyName" required placeholder="{{ __('Contoh: Key Utama Production') }}">
             </div>
             <div class="form-grp">
-                <label id="keyLabel">API Key</label>
+                <label id="keyLabel">{{ __('API Key') }}</label>
                 <div style="position:relative;display:flex;align-items:center;">
-                    <input type="password" name="api_key" id="keyValue" placeholder="Masukkan API Key" style="padding-right:35px;width:100%;">
+                    <input type="password" name="api_key" id="keyValue" placeholder="{{ __('Masukkan API Key') }}" style="padding-right:35px;width:100%;">
                     <button type="button" onclick="toggleApiKeyVisibility()" style="position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--aim-muted);">
                         <i class="fas fa-eye" id="keyEyeIcon"></i>
                     </button>
                 </div>
-                <small id="keyHint" style="display:none">Kosongkan jika tidak ingin mengubah</small>
+                <small id="keyHint" style="display:none">{{ __('Kosongkan jika tidak ingin mengubah') }}</small>
             </div>
             <div class="form-check" id="keyActiveGrp" style="display:none">
                 <input type="checkbox" name="is_active" id="keyIsActive" value="1">
-                <label for="keyIsActive" style="color:var(--aim-muted);font-size:.82rem">Aktifkan Key</label>
+                <label for="keyIsActive" style="color:var(--aim-muted);font-size:.82rem">{{ __('Aktifkan Key') }}</label>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('keyModal')">Batal</button>
-                <button type="submit" class="btn-modal-save">Simpan</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('keyModal')">{{ __('Batal') }}</button>
+                <button type="submit" class="btn-modal-save">{{ __('Simpan') }}</button>
             </div>
         </form>
     </div>
@@ -969,24 +969,24 @@ html.dark .limit-alert-bar { color: #f87171; }
 {{-- Add Model --}}
 <div id="modelModal" class="modal-overlay">
     <div class="modal-box">
-        <h3>Add Model AI</h3>
+        <h3>{{ __('Add Model AI') }}</h3>
         <p class="modal-sub" id="modelModalSub"></p>
         <form action="{{ route('admin.ai_management.store_model') }}" method="POST">
             @csrf
             <input type="hidden" name="provider_id" id="modelProviderId">
             <div class="form-grp">
-                <label>ID Model (system name)</label>
-                <input type="text" name="model_name" required placeholder="Contoh: gpt-4o">
-                <small>ID teknis yang dikirim ke API</small>
+                <label>{{ __('ID Model (system name)') }}</label>
+                <input type="text" name="model_name" required placeholder="{{ __('Contoh: gpt-4o') }}">
+                <small>{{ __('ID teknis yang dikirim ke API') }}</small>
             </div>
             <div class="form-grp">
-                <label>Display Name</label>
-                <input type="text" name="display_name" required placeholder="Contoh: GPT-4o">
-                <small>Nama yang tampil di antarmuka user</small>
+                <label>{{ __('Display Name') }}</label>
+                <input type="text" name="display_name" required placeholder="{{ __('Contoh: GPT-4o') }}">
+                <small>{{ __('Nama yang tampil di antarmuka user') }}</small>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('modelModal')">Batal</button>
-                <button type="submit" class="btn-modal-save">Simpan Model</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('modelModal')">{{ __('Batal') }}</button>
+                <button type="submit" class="btn-modal-save">{{ __('Simpan Model') }}</button>
             </div>
         </form>
     </div>
@@ -995,32 +995,32 @@ html.dark .limit-alert-bar { color: #f87171; }
 {{-- Add Provider --}}
 <div id="providerModal" class="modal-overlay">
     <div class="modal-box">
-        <h3>Add Provider AI Baru</h3>
+        <h3>{{ __('Add Provider AI Baru') }}</h3>
         <p class="modal-sub">
-            Mendukung semua provider OpenAI-compatible: Groq, OpenRouter, DeepSeek, LM Studio, dll.
+            {{ __('Mendukung semua provider OpenAI-compatible: Groq, OpenRouter, DeepSeek, LM Studio, dll.') }}
         </p>
         <form action="{{ route('admin.ai_management.store_provider') }}" method="POST">
             @csrf
             <div class="form-grp">
-                <label>Nama Provider <span style="color:var(--aim-red)">*</span></label>
-                <input type="text" name="name" required placeholder="Contoh: Groq" value="{{ old('name') }}">
+                <label>{{ __('Nama Provider') }} <span style="color:var(--aim-red)">*</span></label>
+                <input type="text" name="name" required placeholder="{{ __('Contoh: Groq') }}" value="{{ old('name') }}">
             </div>
             <div class="form-grp">
-                <label>Kode Unik <span style="color:var(--aim-red)">*</span></label>
-                <input type="text" name="code" required placeholder="Contoh: groq"
-                       pattern="[a-z0-9_]+" title="Huruf kecil, angka, underscore"
+                <label>{{ __('Kode Unik') }} <span style="color:var(--aim-red)">*</span></label>
+                <input type="text" name="code" required placeholder="{{ __('Contoh: groq') }}"
+                       pattern="[a-z0-9_]+" title="{{ __('Huruf kecil, angka, underscore') }}"
                        value="{{ old('code') }}">
-                <small>Huruf kecil, angka, underscore — identifier internal sistem</small>
+                <small>{{ __('Huruf kecil, angka, underscore — identifier internal sistem') }}</small>
             </div>
             <div class="form-grp">
-                <label>Base URL API</label>
-                <input type="url" name="base_url" placeholder="Contoh: https://api.groq.com/openai/v1"
+                <label>{{ __('Base URL API') }}</label>
+                <input type="url" name="base_url" placeholder="{{ __('Contoh: https://api.groq.com/openai/v1') }}"
                        value="{{ old('base_url') }}">
-                <small>Wajib untuk provider custom. Kosongkan jika built-in.</small>
+                <small>{{ __('Wajib untuk provider custom. Kosongkan jika built-in.') }}</small>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-modal-cancel" onclick="closeModal('providerModal')">Batal</button>
-                <button type="submit" class="btn-modal-save"><i class="fas fa-plus"></i> Tambah Provider</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeModal('providerModal')">{{ __('Batal') }}</button>
+                <button type="submit" class="btn-modal-save"><i class="fas fa-plus"></i> {{ __('Tambah Provider') }}</button>
             </div>
         </form>
     </div>
@@ -1034,14 +1034,14 @@ html.dark .limit-alert-bar { color: #f87171; }
             <div style="width:30px;height:30px;border-radius:8px;background:rgba(6,182,212,.12);display:flex;align-items:center;justify-content:center;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             </div>
-            <h3 style="margin:0;font-size:1rem;">API Key Health Check</h3>
+            <h3 style="margin:0;font-size:1rem;">{{ __('API Key Health Check') }}</h3>
         </div>
         <p class="modal-sub" id="hcModalSub" style="margin-bottom:.75rem;"></p>
 
         {{-- Model Selector --}}
         <div id="hcModelSelector" style="margin-bottom:1rem;">
             <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--aim-muted);margin-bottom:6px;">
-                Model untuk diuji
+                {{ __('Model untuk diuji') }}
             </label>
             <div style="display:flex;gap:8px;">
                 <select id="hcModelSelect"
@@ -1055,14 +1055,14 @@ html.dark .limit-alert-bar { color: #f87171; }
                                font-family:inherit;font-size:0.82rem;font-weight:600;
                                white-space:nowrap;">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                    Cek Sekarang
+                    {{ __('Cek Sekarang') }}
                 </button>
             </div>
             <div style="margin-top:5px;display:flex;align-items:center;gap:6px;">
                 <input type="checkbox" id="hcCustomModelToggle" onchange="toggleCustomModel(this)">
-                <label for="hcCustomModelToggle" style="font-size:0.72rem;color:var(--aim-muted);cursor:pointer;">Ketik model manual</label>
+                <label for="hcCustomModelToggle" style="font-size:0.72rem;color:var(--aim-muted);cursor:pointer;">{{ __('Ketik model manual') }}</label>
             </div>
-            <input type="text" id="hcCustomModelInput" placeholder="Contoh: gemini-2.0-flash-exp"
+            <input type="text" id="hcCustomModelInput" placeholder="{{ __('Contoh: gemini-2.0-flash-exp') }}"
                    style="display:none;margin-top:6px;width:100%;background:var(--aim-surface);
                           border:1px solid var(--aim-border);padding:7px 10px;border-radius:9px;
                           color:var(--aim-text);font-family:inherit;font-size:0.82rem;">
@@ -1077,7 +1077,7 @@ html.dark .limit-alert-bar { color: #f87171; }
         {{-- Meta row: HTTP status & latency --}}
         <div class="hc-meta" id="hcMeta" style="display:none;">
             <div class="hc-meta-item">
-                <span class="hc-meta-label">HTTP Status</span>
+                <span class="hc-meta-label">{{ __('HTTP Status') }}</span>
                 <span class="hc-meta-value" id="hcHttpStatus">—</span>
             </div>
             <div class="hc-meta-item">
@@ -1093,7 +1093,7 @@ html.dark .limit-alert-bar { color: #f87171; }
         {{-- Info table --}}
         <div id="hcInfoWrap" style="display:none;">
             <div style="font-size:0.7rem;color:var(--aim-muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
-                Info dari Provider
+                {{ __('Info dari Provider') }}
             </div>
             <table class="hc-info-table" id="hcInfoTable"></table>
         </div>
@@ -1105,10 +1105,10 @@ html.dark .limit-alert-bar { color: #f87171; }
         <p class="hc-note" id="hcNote"></p>
 
         <div class="modal-actions" style="margin-top:1.2rem;">
-            <button type="button" class="btn-modal-cancel" onclick="closeModal('hcModal')">Tutup</button>
+            <button type="button" class="btn-modal-cancel" onclick="closeModal('hcModal')">{{ __('Tutup') }}</button>
             <button type="button" class="btn-modal-save" id="hcRetryBtn" style="display:none;"
                     onclick="executeHealthCheck()">
-                <i class="fas fa-sync-alt" style="font-size:.75rem"></i> Cek Ulang
+                <i class="fas fa-sync-alt" style="font-size:.75rem"></i> {{ __('Cek Ulang') }}
             </button>
         </div>
     </div>
@@ -1123,14 +1123,14 @@ function confirmDelete(e, title, text) {
     const isDark = document.documentElement.classList.contains('dark');
     
     Swal.fire({
-        title: title || 'Hapus data?',
-        text: text || 'Tindakan ini tidak dapat dibatalkan.',
+        title: title || "{{ __('Hapus data?') }}",
+        text: text || "{{ __('Tindakan ini tidak dapat dibatalkan.') }}",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         cancelButtonColor: '#475569',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal',
+        confirmButtonText: "{{ __('Ya, Hapus') }}",
+        cancelButtonText: "{{ __('Batal') }}",
         background: isDark ? '#1e293b' : '#ffffff',
         color: isDark ? '#f1f5f9' : '#1e293b',
     }).then((result) => {
@@ -1173,7 +1173,7 @@ function toggleProvider(id, btn) {
         } catch(e) {
             Swal.fire({
                 icon: 'error',
-                title: 'Response Non-JSON (' + r.status + ')',
+                title: "{{ __('Response Non-JSON (') }}" + r.status + ')',
                 html: '<div style="text-align:left;max-height:200px;overflow:auto;font-family:monospace;font-size:0.75rem;">' + 
                       escapeHtml(text.substring(0, 1000)) + '</div>'
             });
@@ -1189,7 +1189,7 @@ function toggleProvider(id, btn) {
             const pill = document.getElementById('pill-' + id);
             if (pill) {
                 pill.className = 'pill ' + (on ? 'pill-on' : 'pill-off');
-                pill.textContent = on ? 'Active' : 'Off';
+                pill.textContent = on ? "{{ __('Active') }}" : "{{ __('Off') }}";
             }
 
             const addKeyBtn = card.querySelector('.pf-btn-key');
@@ -1198,7 +1198,7 @@ function toggleProvider(id, btn) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error ' + r.status,
-                text: data.error || data.message || 'Gagal mengubah status provider.'
+                text: data.error || data.message || "{{ __('Gagal mengubah status provider.') }}"
             });
         }
     })
@@ -1225,7 +1225,7 @@ function toggleModel(id, chip) {
         } catch(e) {
             Swal.fire({
                 icon: 'error',
-                title: 'Response Non-JSON (' + r.status + ')',
+                title: "{{ __('Response Non-JSON (') }}" + r.status + ')',
                 html: '<div style="text-align:left;max-height:200px;overflow:auto;font-family:monospace;font-size:0.75rem;">' + 
                       escapeHtml(text.substring(0, 1000)) + '</div>'
             });
@@ -1238,7 +1238,7 @@ function toggleModel(id, chip) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error ' + r.status,
-                text: data.error || data.message || 'Gagal mengubah status model.'
+                text: data.error || data.message || "{{ __('Gagal mengubah status model.') }}"
             });
         }
     })
@@ -1264,7 +1264,7 @@ window.addEventListener('click', e => {
 /* ── Add API Key ────────────────────────────────────────── */
 function openAddKey(providerId, providerName) {
     const m = document.getElementById('keyModal');
-    document.getElementById('keyModalTitle').textContent = 'Add API Key';
+    document.getElementById('keyModalTitle').textContent = "{{ __('Add API Key') }}";
     document.getElementById('keyModalSub').textContent   = providerName;
     document.getElementById('keyProviderId').value       = providerId;
     document.getElementById('keyFormMethod').value       = 'POST';
@@ -1272,7 +1272,7 @@ function openAddKey(providerId, providerName) {
     document.getElementById('keyName').value             = '';
     document.getElementById('keyValue').value            = '';
     document.getElementById('keyValue').required         = true;
-    document.getElementById('keyLabel').textContent      = 'API Key';
+    document.getElementById('keyLabel').textContent      = "{{ __('API Key') }}";
     document.getElementById('keyHint').style.display     = 'none';
     document.getElementById('keyActiveGrp').style.display = 'none';
     
@@ -1285,7 +1285,7 @@ function openAddKey(providerId, providerName) {
 /* ── Edit API Key ───────────────────────────────────────── */
 function openEditKey(key) {
     const m = document.getElementById('keyModal');
-    document.getElementById('keyModalTitle').textContent = 'Edit API Key';
+    document.getElementById('keyModalTitle').textContent = "{{ __('Edit API Key') }}";
     document.getElementById('keyModalSub').textContent   = 'ID: ' + key.id;
     document.getElementById('keyProviderId').value       = '';
     document.getElementById('keyFormMethod').value       = 'PUT';
@@ -1293,7 +1293,7 @@ function openEditKey(key) {
     document.getElementById('keyName').value             = key.key_name;
     document.getElementById('keyValue').value            = key.api_key || '';
     document.getElementById('keyValue').required         = false;
-    document.getElementById('keyLabel').textContent      = 'API Key (opsional)';
+    document.getElementById('keyLabel').textContent      = "{{ __('API Key (opsional)') }}";
     document.getElementById('keyHint').style.display     = 'block';
     document.getElementById('keyActiveGrp').style.display = 'flex';
     document.getElementById('keyIsActive').checked       = !!key.is_active;
@@ -1344,14 +1344,14 @@ function runHealthCheck(keyId, keyName, providerName, providerModels) {
     // Option auto-detect (biarkan server yang pilih)
     const autoOpt = document.createElement('option');
     autoOpt.value = '';
-    autoOpt.textContent = '🔄 Auto-detect (pilih model terbaik otomatis)';
+    autoOpt.textContent = '🔄 ' + "{{ __('Auto-detect (pilih model terbaik otomatis)') }}";
     sel.appendChild(autoOpt);
 
     // Option dari model aktif provider
     if (_lastHcModels.length > 0) {
         const sep = document.createElement('option');
         sep.disabled = true;
-        sep.textContent = '── Model dari database ──';
+        sep.textContent = '── ' + "{{ __('Model dari database') }}" + ' ──';
         sel.appendChild(sep);
 
         _lastHcModels.forEach(function(m) {
@@ -1412,7 +1412,7 @@ function executeHealthCheck() {
     banner.className = 'hc-status-banner hc-loading';
     banner.style.display = 'flex';
     document.getElementById('hcSpinner').style.display  = 'block';
-    document.getElementById('hcBannerText').textContent = 'Menghubungi provider' + (selectedModel ? ' dengan model ' + selectedModel : '') + '...';
+    document.getElementById('hcBannerText').textContent = "{{ __('Menghubungi provider') }}" + (selectedModel ? ' ' + "{{ __('dengan model') }}" + ' ' + selectedModel : '') + '...';
     document.getElementById('hcMeta').style.display     = 'none';
     document.getElementById('hcInfoWrap').style.display = 'none';
     document.getElementById('hcErrorBox').style.display = 'none';
@@ -1423,7 +1423,7 @@ function executeHealthCheck() {
 
     /* Set health dot ke spinning */
     const dot = document.getElementById('hdot-' + keyId);
-    if (dot) { dot.className = 'health-dot hd-spin'; dot.title = 'Sedang mengecek...'; }
+    if (dot) { dot.className = 'health-dot hd-spin'; dot.title = "{{ __('Sedang mengecek...') }}"; }
 
     /* Build form body */
     const formData = new FormData();
@@ -1444,7 +1444,7 @@ function executeHealthCheck() {
         document.getElementById('hcRunBtn').disabled = false;
         renderHealthResult(keyId, {
             status:     'error',
-            message:    '❌ Gagal terhubung ke server: ' + err.message,
+            message:    '❌ ' + "{{ __('Gagal terhubung ke server:') }} " + err.message,
             latency_ms: null,
             info:       {},
         });
@@ -1487,7 +1487,7 @@ function renderHealthResult(keyId, data) {
 
     banner.className = bannerClass;
     spinner.style.display = 'none';
-    bannerTxt.textContent = data.message || 'Selesai';
+    bannerTxt.textContent = data.message || "{{ __('Selesai') }}";
 
     if (dot) {
         dot.className = dotClass;
@@ -1507,13 +1507,13 @@ function renderHealthResult(keyId, data) {
         const autoFlag  = document.getElementById('hcAutoFlag');
         autoWrap.style.display = 'flex';
         if (data.auto_reset) {
-        autoFlag.innerHTML = '<span class="hc-auto-badge reset">✅ Limit flag otomatis di-reset</span>';
+        autoFlag.innerHTML = '<span class="hc-auto-badge reset">✅ ' + "{{ __('Limit flag otomatis di-reset') }}" + '</span>';
         const pill = document.getElementById('kpill-' + keyId);
         if (pill) { pill.className = 'key-status ks-ok kpill'; pill.innerHTML = '● OK'; pill.title = ''; }
         } else {
-            autoFlag.innerHTML = '<span class="hc-auto-badge flagged">⚠️ Key otomatis ditandai LIMIT</span>';
+            autoFlag.innerHTML = '<span class="hc-auto-badge flagged">⚠️ ' + "{{ __('Key otomatis ditandai LIMIT') }}" + '</span>';
         const pill = document.getElementById('kpill-' + keyId);
-        if (pill) { pill.className = 'key-status ks-limit kpill'; pill.innerHTML = '⚠ LIMIT'; pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali'; }
+        if (pill) { pill.className = 'key-status ks-limit kpill'; pill.innerHTML = '⚠ LIMIT'; pill.title = "{{ __('Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali') }}"; }
         }
     }
 
@@ -1535,12 +1535,12 @@ function renderHealthResult(keyId, data) {
 
     /* -- Note -- */
     const notes = {
-        'ok':           'Key valid. Info rate limit di atas diambil langsung dari header response provider.',
-        'rate_limited': 'Key sedang terkena rate limit atau quota habis. Tunggu reset atau isi ulang kredit.',
-        'invalid':      'Pastikan API Key sudah benar dan tidak expired.',
-        'forbidden':    'Periksa billing dan permission akun di dashboard provider.',
-        'server_error': 'Provider sedang bermasalah. Coba beberapa saat lagi.',
-        'error':        'Koneksi ke provider gagal. Periksa koneksi internet dan Base URL.',
+        'ok':           "{{ __('Key valid. Info rate limit di atas diambil langsung dari header response provider.') }}",
+        'rate_limited': "{{ __('Key sedang terkena rate limit atau quota habis. Tunggu reset atau isi ulang kredit.') }}",
+        'invalid':      "{{ __('Pastikan API Key sudah benar dan tidak expired.') }}",
+        'forbidden':    "{{ __('Periksa billing dan permission akun di dashboard provider.') }}",
+        'server_error': "{{ __('Provider sedang bermasalah. Coba beberapa saat lagi.') }}",
+        'error':        "{{ __('Koneksi ke provider gagal. Periksa koneksi internet dan Base URL.') }}",
     };
     noteEl.textContent = notes[data.status] || '';
 
@@ -1581,7 +1581,7 @@ function pollKeyStatus() {
                     if (!pill.classList.contains('ks-limit')) {
                         pill.className = 'key-status ks-limit kpill';
                         pill.innerHTML = '⚠ LIMIT';
-                        pill.title = 'Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali';
+                        pill.title = "{{ __('Key ini kena rate limit saat dipakai user — klik Reset untuk aktifkan kembali') }}";
                         pill.style.outline = '2px solid #ef4444';
                         setTimeout(() => { pill.style.outline = ''; }, 2000);
                     }
@@ -1606,7 +1606,7 @@ function pollKeyStatus() {
             if (usageBadge && key.usage_count !== undefined) {
                 usageBadge.innerHTML = '<span class="ku-icon">↗</span>' + key.usage_count + '×';
                 if (key.usage_count > 0) usageBadge.classList.add('ku-used');
-                usageBadge.title = 'Dipakai ' + key.usage_count + ' kali';
+                usageBadge.title = "{{ __('Dipakai') }} " + key.usage_count + " {{ __('kali') }}";
             }
 
             /* Update token count badge */
@@ -1619,13 +1619,13 @@ function pollKeyStatus() {
                 else                   tcLabel = String(tc);
                 tokenBadge.innerHTML = '<span class="kt-icon">◈</span>' + tcLabel;
                 if (tc > 0) tokenBadge.classList.add('kt-has');
-                tokenBadge.title = 'Total token dipakai: ' + tc.toLocaleString('id-ID') + ' tokens';
+                tokenBadge.title = "{{ __('Total token dipakai:') }} " + tc.toLocaleString() + " tokens";
             }
 
             /* Update health dot warna jika key baru kena limit */
             if (dot && key.limit_reached && !dot.classList.contains('hd-spin')) {
                 dot.className = 'health-dot hd-bad';
-                dot.title = 'Key kena rate limit';
+                dot.title = "{{ __('Key kena rate limit') }}";
             }
         });
 
@@ -1635,7 +1635,7 @@ function pollKeyStatus() {
             if (bar) {
                 bar.style.display = 'flex';
                 bar.innerHTML = '<span style="font-size:.85rem">⚠️</span>' +
-                    '<span><strong>' + count + ' key</strong> kena rate limit saat dipakai user — klik reset untuk aktifkan kembali</span>';
+                    '<span><strong>' + count + ' key</strong> ' + "{{ __('kena rate limit saat dipakai user — klik reset untuk aktifkan kembali') }}" + '</span>';
             }
         });
 
@@ -1654,7 +1654,7 @@ function pollKeyStatus() {
         }
         const statSubEl = document.querySelector('.aim-stat.s-yellow .aim-stat-sub');
         if (statSubEl) {
-            statSubEl.textContent = (data.total_limit > 0) ? 'Perlu reset' : 'Semua aman';
+            statSubEl.textContent = (data.total_limit > 0) ? "{{ __('Perlu reset') }}" : "{{ __('Semua aman') }}";
         }
     })
     .catch(err => console.warn('[AI Management Poll] Error:', err));

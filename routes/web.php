@@ -11,7 +11,7 @@ Route::get('/auth/sso', [App\Http\Controllers\Auth\SSOController::class, 'loginW
 Route::post('/api/sso/generate-token', [App\Http\Controllers\Auth\SSOController::class, 'generateToken'])->name('sso.generate_token');
 Route::get('/api/sso/check', [App\Http\Controllers\Auth\SSOController::class, 'checkToken'])->middleware('auth.smart')->name('sso.check');
 Route::get('/sso/expired', function () {
-    return view('auth.sso_error', ['message' => 'Sesi SSO telah berakhir. Silakan muat ulang halaman ERP.']);
+    return view('auth.sso_error', ['message' => __('Sesi SSO telah berakhir. Silakan muat ulang halaman ERP.')]);
 })->name('sso.expired');
 
 Route::middleware('guest')->group(function () {
@@ -125,3 +125,13 @@ Route::middleware('auth.smart')->group(function () {
 
 // MCP route sudah otomatis didaftarkan oleh McpServiceProvider dari php-mcp/laravel
 // di prefix /mcp (default). Tidak perlu Mcp::web() lagi.
+
+// Language Switching Route
+Route::get('/lang/{locale}', function ($locale) {
+    if (in_array($locale, ['en', 'id'])) {
+        session(['locale' => $locale]);
+        cookie()->queue('locale', $locale, 60 * 24 * 365);
+    }
+    return redirect()->back();
+})->name('lang.switch');
+

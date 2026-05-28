@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Verifikasi OTP - darkotech AI</title>
+    <title>{{ __('Verifikasi OTP') }} - darkotech AI</title>
     <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function () {
@@ -261,6 +261,20 @@
             color: var(--primary);
         }
 
+        /* ── Language Switcher ── */
+        .lang-switch-dropdown { position: fixed; top: 20px; right: 72px; z-index: 10; }
+        .lang-switch-btn { height: 42px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0 0.8rem; color: var(--text); font-size: 0.85rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06); font-family: inherit; }
+        .lang-switch-btn:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
+        .lang-switch-btn i { font-size: 0.85rem; }
+        .lang-dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 170px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; animation: slideDown 0.2s ease-out; }
+        .lang-dropdown-menu.active { display: block; }
+        .lang-dropdown-menu a { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--text); text-decoration: none; font-size: 0.8rem; font-weight: 500; border-radius: 8px; transition: all 0.15s; }
+        .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.05); color: var(--primary); }
+        html.dark .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.1); }
+        .lang-dropdown-menu a.active { background: rgba(245,48,3,0.08); color: var(--primary); font-weight: 700; }
+        .flag-icon { font-size: 0.95rem; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
         @media(max-width:480px) {
             body {
                 padding: 0;
@@ -289,6 +303,20 @@
             if (f) f.remove();
         }
 
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
+
         function startResendCountdown(seconds) {
             const btn = document.getElementById('resend-btn');
             if (!btn) return;
@@ -298,7 +326,7 @@
             btn.style.cursor = 'not-allowed';
             
             let remaining = seconds;
-            const originalText = 'Kirim Ulang';
+            const originalText = "{{ __('Kirim Ulang') }}";
 
             const interval = setInterval(() => {
                 remaining--;
@@ -337,27 +365,27 @@
                     resendBtn.disabled = true;
                     resendBtn.style.opacity = '0.5';
                     resendBtn.style.cursor = 'not-allowed';
-                    resendBtn.innerText = 'AKSES DIBATASI';
+                    resendBtn.innerText = "{{ __('AKSES DIBATASI') }}";
                 }
                 Swal.fire({
                     icon: 'error',
-                    title: 'Batas Permintaan Terlampaui',
-                    html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                    title: "{{ __('Batas Permintaan Terlampaui') }}",
+                    html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">{{ __('Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi.') }} <br/><br/>{{ __('Jika Anda tidak menerima email, silakan') }} <b>{{ __('hubungi Administrator') }}</b> {{ __('untuk bantuan pemulihan akun secara manual.') }}</div>',
                     confirmButtonColor: '#f53003',
-                    confirmButtonText: 'Saya Mengerti'
+                    confirmButtonText: "{{ __('Saya Mengerti') }}"
                 });
             @elseif(session('throttle_seconds'))
                 startResendCountdown({{ session('throttle_seconds') }});
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Batas Permintaan Tercapai',
-                    text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                    title: "{{ __('Batas Permintaan Tercapai') }}",
+                    text: "{{ __('Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.') }}",
                     confirmButtonColor: '#f53003'
                 });
             @elseif($errors->any())
                 Swal.fire({
                     icon: 'error',
-                    title: 'Terjadi Kesalahan',
+                    title: "{{ __('Terjadi Kesalahan') }}",
                     text: '{{ $errors->first() }}',
                     confirmButtonColor: '#f53003'
                 });
@@ -366,7 +394,7 @@
             @if(session('status'))
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil',
+                    title: "{{ __('Berhasil') }}",
                     text: '{{ session('status') }}',
                     confirmButtonColor: '#10b981'
                 });
@@ -388,29 +416,29 @@
                         resendBtn.disabled = true;
                         resendBtn.style.opacity = '0.5';
                         resendBtn.style.cursor = 'not-allowed';
-                        resendBtn.innerText = 'AKSES DIBATASI';
+                        resendBtn.innerText = "{{ __('AKSES DIBATASI') }}";
                     }
                     Swal.fire({
                         icon: 'error',
-                        title: 'Batas Permintaan Terlampaui',
-                        html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                        title: "{{ __('Batas Permintaan Terlampaui') }}",
+                        html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">{{ __('Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi.') }} <br/><br/>{{ __('Jika Anda tidak menerima email, silakan') }} <b>{{ __('hubungi Administrator') }}</b> {{ __('untuk bantuan pemulihan akun secara manual.') }}</div>',
                         confirmButtonColor: '#f53003',
-                        confirmButtonText: 'Saya Mengerti'
+                        confirmButtonText: "{{ __('Saya Mengerti') }}"
                     });
                     cleanUrlNeeded = true;
                 } else if (ssoThrottle) {
                     startResendCountdown(parseInt(ssoThrottle));
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Batas Permintaan Tercapai',
-                        text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                        title: "{{ __('Batas Permintaan Tercapai') }}",
+                        text: "{{ __('Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.') }}",
                         confirmButtonColor: '#f53003'
                     });
                     cleanUrlNeeded = true;
                 } else if (ssoError) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Terjadi Kesalahan',
+                        title: "{{ __('Terjadi Kesalahan') }}",
                         text: ssoError,
                         confirmButtonColor: '#f53003'
                     });
@@ -420,7 +448,7 @@
                 if (ssoSuccess) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Berhasil',
+                        title: "{{ __('Berhasil') }}",
                         text: ssoSuccess,
                         confirmButtonColor: '#10b981'
                     });
@@ -442,19 +470,37 @@
             const btn = document.getElementById('resend-btn');
             if (btn.disabled) return false;
             btn.disabled = true;
-            btn.innerText = 'Mengirim...';
+            btn.innerText = "{{ __('Mengirim...') }}";
             return true;
         }
     </script>
 </head>
 
 <body>
-    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme"><i id="ti" class="fas fa-sun"></i></button>
+    <button onclick="toggleTheme()" class="theme-btn" title="{{ __('Toggle Theme') }}"><i id="ti" class="fas fa-sun"></i></button>
+
+    <!-- Language Switcher Dropdown -->
+    <div class="lang-switch-dropdown">
+        <button class="lang-switch-btn" onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}">
+            <i class="fas fa-globe"></i>
+            <span>{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+            <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
+        </button>
+        <div class="lang-dropdown-menu" id="langDropdownMenu">
+            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+            </a>
+            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                <span class="flag-icon">🇬🇧</span> English
+            </a>
+        </div>
+    </div>
+
     <div class="auth-card">
         <div class="auth-header">
             <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
-            <h1>Verifikasi OTP</h1>
-            <p>Masukkan 6 digit kode yang dikirim ke<br><strong>{{ $email }}</strong></p>
+            <h1>{{ __('Verifikasi OTP') }}</h1>
+            <p>{{ __('Masukkan 6 digit kode yang dikirim ke') }}<br><strong>{{ $email }}</strong></p>
         </div>
         
         <form action="{{ route('password.verify.post') }}" method="POST">
@@ -462,7 +508,7 @@
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <input type="hidden" name="email" value="{{ $email }}">
             <div class="form-group">
-                <label class="form-label">Kode OTP</label>
+                <label class="form-label">{{ __('Kode OTP') }}</label>
                 <div class="input-wrap">
                     <i class="fas fa-hashtag"></i>
                     <input type="text" name="otp" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }} maxlength="6" class="form-input"
@@ -470,15 +516,15 @@
                 </div>
             </div>
             <button type="submit" class="btn-submit"><i class="fas fa-check-circle"
-                    style="margin-right:8px;"></i>VERIFIKASI SEKARANG</button>
+                    style="margin-right:8px;"></i>{{ __('VERIFIKASI SEKARANG') }}</button>
         </form>
         <div class="auth-footer">
-            Belum menerima email?
+            {{ __('Belum menerima email?') }}
             <form action="{{ route('password.email') }}" method="POST" style="display:inline;" onsubmit="return handleResend(this)">
                 @csrf
                 <input type="hidden" name="is_iframe" id="resend_is_iframe_input" value="0">
                 <input type="hidden" name="email" value="{{ $email }}">
-                <button type="submit" id="resend-btn" class="resend-btn">Kirim Ulang</button>
+                <button type="submit" id="resend-btn" class="resend-btn">{{ __('Kirim Ulang') }}</button>
             </form>
         </div>
     </div>

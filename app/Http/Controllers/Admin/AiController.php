@@ -46,7 +46,7 @@ class AiController extends Controller
         $data['added_by'] = auth()->id();
         AiApiKey::create($data);
 
-        return back()->with('success', 'API Key berhasil ditambahkan.');
+        return back()->with('success', __('API Key berhasil ditambahkan.'));
     }
 
     public function storeModel(Request $request)
@@ -63,7 +63,7 @@ class AiController extends Controller
 
         AiModel::create($request->all());
 
-        return back()->with('success', 'Model AI berhasil ditambahkan.');
+        return back()->with('success', __('Model AI berhasil ditambahkan.'));
     }
 
     public function deleteModel(AiModel $model)
@@ -73,7 +73,7 @@ class AiController extends Controller
         }
 
         $model->delete();
-        return back()->with('success', 'Model AI berhasil dihapus.');
+        return back()->with('success', __('Model AI berhasil dihapus.'));
     }
 
     public function updateKey(Request $request, AiApiKey $key)
@@ -95,7 +95,7 @@ class AiController extends Controller
 
         $key->update($data);
 
-        return back()->with('success', 'API Key berhasil diperbarui.');
+        return back()->with('success', __('API Key berhasil diperbarui.'));
     }
 
     public function deleteKey(AiApiKey $key)
@@ -105,7 +105,7 @@ class AiController extends Controller
         }
 
         $key->delete();
-        return back()->with('success', 'API Key berhasil dihapus.');
+        return back()->with('success', __('API Key berhasil dihapus.'));
     }
 
     public function toggleModel(AiModel $model)
@@ -135,7 +135,7 @@ class AiController extends Controller
         }
 
         $key->update(['limit_reached' => false]);
-        return back()->with('success', 'Limit API Key berhasil di-reset.');
+        return back()->with('success', __('Limit API Key berhasil di-reset.'));
     }
 
     /**
@@ -201,7 +201,7 @@ class AiController extends Controller
             'is_active' => true,
         ]);
 
-        return back()->with('success', 'Provider AI "' . $request->name . '" berhasil ditambahkan.');
+        return back()->with('success', __('Provider AI ":name" berhasil ditambahkan.', ['name' => $request->name]));
     }
 
     public function deleteProvider(AiProvider $provider)
@@ -212,17 +212,17 @@ class AiController extends Controller
 
         $builtIn = ['openai', 'gemini', 'claude', 'mistral'];
         if (in_array($provider->code, $builtIn)) {
-            return back()->with('error', 'Provider built-in tidak dapat dihapus.');
+            return back()->with('error', __('Provider built-in tidak dapat dihapus.'));
         }
 
         if ($provider->apiKeys()->count() > 0) {
-            return back()->with('error', 'Hapus semua API Key provider ini terlebih dahulu sebelum menghapus provider.');
+            return back()->with('error', __('Hapus semua API Key provider ini terlebih dahulu sebelum menghapus provider.'));
         }
 
         $provider->models()->delete();
         $provider->delete();
 
-        return back()->with('success', 'Provider "' . $provider->name . '" berhasil dihapus.');
+        return back()->with('success', __('Provider ":name" berhasil dihapus.', ['name' => $provider->name]));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -619,32 +619,32 @@ class AiController extends Controller
         // Tentukan status berdasarkan HTTP code
         if ($httpStatus === 200 || $httpStatus === 201) {
             $status  = 'ok';
-            $message = '✅ API Key valid dan berfungsi normal';
+            $message = '✅ ' . __('API Key valid dan berfungsi normal');
         } elseif ($httpStatus === 429) {
             $status  = 'rate_limited';
-            $message = '⚠️ Rate limit / quota habis';
+            $message = '⚠️ ' . __('Rate limit / quota habis');
         } elseif ($httpStatus === 401) {
             $status  = 'invalid';
-            $message = '❌ API Key tidak valid atau sudah expired';
+            $message = '❌ ' . __('API Key tidak valid atau sudah expired');
         } elseif ($httpStatus === 403) {
             $status  = 'forbidden';
-            $message = '❌ Akses ditolak — periksa permission atau billing';
+            $message = '❌ ' . __('Akses ditolak — periksa permission atau billing');
         } elseif ($httpStatus === 400) {
             // Untuk beberapa provider, 400 bisa berarti kredit habis
             $bodyStr = strtolower(json_encode($body));
             if (str_contains($bodyStr, 'credit') || str_contains($bodyStr, 'billing') || str_contains($bodyStr, 'quota')) {
                 $status  = 'rate_limited';
-                $message = '⚠️ Kredit habis atau billing bermasalah';
+                $message = '⚠️ ' . __('Kredit habis atau billing bermasalah');
             } else {
                 $status  = 'warning';
-                $message = '⚠️ Respon tidak terduga (HTTP 400) — key mungkin valid';
+                $message = '⚠️ ' . __('Respon tidak terduga (HTTP 400) — key mungkin valid');
             }
         } elseif ($httpStatus >= 500) {
             $status  = 'server_error';
-            $message = '⚠️ Server provider sedang bermasalah (HTTP ' . $httpStatus . ')';
+            $message = '⚠️ ' . __('Server provider sedang bermasalah (HTTP :status)', ['status' => $httpStatus]);
         } else {
             $status  = 'warning';
-            $message = '⚠️ HTTP ' . $httpStatus . ' — tidak dikenali';
+            $message = '⚠️ ' . __('HTTP :status — tidak dikenali', ['status' => $httpStatus]);
         }
 
         // Cek error message dari body untuk override status

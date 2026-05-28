@@ -64,14 +64,14 @@ class AuthController extends Controller
 
         if ($isIframe) {
             return redirect()->route('login', [
-                'sso_error' => 'Email atau password salah.',
+                'sso_error' => __('Email atau password salah.'),
                 'email' => $request->input('email'),
                 'is_iframe' => '1'
             ]);
         }
 
         return back()->withErrors([
-            'email' => 'Email atau password salah.',
+            'email' => __('Email atau password salah.'),
         ])->onlyInput('email');
     }
 

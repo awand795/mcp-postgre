@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Lupa Password - darkotech AI</title>
+    <title>{{ __('Lupa Password') }} - darkotech AI</title>
     <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function() {
@@ -49,6 +49,21 @@
         .auth-footer a:hover{opacity:0.8;}
         .theme-btn{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,0.06);transition:all 0.2s;}
         .theme-btn:hover{border-color:var(--primary);color:var(--primary);}
+
+        /* ── Language Switcher ── */
+        .lang-switch-dropdown { position: fixed; top: 20px; right: 72px; z-index: 10; }
+        .lang-switch-btn { height: 42px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 0 0.8rem; color: var(--text); font-size: 0.85rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,0,0,0.06); font-family: inherit; }
+        .lang-switch-btn:hover { border-color: var(--primary); color: var(--primary); transform: scale(1.05); }
+        .lang-switch-btn i { font-size: 0.85rem; }
+        .lang-dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 6px; min-width: 170px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); z-index: 1000; animation: slideDown 0.2s ease-out; }
+        .lang-dropdown-menu.active { display: block; }
+        .lang-dropdown-menu a { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--text); text-decoration: none; font-size: 0.8rem; font-weight: 500; border-radius: 8px; transition: all 0.15s; }
+        .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.05); color: var(--primary); }
+        html.dark .lang-dropdown-menu a:hover { background: rgba(245,48,3,0.1); }
+        .lang-dropdown-menu a.active { background: rgba(245,48,3,0.08); color: var(--primary); font-weight: 700; }
+        .flag-icon { font-size: 0.95rem; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
         @media(max-width:480px){body{padding:0;align-items:flex-start;}.auth-card{border-radius:0;min-height:100vh;padding:2rem 1.5rem;display:flex;flex-direction:column;justify-content:center;}}
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -62,6 +77,20 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
         }
+
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
 
         function startCountdown(seconds) {
             const btn = document.getElementById('btn-submit');
@@ -83,10 +112,10 @@
                     btn.disabled = false;
                     btn.style.opacity = '1';
                     btn.style.cursor = 'pointer';
-                    btnText.innerText = 'KIRIM KODE OTP';
+                    btnText.innerText = "{{ __('KIRIM KODE OTP') }}";
                     btnIcon.className = originalIconClass;
                 } else {
-                    btnText.innerText = `COBA LAGI (${remaining}s)`;
+                    btnText.innerText = `{{ __('COBA LAGI') }} (${remaining}s)`;
                 }
             }, 1000);
         }
@@ -111,27 +140,27 @@
                     btn.disabled = true;
                     btn.style.opacity = '0.5';
                     btn.style.cursor = 'not-allowed';
-                    btn.querySelector('.btn-text').innerText = 'AKSES DIBATASI';
+                    btn.querySelector('.btn-text').innerText = "{{ __('AKSES DIBATASI') }}";
                 }
                 Swal.fire({
                     icon: 'error',
-                    title: 'Batas Permintaan Terlampaui',
-                    html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                    title: "{{ __('Batas Permintaan Terlampaui') }}",
+                    html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">{{ __('Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi.') }} <br/><br/>{{ __('Jika Anda tidak menerima email, silakan') }} <b>{{ __('hubungi Administrator') }}</b> {{ __('untuk bantuan pemulihan akun secara manual.') }}</div>',
                     confirmButtonColor: '#f53003',
-                    confirmButtonText: 'Saya Mengerti'
+                    confirmButtonText: "{{ __('Saya Mengerti') }}"
                 });
             @elseif(session('throttle_seconds'))
                 startCountdown({{ session('throttle_seconds') }});
                 Swal.fire({
                     icon: 'warning',
-                    title: 'Batas Permintaan Tercapai',
-                    text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                    title: "{{ __('Batas Permintaan Tercapai') }}",
+                    text: "{{ __('Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.') }}",
                     confirmButtonColor: '#f53003'
                 });
             @elseif($errors->has('email'))
                 Swal.fire({
                     icon: 'error',
-                    title: 'Kesalahan',
+                    title: "{{ __('Kesalahan') }}",
                     text: '{{ $errors->first('email') }}',
                     confirmButtonColor: '#f53003'
                 });
@@ -140,7 +169,7 @@
             @if(session('status'))
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil',
+                    title: "{{ __('Berhasil') }}",
                     text: '{{ session('status') }}',
                     confirmButtonColor: '#10b981'
                 });
@@ -162,29 +191,29 @@
                         btn.disabled = true;
                         btn.style.opacity = '0.5';
                         btn.style.cursor = 'not-allowed';
-                        btn.querySelector('.btn-text').innerText = 'AKSES DIBATASI';
+                        btn.querySelector('.btn-text').innerText = "{{ __('AKSES DIBATASI') }}";
                     }
                     Swal.fire({
                         icon: 'error',
-                        title: 'Batas Permintaan Terlampaui',
-                        html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi. <br/><br/>Jika Anda tidak menerima email, silakan <b>hubungi Administrator</b> untuk bantuan pemulihan akun secara manual.</div>',
+                        title: "{{ __('Batas Permintaan Terlampaui') }}",
+                        html: '<div style="text-align: justify; font-size: 0.95rem; line-height: 1.5;">{{ __('Mohon maaf, kami mendeteksi aktivitas permintaan yang terlalu sering pada akun Anda. Demi keamanan sistem, permintaan OTP telah dibatasi.') }} <br/><br/>{{ __('Jika Anda tidak menerima email, silakan') }} <b>{{ __('hubungi Administrator') }}</b> {{ __('untuk bantuan pemulihan akun secara manual.') }}</div>',
                         confirmButtonColor: '#f53003',
-                        confirmButtonText: 'Saya Mengerti'
+                        confirmButtonText: "{{ __('Saya Mengerti') }}"
                     });
                     cleanUrlNeeded = true;
                 } else if (ssoThrottle) {
                     startCountdown(parseInt(ssoThrottle));
                     Swal.fire({
                         icon: 'warning',
-                        title: 'Batas Permintaan Tercapai',
-                        text: 'Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.',
+                        title: "{{ __('Batas Permintaan Tercapai') }}",
+                        text: "{{ __('Silakan tunggu beberapa saat sebelum mengirim ulang kode OTP.') }}",
                         confirmButtonColor: '#f53003'
                     });
                     cleanUrlNeeded = true;
                 } else if (ssoError) {
                     Swal.fire({
                         icon: 'error',
-                        title: 'Kesalahan',
+                        title: "{{ __('Kesalahan') }}",
                         text: ssoError,
                         confirmButtonColor: '#f53003'
                     });
@@ -194,7 +223,7 @@
                 if (ssoSuccess) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Berhasil',
+                        title: "{{ __('Berhasil') }}",
                         text: ssoSuccess,
                         confirmButtonColor: '#10b981'
                     });
@@ -220,39 +249,56 @@
             if (btn.disabled) return false;
             
             btn.disabled = true;
-            btnText.innerText = 'MEMPROSES...';
+            btnText.innerText = "{{ __('MEMPROSES...') }}";
             btnIcon.className = 'fas fa-spinner fa-spin';
             return true;
         }
     </script>
 </head>
 <body>
-    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme"><i id="ti" class="fas fa-sun"></i></button>
+    <button onclick="toggleTheme()" class="theme-btn" title="{{ __('Toggle Theme') }}"><i id="ti" class="fas fa-sun"></i></button>
+
+    <!-- Language Switcher Dropdown -->
+    <div class="lang-switch-dropdown">
+        <button class="lang-switch-btn" onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}">
+            <i class="fas fa-globe"></i>
+            <span>{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+            <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
+        </button>
+        <div class="lang-dropdown-menu" id="langDropdownMenu">
+            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+            </a>
+            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                <span class="flag-icon">🇬🇧</span> English
+            </a>
+        </div>
+    </div>
     <div class="auth-card">
         <div class="auth-header">
             <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
-            <h1>Lupa Password</h1>
-            <p>Masukkan email Anda untuk menerima kode OTP reset password.</p>
+            <h1>{{ __('Lupa Password') }}</h1>
+            <p>{{ __('Masukkan email Anda untuk menerima kode OTP reset password.') }}</p>
         </div>
 
         <form action="{{ route('password.email') }}" method="POST" onsubmit="return handleSubmit(this)">
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <div class="form-group">
-                <label class="form-label">Alamat Email</label>
+                <label class="form-label">{{ __('Alamat Email') }}</label>
                 <div class="input-wrap">
                     <i class="fas fa-envelope"></i>
                     <input type="email" name="email" value="{{ request()->query('email', old('email')) }}" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }}
-                        class="form-input" placeholder="email@contoh.com">
+                        class="form-input" placeholder="{{ __('email@contoh.com') }}">
                 </div>
             </div>
             <button type="submit" id="btn-submit" class="btn-submit">
                 <i class="fas fa-paper-plane" style="margin-right:8px;"></i>
-                <span class="btn-text">KIRIM KODE OTP</span>
+                <span class="btn-text">{{ __('KIRIM KODE OTP') }}</span>
             </button>
         </form>
 
-        <div class="auth-footer">Ingat password? <a href="{{ route('login') }}">Masuk sekarang</a></div>
+        <div class="auth-footer">{{ __('Ingat password?') }} <a href="{{ route('login') }}">{{ __('Masuk sekarang') }}</a></div>
     </div>
 </body>
 </html>

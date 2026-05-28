@@ -533,7 +533,7 @@ class ERPService extends BaseService
 
         if ($crawler->filter('form#loginform')->count() > 0) {
             Log::warning("[ToolCallExecutor] Scraper hit login page at: " . $url);
-            return ['error' => 'Gagal login ke website. Periksa kredensial di .env'];
+            return ['error' => __('Gagal login ke website. Periksa kredensial di .env')];
         }
 
         $title = $crawler->filter('h1.entry-title')->count() > 0
@@ -542,7 +542,7 @@ class ERPService extends BaseService
 
         $contentNode = $crawler->filter('.entry-content');
         if ($contentNode->count() === 0) {
-            return ['error' => 'Konten panduan tidak ditemukan di halaman ini.'];
+            return ['error' => __('Konten panduan tidak ditemukan di halaman ini.')];
         }
 
         // --- SECTION EXTRACTION & PREMIUM FORMATTING ---

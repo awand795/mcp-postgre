@@ -222,6 +222,72 @@
             display: none !important;
         }
 
+        /* ── Language Switcher Dropdown ── */
+        .lang-switch-dropdown {
+            position: relative;
+        }
+        .lang-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+            animation: slideDown 0.2s ease-out;
+        }
+        html.dark .lang-dropdown-menu {
+            background: rgba(15, 23, 42, 0.95);
+            border-color: rgba(51, 65, 85, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        }
+        .lang-dropdown-menu.active {
+            display: block;
+        }
+        .lang-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            color: #475569;
+            text-decoration: none;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        html.dark .lang-dropdown-menu a {
+            color: #94a3b8;
+        }
+        .lang-dropdown-menu a:hover {
+            background: rgba(241, 245, 249, 0.9);
+            color: #0f172a;
+        }
+        html.dark .lang-dropdown-menu a:hover {
+            background: rgba(30, 41, 59, 0.8);
+            color: #f8fafc;
+        }
+        .lang-dropdown-menu a.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4f46e5;
+        }
+        html.dark .lang-dropdown-menu a.active {
+            background: rgba(99, 102, 241, 0.25);
+            color: #c7d2fe;
+        }
+        .flag-icon {
+            font-size: 0.95rem;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         html {
             background-color: #fcfdff;
         }
@@ -1805,7 +1871,7 @@
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    Chat Baru
+                    {{ __('Chat Baru') }}
                 </button>
                 <button id="btn-close-sidebar"
                     class="ml-3 p-1.5 text-gray-400 dark:text-[#A1A09A] hover:text-gray-700 dark:hover:text-white rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors flex-shrink-0">
@@ -1820,7 +1886,7 @@
             <!-- Search Sidebar -->
             <div class="px-4 pt-3 flex-shrink-0" style="min-width: 288px;">
                 <div class="relative">
-                    <input type="text" id="search-history" placeholder="Cari obrolan..." 
+                    <input type="text" id="search-history" placeholder="{{ __('Cari obrolan...') }}" 
                         class="w-full pl-8 pr-3 py-1.5 text-xs text-gray-800 dark:text-white bg-black/5 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#f53003] focus:border-[#f53003] transition-all">
                     <span class="absolute left-2.5 top-2 text-gray-400 dark:text-white/40">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
@@ -1833,11 +1899,11 @@
 
             <!-- History List -->
             <div class="px-4 py-3 pb-1 text-[11px] font-semibold text-gray-400 dark:text-white/40 uppercase tracking-wider flex-shrink-0"
-                style="min-width: 288px;">Riwayat Terakhir</div>
+                style="min-width: 288px;">{{ __('Riwayat Terakhir') }}</div>
             <div id="history-list" class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar"
                 style="min-width: 288px;">
                 <!-- JS populated -->
-                <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">Memuat riwayat...
+                <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">{{ __('Memuat riwayat...') }}
                 </div>
             </div>
         </aside>
@@ -1863,7 +1929,7 @@
                                 <line x1="3" y1="18" x2="21" y2="18"></line>
                             </svg>
                         </button>
-                        <button id="btn-new-chat-header" title="Chat Baru"
+                        <button id="btn-new-chat-header" title="{{ __('Chat Baru') }}"
                             class="hidden p-1.5 md:p-2 text-gray-500 dark:text-[#A1A09A] hover:text-gray-800 dark:hover:text-white rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer select-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 md:w-6 md:h-6 pointer-events-none"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1892,10 +1958,10 @@
                                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
-                            <span class="btn-text font-bold">Admin Dashboard</span>
+                            <span class="btn-text font-bold">{{ __('Admin Dashboard') }}</span>
                         </a>
                     @endif
-                    <button id="btn-clear-chat" title="Hapus riwayat obrolan ini"
+                    <button id="btn-clear-chat" title="{{ __('Hapus riwayat obrolan ini') }}"
                         class="btn-clear hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 text-xs border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all focus:ring-2 focus:ring-rose-500/20 shadow-sm shadow-rose-500/5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1903,9 +1969,9 @@
                             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
                             <path d="M10 11v6M14 11v6M9 6V4h6v2" />
                         </svg>
-                        <span class="btn-text font-bold">Hapus Riwayat</span>
+                        <span class="btn-text font-bold">{{ __('Hapus Riwayat') }}</span>
                     </button>
-                    <button id="btn-clear-chat-mobile" title="Hapus riwayat obrolan ini"
+                    <button id="btn-clear-chat-mobile" title="{{ __('Hapus riwayat obrolan ini') }}"
                         class="btn-clear md:hidden flex items-center p-2 rounded-xl text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-all">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1920,9 +1986,28 @@
                         <i class="fas fa-sun" id="theme-icon"></i>
                         <span class="btn-text font-bold" id="theme-toggle-label">Light</span>
                     </button>
+
+                    <!-- Language Switcher Dropdown -->
+                    <div class="lang-switch-dropdown">
+                        <button onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}"
+                            class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 text-xs border border-slate-200 dark:border-slate-500/30 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 transition-all shadow-sm">
+                            <i class="fas fa-globe"></i>
+                            <span class="btn-text font-bold">{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+                            <i class="fas fa-chevron-down" style="font-size: 0.6rem; opacity: 0.7;"></i>
+                        </button>
+                        <div class="lang-dropdown-menu" id="langDropdownMenu" style="right: 0; min-width: 160px;">
+                            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                                <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+                            </a>
+                            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                                <span class="flag-icon">🇬🇧</span> English
+                            </a>
+                        </div>
+                    </div>
+
                     <form action="{{ route('logout') }}" method="POST" class="inline">
                         @csrf
-                        <button type="submit" title="Keluar"
+                        <button type="submit" title="{{ __('Keluar') }}"
                             class="btn-clear flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 text-xs border border-slate-200 dark:border-slate-500/30 bg-slate-50 dark:bg-slate-500/10 hover:bg-slate-100 dark:hover:bg-slate-500/20 transition-all shadow-sm">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1946,8 +2031,8 @@
                 <!-- Initial content will be cleared if history is loaded, otherwise defaults to welcome message -->
                 <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
                     <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                        <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
-                        <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
+                        <p>{!! __('Halo! Saya <strong>darkotech AI</strong> 👋') !!}</p>
+                        <p style="margin-top:6px">{{ __('Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?') }}</p>
                     </div>
                 </div>
             </div>
@@ -1958,7 +2043,7 @@
             <!-- Input -->
             <div class="p-5 border-t border-black/10 dark:border-white/10 flex-shrink-0 bg-white/50 dark:bg-black/20">
                 <div class="relative">
-                    <input type="text" id="message-input" placeholder="Ketik pesan anda di sini..."
+                    <input type="text" id="message-input" placeholder="{{ __('Ketik pesan anda di sini...') }}"
                         class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-gray-900 dark:text-white placeholder-black/25 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
                         autocomplete="off">
                     <button id="send-btn"
@@ -1989,7 +2074,7 @@
                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                             </path>
                         </svg>
-                        <span id="typing-text" class="text-xs text-white font-medium">AI sedang berpikir...</span>
+                        <span id="typing-text" class="text-xs text-white font-medium">{{ __('AI sedang berpikir...') }}</span>
                     </div>
                 </div>
 
@@ -2020,14 +2105,14 @@
                             </path>
                         </svg>
                     </div>
-                    <h3 class="text-white font-semibold text-lg">Hapus Riwayat Chat</h3>
+                    <h3 class="text-white font-semibold text-lg">{{ __('Hapus Riwayat Chat') }}</h3>
                 </div>
 
                 <!-- Modal Body -->
                 <div class="px-6 py-5">
                     <p class="text-[#A1A09A] text-sm leading-relaxed">
-                        Apakah Anda yakin ingin menghapus sesi obrolan ini?
-                        <span class="text-red-400 font-medium">Tindakan ini tidak dapat dibatalkan.</span>
+                        {{ __('Apakah Anda yakin ingin menghapus sesi obrolan ini?') }}
+                        <span class="text-red-400 font-medium">{{ __('Tindakan ini tidak dapat dibatalkan.') }}</span>
                     </p>
                 </div>
 
@@ -2035,7 +2120,7 @@
                 <div class="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3 bg-white/5">
                     <button id="modal-cancel-btn"
                         class="px-4 py-2 rounded-xl text-red-500 border border-red-500/30 hover:bg-red-500/10 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/20 text-sm font-medium transition-all">
-                        Batal
+                        {{ __('Batal') }}
                     </button>
                     <button id="modal-delete-btn"
                         class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium border border-red-500/30 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2">
@@ -2045,7 +2130,7 @@
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
                             </path>
                         </svg>
-                        Hapus
+                        {{ __('Hapus') }}
                     </button>
                 </div>
             </div>
@@ -2056,6 +2141,20 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 
     <script>
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
+
         function toggleTheme() {
             const isDark = document.documentElement.classList.contains('dark');
             const newTheme = isDark ? 'light' : 'dark';
@@ -2078,6 +2177,7 @@
         function updateThemeToggle(theme) {
             const icon = document.getElementById('theme-icon');
             const label = document.getElementById('theme-toggle-label');
+            const lang = document.documentElement.lang || 'id';
             if (icon) {
                 if (theme === 'dark') {
                     icon.className = 'fas fa-sun';
@@ -2086,7 +2186,11 @@
                 }
             }
             if (label) {
-                label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+                if (theme === 'dark') {
+                    label.textContent = lang === 'id' ? 'Terang' : 'Light';
+                } else {
+                    label.textContent = lang === 'id' ? 'Gelap' : 'Dark';
+                }
             }
         }
 
@@ -2425,7 +2529,7 @@
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
                                     const icon = toolIcons[tc.name] || '';
-                                    const label = toolLabels[tc.name] || 'Memproses data';
+                                    const label = toolLabels[tc.name] || '{{ __('Memproses data') }}';
 
                                     if (tc.status === 'running') {
                                         const badgeId = `tool-${tc.id}`;
@@ -2648,7 +2752,7 @@
                     historyList.style.opacity = '1';
 
                     if (reset && sessions.length === 0) {
-                        historyList.innerHTML = '<div class="flex flex-col items-center justify-center p-4 text-center opacity-50"><svg class="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="text-xs">Belum ada obrolan</span></div>';
+                        historyList.innerHTML = '<div class="flex flex-col items-center justify-center p-4 text-center opacity-50"><svg class="w-6 h-6 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="text-xs">{{ __('Belum ada obrolan') }}</span></div>';
                         sessionHasMore = false;
                         sessionIsLoading = false;
                         return;
@@ -2768,7 +2872,7 @@
                 } catch (e) {
                     console.error('[loadSessions] Error:', e);
                     if (reset) {
-                        historyList.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">Gagal memuat riwayat</div>';
+                        historyList.innerHTML = '<div class="p-4 text-center text-red-400 text-xs">{{ __('Gagal memuat riwayat') }}</div>';
                     }
                 } finally {
                     sessionIsLoading = false;
@@ -2927,7 +3031,7 @@
                 <svg class="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                 </svg>
-                <span class="text-xs font-medium text-orange-400">Video Panduan ERP</span>
+                <span class="text-xs font-medium text-orange-400">{{ __('Video Panduan ERP') }}</span>
             `;
 
                 const videoWrap = document.createElement('div');
@@ -3018,7 +3122,7 @@
                         <circle cx="8.5" cy="8.5" r="1.5"></circle>
                         <polyline points="21 15 16 10 5 21"></polyline>
                     </svg>
-                    <span class="text-xs font-medium text-blue-400">Langkah Visual / Screenshots</span>
+                    <span class="text-xs font-medium text-blue-400">{{ __('Langkah Visual / Screenshots') }}</span>
                 `;
 
                 const galleryWrap = document.createElement('div');
@@ -3219,7 +3323,7 @@
                 if (window.innerWidth < 768) toggleSidebar(false);
 
                 // Show loading state with spinner
-                chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">Memuat riwayat chat...</p></div>';
+                chatMessages.innerHTML = '<div class="flex flex-col items-center justify-center h-full gap-4"><svg class="animate-spin h-10 w-10 text-[#f53003]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="text-[#A1A09A] text-sm animate-pulse">{{ __('Memuat riwayat chat...') }}</p></div>';
 
                 try {
                     const res = await apiFetch(`{{ url('/chatbot/sessions') }}/${id}`, { signal });
@@ -3279,7 +3383,7 @@
                         console.log('[LoadSession] Request aborted (user switched chats)');
                     } else {
                         console.error('[LoadSession] Error:', e);
-                        chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">Gagal memuat percakapan: ' + e.message + '</div>';
+                        chatMessages.innerHTML = '<div class="p-4 text-center text-red-400">{{ __('Gagal memuat percakapan') }}: ' + e.message + '</div>';
                     }
                 } finally {
                     // CRITICAL: Always release loading flag, even on error or abort
@@ -3320,14 +3424,14 @@
                             await loadSessions(true);
                         }
                         
-                        fireToast('success', 'Obrolan berhasil dihapus');
+                        fireToast('success', "{{ __('Obrolan berhasil dihapus') }}");
                     }
                 } catch (e) {
                     console.error('Gagal menghapus sesi', e);
                     Swal.fire({
                         icon: 'error',
-                        title: 'Gagal',
-                        text: 'Gagal menghapus obrolan. Silakan coba lagi.'
+                        title: '{{ __('Gagal') }}',
+                        text: '{{ __('Gagal menghapus obrolan. Silakan coba lagi.') }}'
                     });
                 } finally {
                     // Restore pointer events
@@ -3354,18 +3458,18 @@
                                     <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">Perbarui Nama Chat</h3>
+                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">{{ __('Perbarui Nama Chat') }}</h3>
                         </div>
                         <div class="w-full text-left">
                             <div class="relative group">
-                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3.5 text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#f53003]/10 focus:border-[#f53003] transition-all duration-300" placeholder="Masukkan nama chat..." value="${oldTitle.replace(/"/g, '&quot;')}">
+                                <input id="custom-swal-input" type="text" maxlength="100" class="w-full px-4 py-3.5 text-sm font-medium text-gray-900 dark:text-white bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#f53003]/10 focus:border-[#f53003] transition-all duration-300" placeholder="{{ __('Masukkan nama chat...') }}" value="${oldTitle.replace(/"/g, '&quot;')}">
                                 <div id="char-counter" class="absolute right-4 top-4 text-[10px] text-gray-400 dark:text-white/30 font-bold tabular-nums">0/100</div>  
                             </div>
                         </div>
                     `,
                     showCancelButton: true,
-                    confirmButtonText: 'Simpan',
-                    cancelButtonText: 'Batalkan',
+                    confirmButtonText: '{{ __('Simpan') }}',
+                    cancelButtonText: '{{ __('Batalkan') }}',
                     confirmButtonColor: '#f53003',
                     focusConfirm: false,
                     preConfirm: () => {
@@ -3408,13 +3512,13 @@
                         await loadSessions(true);
 
                         // Show success toast
-                        fireToast('success', 'Nama obrolan berhasil diperbarui');
+                        fireToast('success', "{{ __('Nama obrolan berhasil diperbarui') }}");
                     } catch (e) {
                         console.error('[RenameSession] Error:', e);
                         Swal.fire({
                             icon: 'error',
-                            title: 'Gagal',
-                            text: 'Gagal mengubah nama obrolan. Silakan coba lagi.'
+                            title: '{{ __('Gagal') }}',
+                            text: '{{ __('Gagal mengubah nama obrolan. Silakan coba lagi.') }}'
                         });
                     }
                 }
@@ -3438,13 +3542,13 @@
                     await loadSessions(true);
 
                     // Show success toast
-                    fireToast('success', data.is_pinned ? 'Obrolan disematkan' : 'Penyematan obrolan dilepas');
+                    fireToast('success', data.is_pinned ? "{{ __('Obrolan disematkan') }}" : "{{ __('Penyematan obrolan dilepas') }}");
                 } catch (e) {
                     console.error('[TogglePinSession] Error:', e);
                     Swal.fire({
                         icon: 'error',
-                        title: 'Gagal',
-                        text: 'Gagal mengubah status penyematan. Silakan coba lagi.'
+                        title: '{{ __('Gagal') }}',
+                        text: '{{ __('Gagal mengubah status penyematan. Silakan coba lagi.') }}'
                     });
                 }
             }
@@ -3483,8 +3587,8 @@
                 chatMessages.innerHTML = `
             <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                    <p>Halo! Saya <strong>darkotech AI</strong> 👋</p>
-                    <p style="margin-top:6px">Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?</p>
+                    <p>{!! __('Halo! Saya <strong>darkotech AI</strong> 👋') !!}</p>
+                    <p style="margin-top:6px">{{ __('Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?') }}</p>
                 </div>
             </div>`;
             }
@@ -3582,8 +3686,8 @@
 
                 // Show prominent loading modal for better UX with large data
                 Swal.fire({
-                    title: 'Menyiapkan Export Excel',
-                    html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> baris data...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, file akan otomatis terunduh.</small>`,
+                    title: '{{ __('Menyiapkan Export Excel') }}',
+                    html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> {{ __('baris data...') }}<br/><small class="text-[#706f6c]">{{ __('Mohon tunggu sebentar, file akan otomatis terunduh.') }}</small>`,
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -3837,18 +3941,18 @@
                     Swal.close();
 
                     // Show success toast
-                    fireToast('success', `✅ Export berhasil! ${rows.length} baris data telah diunduh.`);
+                    fireToast('success', `✅ ` + "{{ __('Export berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}`);
 
                 } catch (error) {
                     console.error('[Export Error]', error);
 
-                    let errorMsg = 'Gagal export tabel.';
+                    let errorMsg = "{{ __('Gagal export tabel.') }}";
                     if (error.message.includes('timeout')) {
-                        errorMsg = '⏱️ Export timeout. Silakan coba lagi.';
+                        errorMsg = '⏱️ ' + "{{ __('Export timeout. Silakan coba lagi.') }}";
                     } else if (error.message.includes('memory')) {
-                        errorMsg = '💾 Memory limit. Silakan coba lagi.';
+                        errorMsg = '💾 ' + "{{ __('Memory limit. Silakan coba lagi.') }}";
                     } else if (error.message.includes('413')) {
-                        errorMsg = '⚠️ Data terlalu besar. Silakan filter data terlebih dahulu.';
+                        errorMsg = '⚠️ ' + "{{ __('Data terlalu besar. Silakan filter data terlebih dahulu.') }}";
                     } else {
                         errorMsg = `❌ ${error.message}`;
                     }
@@ -3878,8 +3982,8 @@
                 const exportBtn = chartContainer?.querySelector('.chart-export-btn');
 
                 Swal.fire({
-                    title: 'Menyiapkan Export Excel',
-                    html: 'Sedang memproses grafik untuk Excel...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, file akan otomatis terunduh.</small>',
+                    title: '{{ __('Menyiapkan Export Excel') }}',
+                    html: '{{ __('Sedang memproses grafik untuk Excel...') }}<br/><small class="text-[#706f6c]">{{ __('Mohon tunggu sebentar, file akan otomatis terunduh.') }}</small>',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -3978,11 +4082,11 @@
 
                     Swal.close();
 
-                    fireToast('success', '✅ Export Excel grafik berhasil!');
+                    fireToast('success', "✅ {{ __('Export Excel grafik berhasil!') }}");
 
                 } catch (error) {
                     console.error('[Chart Excel Export Error]', error);
-                    fireToast('error', `❌ Gagal export Excel: ${error.message}`);
+                    fireToast('error', "❌ {{ __('Gagal export Excel') }}: " + error.message);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -3999,8 +4103,8 @@
                 const exportBtn = document.querySelector(`#${tableId} .smart-table-export-pdf-btn`);
 
                 Swal.fire({
-                    title: 'Menyiapkan Export PDF',
-                    html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> baris data...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar, browser mungkin sedikit melambat saat menyusun halaman PDF.</small>`,
+                    title: '{{ __('Menyiapkan Export PDF') }}',
+                    html: `Sedang memproses <b>${rows.length.toLocaleString('id')}</b> {{ __('baris data...') }}<br/><small class="text-[#706f6c]">{{ __('Mohon tunggu sebentar, browser mungkin sedikit melambat saat menyusun halaman PDF.') }}</small>`,
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -4105,12 +4209,12 @@
                     // Close loading modal
                     Swal.close();
 
-                    fireToast('success', `✅ Export PDF berhasil! ${rows.length} baris data telah diunduh.`);
+                    fireToast('success', `✅ ` + "{{ __('Export PDF berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}`);
 
                 } catch (error) {
                     Swal.close();
                     console.error('[PDF Export Error]', error);
-                    fireToast('error', `❌ Gagal export PDF: ${error.message}`);
+                    fireToast('error', `❌ ` + "{{ __('Gagal export PDF') }}: " + error.message);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -4127,8 +4231,8 @@
                 const exportBtn = chartContainer?.querySelector('.chart-export-pdf-btn');
 
                 Swal.fire({
-                    title: 'Menyiapkan Export PDF',
-                    html: 'Sedang menyusun dokumen PDF...<br/><small class="text-[#706f6c]">Mohon tunggu sebentar.</small>',
+                    title: '{{ __('Menyiapkan Export PDF') }}',
+                    html: '{{ __('Sedang menyusun dokumen PDF...') }}<br/><small class="text-[#706f6c]">{{ __('Mohon tunggu sebentar.') }}</small>',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -4279,12 +4383,12 @@
                     // Close loading modal
                     Swal.close();
 
-                    fireToast('success', `✅ Export PDF grafik berhasil!`);
+                    fireToast('success', "✅ {{ __('Export PDF grafik berhasil!') }}");
 
                 } catch (error) {
                     Swal.close();
                     console.error('[Chart PDF Export Error]', error);
-                    fireToast('error', `❌ Gagal export PDF grafik: ${error.message}`);
+                    fireToast('error', "❌ {{ __('Gagal export PDF grafik') }}: " + error.message);
                 } finally {
                     if (exportBtn) {
                         exportBtn.disabled = false;
@@ -4711,7 +4815,7 @@
 
                 if (tbody) {
                     if (pageRows.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">{{ __('Tidak ada data') }}</td></tr>`;
                     } else {
                         tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
                             const isLong = String(row[i]).length > 40;
@@ -4798,7 +4902,7 @@
 
                 if (tbody) {
                     if (pageRows.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">Tidak ada data</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center;color:#706f6c;padding:16px">{{ __('Tidak ada data') }}</td></tr>`;
                     } else {
                         tbody.innerHTML = pageRows.map(row => '<tr>' + headers.map((h, i) => {
                             const isLong = String(row[i]).length > 40;
@@ -4891,8 +4995,8 @@
                     wrapDiv.innerHTML = `
                     <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${tableTitle}</span></div>
                     <div class="smart-table-toolbar">
-                        <span class="smart-table-info">📊 ${rows.length} baris · ${headers.length} kol</span>
-                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                        <span class="smart-table-info">📊 ${rows.length} {{ __('baris') }} · ${headers.length} {{ __('kol') }}</span>
+                        <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
                     </div>
                     <div class="smart-table-scroll">
                         <table class="smart-table"><thead></thead><tbody></tbody></table>
@@ -4982,7 +5086,7 @@
                 } else if (extracted.type === 'schema') {
                     const { cols, tableName } = extracted;
                     stData = {
-                        title: 'Struktur Kolom: ' + tableName,
+                        title: '{{ __('Struktur Kolom: ') }}' + tableName,
                         headers: ['Nama Kolom', 'Tipe Data', 'Keterangan'],
                         rows: cols.map(c => [c.name || c.column_name || '', c.type || c.data_type || '', c.description || c.notes || '']),
                         currency_columns: [],
@@ -5006,8 +5110,8 @@
                 wrapDiv.innerHTML = `
                 <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title}</span></div>
                 <div class="smart-table-toolbar">
-                    <span class="smart-table-info">📊 ${stData.rows.length} baris · ${stData.headers.length} kol</span>
-                    <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                    <span class="smart-table-info">📊 ${stData.rows.length} {{ __('baris') }} · ${stData.headers.length} {{ __('kol') }}</span>
+                    <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
                 </div>
                 <div class="smart-table-scroll">
                     <table class="smart-table"><thead></thead><tbody></tbody></table>
@@ -5185,7 +5289,7 @@
                             if (toolRes.error) {
                                 const thead = wrap.querySelector('thead');
                                 const tbody = wrap.querySelector('tbody');
-                                if (thead) thead.innerHTML = '<tr><th class="p-4 text-red-500">⚠️ Kesalahan Query</th></tr>';
+                                if (thead) thead.innerHTML = '<tr><th class="p-4 text-red-500">⚠️ {{ __('Kesalahan Query') }}</th></tr>';
                                 if (tbody) tbody.innerHTML = `<tr><td class="p-4 text-center opacity-60 italic text-red-400">${toolRes.error}</td></tr>`;
                                 wrap.setAttribute('data-initialized', 'true');
                                 return;
@@ -5366,7 +5470,7 @@
                                 }
 
                                 if (chartIdx < 0) {
-                                    return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Format grafik tidak valid</span></div></div>';
+                                    return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ {{ __('Format grafik tidak valid') }}</span></div></div>';
                                 }
 
                                 const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
@@ -5378,14 +5482,14 @@
                             </div>`;
                             } catch (e) {
                                 console.error('[Chart Renderer] Parse error (after repair attempt):', e, 'Raw code:', code.substring(0, 200));
-                                return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ Error memproses grafik</span></div></div>';
+                                return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ {{ __('Error memproses') }} grafik</span></div></div>';
                             }
                         }
 
                         if (langClean === 'smart_table') {
                             try {
                                 if (!code.trim().endsWith('}')) {
-                                    return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
+                                    return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ {{ __('Sedang memproses') }} data...</span></div>';
                                 }
                                 const params = JSON.parse(code.trim());
                                 const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
@@ -5394,7 +5498,7 @@
                                 if (idx >= 0 && !currentToolResults[idx]) {
                                     return `<div class="table-wrap border-dashed border-white/10 flex items-center gap-2 px-4 py-3">
                                     <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-                                    <span class="opacity-40 text-xs">Menunggu data (Tool #${idx})...</span>
+                                    <span class="opacity-40 text-xs">{{ __('Menunggu data') }} (Tool #${idx})...</span>
                                 </div>`;
                                 }
 
@@ -5411,8 +5515,8 @@
                                     return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}${hAttr}${rAttr}${currAttr}>
                                     ${params.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${params.title}</span></div>` : ''}
                                     <div class="smart-table-toolbar">
-                                        <span class="smart-table-info">📊 ${dataReady ? 'Menginisialisasi tabel...' : 'Memuat...'}</span>
-                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                                        <span class="smart-table-info">📊 ${dataReady ? '{{ __('Menginisialisasi tabel...') }}' : 'Memuat...'}</span>
+                                        <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
                                     </div>
                                     <div class="smart-table-scroll">
                                         <table class="smart-table"><thead><tr><th class="p-4">⏳ Menginisialisasi...</th></tr></thead><tbody></tbody></table>
@@ -5436,19 +5540,19 @@
                                     return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="-1"${titleAttr}>
                                     <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${fallbackTitle}</span></div>
                                     <div class="smart-table-toolbar">
-                                        <span class="smart-table-info">📊 Memulihkan data...</span>
-                                        <input class="smart-table-search" type="text" placeholder="🔍 Cari di tabel...">
+                                        <span class="smart-table-info">📊 {{ __('Memulihkan data...') }}</span>
+                                        <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
                                     </div>
                                     <div class="smart-table-scroll">
-                                        <table><thead><tr><th class="p-4">⏳ Menyinkronkan data...</th></tr></thead><tbody></tbody></table>
+                                        <table><thead><tr><th class="p-4">⏳ {{ __('Menyinkronkan data...') }}</th></tr></thead><tbody></tbody></table>
                                     </div>
                                     <div class="smart-table-pagination"><span class="smart-table-page-info"></span><div class="smart-table-btns"></div></div>
                                 </div>`;
                                 }
 
-                                return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ Sedang memproses data...</span></div>';
+                                return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ {{ __('Sedang memproses') }} data...</span></div>';
                             }
-                            return `<div class="table-wrap">⚠️ Konfigurasi tabel tidak valid atau data tidak ditemukan</div>`;
+                            return `<div class="table-wrap">⚠️ {{ __('Konfigurasi tabel tidak valid atau data tidak ditemukan') }}</div>`;
                         }
 
                         if (langClean === 'dashboard') {
@@ -5458,7 +5562,7 @@
                                 return `<div class="dashboard-grid" id="${id}" data-config='${JSON.stringify(dashboardData).replace(/'/g, "&apos;")}'></div>`;
                             } catch (e) {
                                 console.error('[Dashboard Renderer] Error:', e);
-                                return '<div class="p-4 text-red-400 opacity-60 text-xs italic">⚠️ Gagal memproses dashboard</div>';
+                                return '<div class="p-4 text-red-400 opacity-60 text-xs italic">⚠️ {{ __('Gagal memproses dashboard') }}</div>';
                             }
                         }
 
@@ -5482,7 +5586,7 @@
 
             // ── Label notifikasi bisnis ───────────────────────────────────────────
             const toolIcons = { list_tables: '📊', describe_table: '🔎', execute_query: '📈', get_schema_info: '🗂️' };
-            const toolLabels = { list_tables: 'Melihat data yang tersedia', describe_table: 'Memeriksa informasi data', execute_query: 'Membaca data', get_schema_info: 'Melihat data' };
+            const toolLabels = { list_tables: "{{ __('Melihat data yang tersedia') }}", describe_table: "{{ __('Memeriksa informasi data') }}", execute_query: "{{ __('Membaca data') }}", get_schema_info: "{{ __('Melihat data') }}" };
 
 
             // ── Loading state ─────────────────────────────────────────────────────
@@ -5510,7 +5614,7 @@
 
                 setLoading(true);
                 messageInput.disabled = true;
-                messageInput.placeholder = 'AI sedang memproses...';
+                messageInput.placeholder = "{{ __('AI sedang memproses...') }}";
                 sendBtn.disabled = true;
                 messageInput.value = '';
 
@@ -5542,11 +5646,11 @@
                     const contentType = response.headers.get('content-type') || '';
                     if (contentType.includes('application/json')) {
                         const json = await response.json();
-                        const errMsg = json.error || 'Terjadi kesalahan pada server.';
+                        const errMsg = json.error || "{{ __('Terjadi kesalahan pada server.') }}";
                         bubble.innerHTML = renderMarkdown('⚠️ ' + errMsg);
                         setLoading(false);
                         messageInput.disabled = false;
-                        messageInput.placeholder = 'Ketik pesan anda di sini...';
+                        messageInput.placeholder = "{{ __('Ketik pesan anda di sini...') }}";
                         sendBtn.disabled = false;
                         return;
                     }
@@ -5624,7 +5728,7 @@
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
                                     const icon = toolIcons[tc.name] || '';
-                                    const label = toolLabels[tc.name] || 'Memproses data';
+                                    const label = toolLabels[tc.name] || '{{ __('Memproses data') }}';
                                     if (tc.status === 'running') {
                                         const badge = document.createElement('div');
                                         badge.className = 'tool-call-badge running';
@@ -5703,7 +5807,7 @@
                     finalizeStreamBubble(bubble, aiResponseText, currentToolResults);
 
                     if (toolArea.children.length === 0 && aiResponseText.trim().length === 0) {
-                        bubble.innerHTML = renderMarkdown('Maaf, saya tidak dapat memproses permintaan Anda.');
+                        bubble.innerHTML = renderMarkdown("{{ __('Maaf, saya tidak dapat memproses permintaan Anda.') }}");
                     }
 
                     if (toolArea.children.length === 0) toolArea.style.display = 'none';
@@ -5722,14 +5826,14 @@
 
                 } catch (err) {
                     console.error('[Agentic] Error:', err);
-                    bubble.innerHTML = renderMarkdown('⚠️ **Maaf, terjadi kesalahan koneksi ke server.**<br/>Silakan coba lagi atau periksa koneksi internet Anda.');
+                    bubble.innerHTML = renderMarkdown('⚠️ **' + "{{ __('Maaf, terjadi kesalahan koneksi ke server.') }}" + '**<br/>' + "{{ __('Silakan coba lagi atau periksa koneksi internet Anda.') }}");
                 } finally {
                     setLoading(false);
                     messageInput.disabled = false;
-                    messageInput.placeholder = 'Ketik pesan anda di sini...';
+                    messageInput.placeholder = "{{ __('Ketik pesan anda di sini...') }}";
                     sendBtn.disabled = false;
                     messageInput.focus();
-                    typingText.textContent = 'AI sedang berpikir...';
+                    typingText.textContent = "{{ __('AI sedang berpikir...') }}";
                     chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
                 }
             }
@@ -5749,8 +5853,8 @@
                 <div class="ai-loading-top">
                     <div class="ai-loading-icon-wrap" id="ai-load-icon">🤔</div>
                     <div class="ai-loading-text">
-                        <div class="ai-loading-label anim" id="ai-load-label">AI sedang berpikir</div>
-                        <div class="ai-loading-sub" id="ai-load-sub">Menunggu respons...</div>
+                        <div class="ai-loading-label anim" id="ai-load-label">${"{{ __('AI sedang berpikir') }}"}</div>
+                        <div class="ai-loading-sub" id="ai-load-sub">${"{{ __('Menunggu respons...') }}"}</div>
                     </div>
                 </div>
                 <div class="ai-loading-bar-wrap"><div class="ai-loading-bar"></div></div>
@@ -5799,7 +5903,7 @@
                     }
 
                     if (!config || !config.type) {
-                        container.innerHTML = '<div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs text-red-400">⚠️ Format grafik tidak valid</span></div>';
+                        container.innerHTML = '<div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs text-red-400">⚠️ {{ __('Format grafik tidak valid') }}</span></div>';
                         return;
                     }
 
@@ -5867,7 +5971,7 @@
                         const loader = container ? container.querySelector('.chart-loading') : null;
                         if (loader) loader.remove();
                         console.error('Chart.js init error:', e);
-                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik: ' + e.message + '</p>';
+                        if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ {{ __('Gagal render') }} grafik: ' + e.message + '</p>';
                     }
                 });
             }
@@ -6059,7 +6163,7 @@
                     }
                 } catch (e) {
                     console.error('Chart.js init error:', e);
-                    if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ Gagal render grafik: ' + e.message + '</p>';
+                    if (container) container.innerHTML = '<p style="color:#f87171;font-size:12px;padding:10px">⚠️ {{ __('Gagal render') }} grafik: ' + e.message + '</p>';
                 }
             }
 

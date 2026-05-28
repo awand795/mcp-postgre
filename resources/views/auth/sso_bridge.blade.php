@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Memuat DarkoAI...</title>
+    <title>{{ __('Memuat DarkoAI...') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -31,7 +31,7 @@
 <body>
 <div class="loader">
     <div class="spinner"></div>
-    <p>Memuat DarkoAI untuk {{ $user_name }}...</p>
+    <p>{{ __('Memuat DarkoAI untuk :name...', ['name' => $user_name]) }}</p>
 </div>
 
 <script>

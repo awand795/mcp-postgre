@@ -23,7 +23,7 @@ class SSOController extends Controller
         $providedKey = $request->header('X-SSO-KEY') ?: $request->bearerToken();
 
         if (!$expectedKey || $providedKey !== $expectedKey) {
-            return response()->json(['error' => 'Unauthorized SSO Handshake'], 401);
+            return response()->json(['error' => __('Unauthorized SSO Handshake')], 401);
         }
 
         $request->validate([
@@ -81,19 +81,19 @@ class SSOController extends Controller
         $ott = $request->query('token');
 
         if (!$ott) {
-            return $this->ssoErrorPage('Token tidak ditemukan.');
+            return $this->ssoErrorPage(__('Token tidak ditemukan.'));
         }
 
         $userId = Cache::pull('sso_token_' . $ott);
 
         if (!$userId) {
-            return $this->ssoErrorPage('SSO Token sudah kadaluarsa atau tidak valid. Silakan muat ulang halaman ERP.');
+            return $this->ssoErrorPage(__('SSO Token sudah kadaluarsa atau tidak valid. Silakan muat ulang halaman ERP.'));
         }
 
         $user = User::find($userId);
 
         if (!$user) {
-            return $this->ssoErrorPage('User tidak ditemukan.');
+            return $this->ssoErrorPage(__('User tidak ditemukan.'));
         }
 
         // Hapus semua token SSO lama milik user ini agar tidak menumpuk

@@ -305,7 +305,7 @@ class ToolCallExecutor
             };
         } catch (\Throwable $e) {
             $this->logToolFailure($toolName, $e);
-            return json_encode(['error' => 'Permintaan tidak dapat diproses saat ini. Silakan coba lagi.']);
+            return json_encode(['error' => __('Permintaan tidak dapat diproses saat ini. Silakan coba lagi.')]);
         }
     }
 

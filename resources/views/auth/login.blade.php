@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login - darkotech AI</title>
+    <title>{{ __('Login') }} - darkotech AI</title>
     <link rel="icon" href="{{ asset('logo_dmi.png') }}" type="image/png">
     <script>
         (function() {
@@ -186,6 +186,88 @@
         }
         .theme-btn:hover { border-color:var(--primary); color:var(--primary); transform:scale(1.05); }
 
+        /* ── Language Switcher ── */
+        .lang-switch-dropdown {
+            position: fixed;
+            top: 20px;
+            right: 72px;
+            z-index: 10;
+        }
+        .lang-switch-btn {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0 0.8rem;
+            color: var(--text);
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            font-family: inherit;
+        }
+        .lang-switch-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            transform: scale(1.05);
+        }
+        .lang-switch-btn i {
+            font-size: 0.85rem;
+        }
+        .lang-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 6px;
+            min-width: 170px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            animation: slideDown 0.2s ease-out;
+        }
+        .lang-dropdown-menu.active {
+            display: block;
+        }
+        .lang-dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+        .lang-dropdown-menu a:hover {
+            background: rgba(245,48,3,0.05);
+            color: var(--primary);
+        }
+        html.dark .lang-dropdown-menu a:hover {
+            background: rgba(245,48,3,0.1);
+        }
+        .lang-dropdown-menu a.active {
+            background: rgba(245,48,3,0.08);
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .flag-icon {
+            font-size: 0.95rem;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-width:480px) {
             body { padding:0; align-items:flex-start; }
             .login-card { border-radius:0; min-height:100vh; padding:2rem 1.5rem; display:flex; flex-direction:column; justify-content:center; }
@@ -205,6 +287,20 @@
             const f = document.getElementById('fouc-fix');
             if (f) f.remove();
         }
+
+        function toggleLangDropdown(event) {
+            event.stopPropagation();
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu) menu.classList.toggle('active');
+        }
+        window.addEventListener('click', function(event) {
+            const menu = document.getElementById('langDropdownMenu');
+            if (menu && menu.classList.contains('active')) {
+                if (!event.target.closest('.lang-switch-dropdown')) {
+                    menu.classList.remove('active');
+                }
+            }
+        });
 
         function togglePasswordVisibility(inputId, iconId) {
             const input = document.getElementById(inputId);
@@ -238,15 +334,32 @@
     </script>
 </head>
 <body>
-    <button onclick="toggleTheme()" class="theme-btn" title="Toggle Theme">
+    <button onclick="toggleTheme()" class="theme-btn" title="{{ __('Toggle Theme') }}">
         <i id="ti" class="fas fa-sun"></i>
     </button>
+
+    <!-- Language Switcher Dropdown -->
+    <div class="lang-switch-dropdown">
+        <button class="lang-switch-btn" onclick="toggleLangDropdown(event)" title="{{ __('Bahasa') }}">
+            <i class="fas fa-globe"></i>
+            <span>{{ app()->getLocale() == 'id' ? 'ID' : 'EN' }}</span>
+            <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
+        </button>
+        <div class="lang-dropdown-menu" id="langDropdownMenu">
+            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
+            </a>
+            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                <span class="flag-icon">🇬🇧</span> English
+            </a>
+        </div>
+    </div>
  
     <div class="login-card">
         <div class="login-header">
             <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI Logo" class="brand-logo">
-            <h1>Selamat Datang</h1>
-            <p>Masuk untuk mengakses darkotech AI</p>
+            <h1>{{ __('Selamat Datang') }}</h1>
+            <p>{{ __('Masuk untuk mengakses darkotech AI') }}</p>
         </div>
 
         @if(session('status'))
@@ -263,11 +376,11 @@
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <div class="form-group">
-                <label class="form-label">Alamat Email</label>
+                <label class="form-label">{{ __('Alamat Email') }}</label>
                 <div class="input-wrap">
                     <i class="fas fa-envelope"></i>
                     <input type="email" name="email" value="{{ request()->query('email', old('email')) }}" required {{ (request()->query('is_iframe') === '1' || request()->query('token')) ? '' : 'autofocus' }}
-                        class="form-input" placeholder="email@contoh.com">
+                        class="form-input" placeholder="{{ __('email@contoh.com') }}">
                 </div>
                 @error('email')
                     <p class="form-error">{{ $message }}</p>
@@ -280,8 +393,8 @@
  
             <div class="form-group">
                 <div class="form-row">
-                    <label class="form-label" style="margin:0;">Password</label>
-                    <a href="{{ route('password.request') }}" class="forgot-link">Lupa password?</a>
+                    <label class="form-label" style="margin:0;">{{ __('Password') }}</label>
+                    <a href="{{ route('password.request') }}" class="forgot-link">{{ __('Lupa password?') }}</a>
                 </div>
                 <div class="input-wrap" style="margin-top:0.5rem;">
                     <i class="fas fa-lock"></i>
@@ -296,11 +409,11 @@
  
             <div class="remember-wrap">
                 <input type="checkbox" name="remember" id="remember">
-                <label for="remember">Ingat saya</label>
+                <label for="remember">{{ __('Ingat saya') }}</label>
             </div>
  
             <button type="submit" class="btn-login">
-                <i class="fas fa-sign-in-alt" style="margin-right:8px;"></i>MASUK SEKARANG
+                <i class="fas fa-sign-in-alt" style="margin-right:8px;"></i>{{ __('MASUK SEKARANG') }}
             </button>
         </form>
     </div>

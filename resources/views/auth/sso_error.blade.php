@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SSO Error</title>
+    <title>{{ __('SSO Error') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -29,7 +29,7 @@
 <body>
 <div class="card">
     <div class="icon">⚠️</div>
-    <h2>Gagal Login SSO</h2>
+    <h2>{{ __('Gagal Login SSO') }}</h2>
     <p>{{ $message }}</p>
 </div>
 </body>

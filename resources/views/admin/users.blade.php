@@ -5,15 +5,15 @@
     <div class="header-left">
         <h1 class="page-title" style="font-size:1.8rem; font-weight:700; display:flex; align-items:center; gap:0.75rem; margin:0; color:var(--text-main);">
             <span class="title-icon" style="width:44px; height:44px; background:linear-gradient(135deg, var(--primary), #8b5cf6); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:white; flex-shrink:0; box-shadow:0 4px 15px rgba(99,102,241,0.35);"><i class="fas fa-users"></i></span>
-            Management User
+            {{ __('Management User') }}
         </h1>
-        <p class="page-subtitle" style="color:var(--text-muted); margin:0.3rem 0 0 3.5rem; font-size:0.9rem;">Kelola pengguna, role, dan hak akses sistem</p>
+        <p class="page-subtitle" style="color:var(--text-muted); margin:0.3rem 0 0 3.5rem; font-size:0.9rem;">{{ __('Kelola pengguna, role, dan hak akses sistem') }}</p>
     </div>
     <div class="header-actions" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
-        <button class="btn btn-success" onclick="downloadTemplate()" style="background:#10b981; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-download"></i> <span>Template</span></button>
-        <button class="btn btn-info" onclick="showModal('import')" style="background:#0ea5e9; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-import"></i> <span>Import</span></button>
-        <button class="btn btn-secondary" onclick="exportUsers()" style="background:var(--input-bg); color:var(--text-main); border:1px solid var(--glass-border); padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-export"></i> <span>Export</span></button>
-        <button class="btn btn-primary" onclick="showModal('create')" style="background:var(--primary); color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-plus"></i> <span>Tambah User</span></button>
+        <button class="btn btn-success" onclick="downloadTemplate()" style="background:#10b981; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-download"></i> <span>{{ __('Template') }}</span></button>
+        <button class="btn btn-info" onclick="showModal('import')" style="background:#0ea5e9; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-import"></i> <span>{{ __('Import') }}</span></button>
+        <button class="btn btn-secondary" onclick="exportUsers()" style="background:var(--input-bg); color:var(--text-main); border:1px solid var(--glass-border); padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-export"></i> <span>{{ __('Export') }}</span></button>
+        <button class="btn btn-primary" onclick="showModal('create')" style="background:var(--primary); color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-plus"></i> <span>{{ __('Tambah User') }}</span></button>
     </div>
 </div>
 
@@ -23,21 +23,21 @@
 <div class="glass-card filter-card">
     <form action="{{ route('admin.users') }}" method="GET" class="filter-form">
         <div class="filter-group">
-            <label><i class="fas fa-search"></i> Cari User</label>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama atau Email...">
+            <label><i class="fas fa-search"></i> {{ __('Cari User') }}</label>
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="{{ __('Nama atau Email...') }}">
         </div>
         <div class="filter-group">
-            <label><i class="fas fa-user-tag"></i> Filter Role</label>
+            <label><i class="fas fa-user-tag"></i> {{ __('Filter Role') }}</label>
             <select name="role_filter">
-                <option value="">Semua Role</option>
+                <option value="">{{ __('Semua Role') }}</option>
                 @foreach($roles as $role)
                     <option value="{{ $role->id }}" {{ request('role_filter') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                 @endforeach
             </select>
         </div>
         <div class="filter-actions">
-            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
-            <a href="{{ route('admin.users') }}" class="btn btn-cancel"><i class="fas fa-sync"></i> Reset</a>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> {{ __('Filter') }}</button>
+            <a href="{{ route('admin.users') }}" class="btn btn-cancel"><i class="fas fa-sync"></i> {{ __('Reset') }}</a>
         </div>
     </form>
 </div>
@@ -48,15 +48,15 @@
         <table>
             <thead>
                 <tr>
-                    <th>Nama</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Hak Akses</th>
-                    <th>AI Models</th>
-                    <th>API Keys</th>
-                    <th>Cakupan</th>
-                    <th>Dibuat</th>
-                    <th class="th-sticky">Aksi</th>
+                    <th>{{ __('Nama') }}</th>
+                    <th>{{ __('Email') }}</th>
+                    <th>{{ __('Role') }}</th>
+                    <th>{{ __('Hak Akses') }}</th>
+                    <th>{{ __('AI Models') }}</th>
+                    <th>{{ __('API Keys') }}</th>
+                    <th>{{ __('Cakupan') }}</th>
+                    <th>{{ __('Dibuat') }}</th>
+                    <th class="th-sticky">{{ __('Aksi') }}</th>
                 </tr>
             </thead>
             @forelse($users as $user)
@@ -69,16 +69,16 @@
                     <td>
                         <span class="role-badge">
                             <i class="fas fa-user-tag"></i>
-                            {{ $user->roleModel->name ?? 'No Role' }}
+                            {{ $user->roleModel->name ?? __('No Role') }}
                         </span>
                     </td>
                     <td>
                         @if($user->is_super_admin)
-                            <span class="status-yes" style="background: rgba(99,102,241,0.1); color: #4338ca; border-color: rgba(99,102,241,0.2);"><i class="fas fa-crown"></i> Super Admin</span>
+                            <span class="status-yes" style="background: rgba(99,102,241,0.1); color: #4338ca; border-color: rgba(99,102,241,0.2);"><i class="fas fa-crown"></i> {{ __('Super Admin') }}</span>
                         @elseif($user->is_admin)
-                            <span class="status-yes"><i class="fas fa-user-shield"></i> Admin</span>
+                            <span class="status-yes"><i class="fas fa-user-shield"></i> {{ __('Admin') }}</span>
                         @else
-                            <span class="status-no"><i class="fas fa-user"></i> User Biasa</span>
+                            <span class="status-no"><i class="fas fa-user"></i> {{ __('User Biasa') }}</span>
                         @endif
                     </td>
                     <td>
@@ -127,16 +127,16 @@
                     </td>
                     <td>
                         @if($user->analysis_scope_limited)
-                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> Database</span>
+                            <span class="scope-badge scope-limited"><i class="fas fa-database"></i> {{ __('Database') }}</span>
                         @else
-                            <span class="scope-badge scope-free"><i class="fas fa-globe"></i> Bebas</span>
+                            <span class="scope-badge scope-free"><i class="fas fa-globe"></i> {{ __('Bebas') }}</span>
                         @endif
                     </td>
                     <td>
                         <div class="metadata-wrap">
-                            <span class="metadata-user" title="Pencipta"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? 'System' }}</span>
+                            <span class="metadata-user" title="{{ __('Pencipta') }}"><i class="fas fa-user-edit"></i> {{ $user->addedBy->name ?? __('System') }}</span>
                             @if($user->managers->isNotEmpty())
-                                <span class="metadata-user" style="font-size: 0.72rem; color: var(--primary);" title="Pengelola: {{ $user->managers->pluck('name')->implode(', ') }}">
+                                <span class="metadata-user" style="font-size: 0.72rem; color: var(--primary);" title="{{ __('Pengelola:') }} {{ $user->managers->pluck('name')->implode(', ') }}">
                                     <i class="fas fa-user-shield"></i> {{ Str::limit($user->managers->pluck('name')->implode(', '), 15) }}
                                 </span>
                             @endif
@@ -148,17 +148,17 @@
                     </td>
                     <td class="td-sticky">
                         <div class="action-buttons">
-                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="Data Filter (RLS)" style="position:relative;">
+                            <button class="btn btn-filter {{ $user->tableFilters->count() > 0 ? 'btn-filter-active' : '' }}" onclick="showTableFilters({{ json_encode($user) }})" title="{{ __('Data Filter (RLS)') }}" style="position:relative;">
                                 <i class="fas fa-filter"></i>
                                 @if($user->tableFilters->count() > 0)
                                     <span class="filter-count-badge">{{ $user->tableFilters->count() }}</span>
                                 @endif
                             </button>
-                            <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="AI Config">
+                            <button class="btn btn-info" onclick="showAiConfig({{ json_encode($user) }})" title="{{ __('AI Config') }}">
                                 <i class="fas fa-robot"></i>
                             </button>
                             <button class="btn btn-edit" onclick="showModal('edit', {{ json_encode($user) }})"><i class="fas fa-edit"></i></button>
-                            <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" onsubmit="confirmDelete(event, 'Hapus User?', 'Akses user ini ke sistem akan segera dicabut.')">
+                            <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" onsubmit="confirmDelete(event, '{{ __('Hapus User?') }}', '{{ __('Akses user ini ke sistem akan segera dicabut.') }}')">
                                 @csrf
                                 @method('DELETE')
                                 <button class="btn btn-delete"><i class="fas fa-trash"></i></button>
@@ -183,7 +183,7 @@
                 <tr>
                     <td colspan="9" class="empty-state">
                         <i class="fas fa-user-slash"></i>
-                        <p>Tidak ada user yang ditemukan</p>
+                        <p>{{ __('Tidak ada user yang ditemukan') }}</p>
                     </td>
                 </tr>
             </tbody>
@@ -196,7 +196,7 @@
 @if($users->hasPages())
 <div class="pagination-container">
     <p class="pagination-info">
-        Menampilkan {{ $users->firstItem() }} - {{ $users->lastItem() }} dari {{ $users->total() }} user
+        {{ __('Menampilkan') }} {{ $users->firstItem() }} - {{ $users->lastItem() }} {{ __('dari') }} {{ $users->total() }} user
     </p>
     <nav class="pagination-nav">
         {{ $users->links() }}
@@ -207,24 +207,24 @@
 <!-- User Modal -->
 <div id="userModal" class="modal-overlay">
     <div class="glass-card modal-content">
-        <h3 id="modalTitle">Tambah User</h3>
+        <h3 id="modalTitle">{{ __('Tambah User') }}</h3>
         <form id="userForm" method="POST">
             @csrf
             <input type="hidden" name="_method" id="formMethod" value="POST">
             <div class="form-group">
-                <label>Nama Lengkap</label>
-                <input type="text" name="name" id="userName" placeholder="Masukkan nama lengkap" required>
+                <label>{{ __('Nama Lengkap') }}</label>
+                <input type="text" name="name" id="userName" placeholder="{{ __('Masukkan nama lengkap') }}" required>
             </div>
             <div class="form-group">
-                <label>Keterangan</label>
-                <input type="text" name="description" id="userDescription" placeholder="Contoh: Manager Sales, IT Staff, dll">
+                <label>{{ __('Keterangan') }}</label>
+                <input type="text" name="description" id="userDescription" placeholder="{{ __('Contoh: Manager Sales, IT Staff, dll') }}">
             </div>
             <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" id="userEmail" placeholder="alamat@email.com" required>
+                <label>{{ __('Email') }}</label>
+                <input type="email" name="email" id="userEmail" placeholder="{{ __('email@contoh.com') }}" required>
             </div>
             <div class="form-group">
-                <label>Password</label>
+                <label>{{ __('Password') }}</label>
                 <div style="position: relative;">
                     <input type="password" name="password" id="userPassword" placeholder="••••••••">
                     <button type="button" onclick="togglePasswordVisibility('userPassword', this)" 
@@ -234,34 +234,34 @@
                 </div>
                 <div id="passwordHint" style="display: none; align-items: center; gap: 8px; margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 8px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
                     <i class="fas fa-info-circle" style="color: var(--primary); font-size: 0.85rem; flex-shrink: 0;"></i>
-                    <span><strong>Petunjuk:</strong> Kosongkan kolom ini jika Anda tidak ingin mengubah kata sandi pengguna saat ini.</span>
+                    <span><strong>{{ __('Petunjuk:') }}</strong> {{ __('Kosongkan kolom ini jika Anda tidak ingin mengubah kata sandi pengguna saat ini.') }}</span>
                 </div>
             </div>
             <div class="form-group">
-                <label>Role</label>
+                <label>{{ __('Role') }}</label>
                 <select name="role" id="userRole" required>
-                    <option value="">Pilih Role</option>
+                    <option value="">{{ __('Pilih Role') }}</option>
                     @foreach($roles as $role)
-                        <option value="{{ $role->id }}" style="color: black;">{{ $role->name }} (by {{ $role->addedBy->name ?? 'System' }})</option>
+                        <option value="{{ $role->id }}" style="color: black;">{{ $role->name }} ({{ __('oleh') }} {{ $role->addedBy->name ?? __('System') }})</option>
                     @endforeach
                 </select>
             </div>
             
             @if(auth()->user()->is_super_admin)
             <div class="form-group" style="display: none;">
-                <label>Pencipta / Owner Asli (System)</label>
+                <label>{{ __('Pencipta / Owner Asli (Sistem)') }}</label>
                 <select name="added_by" id="userAddedBy">
-                    <option value="">Pilih Pencipta (System)</option>
+                    <option value="">{{ __('Pilih Pencipta (Sistem)') }}</option>
                     @foreach($admins as $admin)
-                        <option value="{{ $admin->id }}" style="color: black;">{{ $admin->name }} ({{ $admin->is_super_admin ? 'Super Admin' : 'Admin' }})</option>
+                        <option value="{{ $admin->id }}" style="color: black;">{{ $admin->name }} ({{ $admin->is_super_admin ? __('Super Admin') : __('Admin') }})</option>
                     @endforeach
                 </select>
             </div>
             <div class="form-group" id="managersFormGroup">
-                <label>Dikelola Oleh (Dapat memilih lebih dari satu Admin)</label>
+                <label>{{ __('Dikelola Oleh (Dapat memilih lebih dari satu Admin)') }}</label>
                 <div style="margin-bottom: 8px; position: relative;">
                     <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.8rem;"></i>
-                    <input type="text" id="searchAdminManager" placeholder="Cari nama admin..." 
+                    <input type="text" id="searchAdminManager" placeholder="{{ __('Cari nama admin...') }}" 
                            style="width: 100%; padding: 0.5rem 0.5rem 0.5rem 2.2rem; border-radius: 8px; border: 1.5px solid var(--input-border); background: var(--input-bg); color: var(--text-main); font-size: 0.82rem; outline: none;"
                            oninput="filterAdminManagers(this.value)">
                 </div>
@@ -271,45 +271,45 @@
                             <div class="admin-manager-item" data-name="{{ strtolower($admin->name) }}" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                                 <input type="checkbox" name="managers[]" value="{{ $admin->id }}" id="manager_{{ $admin->id }}" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary);">
                                 <label for="manager_{{ $admin->id }}" style="margin: 0; font-size: 0.82rem; color: var(--text-main); font-weight: normal; cursor: pointer; display: inline;">
-                                    {{ $admin->name }} (Admin)
+                                    {{ $admin->name }} ({{ __('Admin') }})
                                 </label>
                             </div>
                         @endif
                     @endforeach
                     <div id="noAdminFound" style="display: none; padding: 10px; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
-                        Tidak ada admin yang cocok
+                        {{ __('Tidak ada admin yang cocok') }}
                     </div>
                 </div>
             </div>
             @endif
 
             <div class="form-group">
-                <label>Max Tokens</label>
+                <label>{{ __('Max Tokens') }}</label>
                 <input type="number" name="max_tokens" id="userMaxTokens" value="32768" placeholder="32768" required>
             </div>
             
             @if(auth()->user()->is_super_admin)
             <div class="form-group checkbox-group">
                 <input type="checkbox" name="is_admin" id="userIsAdmin" value="1" onchange="document.getElementById('userIsSuperAdmin').checked = false; toggleManagersGroup();">
-                <label for="userIsAdmin">Jadikan Admin</label>
+                <label for="userIsAdmin">{{ __('Jadikan Admin') }}</label>
             </div>
             <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
                 <input type="checkbox" name="is_super_admin" id="userIsSuperAdmin" value="1" onchange="document.getElementById('userIsAdmin').checked = false; toggleManagersGroup();">
-                <label for="userIsSuperAdmin">Jadikan Super Admin</label>
+                <label for="userIsSuperAdmin">{{ __('Jadikan Super Admin') }}</label>
             </div>
             @endif
             
             <div class="form-group checkbox-group" style="margin-top: 0.5rem;">
                 <input type="checkbox" name="analysis_scope_limited" id="userScopeLimited" value="1" checked>
-                <label for="userScopeLimited">Hanya dari database</label>
+                <label for="userScopeLimited">{{ __('Hanya dari database') }}</label>
             </div>
             <p style="color: #64748b; font-size: 0.78rem; margin: -0.75rem 0 1rem 0; padding-left: 0.25rem;">
                 <i class="fas fa-info-circle" style="color:#6366f1"></i>
-                &#10003; Dicentang = Hanya dari database
+                &#10003; {{ __('Dicentang = Hanya dari database') }}
             </p>
             <div class="modal-actions">
-                <button type="button" class="btn btn-cancel" onclick="hideModal()">Batal</button>
-                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-cancel" onclick="hideModal()">{{ __('Batal') }}</button>
+                <button type="submit" class="btn btn-primary">{{ __('Simpan') }}</button>
             </div>
         </form>
     </div>
@@ -326,11 +326,11 @@
             <div class="aic-header-left">
                 <div class="aic-avatar" id="aiConfigAvatar">U</div>
                 <div>
-                    <p class="aic-label">Konfigurasi Akses AI untuk</p>
+                    <p class="aic-label">{{ __('Konfigurasi Akses AI untuk') }}</p>
                     <h3 class="aic-username" id="aiConfigUserName">—</h3>
                 </div>
             </div>
-            <button class="aic-close-btn" onclick="hideAiConfig()" title="Tutup">
+            <button class="aic-close-btn" onclick="hideAiConfig()" title="{{ __('Tutup') }}">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -339,17 +339,17 @@
         <div class="aic-stats-bar">
             <div class="aic-stat">
                 <span class="aic-stat-num" id="statModels">0</span>
-                <span class="aic-stat-lbl">Model Dipilih</span>
+                <span class="aic-stat-lbl">{{ __('Model Dipilih') }}</span>
             </div>
             <div class="aic-stat-divider"></div>
             <div class="aic-stat">
                 <span class="aic-stat-num aic-stat-key" id="statKeys">0</span>
-                <span class="aic-stat-lbl">API Key Dipilih</span>
+                <span class="aic-stat-lbl">{{ __('API Key Dipilih') }}</span>
             </div>
             <div class="aic-stat-divider"></div>
             <div class="aic-stat">
                 <span class="aic-stat-num aic-stat-prov" id="statProviders">0</span>
-                <span class="aic-stat-lbl">Provider Aktif</span>
+                <span class="aic-stat-lbl">{{ __('Provider Aktif') }}</span>
             </div>
         </div>
 
@@ -357,12 +357,12 @@
         <div class="aic-tabs">
             <button class="aic-tab active" id="tabBtnModels" onclick="switchAicTab('models')">
                 <i class="fas fa-brain"></i>
-                <span>AI Models</span>
+                <span>{{ __('AI Models') }}</span>
                 <span class="aic-badge" id="badgeModels">0</span>
             </button>
             <button class="aic-tab" id="tabBtnKeys" onclick="switchAicTab('keys')">
                 <i class="fas fa-key"></i>
-                <span>API Keys</span>
+                <span>{{ __('API Keys') }}</span>
                 <span class="aic-badge aic-badge-key" id="badgeKeys">0</span>
             </button>
         </div>
@@ -375,12 +375,12 @@
                 <div class="aic-search-wrap">
                     <i class="fas fa-search aic-search-icon"></i>
                     <input class="aic-search-input" type="text" id="searchModels"
-                           placeholder="Cari model AI..." oninput="filterAicItems('models')">
+                           placeholder="{{ __('Cari model AI...') }}" oninput="filterAicItems('models')">
                     <button type="button" class="aic-select-all-btn" onclick="selectAllVisible('models', true)">
-                        <i class="fas fa-check-double"></i> Pilih Semua
+                        <i class="fas fa-check-double"></i> {{ __('Pilih Semua') }}
                     </button>
                     <button type="button" class="aic-clear-btn" onclick="selectAllVisible('models', false)">
-                        <i class="fas fa-times"></i> Hapus
+                        <i class="fas fa-times"></i> {{ __('Hapus') }}
                     </button>
                 </div>
                 <div class="aic-scroll-area" id="aiModelsGrouped"></div>
@@ -391,12 +391,12 @@
                 <div class="aic-search-wrap">
                     <i class="fas fa-search aic-search-icon"></i>
                     <input class="aic-search-input" type="text" id="searchKeys"
-                           placeholder="Cari API key..." oninput="filterAicItems('keys')">
+                           placeholder="{{ __('Cari API key...') }}" oninput="filterAicItems('keys')">
                     <button type="button" class="aic-select-all-btn" onclick="selectAllVisible('keys', true)">
-                        <i class="fas fa-check-double"></i> Pilih Semua
+                        <i class="fas fa-check-double"></i> {{ __('Pilih Semua') }}
                     </button>
                     <button type="button" class="aic-clear-btn" onclick="selectAllVisible('keys', false)">
-                        <i class="fas fa-times"></i> Hapus
+                        <i class="fas fa-times"></i> {{ __('Hapus') }}
                     </button>
                 </div>
                 <div class="aic-scroll-area" id="aiKeysGrouped"></div>
@@ -406,12 +406,12 @@
             <div class="aic-footer">
                 <p class="aic-footer-hint">
                     <i class="fas fa-info-circle"></i>
-                    Klik item untuk toggle akses. Perubahan disimpan saat klik Simpan.
+                    {{ __('Klik item untuk toggle akses. Perubahan disimpan saat klik Simpan.') }}
                 </p>
                 <div class="aic-footer-actions">
-                    <button type="button" class="btn btn-cancel" onclick="hideAiConfig()">Batal</button>
+                    <button type="button" class="btn btn-cancel" onclick="hideAiConfig()">{{ __('Batal') }}</button>
                     <button type="button" class="btn btn-primary" id="btnSaveAiConfig">
-                        <i class="fas fa-save"></i> Simpan Akses AI
+                        <i class="fas fa-save"></i> {{ __('Simpan Akses AI') }}
                     </button>
                 </div>
             </div>
@@ -422,16 +422,16 @@
 <!-- Import Modal -->
 <div id="importModal" class="modal-overlay">
     <div class="glass-card modal-content">
-        <h3>Import User</h3>
+        <h3>{{ __('Import User') }}</h3>
         <form action="{{ route('admin.users.import') }}" method="POST" enctype="multipart/form-data">
             @csrf
             <div class="form-group">
-                <label>File Excel</label>
+                <label>{{ __('File Excel') }}</label>
                 <input type="file" name="file" required>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-cancel" onclick="hideImportModal()">Batal</button>
-                <button type="submit" class="btn btn-primary">Upload</button>
+                <button type="button" class="btn btn-cancel" onclick="hideImportModal()">{{ __('Batal') }}</button>
+                <button type="submit" class="btn btn-primary">{{ __('Upload') }}</button>
             </div>
         </form>
     </div>
@@ -447,15 +447,15 @@
             <div class="tf-header-left">
                 <div class="tf-icon-circle"><i class="fas fa-shield-halved"></i></div>
                 <div>
-                    <p class="tf-label">Pembatasan Data (Row-Level Security)</p>
+                    <p class="tf-label">{{ __('Pembatasan Data (Row-Level Security)') }}</p>
                     <h3 class="tf-username" id="tfUserName">—</h3>
                 </div>
             </div>
             <div class="tf-header-actions">
-                <button class="tf-copy-btn" onclick="showCopyFilterModal()" title="Salin Filter dari User Lain">
-                    <i class="fas fa-copy"></i> Salin
+                <button class="tf-copy-btn" onclick="showCopyFilterModal()" title="{{ __('Salin Filter dari User Lain') }}">
+                    <i class="fas fa-copy"></i> {{ __('Salin') }}
                 </button>
-                <button class="tf-close-btn" onclick="hideTableFilters()" title="Tutup">
+                <button class="tf-close-btn" onclick="hideTableFilters()" title="{{ __('Tutup') }}">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -464,7 +464,7 @@
         <div class="tf-body">
             <div class="tf-sidebar">
                 <div class="tf-sidebar-header">
-                    <i class="fas fa-database"></i> <span>Tabel Terdeteksi</span>
+                    <i class="fas fa-database"></i> <span>{{ __('Tabel Terdeteksi') }}</span>
                 </div>
                 <div class="tf-table-list" id="tfTableList"></div>
             </div>
@@ -472,39 +472,39 @@
             <div class="tf-content">
                 <div id="tfEmptyState" class="tf-empty-panel">
                     <i class="fas fa-mouse-pointer"></i>
-                    <p>Pilih tabel di sebelah kiri untuk mengatur kondisi filter.</p>
+                    <p>{{ __('Pilih tabel di sebelah kiri untuk mengatur kondisi filter.') }}</p>
                 </div>
 
                 <div id="tfConfigPanel" class="tf-config-panel" style="display: none;">
                     <div class="tf-table-header-info">
-                        <h4 id="tfActiveTableName">Nama Tabel</h4>
-                        <span id="tfActiveDbName" class="tf-db-badge">Database Name</span>
+                        <h4 id="tfActiveTableName">{{ __('Nama Tabel') }}</h4>
+                        <span id="tfActiveDbName" class="tf-db-badge">{{ __('Database Name') }}</span>
                     </div>
 
                     <!-- Rule Builder -->
                     <div class="tf-rules-area">
                         <div class="tf-rules-header">
-                            <label class="tf-input-label"><i class="fas fa-filter"></i> Aturan Filter</label>
+                            <label class="tf-input-label"><i class="fas fa-filter"></i> {{ __('Aturan Filter') }}</label>
                             <button type="button" class="tf-add-rule-btn" onclick="addRuleRow()">
-                                <i class="fas fa-plus"></i> Tambah Kondisi
+                                <i class="fas fa-plus"></i> {{ __('Tambah Kondisi') }}
                             </button>
                         </div>
                         <div id="tfRulesGridHeader" class="tf-rules-grid-header" style="display: none;">
-                            <span>Kolom</span>
-                            <span>Kondisi</span>
-                            <span>Isi Kondisi / Nilai</span>
+                            <span>{{ __('Kolom') }}</span>
+                            <span>{{ __('Kondisi') }}</span>
+                            <span>{{ __('Isi Kondisi / Nilai') }}</span>
                             <span></span>
                         </div>
                         <div id="tfRulesContainer"></div>
                         <p class="tf-help-text">
-                            <i class="fas fa-info-circle"></i> Kosongkan semua untuk mengizinkan akses ke seluruh data tabel ini.
+                            <i class="fas fa-info-circle"></i> {{ __('Kosongkan semua untuk mengizinkan akses ke seluruh data tabel ini.') }}
                         </p>
                     </div>
 
                     <!-- Preview -->
                     <div class="tf-preview-area">
                         <button type="button" class="tf-preview-btn" onclick="previewFilter()">
-                            <i class="fas fa-eye"></i> Preview Data (5 Baris)
+                            <i class="fas fa-eye"></i> {{ __('Preview Data (5 Baris)') }}
                         </button>
                         <div id="tfPreviewResult" style="display:none;"></div>
                     </div>
@@ -513,9 +513,9 @@
         </div>
 
         <div class="tf-footer">
-            <button type="button" class="btn btn-cancel" onclick="hideTableFilters()">Batal</button>
+            <button type="button" class="btn btn-cancel" onclick="hideTableFilters()">{{ __('Batal') }}</button>
             <button type="button" class="btn btn-primary" id="btnSaveTableFilters">
-                <i class="fas fa-save"></i> Simpan Perubahan
+                <i class="fas fa-save"></i> {{ __('Simpan Perubahan') }}
             </button>
         </div>
     </div>
@@ -526,17 +526,17 @@
     <div class="glass-card modal-content" style="max-width: 550px; height: 520px; display: flex; flex-direction: column;">
         <h3 style="margin-top: 0; display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
             <i class="fas fa-copy" style="color: var(--primary);"></i>
-            Salin Filter RLS
+            {{ __('Salin Filter RLS') }}
         </h3>
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem; line-height: 1.5; flex-shrink: 0;">
-            Pilih user sumber untuk menyalin seluruh konfigurasi Row Level Security (RLS) ke user tujuan. 
-            <br><span style="color: #ef4444; font-weight: 600;">Peringatan:</span> Filter yang sudah ada pada user tujuan akan ditimpa dengan data baru.
+            {{ __('Pilih user sumber untuk menyalin seluruh konfigurasi Row Level Security (RLS) ke user tujuan.') }}
+            <br><span style="color: #ef4444; font-weight: 600;">{{ __('Peringatan:') }}</span> {{ __('Filter yang sudah ada pada user tujuan akan ditimpa dengan data baru.') }}
         </p>
         
         <div class="form-group" style="margin-bottom: 0.75rem; flex-shrink: 0;">
             <div style="position: relative;">
                 <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-subtle); font-size: 0.8rem;"></i>
-                <input type="text" id="searchCopyUser" placeholder="Cari nama atau email..." 
+                <input type="text" id="searchCopyUser" placeholder="{{ __('Cari nama atau email...') }}" 
                        style="width: 100%; padding: 0.6rem 0.6rem 0.6rem 2.2rem; border-radius: 8px; border: 1.5px solid var(--glass-border2); background: var(--input-bg); color: var(--text-main); font-size: 0.85rem; outline: none;"
                        onkeyup="if(event.key==='Enter') loadCopyUsers(1)">
             </div>
@@ -546,8 +546,8 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;" id="copyUserTable">
                 <thead style="position: sticky; top: 0; background: var(--table-head-bg); z-index: 1;">
                     <tr>
-                        <th style="padding: 8px 12px; text-align: left; color: var(--table-head-color);">User</th>
-                        <th style="padding: 8px 12px; text-align: center; color: var(--table-head-color); width: 80px;">Aksi</th>
+                        <th style="padding: 8px 12px; text-align: left; color: var(--table-head-color);">{{ __('User') }}</th>
+                        <th style="padding: 8px 12px; text-align: center; color: var(--table-head-color); width: 80px;">{{ __('Aksi') }}</th>
                     </tr>
                 </thead>
                 <tbody id="copyUserTableBody">
@@ -564,7 +564,7 @@
         </div>
         
         <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--glass-border2); flex-shrink: 0;">
-            <button type="button" class="btn btn-cancel" onclick="document.getElementById('copyFilterModal').style.display='none'">Tutup</button>
+            <button type="button" class="btn btn-cancel" onclick="document.getElementById('copyFilterModal').style.display='none'">{{ __('Tutup') }}</button>
         </div>
     </div>
 </div>
@@ -1136,7 +1136,7 @@
         container.innerHTML = '';
         const providers = Object.keys(groupedData);
         if (providers.length === 0) {
-            container.innerHTML = `<div class="aic-empty"><i class="fas ${isKey ? 'fa-key' : 'fa-brain'}"></i><p>Tidak ada item tersedia.</p></div>`;
+            container.innerHTML = `<div class="aic-empty"><i class="fas ${isKey ? 'fa-key' : 'fa-brain'}"></i><p>{{ __('Tidak ada item tersedia.') }}</p></div>`;
             return;
         }
         providers.forEach(providerName => {
@@ -1251,14 +1251,14 @@
         const isDark = document.documentElement.classList.contains('dark');
         
         Swal.fire({
-            title: title || 'Hapus data?',
-            text: text || 'Tindakan ini tidak dapat dibatalkan.',
+            title: title || "{{ __('Hapus data?') }}",
+            text: text || "{{ __('Tindakan ini tidak dapat dibatalkan.') }}",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#475569',
-            confirmButtonText: 'Ya, Hapus',
-            cancelButtonText: 'Batal',
+            confirmButtonText: "{{ __('Ya, Hapus') }}",
+            cancelButtonText: "{{ __('Batal') }}",
             background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
             color: isDark ? '#f1f5f9' : '#1e293b',
         }).then((result) => {
@@ -1347,16 +1347,16 @@
                 Swal.fire({
                     ...toastBase,
                     icon: 'success',
-                    title: 'Berhasil',
-                    text: 'Konfigurasi AI diperbarui!',
+                    title: "{{ __('Berhasil') }}",
+                    text: "{{ __('Konfigurasi AI diperbarui!') }}",
                     iconColor: '#10b981'
                 }).then(() => window.ssoReload ? window.ssoReload() : location.reload());
             } else {
-                throw new Error(data.message || 'Gagal menyimpan konfigurasi');
+                throw new Error(data.message || "{{ __('Gagal menyimpan konfigurasi') }}");
             }
         })
         .catch(err => {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: err.message || 'Terjadi kesalahan.' });
+            Swal.fire({ icon: 'error', title: "{{ __('Gagal') }}", text: err.message || "{{ __('Terjadi kesalahan.') }}" });
         })
         .finally(() => {
             btn.disabled = false;
@@ -1495,7 +1495,7 @@
     async function showTableFilters(user) {
         _tfTargetUser = user;
         document.getElementById('tfUserName').innerText = user.name;
-        document.getElementById('tfTableList').innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat tabel...</div>';
+        document.getElementById('tfTableList').innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> {{ __('Memuat tabel...') }}</div>';
         document.getElementById('tfEmptyState').style.display = 'flex';
         document.getElementById('tfConfigPanel').style.display = 'none';
         document.getElementById('tableFilterModal').style.display = 'flex';
@@ -1507,14 +1507,14 @@
             _tfTables = data.tables || [];
             renderTfTableList();
         } catch (e) {
-            Swal.fire('Error', 'Gagal memuat daftar tabel.', 'error');
+            Swal.fire('Error', "{{ __('Gagal memuat daftar tabel.') }}", 'error');
         }
     }
 
     function renderTfTableList() {
         const list = document.getElementById('tfTableList');
         if (_tfTables.length === 0) {
-            list.innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);">Tidak ada tabel yang diizinkan untuk role ini.</div>';
+            list.innerHTML = '<div style="padding:1rem; font-size:0.8rem; color:var(--text-muted);">{{ __('Tidak ada tabel yang diizinkan untuk role ini.') }}</div>';
             return;
         }
 
@@ -1573,7 +1573,7 @@
         const container = document.getElementById('tfRulesContainer');
         container.innerHTML = '';
         if (rules.length === 0) {
-            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
+            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>{{ __('Belum ada filter') }}. Klik "Tambah Kondisi" untuk menambahkan.</div>';
             updateTfRulesHeader();
             return;
         }
@@ -1627,10 +1627,10 @@
         const row = document.createElement('div');
         row.className = 'tf-rule-row';
         row.innerHTML = `
-            <select class="tf-rule-col">${colOptions.length ? colOptions : `<option value="${column}">${column || '-- Pilih Kolom --'}</option>`}</select>
+            <select class="tf-rule-col">${colOptions.length ? colOptions : `<option value="${column}">${column || '{{ __('-- Pilih Kolom --') }}'}</option>`}</select>
             <select class="tf-rule-op">${opOptions}</select>
-            <input class="tf-rule-val" type="text" placeholder="Nilai (misal: B282)" value="${value || ''}">
-            <button class="tf-rule-del" onclick="removeRuleRow(this)" title="Hapus kondisi"><i class="fas fa-trash-alt"></i></button>
+            <input class="tf-rule-val" type="text" placeholder="{{ __('Nilai (misal: B282)') }}" value="${value || ''}">
+            <button class="tf-rule-del" onclick="removeRuleRow(this)" title="{{ __('Hapus kondisi') }}"><i class="fas fa-trash-alt"></i></button>
         `;
         container.appendChild(row);
     }
@@ -1653,7 +1653,7 @@
         if (firstChild && firstChild.classList.contains('tf-rule-logic')) firstChild.remove();
 
         if (container.querySelectorAll('.tf-rule-row').length === 0) {
-            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>Belum ada filter. Klik "Tambah Kondisi" untuk menambahkan.</div>';
+            container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem; border:1px dashed var(--glass-border2); border-radius:10px;"><i class="fas fa-plus-circle" style="font-size:1.2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>{{ __('Belum ada filter') }}. Klik "Tambah Kondisi" untuk menambahkan.</div>';
         }
         updateTfRulesHeader();
     }
@@ -1682,14 +1682,14 @@
     async function previewFilter() {
         const rules = collectRulesFromUI();
         if (rules.length === 0) {
-            Swal.fire('Info', 'Tambahkan minimal 1 kondisi untuk preview.', 'info');
+            Swal.fire('Info', "{{ __('Tambahkan minimal 1 kondisi untuk preview.') }}", 'info');
             return;
         }
 
         const table = _tfTables[_tfActiveTableIdx];
         const resultDiv = document.getElementById('tfPreviewResult');
         resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div style="padding:0.75rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Memuat preview...</div>';
+        resultDiv.innerHTML = '<div style="padding:0.75rem; font-size:0.8rem; color:var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> ' + "{{ __('Memuat preview...') }}" + '</div>';
 
         try {
             const res = await fetch('/admin/users/preview-filter', {
@@ -1700,7 +1700,7 @@
             const data = await res.json();
             if (data.success && data.rows.length > 0) {
                 const cols = Object.keys(data.rows[0]);
-                let html = `<p class="tf-preview-total"><strong>${data.total}</strong> baris cocok dengan filter ini</p>`;
+                let html = `<p class="tf-preview-total"><strong>${data.total}</strong> {{ __('baris cocok dengan filter ini') }}</p>`;
                 html += '<div style="overflow-x:auto;"><table class="tf-preview-table"><thead><tr>';
                 cols.forEach(c => html += `<th>${c}</th>`);
                 html += '</tr></thead><tbody>';
@@ -1712,9 +1712,9 @@
                 html += '</tbody></table></div>';
                 resultDiv.innerHTML = html;
             } else if (data.success) {
-                resultDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">⚠ Tidak ada data yang cocok dengan filter ini.</p>';
+                resultDiv.innerHTML = '<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">⚠ {{ __('Tidak ada data yang cocok dengan filter ini') }}.</p>';
             } else {
-                resultDiv.innerHTML = `<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">Error: ${data.error}</p>`;
+                resultDiv.innerHTML = `<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">{{ __('Error') }}: ${data.error}</p>`;
             }
         } catch(e) {
             resultDiv.innerHTML = `<p style="font-size:0.8rem; color:#ef4444; padding:0.5rem;">Error: ${e.message}</p>`;
@@ -1748,13 +1748,13 @@
             });
             const data = await res.json();
             if (data.success) {
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Pembatasan data berhasil diperbarui!', timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: "{{ __('Berhasil') }}", text: "{{ __('Pembatasan data berhasil diperbarui!') }}", timer: 2000, showConfirmButton: false });
                 hideTableFilters();
             } else {
-                throw new Error(data.message || 'Gagal menyimpan.');
+                throw new Error(data.message || "{{ __('Gagal menyimpan.') }}");
             }
         } catch (e) {
-            Swal.fire('Gagal', e.message, 'error');
+            Swal.fire("{{ __('Gagal') }}", e.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
@@ -1789,7 +1789,7 @@
             
             loading.style.display = 'none';
             if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:var(--text-muted);">User tidak ditemukan.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:var(--text-muted);">{{ __('User tidak ditemukan') }}.</td></tr>';
                 return;
             }
 
@@ -1812,7 +1812,7 @@
             // Render Pagination
             if (data.last_page > 1) {
                 pagination.innerHTML = `
-                    <span style="font-size:0.75rem; color:var(--text-muted);">Hal ${data.current_page} / ${data.last_page}</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">{{ __('Hal') }} ${data.current_page} / ${data.last_page}</span>
                     <div style="display:flex; gap:5px;">
                         <button class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" ${data.current_page === 1 ? 'disabled' : ''} onclick="loadCopyUsers(${data.current_page - 1})">Prev</button>
                         <button class="btn btn-secondary" style="padding:3px 8px; font-size:0.7rem;" ${data.current_page === data.last_page ? 'disabled' : ''} onclick="loadCopyUsers(${data.current_page + 1})">Next</button>
@@ -1821,7 +1821,7 @@
             }
         } catch (e) {
             loading.style.display = 'none';
-            tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:#ef4444;">Gagal memuat data.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="2" style="padding:2rem; text-align:center; color:#ef4444;">{{ __('Gagal memuat data') }}.</td></tr>';
         }
     }
 
@@ -1830,14 +1830,14 @@
 
         const isDark = document.documentElement.classList.contains('dark');
         const result = await Swal.fire({
-            title: 'Konfirmasi Salin',
-            text: 'Seluruh filter RLS user tujuan akan ditimpa dengan filter dari user ini. Lanjutkan?',
+            title: "{{ __('Konfirmasi Salin') }}",
+            text: "{{ __('Seluruh filter RLS user tujuan akan ditimpa dengan filter dari user ini. Lanjutkan?') }}",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#6366f1',
             cancelButtonColor: '#475569',
-            confirmButtonText: 'Ya, Salin',
-            cancelButtonText: 'Batal',
+            confirmButtonText: "{{ __('Ya, Salin') }}",
+            cancelButtonText: "{{ __('Batal') }}",
             background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
             color: isDark ? '#f1f5f9' : '#1e293b',
         });
@@ -1846,8 +1846,8 @@
 
         // Show loading state
         Swal.fire({
-            title: 'Menyalin...',
-            text: 'Mohon tunggu sebentar.',
+            title: "{{ __('Menyalin...') }}",
+            text: "{{ __('Mohon tunggu sebentar.') }}",
             allowOutsideClick: false,
             didOpen: () => { Swal.showLoading(); },
             background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
@@ -1871,21 +1871,21 @@
                 document.getElementById('copyFilterModal').style.display = 'none';
                 await Swal.fire({ 
                     icon: 'success', 
-                    title: 'Berhasil', 
-                    text: data.message || `${data.copied} filter berhasil disalin!`,
+                    title: "{{ __('Berhasil') }}", 
+                    text: data.message || `${data.copied} ` + "{{ __('filter berhasil disalin!') }}",
                     background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
                     color: isDark ? '#f1f5f9' : '#1e293b',
                     confirmButtonColor: '#6366f1'
                 });
                 showTableFilters(_tfTargetUser);
             } else {
-                throw new Error(data.error || 'Gagal menyalin.');
+                throw new Error(data.error || "{{ __('Gagal menyalin.') }}");
             }
         } catch(e) {
             Swal.fire({
                 icon: 'error',
-                title: 'Gagal',
-                text: e.message || 'Terjadi kesalahan saat menyalin filter.',
+                title: "{{ __('Gagal') }}",
+                text: e.message || "{{ __('Terjadi kesalahan saat menyalin filter.') }}",
                 background: isDark ? 'rgba(15,23,42,0.97)' : '#ffffff',
                 color: isDark ? '#f1f5f9' : '#1e293b',
                 confirmButtonColor: '#6366f1'
