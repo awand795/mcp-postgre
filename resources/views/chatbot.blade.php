@@ -47,6 +47,9 @@
             } catch (e) {
                 isIframe = true;
             }
+            if (isIframe) {
+                document.documentElement.classList.add('in-iframe');
+            }
 
             // Expose ke window
             window._ssoToken = token;
@@ -213,6 +216,12 @@
     </style>
 
     <style>
+        .in-iframe #logout-form,
+        .in-iframe form[action*="logout"],
+        .in-iframe [class*="logout-btn"] {
+            display: none !important;
+        }
+
         html {
             background-color: #fcfdff;
         }

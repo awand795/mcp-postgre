@@ -18,6 +18,13 @@
                 s.innerHTML = 'html,body{background:#0b1120!important;color:#f1f5f9!important;}';
                 document.head.appendChild(s);
             }
+            
+            // Deteksi iframe sangat awal
+            var isCurrentIframe = false;
+            try { isCurrentIframe = window.self !== window.top; } catch (e) { isCurrentIframe = true; }
+            if (isCurrentIframe) {
+                document.documentElement.classList.add('in-iframe');
+            }
         })();
     </script>
 
@@ -188,6 +195,12 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <style>
+        .in-iframe #logout-form,
+        .in-iframe form[action*="logout"],
+        .in-iframe [class*="logout-btn"] {
+            display: none !important;
+        }
+
         /* ── Design Tokens ── */
         :root {
             --primary: #6366f1;
