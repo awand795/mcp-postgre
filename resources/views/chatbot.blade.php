@@ -3941,7 +3941,7 @@
                     Swal.close();
 
                     // Show success toast
-                    fireToast('success', `✅ ` + "{{ __('Export berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}`);
+                    fireToast('success', `✅ ` + "{{ __('Export berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}");
 
                 } catch (error) {
                     console.error('[Export Error]', error);
@@ -4209,7 +4209,7 @@
                     // Close loading modal
                     Swal.close();
 
-                    fireToast('success', `✅ ` + "{{ __('Export PDF berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}`);
+                    fireToast('success', `✅ ` + "{{ __('Export PDF berhasil!') }} " + `${rows.length} ` + "{{ __('baris data telah diunduh.') }}");
 
                 } catch (error) {
                     Swal.close();
