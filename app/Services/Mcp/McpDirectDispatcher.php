@@ -23,12 +23,14 @@ class McpDirectDispatcher
     private QueryService $queryService;
     private SchemaService $schemaService;
     private ERPService $erpService;
+    private \App\Services\Web\WebSearchService $webSearchService;
 
     public function __construct(array $allowedDbs = [])
     {
         $this->queryService  = new QueryService();
         $this->schemaService = new SchemaService($this->queryService);
         $this->erpService    = new ERPService();
+        $this->webSearchService = new \App\Services\Web\WebSearchService();
 
         if (!empty($allowedDbs)) {
             $this->queryService->setAllowedTables($allowedDbs);
@@ -107,6 +109,10 @@ class McpDirectDispatcher
 
             'fetch_erp_guidance_from_web' => $this->erpService->fetchErpGuidanceFromWeb(
                 $arguments['url'] ?? ''
+            ),
+
+            'web_search' => $this->webSearchService->search(
+                $arguments['query'] ?? ''
             ),
 
             default => throw new \InvalidArgumentException("Unknown MCP tool: {$toolName}"),

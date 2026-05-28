@@ -274,6 +274,7 @@ class AgenticChatbotController extends Controller
             'get_erp_guidance',
             'get_erp_menu_navigation',
             'fetch_erp_guidance_from_web',
+            'web_search',
         ];
 
         $terminalToolCallsCount = []; // Track calls to terminal tools
@@ -1507,24 +1508,24 @@ class AgenticChatbotController extends Controller
         $currentTime = now()->translatedFormat('l, d F Y H:i');
 
         $outOfDomainSection = $scopeLimited
-            ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis atau ERP (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis dan Konsultan Sistem ERP perusahaan. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis (cabang, dealer, penjualan, keuangan, stok, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool dulu, baru putuskan)"
-            : "## CAKUPAN JAWABAN\n\nAnda bebas membantu user dengan pertanyaan apapun di luar konteks database dan ERP. Tetap utamakan analisis data bisnis jika pertanyaan terkait database, namun Anda BOLEH menjawab pertanyaan umum, pengetahuan umum, dan topik lainnya secara helpful dan informatif.";
+            ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis, ERP, atau informasi umum/publik (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool pencarian tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis, Konsultan Sistem ERP, dan pencarian informasi bisnis terkini. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis atau informasi pasar/regulasi (cabang, dealer, penjualan, keuangan, stok, tarif PPN, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool web_search atau database dulu, baru putuskan)"
+            : "## CAKUPAN JAWABAN\n\nAnda bebas membantu user dengan pertanyaan apapun di luar konteks database dan ERP menggunakan tool pencarian web `web_search` atau pengetahuan umum. Tetap utamakan analisis data bisnis jika pertanyaan terkait database, namun Anda BOLEH menjawab pertanyaan umum, pengetahuan umum, dan topik lainnya secara helpful dan informatif.";
 
         $identitySection = $scopeLimited
-            ? "Anda adalah asisten Data Analyst yang HANYA bertugas untuk dua hal:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan"
-            : "Anda adalah asisten Data Analyst dan Business Advisor untuk perusahaan. Tugas utama Anda:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Rekomendasi bisnis non-database** - memberikan insight, ide produk, dan rekomendasi pasar berbasis pengetahuan umum ketika user secara eksplisit meminta data dari luar database atau produk yang belum tersedia di database";
+            ? "Anda adalah asisten DataBot yang bertugas untuk:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** - mencari informasi publik terkini dari internet menggunakan tool `web_search` jika user menanyakan data/informasi dari luar database atau regulasi terbaru."
+            : "Anda adalah asisten DataBot, Data Analyst dan Business Advisor untuk perusahaan. Tugas utama Anda:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** - mencari informasi publik terkini dari internet menggunakan tool `web_search` jika user menanyakan data/informasi dari luar database\n4. **Rekomendasi bisnis non-database** - memberikan insight, ide produk, dan rekomendasi pasar berbasis pencarian web serta analisis bisnis ketika user secara eksplisit meminta data dari luar database atau produk yang belum tersedia di database";
 
         $freeScopeBusinessSection = $scopeLimited
             ? ""
-            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pengetahuan umum and analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Jangan mengklaim sudah melakukan pencarian internet/live web. Sistem saat ini tidak menyediakan tool web publik; sebutkan singkat bahwa rekomendasi non-database berbasis pengetahuan umum and perlu divalidasi dengan riset pasar terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
+            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pencarian web menggunakan tool `web_search` dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Selalu gunakan tool `web_search` untuk mencari informasi/berita pasar terkini atau tarif pajak/regulasi terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
 
         $limitedScopeSection = $scopeLimited
-            ? "\nUntuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:\n1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan\n"
+            ? "\nUntuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:\n1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** — mencari data/informasi publik dari luar database menggunakan tool `web_search` jika ditanyakan.\n"
             : "";
 
         $botIdentityLine = $scopeLimited
-            ? "Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke berbagai database bisnis** melalui alat (tools)."
-            : "Anda adalah DataBot, asisten AI serbaguna untuk perusahaan. Anda memiliki **akses langsung ke berbagai database bisnis** melalui alat (tools), namun Anda JUGA dapat membantu pertanyaan umum, pengetahuan umum, dan topik di luar database secara helpful.";
+            ? "Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke database bisnis** dan kemampuan **pencarian web (Web Search)** melalui alat (tools)."
+            : "Anda adalah DataBot, asisten AI serbaguna untuk perusahaan. Anda memiliki **akses langsung ke database bisnis** dan kemampuan **pencarian web (Web Search)** melalui alat (tools), sehingga Anda dapat membantu pertanyaan umum, pengetahuan umum, data eksternal, dan topik di luar database secara detail.";
 
         $langInstruction = "";
         if ($detectedLanguage === 'id') {
@@ -2079,6 +2080,7 @@ Your response MUST follow this exact structure regardless of language. **PENTING
 6. `get_table_preview` — Ambil 5 baris contoh data untuk memahami format.
 7. `execute_query` — Eksekusi SQL SELECT. Wajib prefix schema jika menggunakan PostgreSQL!
 8. `get_erp_guidance` / `get_erp_menu_navigation` / `fetch_erp_guidance_from_web` — Panduan ERP.
+9. `web_search` — Melakukan pencarian informasi eksternal terkini di internet (Web Search) menggunakan SearXNG. Gunakan tool ini jika user menanyakan informasi umum, berita, artikel, regulasi terbaru (seperti tarif pajak PPN/PPH baru), perbandingan pasar, atau data eksternal lainnya yang tidak ada di database lokal perusahaan.
 
 ## ERP GUIDANCE & NAVIGATION
 1. Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **verbatim**. JANGAN tambahkan "Ringkasan Eksekutif".
@@ -2804,7 +2806,7 @@ PROMPT;
             '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
 
             // Pattern: AI sedang membacakan aturan-aturan
-            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web)`/i',
+            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web|web_search)`/i',
 
             // "SYSTEM FORMAT CORRECTION" / "SYSTEM FORMAT REMINDER" leakage
             '/\[SYSTEM\s+FORMAT\s+(CORRECTION|REMINDER)\]/i',
@@ -3045,7 +3047,7 @@ PROMPT;
             '/blok.*```chart/i',
             '/^Anda\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
             '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
-            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web)`/i',
+            '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web|web_search)`/i',
             '/\[SYSTEM\s+FORMAT\s+(CORRECTION|REMINDER)\]/i',
         ];
 

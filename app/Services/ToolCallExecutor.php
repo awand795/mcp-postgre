@@ -26,6 +26,7 @@ class ToolCallExecutor
     private QueryService $queryService;
     private SchemaService $schemaService;
     private ERPService $erpService;
+    private \App\Services\Web\WebSearchService $webSearchService;
 
     public function __construct()
     {
@@ -33,6 +34,7 @@ class ToolCallExecutor
         $this->queryService = new QueryService();
         $this->schemaService = new SchemaService($this->queryService);
         $this->erpService = new ERPService();
+        $this->webSearchService = new \App\Services\Web\WebSearchService();
     }
 
     // FIX: Cache allowed tables so Auth::check() is not needed inside stream
@@ -252,6 +254,21 @@ class ToolCallExecutor
                     'required' => ['url'],
                 ],
             ],
+            [
+                'type' => 'function',
+                'name' => 'web_search',
+                'description' => 'Mencari informasi eksternal terkini dari internet (Web Search) menggunakan SearXNG. Gunakan tool ini jika user menanyakan informasi umum, berita, artikel, regulasi terbaru (seperti tarif pajak PPN/PPH baru), perkembangan pasar, atau data eksternal lainnya yang tidak ada di dalam database lokal perusahaan.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'query' => [
+                            'type' => 'string',
+                            'description' => 'Kata kunci pencarian yang spesifik dan jelas (contoh: "tarif PPN terbaru 2026", "perkembangan industri retail Indonesia").',
+                        ],
+                    ],
+                    'required' => ['query'],
+                ],
+            ],
         ];
     }
 
@@ -280,6 +297,9 @@ class ToolCallExecutor
                 'get_erp_menu_navigation' => $this->erpService->getErpMenuNavigation($arguments['module'] ?? '', $arguments['menu_keyword'] ?? ''),
                 'get_erp_guidance' => $this->erpService->getErpGuidance($arguments['keyword'] ?? '', $arguments['category'] ?? '', $arguments['list_all'] ?? false),
                 'fetch_erp_guidance_from_web' => $this->erpService->fetchErpGuidanceFromWeb($arguments['url'] ?? ''),
+
+                // Web Search Tool
+                'web_search' => $this->webSearchService->search($arguments['query'] ?? ''),
 
                 default => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
