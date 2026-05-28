@@ -1156,7 +1156,7 @@
                     <span class="aic-provider-name">${providerName}</span>
                     <span class="aic-provider-count">${items.length} item</span>
                     <button type="button" class="aic-provider-toggle" onclick="toggleProviderAll(this, '${inputName}')">
-                        ${checkedCount === items.length ? 'Hapus Semua' : 'Pilih Semua'}
+                        ${checkedCount === items.length ? "{{ __('Hapus Semua') }}" : "{{ __('Pilih Semua') }}"}
                     </button>
                 </div>
                 <div class="aic-items-grid"></div>
@@ -1277,7 +1277,7 @@
             cb.checked = !allChecked;
             cb.closest('.aic-item').classList.toggle('aic-item-checked', !allChecked);
         });
-        btn.textContent = allChecked ? 'Pilih Semua' : 'Hapus Semua';
+        btn.textContent = allChecked ? "{{ __('Pilih Semua') }}" : "{{ __('Hapus Semua') }}";
         updateAicStats();
     }
 
@@ -1391,7 +1391,7 @@
 
         modal.style.display = 'flex';
         if (type === 'create') {
-            document.getElementById('modalTitle').innerText = 'Tambah User';
+            document.getElementById('modalTitle').innerText = "{{ __('Tambah User') }}";
             form.action = "{{ route('admin.users.store') }}";
             document.getElementById('formMethod').value = 'POST';
             document.getElementById('userMaxTokens').value = 32768;
@@ -1403,7 +1403,7 @@
             const currentAdminCb = document.getElementById("manager_{{ auth()->id() }}");
             if (currentAdminCb) currentAdminCb.checked = true;
         } else {
-            document.getElementById('modalTitle').innerText = 'Edit User';
+            document.getElementById('modalTitle').innerText = "{{ __('Edit User') }}";
             form.action = `/admin/users/${user.id}`;
             document.getElementById('formMethod').value = 'PUT';
             document.getElementById('userName').value = user.name;
