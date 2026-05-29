@@ -96,8 +96,18 @@ class SSOController extends Controller
             return $this->ssoErrorPage(__('User tidak ditemukan.'));
         }
 
-        // Hapus semua token SSO lama milik user ini agar tidak menumpuk
-        $user->tokens()->where('name', 'sso-iframe-token')->delete();
+        // Hapus token SSO lama milik user ini yang sudah tidak aktif (> 24 jam) agar tidak menumpuk,
+        // namun tidak menghapus token aktif di tab lain yang sedang terbuka.
+        $user->tokens()
+            ->where('name', 'sso-iframe-token')
+            ->where(function($query) {
+                $query->where('last_used_at', '<', now()->subHours(24))
+                      ->orWhere(function($q) {
+                          $q->whereNull('last_used_at')
+                            ->where('created_at', '<', now()->subHours(24));
+                      });
+            })
+            ->delete();
 
         // Generate Sanctum Personal Access Token baru
         $sanctumToken = $user->createToken('sso-iframe-token')->plainTextToken;

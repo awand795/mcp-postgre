@@ -195,6 +195,20 @@
                      }
                  }, true);
              }
+
+              // 5. Periodically ping the server to keep the session alive (every 5 minutes)
+              setInterval(function () {
+                  var pingUrl = "{{ route('sso.check') }}";
+                  window.apiFetch(pingUrl)
+                      .then(function (res) {
+                          if (res && res.ok) {
+                              console.log('[Heartbeat] Session kept alive.');
+                          }
+                      })
+                      .catch(function (err) {
+                          console.error('[Heartbeat] Failed to ping:', err);
+                      });
+              }, 5 * 60 * 1000);
         })();
     </script>
     <title>darkotech AI</title>
