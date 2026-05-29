@@ -874,6 +874,36 @@
             border: none !important;
         }
 
+        /* Destructive SweetAlert2 styles (e.g. Delete Confirmation) */
+        .swal-delete-popup .swal2-confirm {
+            background-color: #dc2626 !important;
+            box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25) !important;
+        }
+
+        .swal-delete-popup .swal2-confirm:hover {
+            background-color: #b91c1c !important;
+            box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35) !important;
+        }
+
+        .swal-delete-popup .swal2-cancel {
+            background-color: #64748b !important;
+            box-shadow: 0 4px 14px rgba(100, 116, 139, 0.25) !important;
+        }
+
+        .swal-delete-popup .swal2-cancel:hover {
+            background-color: #475569 !important;
+            box-shadow: 0 6px 20px rgba(100, 116, 139, 0.35) !important;
+        }
+
+        html.dark .swal-delete-popup .swal2-cancel {
+            background-color: #334155 !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        html.dark .swal-delete-popup .swal2-cancel:hover {
+            background-color: #475569 !important;
+        }
+
 
         /* Chat Area */
         #chat-messages {
@@ -1806,20 +1836,6 @@
             background-color: rgba(255, 255, 255, 0.15) !important;
         }
 
-        /* Delete Modal Animations */
-        #delete-modal.show {
-            display: flex;
-        }
-
-        #delete-modal.show .delete-modal-backdrop {
-            opacity: 1;
-        }
-
-        #delete-modal.show .delete-modal-content {
-            transform: scale(1);
-            opacity: 1;
-        }
-
         /* ERP Guidance Video Player Styling */
         .erp-video-container {
             margin-top: 12px;
@@ -2119,56 +2135,7 @@
         </div> <!-- End Main Content -->
     </div> <!-- End Glass Panel -->
 
-    <!-- Delete Confirmation Modal -->
-    <div id="delete-modal" class="fixed inset-0 z-[100] hidden items-center justify-center">
-        <!-- Backdrop -->
-        <div class="delete-modal-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0">
-        </div>
 
-        <!-- Modal Content -->
-        <div class="delete-modal-content relative w-full max-w-md mx-4 transform transition-all scale-95 opacity-0">
-            <div class="glass-panel bg-black/90 rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-500" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                            </path>
-                        </svg>
-                    </div>
-                    <h3 class="text-white font-semibold text-lg">{{ __('Hapus Riwayat Chat') }}</h3>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="px-6 py-5">
-                    <p class="text-[#A1A09A] text-sm leading-relaxed">
-                        {{ __('Apakah Anda yakin ingin menghapus sesi obrolan ini?') }}
-                        <span class="text-red-400 font-medium">{{ __('Tindakan ini tidak dapat dibatalkan.') }}</span>
-                    </p>
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 border-t border-white/10 flex items-center justify-end gap-3 bg-white/5">
-                    <button id="modal-cancel-btn"
-                        class="px-4 py-2 rounded-xl text-red-500 border border-red-500/30 hover:bg-red-500/10 dark:text-red-400 dark:border-red-500/40 dark:hover:bg-red-500/20 text-sm font-medium transition-all">
-                        {{ __('Batal') }}
-                    </button>
-                    <button id="modal-delete-btn"
-                        class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium border border-red-500/30 shadow-lg shadow-red-500/20 transition-all flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
-                            </path>
-                        </svg>
-                        {{ __('Hapus') }}
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -2358,37 +2325,7 @@
             const btnNewChatHeader = document.getElementById('btn-new-chat-header');
             const historyList = document.getElementById('history-list');
 
-            // Delete modal elements
-            const deleteModal = document.getElementById('delete-modal');
-            const modalBackdrop = deleteModal.querySelector('.delete-modal-backdrop');
-            const modalContent = deleteModal.querySelector('.delete-modal-content');
-            const modalCancelBtn = document.getElementById('modal-cancel-btn');
-            const modalDeleteBtn = document.getElementById('modal-delete-btn');
-
-            let deleteCallback = null;
-
             let isSidebarOpen = false;
-
-            // Modal functions
-            function showDeleteModal(sessionId, callback) {
-                deleteCallback = { sessionId, callback };
-                deleteModal.classList.add('show');
-                deleteModal.classList.remove('hidden');
-                setTimeout(() => {
-                    modalBackdrop.classList.remove('opacity-0');
-                    modalContent.classList.remove('scale-95', 'opacity-0');
-                }, 10);
-            }
-
-            function hideDeleteModal() {
-                modalBackdrop.classList.add('opacity-0');
-                modalContent.classList.add('scale-95', 'opacity-0');
-                setTimeout(() => {
-                    deleteModal.classList.remove('show');
-                    deleteModal.classList.add('hidden');
-                    deleteCallback = null;
-                }, 300);
-            }
 
             function applySidebarState() {
                 if (isSidebarOpen) {
@@ -2441,27 +2378,7 @@
             if (btnNewChat) btnNewChat.addEventListener('click', () => { startNewChat(); if (window.innerWidth < 768) toggleSidebar(false); });
             if (btnNewChatHeader) btnNewChatHeader.addEventListener('click', () => startNewChat());
 
-            // Modal event listeners
-            if (modalCancelBtn) {
-                modalCancelBtn.addEventListener('click', hideDeleteModal);
-            }
-            if (modalDeleteBtn) {
-                modalDeleteBtn.addEventListener('click', () => {
-                    if (deleteCallback) {
-                        hideDeleteModal();
-                        deleteCallback.callback(deleteCallback.sessionId);
-                    }
-                });
-            }
-            if (modalBackdrop) {
-                modalBackdrop.addEventListener('click', hideDeleteModal);
-            }
-            // Close modal on Escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && deleteModal.classList.contains('show')) {
-                    hideDeleteModal();
-                }
-            });
+
 
             // Clear chat handlers
             const handleClear = () => {
@@ -2489,11 +2406,7 @@
                     submitMessage();
                 }
             });
-            btnClear.addEventListener('click', () => {
-                conversationHistory = [];
-                chatMessages.innerHTML = '';
-                addMessage('Riwayat percakapan telah dihapus. Ada yang bisa saya bantu? 😊', 'ai');
-            });
+
 
             // ── Submit ─────────────────────────────────────────────────────────────
             async function submitMessage() {
@@ -3487,10 +3400,42 @@
                 }
             }
 
-            // Show delete confirmation modal
-            function deleteSession(id, event) {
+            // Show delete confirmation modal using SweetAlert2
+            async function deleteSession(id, event) {
                 if (event) event.stopPropagation();
-                showDeleteModal(id, performDelete);
+                
+                const { isConfirmed } = await Swal.fire({
+                    title: '',
+                    html: `
+                        <div class="flex flex-col items-center text-center mt-2 mb-6">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-red-500/10 to-red-500/20 dark:from-red-500/20 dark:to-red-500/30 flex items-center justify-center mb-4 shadow-xl shadow-red-500/10 rotate-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-gray-900 dark:text-white font-bold text-xl tracking-tight">{{ __('Hapus Riwayat Chat') }}</h3>
+                        </div>
+                        <div class="w-full text-center px-2">
+                            <p class="text-gray-500 dark:text-[#A1A09A] text-sm leading-relaxed">
+                                {{ __('Apakah Anda yakin ingin menghapus sesi obrolan ini?') }}
+                                <br/>
+                                <span class="text-red-500 font-medium">{{ __('Tindakan ini tidak dapat dibatalkan.') }}</span>
+                            </p>
+                        </div>
+                    `,
+                    customClass: {
+                        popup: 'swal-delete-popup'
+                    },
+                    showCancelButton: true,
+                    confirmButtonText: '{{ __('Hapus') }}',
+                    cancelButtonText: '{{ __('Batal') }}',
+                    focusCancel: true
+                });
+
+                if (isConfirmed) {
+                    performDelete(id);
+                }
             }
 
             // Rename chat session using SweetAlert2
