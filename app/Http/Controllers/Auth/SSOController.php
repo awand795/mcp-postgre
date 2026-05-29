@@ -112,7 +112,7 @@ class SSOController extends Controller
         // 2. Redirect ke /chatbot dengan token di JS memory
         return response()->view('auth.sso_bridge', [
             'token'       => $sanctumToken,
-            'redirect_to' => route('chatbot'),
+            'redirect_to' => route('chatbot', $request->query()),
             'user_name'   => $user->name,
         ]);
     }

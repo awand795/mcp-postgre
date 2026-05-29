@@ -54,10 +54,9 @@ class AuthController extends Controller
             // Generate Sanctum Personal Access Token baru
             $sanctumToken = $user->createToken('sso-iframe-token')->plainTextToken;
 
-            // Render halaman HTML bridge agar token bisa disimpan di sessionStorage (untuk iframe HTTP)
             return response()->view('auth.sso_bridge', [
                 'token'       => $sanctumToken,
-                'redirect_to' => route('chatbot'),
+                'redirect_to' => route('chatbot', $request->query()),
                 'user_name'   => $user->name,
             ]);
         }
