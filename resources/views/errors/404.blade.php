@@ -194,68 +194,8 @@
             font-size: 0.95rem;
             color: var(--subtext-color);
             line-height: 1.6;
-            margin-bottom: 2.25rem;
+            margin-bottom: 1rem;
             padding: 0 1rem;
-        }
-
-        /* Buttons layout */
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            justify-content: center;
-        }
-
-        @media (min-width: 480px) {
-            .btn-group {
-                flex-direction: row;
-            }
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.85rem 1.75rem;
-            border-radius: 16px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            border: none;
-            outline: none;
-        }
-
-        .btn-primary {
-            background-color: var(--brand-color);
-            color: #ffffff;
-            box-shadow: 0 4px 20px var(--glow-color);
-        }
-
-        .btn-primary:hover {
-            background-color: var(--brand-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px var(--glow-color);
-        }
-
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-
-        .btn-secondary {
-            background-color: var(--btn-secondary-bg);
-            color: var(--btn-secondary-text);
-        }
-
-        .btn-secondary:hover {
-            background-color: var(--btn-secondary-hover);
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary:active {
-            transform: translateY(0);
         }
 
         /* Sub footer */
@@ -266,17 +206,6 @@
             opacity: 0.6;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-        }
-
-        /* SVG Arrow Back Icon */
-        .icon {
-            width: 18px;
-            height: 18px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2.2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
         }
     </style>
 </head>
@@ -304,23 +233,6 @@
         <p class="error-desc">
             {{ __('Sesi Anda mungkin sudah berakhir, atau halaman yang Anda cari telah dipindahkan, dihapus, atau tidak pernah ada.') }}
         </p>
-
-        <!-- Actions -->
-        <div class="btn-group">
-            <a href="{{ route('chatbot') }}" class="btn btn-primary">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                {{ __('Kembali ke Chat') }}
-            </a>
-            <button onclick="window.location.reload();" class="btn btn-secondary">
-                <svg class="icon" viewBox="0 0 24 24" stroke-width="2.5">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
-                </svg>
-                {{ __('Muat Ulang') }}
-            </button>
-        </div>
 
         <div class="footer-text">
             Powered by darkotech
