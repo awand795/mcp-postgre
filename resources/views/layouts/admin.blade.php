@@ -155,9 +155,24 @@
                                     !anchor.getAttribute('href').startsWith('#') &&
                                     anchor.target !== '_blank') {
                                     
+                                    var currentLang = document.documentElement.lang || 'id';
+                                    var changed = false;
+                                    
                                     if (!url.searchParams.has('token')) {
-                                        e.preventDefault();
                                         url.searchParams.set('token', window._ssoToken || window.name);
+                                        changed = true;
+                                    }
+                                    if (!url.searchParams.has('is_iframe')) {
+                                        url.searchParams.set('is_iframe', '1');
+                                        changed = true;
+                                    }
+                                    if (currentLang && !url.searchParams.has('locale')) {
+                                        url.searchParams.set('locale', currentLang);
+                                        changed = true;
+                                    }
+                                    
+                                    if (changed) {
+                                        e.preventDefault();
                                         window.location.href = url.toString();
                                     }
                                 }
@@ -172,10 +187,17 @@
                             try {
                                 var url = new URL(form.action, window.location.origin);
                                 if (url.origin === window.location.origin) {
+                                    var currentLang = document.documentElement.lang || 'id';
                                     if (!url.searchParams.has('token')) {
                                         url.searchParams.set('token', window._ssoToken || window.name);
-                                        form.action = url.toString();
                                     }
+                                    if (!url.searchParams.has('is_iframe')) {
+                                        url.searchParams.set('is_iframe', '1');
+                                    }
+                                    if (currentLang && !url.searchParams.has('locale')) {
+                                        url.searchParams.set('locale', currentLang);
+                                    }
+                                    form.action = url.toString();
                                 }
                             } catch (err) {}
                         }

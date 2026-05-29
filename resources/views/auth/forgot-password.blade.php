@@ -281,7 +281,7 @@
             <p>{{ __('Masukkan email Anda untuk menerima kode OTP reset password.') }}</p>
         </div>
 
-        <form action="{{ route('password.email') }}" method="POST" onsubmit="return handleSubmit(this)">
+        <form action="{{ route('password.email', request()->query()) }}" method="POST" onsubmit="return handleSubmit(this)">
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <div class="form-group">
@@ -298,7 +298,7 @@
             </button>
         </form>
 
-        <div class="auth-footer">{{ __('Ingat password?') }} <a href="{{ route('login') }}">{{ __('Masuk sekarang') }}</a></div>
+        <div class="auth-footer">{{ __('Ingat password?') }} <a href="{{ route('login', request()->query()) }}">{{ __('Masuk sekarang') }}</a></div>
     </div>
 </body>
 </html>

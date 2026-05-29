@@ -169,7 +169,7 @@
             <h1>{{ __('Buat Password Baru') }}</h1>
             <p>{{ __('Masukkan password baru untuk akun Anda.') }}</p>
         </div>
-        <form action="{{ route('password.update') }}" method="POST">
+        <form action="{{ route('password.update', request()->query()) }}" method="POST">
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <input type="hidden" name="email" value="{{ $email }}">

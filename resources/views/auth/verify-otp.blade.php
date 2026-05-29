@@ -503,7 +503,7 @@
             <p>{{ __('Masukkan 6 digit kode yang dikirim ke') }}<br><strong>{{ $email }}</strong></p>
         </div>
         
-        <form action="{{ route('password.verify.post') }}" method="POST">
+        <form action="{{ route('password.verify.post', request()->query()) }}" method="POST">
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <input type="hidden" name="email" value="{{ $email }}">
@@ -520,7 +520,7 @@
         </form>
         <div class="auth-footer">
             {{ __('Belum menerima email?') }}
-            <form action="{{ route('password.email') }}" method="POST" style="display:inline;" onsubmit="return handleResend(this)">
+            <form action="{{ route('password.email', request()->query()) }}" method="POST" style="display:inline;" onsubmit="return handleResend(this)">
                 @csrf
                 <input type="hidden" name="is_iframe" id="resend_is_iframe_input" value="0">
                 <input type="hidden" name="email" value="{{ $email }}">

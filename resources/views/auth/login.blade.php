@@ -372,7 +372,7 @@
             </div>
         @endif
 
-        <form action="{{ route('login.post') }}" method="POST">
+        <form action="{{ route('login.post', request()->query()) }}" method="POST">
             @csrf
             <input type="hidden" name="is_iframe" id="is_iframe_input" value="0">
             <div class="form-group">
@@ -394,7 +394,7 @@
             <div class="form-group">
                 <div class="form-row">
                     <label class="form-label" style="margin:0;">{{ __('Password') }}</label>
-                    <a href="{{ route('password.request') }}" class="forgot-link">{{ __('Lupa password?') }}</a>
+                    <a href="{{ route('password.request', request()->query()) }}" class="forgot-link">{{ __('Lupa password?') }}</a>
                 </div>
                 <div class="input-wrap" style="margin-top:0.5rem;">
                     <i class="fas fa-lock"></i>

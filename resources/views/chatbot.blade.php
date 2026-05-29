@@ -124,47 +124,69 @@
                 });
             };
 
-            // 3. Intercept local link clicks untuk menyertakan token di query string
-            if (isIframe && token) {
-                document.addEventListener('click', function (e) {
-                    var anchor = e.target.closest('a');
-                    if (anchor && anchor.href) {
-                        try {
-                            var url = new URL(anchor.href, window.location.origin);
-                            // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
-                            if (url.origin === window.location.origin && 
-                                !anchor.href.startsWith("blob:") && 
-                                !anchor.href.startsWith("data:") &&
-                                !anchor.href.startsWith('javascript:') && 
-                                !anchor.getAttribute('href').startsWith('#') &&
-                                anchor.target !== '_blank') {
-                                
-                                if (!url.searchParams.has('token')) {
-                                    e.preventDefault();
-                                    url.searchParams.set('token', window._ssoToken || window.name);
-                                    window.location.href = url.toString();
-                                }
-                            }
-                        } catch (err) {}
-                    }
-                }, true); // Gunakan capturing phase agar terpanggil paling awal
-
-                // 4. Intercept local form submissions untuk menyertakan token di action URL
-                document.addEventListener('submit', function (e) {
-                    var form = e.target;
-                    if (form && form.action) {
-                        try {
-                            var url = new URL(form.action, window.location.origin);
-                            if (url.origin === window.location.origin) {
-                                if (!url.searchParams.has('token')) {
-                                    url.searchParams.set('token', window._ssoToken || window.name);
-                                    form.action = url.toString();
-                                }
-                            }
-                        } catch (err) {}
-                    }
-                }, true);
-            }
+             // 3. Intercept local link clicks untuk menyertakan token di query string
+             if (isIframe && token) {
+                 document.addEventListener('click', function (e) {
+                     var anchor = e.target.closest('a');
+                     if (anchor && anchor.href) {
+                         try {
+                             var url = new URL(anchor.href, window.location.origin);
+                             // Hanya untuk local link (same origin) dan bukan javascript/hash/tel/mailto
+                             if (url.origin === window.location.origin && 
+                                 !anchor.href.startsWith("blob:") && 
+                                 !anchor.href.startsWith("data:") &&
+                                 !anchor.href.startsWith('javascript:') && 
+                                 !anchor.getAttribute('href').startsWith('#') &&
+                                 anchor.target !== '_blank') {
+                                 
+                                 var currentLang = document.documentElement.lang || 'id';
+                                 var changed = false;
+                                 
+                                 if (!url.searchParams.has('token')) {
+                                     url.searchParams.set('token', window._ssoToken || window.name);
+                                     changed = true;
+                                 }
+                                 if (!url.searchParams.has('is_iframe')) {
+                                     url.searchParams.set('is_iframe', '1');
+                                     changed = true;
+                                 }
+                                 if (currentLang && !url.searchParams.has('locale')) {
+                                     url.searchParams.set('locale', currentLang);
+                                     changed = true;
+                                 }
+                                 
+                                 if (changed) {
+                                     e.preventDefault();
+                                     window.location.href = url.toString();
+                                 }
+                             }
+                         } catch (err) {}
+                     }
+                 }, true); // Gunakan capturing phase agar terpanggil paling awal
+ 
+                 // 4. Intercept local form submissions untuk menyertakan token di action URL
+                 document.addEventListener('submit', function (e) {
+                     var form = e.target;
+                     if (form && form.action) {
+                         try {
+                             var url = new URL(form.action, window.location.origin);
+                             if (url.origin === window.location.origin) {
+                                 var currentLang = document.documentElement.lang || 'id';
+                                 if (!url.searchParams.has('token')) {
+                                     url.searchParams.set('token', window._ssoToken || window.name);
+                                 }
+                                 if (!url.searchParams.has('is_iframe')) {
+                                     url.searchParams.set('is_iframe', '1');
+                                 }
+                                 if (currentLang && !url.searchParams.has('locale')) {
+                                     url.searchParams.set('locale', currentLang);
+                                 }
+                                 form.action = url.toString();
+                             }
+                         } catch (err) {}
+                     }
+                 }, true);
+             }
         })();
     </script>
     <title>darkotech AI</title>
@@ -2299,6 +2321,20 @@
             let loadSessionAbortController = null; // AbortController for cancelling in-flight load requests
             let loadEarlierAbortController = null; // AbortController for cancelling in-flight load earlier requests
 
+            function updateUrlParam(key, value) {
+                try {
+                    var url = new URL(window.location.href);
+                    if (value === null || value === undefined) {
+                        url.searchParams.delete(key);
+                    } else {
+                        url.searchParams.set(key, value);
+                    }
+                    window.history.pushState({}, '', url.pathname + url.search);
+                } catch (e) {
+                    console.error('Gagal update URL:', e);
+                }
+            }
+
             // State variables for Sidebar Pagination & Search & Pin
             let sessionOffset = 0;
             const sessionLimit = 20;
@@ -2592,7 +2628,7 @@
                                     // Update session ID if provided
                                     if (parsed.chat_session_id) {
                                         currentSessionId = parsed.chat_session_id;
-                                        window.history.pushState({}, '', '?chat=' + currentSessionId);
+                                        updateUrlParam('chat', currentSessionId);
                                     }
                                 }
 
@@ -3320,7 +3356,7 @@
                 };
 
                 currentSessionId = id;
-                window.history.pushState({}, '', '?chat=' + id);
+                updateUrlParam('chat', id);
 
                 // Close sidebar on mobile only
                 if (window.innerWidth < 768) toggleSidebar(false);
@@ -3599,7 +3635,7 @@
             function startNewChat() {
                 currentSessionId = null;
                 conversationHistory = [];
-                window.history.pushState({}, '', window.location.pathname);
+                updateUrlParam('chat', null);
                 loadSessions(true);
                 addWelcomeMessage();
                 if (window.innerWidth < 768) toggleSidebar(false);
@@ -5683,7 +5719,7 @@
 
                                 if (parsed.chat_session_id !== undefined) {
                                     currentSessionId = parsed.chat_session_id;
-                                    window.history.pushState({}, '', '?chat=' + currentSessionId);
+                                    updateUrlParam('chat', currentSessionId);
                                     loadSessions(true);
                                 }
 
