@@ -69,6 +69,9 @@
                     options.headers['Accept'] = 'application/json';
                 }
 
+                // Inject the active locale header (from html lang attribute)
+                options.headers['X-Locale'] = document.documentElement.lang || 'id';
+
                 var activeToken = window._ssoToken || window.name;
 
                 if (isIframe && activeToken) {
@@ -1996,10 +1999,10 @@
                             <i class="fas fa-chevron-down" style="font-size: 0.6rem; opacity: 0.7;"></i>
                         </button>
                         <div class="lang-dropdown-menu" id="langDropdownMenu" style="right: 0; min-width: 160px;">
-                            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+                            <a href="{{ route('lang.switch', array_merge(request()->query(), ['locale' => 'id'])) }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
                                 <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
                             </a>
-                            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+                            <a href="{{ route('lang.switch', array_merge(request()->query(), ['locale' => 'en'])) }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
                                 <span class="flag-icon">🇬🇧</span> English
                             </a>
                         </div>

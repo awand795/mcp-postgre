@@ -266,10 +266,10 @@
             <i class="fas fa-chevron-down" style="font-size: 0.65rem;"></i>
         </button>
         <div class="lang-dropdown-menu" id="langDropdownMenu">
-            <a href="{{ route('lang.switch', 'id') }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
+            <a href="{{ route('lang.switch', array_merge(request()->query(), ['locale' => 'id'])) }}" class="{{ app()->getLocale() == 'id' ? 'active' : '' }}">
                 <span class="flag-icon">🇮🇩</span> Bahasa Indonesia
             </a>
-            <a href="{{ route('lang.switch', 'en') }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
+            <a href="{{ route('lang.switch', array_merge(request()->query(), ['locale' => 'en'])) }}" class="{{ app()->getLocale() == 'en' ? 'active' : '' }}">
                 <span class="flag-icon">🇬🇧</span> English
             </a>
         </div>

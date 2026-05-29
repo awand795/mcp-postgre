@@ -126,12 +126,52 @@ Route::middleware('auth.smart')->group(function () {
 // MCP route sudah otomatis didaftarkan oleh McpServiceProvider dari php-mcp/laravel
 // di prefix /mcp (default). Tidak perlu Mcp::web() lagi.
 
-// Language Switching Route
 Route::get('/lang/{locale}', function ($locale) {
     if (in_array($locale, ['en', 'id'])) {
         session(['locale' => $locale]);
         cookie()->queue('locale', $locale, 60 * 24 * 365);
     }
+    
+    $referer = request()->headers->get('referer');
+    if ($referer) {
+        $refererUrl = parse_url($referer);
+        $requestHost = request()->getHost();
+        $refererHost = $refererUrl['host'] ?? null;
+        
+        // Ensure redirect is safe and stays on the same domain
+        if ($refererHost === $requestHost) {
+            $queryParams = [];
+            if (isset($refererUrl['query'])) {
+                parse_str($refererUrl['query'], $queryParams);
+            }
+            
+            // Propagate the new locale
+            $queryParams['locale'] = $locale;
+            
+            $newTargetUrl = '';
+            if (isset($refererUrl['scheme'])) {
+                $newTargetUrl .= $refererUrl['scheme'] . '://';
+            }
+            if (isset($refererUrl['host'])) {
+                $newTargetUrl .= $refererUrl['host'];
+                if (isset($refererUrl['port'])) {
+                    $newTargetUrl .= ':' . $refererUrl['port'];
+                }
+            }
+            if (isset($refererUrl['path'])) {
+                $newTargetUrl .= $refererUrl['path'];
+            }
+            if ($queryParams) {
+                $newTargetUrl .= '?' . http_build_query($queryParams);
+            }
+            if (isset($refererUrl['fragment'])) {
+                $newTargetUrl .= '#' . $refererUrl['fragment'];
+            }
+            
+            return redirect()->to($newTargetUrl);
+        }
+    }
+    
     return redirect()->back();
 })->name('lang.switch');
 
