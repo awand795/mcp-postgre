@@ -156,6 +156,12 @@
                                     anchor.target !== '_blank') {
                                     
                                     var currentLang = document.documentElement.lang || 'id';
+                                    var pathParts = url.pathname.split('/');
+                                    var targetLocale = '';
+                                    if (pathParts.length >= 2 && pathParts[pathParts.length - 2] === 'lang') {
+                                        targetLocale = pathParts[pathParts.length - 1];
+                                    }
+                                    
                                     var changed = false;
                                     
                                     if (!url.searchParams.has('token')) {
@@ -166,8 +172,10 @@
                                         url.searchParams.set('is_iframe', '1');
                                         changed = true;
                                     }
-                                    if (currentLang && !url.searchParams.has('locale')) {
-                                        url.searchParams.set('locale', currentLang);
+                                    
+                                    var newLocale = targetLocale || currentLang;
+                                    if (newLocale && !url.searchParams.has('locale')) {
+                                        url.searchParams.set('locale', newLocale);
                                         changed = true;
                                     }
                                     

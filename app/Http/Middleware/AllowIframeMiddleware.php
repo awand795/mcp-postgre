@@ -48,7 +48,7 @@ class AllowIframeMiddleware
                 $queryParams['is_iframe'] = '1';
 
                 // Propagate active locale
-                $locale = $request->input('locale') ?: app()->getLocale();
+                $locale = $request->input('locale') ?: ($request->segment(1) === 'lang' ? $request->segment(2) : null) ?: (session('locale') ?: app()->getLocale());
                 if ($locale && in_array($locale, ['en', 'id'])) {
                     $queryParams['locale'] = $locale;
                 }

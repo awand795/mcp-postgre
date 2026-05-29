@@ -130,6 +130,7 @@ Route::get('/lang/{locale}', function ($locale) {
     if (in_array($locale, ['en', 'id'])) {
         session(['locale' => $locale]);
         cookie()->queue('locale', $locale, 60 * 24 * 365);
+        app()->setLocale($locale);
     }
     
     $referer = request()->headers->get('referer');
