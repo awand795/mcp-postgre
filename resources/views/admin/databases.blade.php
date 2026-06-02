@@ -467,8 +467,15 @@
 
                     <div class="form-group" id="sshKeyGroup" style="display: none;">
                         <label id="sshKeyLabel">{{ __('SSH Private Key') }}</label>
+                        <div class="ssh-key-upload-wrapper" style="margin-bottom: 0.75rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                            <input type="file" id="sshKeyFile" style="display: none;" onchange="handleSshKeyUpload(this)">
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('sshKeyFile').click()" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-upload"></i> {{ __('Unggah File Private Key') }}
+                            </button>
+                            <span id="sshKeyFileName" style="font-size: 0.85rem; color: #64748b;">{{ __('Belum ada file dipilih') }}</span>
+                        </div>
                         <textarea name="ssh_private_key" id="dbSshPrivateKeyInput" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
-                        <small>{{ __('Tempelkan isi file private key SSH Anda di sini. Pastikan private key tidak memiliki passphrase.') }}</small>
+                        <small>{{ __('Unggah file private key atau tempelkan isinya di atas. Pastikan private key tidak memiliki passphrase.') }}</small>
                     </div>
                 </div>
 
@@ -1440,6 +1447,10 @@ window.showDatabaseModal = function(type, db = null) {
 
     // Reset
     form.reset();
+    const sshKeyFileEl = document.getElementById('sshKeyFile');
+    if (sshKeyFileEl) sshKeyFileEl.value = '';
+    const sshKeyFileNameEl = document.getElementById('sshKeyFileName');
+    if (sshKeyFileNameEl) sshKeyFileNameEl.textContent = "{{ __('Belum ada file dipilih') }}";
     document.getElementById('dbSchemaInput').style.display = 'block';
     document.getElementById('dbSchemaSelect').style.display = 'none';
     document.getElementById('testPreviewResult').style.display = 'none';
@@ -2097,6 +2108,26 @@ function showToast(msg, type = 'info') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// ═══════════════════════════════════════
+// SSH KEY FILE UPLOAD
+// ═══════════════════════════════════════
+window.handleSshKeyUpload = function(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    document.getElementById('sshKeyFileName').textContent = file.name;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('dbSshPrivateKeyInput').value = e.target.result;
+        showToast("{{ __('File private key berhasil dimuat!') }}", 'success');
+    };
+    reader.onerror = function() {
+        showToast("{{ __('Gagal membaca file private key') }}", 'error');
+    };
+    reader.readAsText(file);
+};
 
 // ═══════════════════════════════════════
 // HELPERS
