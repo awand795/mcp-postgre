@@ -358,7 +358,7 @@
                         <input type="text" name="host" id="dbHostInput" placeholder="db.example.com">
                     </div>
                     <div class="form-group">
-                        <label>{{ __('Port') }} <span class="req">*</span></label>
+                        <label id="portLabel">{{ __('Port') }} <span class="req">*</span></label>
                         <input type="number" name="port" id="dbPortInput" value="5432" required>
                     </div>
                 </div>
@@ -456,7 +456,7 @@
                     </div>
 
                     <div class="form-group" id="sshPasswordGroup">
-                        <label>{{ __('SSH Password') }}</label>
+                        <label id="sshPasswordLabel">{{ __('SSH Password') }}</label>
                         <div class="input-with-icon">
                             <input type="password" name="ssh_password" id="dbSshPasswordInput" placeholder="••••••••">
                             <button type="button" class="toggle-pass" onclick="toggleSshPassword()" title="{{ __('Tampilkan/sembunyikan') }}">
@@ -466,7 +466,7 @@
                     </div>
 
                     <div class="form-group" id="sshKeyGroup" style="display: none;">
-                        <label>{{ __('SSH Private Key') }}</label>
+                        <label id="sshKeyLabel">{{ __('SSH Private Key') }}</label>
                         <textarea name="ssh_private_key" id="dbSshPrivateKeyInput" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
                         <small>{{ __('Tempelkan isi file private key SSH Anda di sini. Pastikan private key tidak memiliki passphrase.') }}</small>
                     </div>
@@ -1295,6 +1295,7 @@ window.selectDriver = function(driver) {
     document.querySelector(`.driver-option[data-driver="${driver}"]`).classList.add('active');
     document.getElementById('dbDriverSelect').value = driver;
     applyDriverConfig(driver);
+    toggleSshFields();
 };
 
 function applyDriverConfig(driver) {
@@ -1327,7 +1328,89 @@ function applyDriverConfig(driver) {
 // ═══════════════════════════════════════
 // WIZARD
 // ═══════════════════════════════════════
+window.validateStep = function(step) {
+    const errors = [];
+
+    if (step === 1) {
+        const name = document.getElementById('dbNameInput').value.trim();
+        const code = document.getElementById('dbCodeInput').value.trim();
+        const driver = document.getElementById('dbDriverSelect').value;
+
+        if (!name) errors.push("{{ __('Nama Koneksi / Alias harus diisi') }}");
+        if (!code) errors.push("{{ __('Kode harus diisi') }}");
+        if (!driver) errors.push("{{ __('Driver Database harus dipilih') }}");
+
+        if (code && !/^[a-z0-9_-]+$/i.test(code)) {
+            errors.push("{{ __('Kode hanya boleh berisi huruf kecil, angka, underscore, dan dash') }}");
+        }
+    }
+
+    if (step === 2) {
+        const driver = document.getElementById('dbDriverSelect').value;
+        const useSsh = document.getElementById('dbUseSshInput').checked;
+
+        if (driver !== 'sqlite') {
+            const database = document.getElementById('dbDatabaseInput').value.trim();
+            if (!database) errors.push("{{ __('Nama Database harus diisi') }}");
+
+            if (!useSsh) {
+                // Normal Connection: validate database host, port, username, password
+                const host = document.getElementById('dbHostInput').value.trim();
+                const port = document.getElementById('dbPortInput').value.trim();
+                const username = document.getElementById('dbUsernameInput').value.trim();
+                const password = document.getElementById('dbPasswordInput').value;
+
+                if (!host) errors.push("{{ __('Host Database harus diisi') }}");
+                if (!port) errors.push("{{ __('Port Database harus diisi') }}");
+                if (!username) errors.push("{{ __('Username Database harus diisi') }}");
+                if (editingDatabaseId === null && !password) {
+                    errors.push("{{ __('Password Database harus diisi') }}");
+                }
+            } else {
+                // SSH Tunnel Connection: validate SSH host, port, username, credentials
+                const sshHost = document.getElementById('dbSshHostInput').value.trim();
+                const sshPort = document.getElementById('dbSshPortInput').value.trim();
+                const sshUsername = document.getElementById('dbSshUsernameInput').value.trim();
+                const sshAuthType = document.getElementById('dbSshAuthTypeInput').value;
+
+                if (!sshHost) errors.push("{{ __('SSH Host harus diisi') }}");
+                if (!sshPort) errors.push("{{ __('SSH Port harus diisi') }}");
+                if (!sshUsername) errors.push("{{ __('SSH Username harus diisi') }}");
+
+                if (sshAuthType === 'password') {
+                    const sshPassword = document.getElementById('dbSshPasswordInput').value;
+                    if (editingDatabaseId === null && !sshPassword) {
+                        errors.push("{{ __('SSH Password harus diisi') }}");
+                    }
+                } else if (sshAuthType === 'key') {
+                    const sshKey = document.getElementById('dbSshPrivateKeyInput').value.trim();
+                    if (editingDatabaseId === null && !sshKey) {
+                        errors.push("{{ __('SSH Private Key harus diisi') }}");
+                    }
+                }
+            }
+        } else {
+            // SQLite connection
+            const database = document.getElementById('dbDatabaseInput').value.trim();
+            if (!database) errors.push("{{ __('Path File SQLite harus diisi') }}");
+        }
+    }
+
+    return errors;
+};
+
 window.goStep = function(step) {
+    // If trying to navigate forward, validate the current/previous steps first
+    if (step > currentStep) {
+        for (let s = currentStep; s < step; s++) {
+            const errors = validateStep(s);
+            if (errors.length > 0) {
+                errors.forEach(err => showToast(err, 'error'));
+                return; // Stop navigation
+            }
+        }
+    }
+
     // Hide all panels
     [1,2,3].forEach(i => {
         document.getElementById(`panel${i}`).style.display = 'none';
@@ -1341,6 +1424,7 @@ window.goStep = function(step) {
     document.getElementById(`panel${step}`).style.display = 'block';
     document.getElementById(`wz${step}`).classList.add('active');
     currentStep = step;
+    
     // Reset test preview on step 3 entry
     if (step === 3) {
         document.getElementById('testPreviewResult').style.display = 'none';
@@ -1458,23 +1542,71 @@ window.toggleSshFields = function() {
     const section = document.getElementById('sshFieldsSection');
     section.style.display = useSsh ? 'block' : 'none';
 
-    // Toggle required attributes dynamically
+    // Toggle required attributes dynamically for SSH fields
     document.getElementById('dbSshHostInput').required = useSsh;
     document.getElementById('dbSshPortInput').required = useSsh;
     document.getElementById('dbSshUsernameInput').required = useSsh;
+
+    // Toggle required attributes dynamically for standard database connection fields
+    const driver = document.getElementById('dbDriverSelect').value;
+    const isSqlite = (driver === 'sqlite');
+    document.getElementById('dbHostInput').required = !useSsh && !isSqlite;
+    document.getElementById('dbPortInput').required = !useSsh && !isSqlite;
+
+    // Update visual asterisks for standard fields
+    const hostLabel = document.getElementById('hostLabel');
+    const portLabel = document.getElementById('portLabel');
+    const usernameMark = document.getElementById('usernameRequiredMark');
+    const passwordMark = document.getElementById('passwordRequiredMark');
+    
+    // Host visual required mark
+    if (hostLabel) {
+        const baseText = driverConfig[driver]?.hostLabel || 'Host';
+        hostLabel.innerHTML = (!useSsh && !isSqlite) ? `${baseText} <span class="req">*</span>` : baseText;
+    }
+    
+    // Port visual required mark
+    if (portLabel) {
+        portLabel.innerHTML = (!useSsh && !isSqlite) ? `Port <span class="req">*</span>` : `Port`;
+    }
+    
+    // Username visual required mark
+    if (usernameMark) {
+        usernameMark.style.display = (!useSsh && !isSqlite) ? 'inline' : 'none';
+    }
+    
+    // Password visual required mark
+    if (passwordMark) {
+        const isCreate = (editingDatabaseId === null);
+        passwordMark.style.display = (!useSsh && !isSqlite && isCreate) ? 'inline' : 'none';
+    }
+
+    // Update SSH Password / Key asterisks
+    toggleSshAuthType();
 };
 
 window.toggleSshAuthType = function() {
+    const useSsh = document.getElementById('dbUseSshInput').checked;
     const authType = document.getElementById('dbSshAuthTypeInput').value;
     const passGroup = document.getElementById('sshPasswordGroup');
     const keyGroup = document.getElementById('sshKeyGroup');
+    const isCreate = (editingDatabaseId === null);
+
+    const passLabel = document.getElementById('sshPasswordLabel');
+    const keyLabel = document.getElementById('sshKeyLabel');
 
     if (authType === 'key') {
         passGroup.style.display = 'none';
         keyGroup.style.display = 'block';
+        if (keyLabel) {
+            keyLabel.innerHTML = (useSsh && isCreate) ? `SSH Private Key <span class="req">*</span>` : `SSH Private Key`;
+        }
     } else {
         passGroup.style.display = 'block';
         keyGroup.style.display = 'none';
+        if (passLabel) {
+            passLabel.innerHTML = (useSsh && isCreate) ? `SSH Password <span class="req">*</span>` : `SSH Password`;
+        }
     }
 };
 
@@ -1739,17 +1871,15 @@ window.testConnectionPreview = async function() {
     const ssh_password = document.getElementById('dbSshPasswordInput').value;
     const ssh_private_key = document.getElementById('dbSshPrivateKeyInput').value;
 
-    if (!host || !dbName || !user) {
+    // Validate step 1 and step 2 first
+    const step1Errors = validateStep(1);
+    const step2Errors = validateStep(2);
+    const allErrors = [...step1Errors, ...step2Errors];
+    if (allErrors.length > 0) {
         result.className = 'test-preview-result error';
         result.style.display = 'block';
-        result.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + "{{ __('Lengkapi data koneksi di step 2 dulu.') }}";
-        return;
-    }
-
-    if (use_ssh && (!ssh_host || !ssh_username)) {
-        result.className = 'test-preview-result error';
-        result.style.display = 'block';
-        result.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + "{{ __('Lengkapi data SSH Host dan Username terlebih dahulu.') }}";
+        result.innerHTML = `<i class="fas fa-exclamation-circle"></i> <strong>{{ __('Harap lengkapi data koneksi terlebih dahulu:') }}</strong><br>` + 
+                           allErrors.map(e => `• ${e}`).join('<br>');
         return;
     }
 
@@ -1986,6 +2116,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-dismiss flash alert
     const flash = document.getElementById('flash-alert');
     if (flash) setTimeout(() => flash.remove(), 5000);
+
+    // Form submit validation
+    const form = document.getElementById('databaseForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Validate step 1 and step 2
+            for (let s = 1; s <= 2; s++) {
+                const errors = validateStep(s);
+                if (errors.length > 0) {
+                    e.preventDefault();
+                    errors.forEach(err => showToast(err, 'error'));
+                    goStep(s); // Focus on the first invalid step panel
+                    return;
+                }
+            }
+        });
+    }
 });
 </script>
 @endsection

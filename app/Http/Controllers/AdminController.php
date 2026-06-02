@@ -577,11 +577,11 @@ class AdminController extends Controller
             'name' => 'required|unique:database_connections',
             'code' => 'required|unique:database_connections|alpha_dash',
             'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
-            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-            'port' => 'required|integer',
+            'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
+            'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
             'username' => 'nullable',
-            'password' => 'required_unless:driver,sqlite',
+            'password' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required',
             'schema' => 'nullable',
             'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
             'connection_timeout' => 'nullable|integer|min:5|max:300',
@@ -599,6 +599,30 @@ class AdminController extends Controller
         $validated['use_ssh'] = $request->has('use_ssh');
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
+
+        // Apply defaults if SSH is used and standard fields are empty
+        if ($validated['use_ssh']) {
+            if (empty($validated['host'])) {
+                $validated['host'] = '127.0.0.1';
+            }
+            if (empty($validated['port'])) {
+                $validated['port'] = match ($validated['driver']) {
+                    'pgsql' => 5432,
+                    'mysql', 'mariadb' => 3306,
+                    'sqlsrv' => 1433,
+                    default => 0,
+                };
+            }
+            if (empty($validated['username'])) {
+                $validated['username'] = match ($validated['driver']) {
+                    'pgsql' => 'postgres',
+                    default => 'root',
+                };
+            }
+            if (empty($validated['password'])) {
+                $validated['password'] = '';
+            }
+        }
 
         // Set defaults based on driver
         $driver = $validated['driver'];
@@ -647,8 +671,8 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|unique:database_connections,name,' . $database->id,
             'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
-            'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-            'port' => 'required|integer',
+            'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
+            'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
             'username' => 'nullable',
             'password' => 'nullable',
@@ -669,6 +693,30 @@ class AdminController extends Controller
         $validated['use_ssh'] = $request->has('use_ssh');
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
+
+        // Apply defaults if SSH is used and standard fields are empty
+        if ($validated['use_ssh']) {
+            if (empty($validated['host'])) {
+                $validated['host'] = '127.0.0.1';
+            }
+            if (empty($validated['port'])) {
+                $validated['port'] = match ($validated['driver']) {
+                    'pgsql' => 5432,
+                    'mysql', 'mariadb' => 3306,
+                    'sqlsrv' => 1433,
+                    default => 0,
+                };
+            }
+            if (empty($validated['username'])) {
+                $validated['username'] = match ($validated['driver']) {
+                    'pgsql' => 'postgres',
+                    default => 'root',
+                };
+            }
+            if (empty($validated['password'])) {
+                $validated['password'] = '';
+            }
+        }
 
         // Set defaults based on driver if schema is empty
         if (empty($validated['schema'])) {
@@ -802,11 +850,11 @@ class AdminController extends Controller
         try {
             $validated = $request->validate([
                 'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
-                'host' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-                'port' => 'required|integer',
+                'host' => 'required_unless:use_ssh,1,true|required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+                'port' => 'required_unless:use_ssh,1,true|required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable|integer',
                 'database' => 'required',
-                'username' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-                'password' => 'required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
+                'username' => 'nullable',
+                'password' => 'nullable',
                 'schema' => 'nullable',
                 'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
                 'connection_timeout' => 'nullable|integer|min:5|max:300',
@@ -820,6 +868,32 @@ class AdminController extends Controller
                 'ssh_password' => 'nullable|string',
                 'ssh_private_key' => 'nullable|string',
             ]);
+
+            $validated['use_ssh'] = $request->boolean('use_ssh');
+
+            // Apply defaults if SSH is used and standard fields are empty
+            if ($validated['use_ssh']) {
+                if (empty($validated['host'])) {
+                    $validated['host'] = '127.0.0.1';
+                }
+                if (empty($validated['port'])) {
+                    $validated['port'] = match ($validated['driver']) {
+                        'pgsql' => 5432,
+                        'mysql', 'mariadb' => 3306,
+                        'sqlsrv' => 1433,
+                        default => 0,
+                    };
+                }
+                if (empty($validated['username'])) {
+                    $validated['username'] = match ($validated['driver']) {
+                        'pgsql' => 'postgres',
+                        default => 'root',
+                    };
+                }
+                if (empty($validated['password'])) {
+                    $validated['password'] = '';
+                }
+            }
 
             // Create temporary model instance
             $tempDb = new DatabaseConnection([
