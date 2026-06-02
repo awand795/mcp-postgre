@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\DatabaseConnection;
+use App\Services\Database\SshTunnelManager;
 use App\Imports\UserImport;
 use App\Exports\UsersExport;
 use Illuminate\Http\Request;
@@ -585,8 +586,17 @@ class AdminController extends Controller
             'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
             'connection_timeout' => 'nullable|integer|min:5|max:300',
             'description' => 'nullable',
+            // SSH Validation
+            'use_ssh' => 'nullable',
+            'ssh_host' => 'required_if:use_ssh,1,true|nullable|string',
+            'ssh_port' => 'required_if:use_ssh,1,true|nullable|integer',
+            'ssh_username' => 'required_if:use_ssh,1,true|nullable|string',
+            'ssh_auth_type' => 'required_if:use_ssh,1,true|nullable|in:password,key',
+            'ssh_password' => 'nullable|string',
+            'ssh_private_key' => 'nullable|string',
         ]);
 
+        $validated['use_ssh'] = $request->has('use_ssh');
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
 
@@ -646,8 +656,17 @@ class AdminController extends Controller
             'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
             'connection_timeout' => 'nullable|integer|min:5|max:300',
             'description' => 'nullable',
+            // SSH Validation
+            'use_ssh' => 'nullable',
+            'ssh_host' => 'required_if:use_ssh,1,true|nullable|string',
+            'ssh_port' => 'required_if:use_ssh,1,true|nullable|integer',
+            'ssh_username' => 'required_if:use_ssh,1,true|nullable|string',
+            'ssh_auth_type' => 'required_if:use_ssh,1,true|nullable|in:password,key',
+            'ssh_password' => 'nullable|string',
+            'ssh_private_key' => 'nullable|string',
         ]);
 
+        $validated['use_ssh'] = $request->has('use_ssh');
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
 
@@ -673,6 +692,17 @@ class AdminController extends Controller
             unset($validated['password']);
         }
 
+        // Only update SSH password/private key if provided
+        if (empty($validated['ssh_password'])) {
+            unset($validated['ssh_password']);
+        }
+        if (empty($validated['ssh_private_key'])) {
+            unset($validated['ssh_private_key']);
+        }
+
+        // Stop current tunnel first to force restart with new settings on next use
+        SshTunnelManager::stop($database);
+
         $database->update($validated);
 
         // Clear table cache in case connection params changed
@@ -692,6 +722,9 @@ class AdminController extends Controller
             return back()->withErrors(['error' => __('Tidak bisa menghapus database default.')]);
         }
 
+        // Stop SSH tunnel
+        SshTunnelManager::stop($database);
+
         $database->delete();
 
         // Clear table cache
@@ -705,6 +738,9 @@ class AdminController extends Controller
         if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {
             return response()->json(['success' => false, 'error' => 'Unauthorized action.'], 403);
         }
+
+        // Stop SSH tunnel to force a fresh connection test
+        SshTunnelManager::stop($database);
 
         $result = $database->testConnection();
 
@@ -775,6 +811,14 @@ class AdminController extends Controller
                 'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
                 'connection_timeout' => 'nullable|integer|min:5|max:300',
                 'test_only' => 'nullable', // allow boolean or string
+                // SSH parameters
+                'use_ssh' => 'nullable',
+                'ssh_host' => 'required_if:use_ssh,true,1|nullable|string',
+                'ssh_port' => 'required_if:use_ssh,true,1|nullable|integer',
+                'ssh_username' => 'required_if:use_ssh,true,1|nullable|string',
+                'ssh_auth_type' => 'required_if:use_ssh,true,1|nullable|in:password,key',
+                'ssh_password' => 'nullable|string',
+                'ssh_private_key' => 'nullable|string',
             ]);
 
             // Create temporary model instance
@@ -788,6 +832,13 @@ class AdminController extends Controller
                 'schema' => $validated['schema'] ?? 'public',
                 'ssl_mode' => $validated['ssl_mode'] ?? '',
                 'connection_timeout' => $validated['connection_timeout'] ?? 30,
+                'use_ssh' => $request->boolean('use_ssh'),
+                'ssh_host' => $validated['ssh_host'] ?? null,
+                'ssh_port' => $validated['ssh_port'] ?? 22,
+                'ssh_username' => $validated['ssh_username'] ?? null,
+                'ssh_auth_type' => $validated['ssh_auth_type'] ?? 'password',
+                'ssh_password' => $validated['ssh_password'] ?? null,
+                'ssh_private_key' => $validated['ssh_private_key'] ?? null,
             ]);
 
             if ($request->boolean('test_only')) {

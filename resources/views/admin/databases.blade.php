@@ -417,6 +417,61 @@
                     <small id="schemaHint">{{ __('PostgreSQL: public, sch_nama') }} / {{ __('SQL Server: dbo, sch_nama') }}</small>
                 </div>
 
+                {{-- SSH Connection Settings --}}
+                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+                    <label class="checkbox-label" style="font-weight: 600;">
+                        <input type="checkbox" name="use_ssh" id="dbUseSshInput" value="1" onchange="toggleSshFields()">
+                        <span class="custom-check"></span>
+                        {{ __('Gunakan Koneksi SSH Tunnel') }}
+                    </label>
+                    <small style="display: block; margin-left: 28px; color: #64748b;">
+                        {{ __('Hubungkan ke database remote melalui server perantara SSH (SSH Tunneling)') }}
+                    </small>
+                </div>
+
+                <div id="sshFieldsSection" style="display: none; border-top: 1px dashed var(--glass-border); padding-top: 1.5rem; margin-top: 1rem;">
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>{{ __('SSH Host') }} <span class="req">*</span></label>
+                            <input type="text" name="ssh_host" id="dbSshHostInput" placeholder="ssh.example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>{{ __('SSH Port') }} <span class="req">*</span></label>
+                            <input type="number" name="ssh_port" id="dbSshPortInput" value="22" placeholder="22">
+                        </div>
+                    </div>
+
+                    <div class="form-row two-col">
+                        <div class="form-group">
+                            <label>{{ __('SSH Username') }} <span class="req">*</span></label>
+                            <input type="text" name="ssh_username" id="dbSshUsernameInput" placeholder="ubuntu">
+                        </div>
+                        <div class="form-group">
+                            <label>{{ __('Tipe Otentikasi SSH') }} <span class="req">*</span></label>
+                            <select name="ssh_auth_type" id="dbSshAuthTypeInput" onchange="toggleSshAuthType()">
+                                <option value="password">{{ __('Password') }}</option>
+                                <option value="key">{{ __('SSH Key (Private Key)') }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="sshPasswordGroup">
+                        <label>{{ __('SSH Password') }}</label>
+                        <div class="input-with-icon">
+                            <input type="password" name="ssh_password" id="dbSshPasswordInput" placeholder="••••••••">
+                            <button type="button" class="toggle-pass" onclick="toggleSshPassword()" title="{{ __('Tampilkan/sembunyikan') }}">
+                                <i class="fas fa-eye" id="sshPassEyeIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="sshKeyGroup" style="display: none;">
+                        <label>{{ __('SSH Private Key') }}</label>
+                        <textarea name="ssh_private_key" id="dbSshPrivateKeyInput" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+                        <small>{{ __('Tempelkan isi file private key SSH Anda di sini. Pastikan private key tidak memiliki passphrase.') }}</small>
+                    </div>
+                </div>
+
                 <div class="wizard-nav">
                     <button type="button" class="btn btn-cancel" onclick="goStep(1)">
                         <i class="fas fa-arrow-left"></i> {{ __('Kembali') }}
@@ -1318,6 +1373,17 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('passwordRequiredMark').style.display = 'inline';
         document.getElementById('dbIsActiveInput').checked = true;
         document.getElementById('dbIsDefaultInput').checked = false;
+
+        // Reset SSH fields
+        document.getElementById('dbUseSshInput').checked = false;
+        document.getElementById('dbSshHostInput').value = '';
+        document.getElementById('dbSshPortInput').value = 22;
+        document.getElementById('dbSshUsernameInput').value = '';
+        document.getElementById('dbSshAuthTypeInput').value = 'password';
+        document.getElementById('dbSshPasswordInput').value = '';
+        document.getElementById('dbSshPrivateKeyInput').value = '';
+        toggleSshFields();
+        toggleSshAuthType();
     } else {
         document.getElementById('databaseModalTitle').textContent = "{{ __('Edit Database') }}";
         form.action = `/admin/databases/${db.id}`;
@@ -1346,6 +1412,18 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbSslModeInput').value = db.ssl_mode || '';
         document.getElementById('dbTimeoutInput').value = db.connection_timeout || 30;
 
+        // Populate SSH fields
+        const useSsh = !!db.use_ssh;
+        document.getElementById('dbUseSshInput').checked = useSsh;
+        document.getElementById('dbSshHostInput').value = db.ssh_host || '';
+        document.getElementById('dbSshPortInput').value = db.ssh_port || 22;
+        document.getElementById('dbSshUsernameInput').value = db.ssh_username || '';
+        document.getElementById('dbSshAuthTypeInput').value = db.ssh_auth_type || 'password';
+        document.getElementById('dbSshPasswordInput').value = '';
+        document.getElementById('dbSshPrivateKeyInput').value = db.ssh_private_key || '';
+        toggleSshFields();
+        toggleSshAuthType();
+
         document.getElementById('dbPasswordInput').required = false;
         document.getElementById('passwordHint').style.display = 'block';
         document.getElementById('passwordRequiredMark').style.display = 'none';
@@ -1366,6 +1444,43 @@ window.backdropClose = function(e) {
 window.togglePassword = function() {
     const input = document.getElementById('dbPasswordInput');
     const icon  = document.getElementById('passEyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+};
+
+window.toggleSshFields = function() {
+    const useSsh = document.getElementById('dbUseSshInput').checked;
+    const section = document.getElementById('sshFieldsSection');
+    section.style.display = useSsh ? 'block' : 'none';
+
+    // Toggle required attributes dynamically
+    document.getElementById('dbSshHostInput').required = useSsh;
+    document.getElementById('dbSshPortInput').required = useSsh;
+    document.getElementById('dbSshUsernameInput').required = useSsh;
+};
+
+window.toggleSshAuthType = function() {
+    const authType = document.getElementById('dbSshAuthTypeInput').value;
+    const passGroup = document.getElementById('sshPasswordGroup');
+    const keyGroup = document.getElementById('sshKeyGroup');
+
+    if (authType === 'key') {
+        passGroup.style.display = 'none';
+        keyGroup.style.display = 'block';
+    } else {
+        passGroup.style.display = 'block';
+        keyGroup.style.display = 'none';
+    }
+};
+
+window.toggleSshPassword = function() {
+    const input = document.getElementById('dbSshPasswordInput');
+    const icon  = document.getElementById('sshPassEyeIcon');
     if (input.type === 'password') {
         input.type = 'text';
         icon.className = 'fas fa-eye-slash';
@@ -1426,8 +1541,21 @@ window.loadSchemas = async function() {
     const ssl_mode = document.getElementById('dbSslModeInput').value;
     const connection_timeout = document.getElementById('dbTimeoutInput').value;
 
+    const use_ssh = document.getElementById('dbUseSshInput').checked;
+    const ssh_host = document.getElementById('dbSshHostInput').value;
+    const ssh_port = document.getElementById('dbSshPortInput').value;
+    const ssh_username = document.getElementById('dbSshUsernameInput').value;
+    const ssh_auth_type = document.getElementById('dbSshAuthTypeInput').value;
+    const ssh_password = document.getElementById('dbSshPasswordInput').value;
+    const ssh_private_key = document.getElementById('dbSshPrivateKeyInput').value;
+
     if (!host || !dbName || !username || !password) {
         showToast("{{ __('Isi host, database, username & password dulu') }}", 'error');
+        return;
+    }
+
+    if (use_ssh && (!ssh_host || !ssh_username)) {
+        showToast("{{ __('Lengkapi data SSH Host dan Username terlebih dahulu') }}", 'error');
         return;
     }
 
@@ -1445,7 +1573,14 @@ window.loadSchemas = async function() {
             },
             body: JSON.stringify({ 
                 driver, host, port: parseInt(port), database: dbName, 
-                username, password, ssl_mode, connection_timeout: parseInt(connection_timeout) 
+                username, password, ssl_mode, connection_timeout: parseInt(connection_timeout),
+                use_ssh,
+                ssh_host,
+                ssh_port: ssh_port ? parseInt(ssh_port) : 22,
+                ssh_username,
+                ssh_auth_type,
+                ssh_password,
+                ssh_private_key
             })
         });
         const data = await r.json();
@@ -1596,10 +1731,25 @@ window.testConnectionPreview = async function() {
     const ssl    = document.getElementById('dbSslModeInput').value;
     const timeout = document.getElementById('dbTimeoutInput').value;
 
+    const use_ssh = document.getElementById('dbUseSshInput').checked;
+    const ssh_host = document.getElementById('dbSshHostInput').value;
+    const ssh_port = document.getElementById('dbSshPortInput').value;
+    const ssh_username = document.getElementById('dbSshUsernameInput').value;
+    const ssh_auth_type = document.getElementById('dbSshAuthTypeInput').value;
+    const ssh_password = document.getElementById('dbSshPasswordInput').value;
+    const ssh_private_key = document.getElementById('dbSshPrivateKeyInput').value;
+
     if (!host || !dbName || !user) {
         result.className = 'test-preview-result error';
         result.style.display = 'block';
         result.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + "{{ __('Lengkapi data koneksi di step 2 dulu.') }}";
+        return;
+    }
+
+    if (use_ssh && (!ssh_host || !ssh_username)) {
+        result.className = 'test-preview-result error';
+        result.style.display = 'block';
+        result.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + "{{ __('Lengkapi data SSH Host dan Username terlebih dahulu.') }}";
         return;
     }
 
@@ -1618,7 +1768,14 @@ window.testConnectionPreview = async function() {
             body: JSON.stringify({ 
                 driver, host, port: parseInt(port), database: dbName, 
                 username: user, password: pass, test_only: true,
-                ssl_mode: ssl, connection_timeout: parseInt(timeout)
+                ssl_mode: ssl, connection_timeout: parseInt(timeout),
+                use_ssh,
+                ssh_host,
+                ssh_port: ssh_port ? parseInt(ssh_port) : 22,
+                ssh_username,
+                ssh_auth_type,
+                ssh_password,
+                ssh_private_key
             })
         });
         const data = await r.json();

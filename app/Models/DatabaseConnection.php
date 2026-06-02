@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Services\Database\DriverFactory;
+use App\Services\Database\SshTunnelManager;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DatabaseConnection extends Model
 {
@@ -32,6 +34,14 @@ class DatabaseConnection extends Model
         'last_tested_at',
         'test_status',
         'added_by',
+        'use_ssh',
+        'ssh_host',
+        'ssh_port',
+        'ssh_username',
+        'ssh_auth_type',
+        'ssh_password',
+        'ssh_private_key',
+        'ssh_pid',
     ];
 
     protected $casts = [
@@ -41,11 +51,15 @@ class DatabaseConnection extends Model
         'connection_timeout' => 'integer',
         'last_tested_at' => 'datetime',
         'options' => 'array',
+        'use_ssh' => 'boolean',
+        'ssh_port' => 'integer',
+        'ssh_pid' => 'integer',
         // password encryption handled manually in mutator/accessor
     ];
 
     protected $hidden = [
         'password',
+        'ssh_password',
     ];
 
     public function addedBy()
@@ -86,6 +100,54 @@ class DatabaseConnection extends Model
     }
 
     /**
+     * Mutator: Encrypt SSH password before saving
+     */
+    public function setSshPasswordAttribute($value): void
+    {
+        if (!empty($value) && !$this->isEncrypted($value)) {
+            $this->attributes['ssh_password'] = encrypt($value);
+        } else {
+            $this->attributes['ssh_password'] = $value;
+        }
+    }
+
+    /**
+     * Accessor: Decrypt SSH password when accessing
+     */
+    public function getSshPasswordAttribute(): ?string
+    {
+        $value = $this->attributes['ssh_password'] ?? null;
+        if ($value && $this->isEncrypted($value)) {
+            return decrypt($value);
+        }
+        return $value;
+    }
+
+    /**
+     * Mutator: Encrypt SSH private key before saving
+     */
+    public function setSshPrivateKeyAttribute($value): void
+    {
+        if (!empty($value) && !$this->isEncrypted($value)) {
+            $this->attributes['ssh_private_key'] = encrypt($value);
+        } else {
+            $this->attributes['ssh_private_key'] = $value;
+        }
+    }
+
+    /**
+     * Accessor: Decrypt SSH private key when accessing
+     */
+    public function getSshPrivateKeyAttribute(): ?string
+    {
+        $value = $this->attributes['ssh_private_key'] ?? null;
+        if ($value && $this->isEncrypted($value)) {
+            return decrypt($value);
+        }
+        return $value;
+    }
+
+    /**
      * Check if a string looks like an encrypted value
      */
     private function isEncrypted($value): bool
@@ -113,10 +175,24 @@ class DatabaseConnection extends Model
     {
         $adapter = $this->getAdapter();
 
+        $host = $this->host;
+        $port = $this->port;
+
+        if ($this->use_ssh) {
+            try {
+                $localPort = SshTunnelManager::start($this);
+                $host = '127.0.0.1';
+                $port = $localPort;
+            } catch (\Exception $e) {
+                Log::error("SSH Tunnel failed for {$this->name}: " . $e->getMessage());
+                throw new \Exception("Gagal melakukan SSH Tunnel: " . $e->getMessage());
+            }
+        }
+
         $config = [
             'driver' => $this->driver,
-            'host' => $this->host,
-            'port' => $this->port,
+            'host' => $host,
+            'port' => $port,
             'database' => $this->database,
             'username' => $this->username,
             'password' => $this->getDecryptedPasswordAttribute(),
@@ -144,7 +220,7 @@ class DatabaseConnection extends Model
 
         // Let the adapter add driver-specific options
         return $adapter->getConnectionOptions($config);
-    }
+    }   }
 
     /**
      * Test the database connection

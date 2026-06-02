@@ -17,6 +17,7 @@
         "maatwebsite/excel": "*",
         "php-mcp/laravel": "*",
         "php-mcp/server": "*",
+        "phpseclib/phpseclib": "*",
         "symfony/css-selector": "*",
         "symfony/dom-crawler": "*"
     },
