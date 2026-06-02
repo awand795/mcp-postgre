@@ -534,13 +534,17 @@
 
                     {{-- DB Credentials lewat SSH --}}
                     <div class="ssh-card" style="margin-top:0.75rem;">
-                        <div class="ssh-card-title"><i class="fas fa-database"></i> {{ __('Kredensial Database (via Tunnel)') }}</div>
+                        <div class="ssh-card-title">
+                            <i class="fas fa-database"></i> {{ __('Kredensial Database') }}
+                        </div>
+
+                        {{-- Username & Password (wajib/opsional) --}}
                         <div class="form-row two-col">
                             <div class="form-group">
-                                <label>{{ __('DB Username') }} <span class="req">*</span></label>
+                                <label>{{ __('DB Username') }} <span class="req" id="usernameRequiredMark">*</span></label>
                                 <input type="text" name="username" id="dbUsernameInput" placeholder="postgres">
                             </div>
-                            <div class="form-group">
+                            <div class="form-group" id="passwordGroup">
                                 <label>{{ __('DB Password') }}</label>
                                 <div class="input-with-icon">
                                     <input type="password" name="password" id="dbPasswordInput" placeholder="••••••••">
@@ -551,20 +555,27 @@
                                 <small id="passwordHint" style="display:none;">{{ __('Kosongkan jika tidak ingin mengubah') }}</small>
                             </div>
                         </div>
-                        {{-- Target host jika beda dari SSH host --}}
+
+                        {{-- Divider --}}
+                        <div class="ssh-inner-divider">
+                            <span>{{ __('DB Host & Port') }}</span>
+                            <span class="ssh-optional-tag">{{ __('Opsional') }}</span>
+                        </div>
+                        <p class="ssh-inner-hint">{{ __('Isi jika database berada di alamat berbeda dari SSH server. Kosongkan untuk menggunakan default (127.0.0.1 & port driver).') }}</p>
+
+                        {{-- Host & Port (opsional) --}}
                         <div class="form-row two-col" style="margin-bottom:0;">
                             <div class="form-group" style="margin-bottom:0;">
-                                <label>{{ __('DB Host (dari SSH server)') }}</label>
+                                <label>{{ __('DB Host') }}</label>
                                 <input type="text" name="host" id="dbHostInput" placeholder="127.0.0.1">
-                                <small>{{ __('Biarkan kosong jika sama dengan SSH host (default: 127.0.0.1)') }}</small>
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>{{ __('DB Port') }}</label>
                                 <input type="number" name="port" id="dbPortInput" placeholder="5432">
                             </div>
                         </div>
-                        <small style="color:#64748b;">{{ __('Contoh: database AWS RDS di jaringan private yang hanya bisa diakses dari dalam server SSH.') }}</small>
                     </div>
+
                 </div>
 
                 <div class="wizard-nav">
@@ -1475,6 +1486,30 @@ html.dark .toast { background: rgba(30,41,59,0.95); }
 .ssh-key-loaded-remove:hover { background: rgba(239,68,68,0.18); }
 html.dark .ssh-card { background: rgba(15,23,42,0.5); }
 html.dark .ssh-toggle-card { background: transparent; }
+/* SSH inner divider (separates required from optional inside a card) */
+.ssh-inner-divider {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 0.85rem 0 0.4rem;
+    font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: #94a3b8;
+}
+.ssh-inner-divider::before, .ssh-inner-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--glass-border);
+}
+.ssh-inner-divider::before { flex: 0 0 0; }
+.ssh-optional-tag {
+    background: rgba(245,158,11,0.1); color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 20px; padding: 0.1rem 0.5rem;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+}
+.ssh-inner-hint {
+    font-size: 0.77rem; color: #64748b;
+    margin: 0 0 0.75rem; line-height: 1.5;
+}
+
 
 /* Responsive */
 @media (max-width: 768px) {
