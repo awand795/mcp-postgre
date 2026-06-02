@@ -850,8 +850,8 @@ class AdminController extends Controller
         try {
             $validated = $request->validate([
                 'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
-                'host' => 'required_unless:use_ssh,1,true|required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable',
-                'port' => 'required_unless:use_ssh,1,true|required_if:driver,pgsql,mysql,mariadb,sqlsrv|nullable|integer',
+                'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
+                'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
                 'database' => 'required',
                 'username' => 'nullable',
                 'password' => 'nullable',

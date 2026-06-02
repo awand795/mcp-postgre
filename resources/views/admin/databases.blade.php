@@ -1553,14 +1553,19 @@ window.toggleSshFields = function() {
     const section = document.getElementById('sshFieldsSection');
     section.style.display = useSsh ? 'block' : 'none';
 
+    const driver = document.getElementById('dbDriverSelect').value;
+    const isSqlite = (driver === 'sqlite');
+
+    // Hide hostPortRow when SSH is used or when SQLite is used
+    const hostPortRow = document.getElementById('hostPortRow');
+    if (hostPortRow) {
+        hostPortRow.style.display = (useSsh || isSqlite) ? 'none' : 'flex';
+    }
+
     // Toggle required attributes dynamically for SSH fields
     document.getElementById('dbSshHostInput').required = useSsh;
     document.getElementById('dbSshPortInput').required = useSsh;
     document.getElementById('dbSshUsernameInput').required = useSsh;
-
-    // Toggle required attributes dynamically for standard database connection fields
-    const driver = document.getElementById('dbDriverSelect').value;
-    const isSqlite = (driver === 'sqlite');
     document.getElementById('dbHostInput').required = !useSsh && !isSqlite;
     document.getElementById('dbPortInput').required = !useSsh && !isSqlite;
 
