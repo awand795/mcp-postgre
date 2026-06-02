@@ -418,64 +418,131 @@
                 </div>
 
                 {{-- SSH Connection Settings --}}
-                <div class="form-group" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
-                    <label class="checkbox-label" style="font-weight: 600;">
-                        <input type="checkbox" name="use_ssh" id="dbUseSshInput" value="1" onchange="toggleSshFields()">
-                        <span class="custom-check"></span>
-                        {{ __('Gunakan Koneksi SSH Tunnel') }}
-                    </label>
-                    <small style="display: block; margin-left: 28px; color: #64748b;">
-                        {{ __('Hubungkan ke database remote melalui server perantara SSH (SSH Tunneling)') }}
-                    </small>
+                <div class="ssh-toggle-card" id="sshToggleCard">
+                    <div class="ssh-toggle-header">
+                        <div class="ssh-toggle-icon">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <div class="ssh-toggle-info">
+                            <label class="checkbox-label" style="font-weight: 600; font-size: 0.95rem; cursor: pointer;">
+                                <input type="checkbox" name="use_ssh" id="dbUseSshInput" value="1" onchange="toggleSshFields()">
+                                <span class="custom-check"></span>
+                                {{ __('Gunakan SSH Tunnel') }}
+                            </label>
+                            <p class="ssh-toggle-desc">{{ __('Koneksi ke database via server perantara SSH (port forwarding)') }}</p>
+                        </div>
+                        <div class="ssh-badge" id="sshBadgeOff">OFF</div>
+                        <div class="ssh-badge ssh-badge-on" id="sshBadgeOn" style="display:none;">ON</div>
+                    </div>
                 </div>
 
-                <div id="sshFieldsSection" style="display: none; border-top: 1px dashed var(--glass-border); padding-top: 1.5rem; margin-top: 1rem;">
-                    <div class="form-row two-col">
-                        <div class="form-group">
-                            <label>{{ __('SSH Host') }} <span class="req">*</span></label>
-                            <input type="text" name="ssh_host" id="dbSshHostInput" placeholder="ssh.example.com">
+                <div id="sshFieldsSection" style="display: none;">
+                    {{-- SSH Server Info --}}
+                    <div class="ssh-section-card" style="margin-top: 1rem;">
+                        <div class="ssh-section-title">
+                            <i class="fas fa-server"></i> {{ __('Server SSH') }}
                         </div>
-                        <div class="form-group">
-                            <label>{{ __('SSH Port') }} <span class="req">*</span></label>
-                            <input type="number" name="ssh_port" id="dbSshPortInput" value="22" placeholder="22">
+                        <div class="form-row two-col">
+                            <div class="form-group">
+                                <label>{{ __('SSH Host') }} <span class="req">*</span></label>
+                                <input type="text" name="ssh_host" id="dbSshHostInput" placeholder="contoh: 192.168.1.10 atau ssh.domain.com">
+                            </div>
+                            <div class="form-group">
+                                <label>{{ __('SSH Port') }} <span class="req">*</span></label>
+                                <input type="number" name="ssh_port" id="dbSshPortInput" value="22" placeholder="22">
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="form-row two-col">
                         <div class="form-group">
                             <label>{{ __('SSH Username') }} <span class="req">*</span></label>
-                            <input type="text" name="ssh_username" id="dbSshUsernameInput" placeholder="ubuntu">
-                        </div>
-                        <div class="form-group">
-                            <label>{{ __('Tipe Otentikasi SSH') }} <span class="req">*</span></label>
-                            <select name="ssh_auth_type" id="dbSshAuthTypeInput" onchange="toggleSshAuthType()">
-                                <option value="password">{{ __('Password') }}</option>
-                                <option value="key">{{ __('SSH Key (Private Key)') }}</option>
-                            </select>
+                            <input type="text" name="ssh_username" id="dbSshUsernameInput" placeholder="ubuntu, root, ec2-user, deploy...">
                         </div>
                     </div>
 
-                    <div class="form-group" id="sshPasswordGroup">
-                        <label id="sshPasswordLabel">{{ __('SSH Password') }}</label>
-                        <div class="input-with-icon">
-                            <input type="password" name="ssh_password" id="dbSshPasswordInput" placeholder="••••••••">
-                            <button type="button" class="toggle-pass" onclick="toggleSshPassword()" title="{{ __('Tampilkan/sembunyikan') }}">
-                                <i class="fas fa-eye" id="sshPassEyeIcon"></i>
+                    {{-- SSH Auth --}}
+                    <div class="ssh-section-card" style="margin-top: 0.75rem;">
+                        <div class="ssh-section-title">
+                            <i class="fas fa-shield-alt"></i> {{ __('Otentikasi SSH') }}
+                        </div>
+
+                        {{-- Auth type tabs --}}
+                        <div class="ssh-auth-tabs" id="sshAuthTabs">
+                            <button type="button" class="ssh-auth-tab active" id="tabPassword" onclick="selectSshAuthTab('password')">
+                                <i class="fas fa-key"></i> {{ __('Password') }}
                             </button>
+                            <button type="button" class="ssh-auth-tab" id="tabKey" onclick="selectSshAuthTab('key')">
+                                <i class="fas fa-file-code"></i> {{ __('Private Key') }}
+                            </button>
+                        </div>
+                        <input type="hidden" name="ssh_auth_type" id="dbSshAuthTypeInput" value="password">
+
+                        {{-- Password panel --}}
+                        <div id="sshPasswordGroup" style="margin-top: 1rem;">
+                            <label id="sshPasswordLabel">{{ __('SSH Password') }}</label>
+                            <div class="input-with-icon">
+                                <input type="password" name="ssh_password" id="dbSshPasswordInput" placeholder="••••••••">
+                                <button type="button" class="toggle-pass" onclick="toggleSshPassword()" title="{{ __('Tampilkan/sembunyikan') }}">
+                                    <i class="fas fa-eye" id="sshPassEyeIcon"></i>
+                                </button>
+                            </div>
+                            <small style="color:#64748b;">{{ __('Password akan disimpan terenkripsi.') }}</small>
+                        </div>
+
+                        {{-- Private Key panel --}}
+                        <div id="sshKeyGroup" style="display: none; margin-top: 1rem;">
+                            <label id="sshKeyLabel">{{ __('SSH Private Key') }}</label>
+
+                            {{-- Drag & Drop zone --}}
+                            <div class="ssh-dropzone" id="sshDropzone"
+                                 ondragover="handleDragOver(event)"
+                                 ondragleave="handleDragLeave(event)"
+                                 ondrop="handleDrop(event)">
+                                <input type="file" id="sshKeyFile" style="display:none;" accept=".pem,.key,.ppk,.pub,*" onchange="handleSshKeyUpload(this)">
+                                <div class="ssh-dropzone-icon" id="sshDropzoneIcon">
+                                    <i class="fas fa-file-code"></i>
+                                </div>
+                                <div class="ssh-dropzone-text">
+                                    <span class="ssh-dropzone-main" id="sshDropzoneMain">{{ __('Drag & drop file private key di sini') }}</span>
+                                    <span class="ssh-dropzone-sub">{{ __('atau') }} <button type="button" onclick="document.getElementById('sshKeyFile').click()" class="ssh-dropzone-browse">{{ __('pilih file') }}</button></span>
+                                    <span class="ssh-dropzone-formats">id_rsa &bull; id_ed25519 &bull; .pem &bull; .key &bull; .ppk</span>
+                                </div>
+                            </div>
+
+                            <div class="ssh-key-loaded" id="sshKeyLoaded" style="display:none;">
+                                <div class="ssh-key-loaded-icon"><i class="fas fa-check-circle"></i></div>
+                                <div class="ssh-key-loaded-info">
+                                    <span class="ssh-key-loaded-name" id="sshKeyLoadedName"></span>
+                                    <span class="ssh-key-loaded-size" id="sshKeyLoadedSize"></span>
+                                </div>
+                                <button type="button" class="ssh-key-loaded-remove" onclick="clearSshKey()" title="{{ __('Hapus') }}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <textarea name="ssh_private_key" id="dbSshPrivateKeyInput" rows="5"
+                                      placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                                      style="margin-top: 0.75rem; font-family: monospace; font-size: 0.8rem;"></textarea>
+                            <small style="color:#64748b;">{{ __('File private key tidak boleh memiliki passphrase. Key akan disimpan terenkripsi di database.') }}</small>
                         </div>
                     </div>
 
-                    <div class="form-group" id="sshKeyGroup" style="display: none;">
-                        <label id="sshKeyLabel">{{ __('SSH Private Key') }}</label>
-                        <div class="ssh-key-upload-wrapper" style="margin-bottom: 0.75rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
-                            <input type="file" id="sshKeyFile" style="display: none;" onchange="handleSshKeyUpload(this)">
-                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('sshKeyFile').click()" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;">
-                                <i class="fas fa-upload"></i> {{ __('Unggah File Private Key') }}
-                            </button>
-                            <span id="sshKeyFileName" style="font-size: 0.85rem; color: #64748b;">{{ __('Belum ada file dipilih') }}</span>
+                    {{-- SSH Config File (optional) --}}
+                    <div class="ssh-section-card" style="margin-top: 0.75rem;">
+                        <div class="ssh-section-title">
+                            <i class="fas fa-sliders-h"></i> {{ __('Database Target (via Tunnel)') }}
+                            <span class="ssh-optional-badge">{{ __('Opsional') }}</span>
                         </div>
-                        <textarea name="ssh_private_key" id="dbSshPrivateKeyInput" rows="5" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
-                        <small>{{ __('Unggah file private key atau tempelkan isinya di atas. Pastikan private key tidak memiliki passphrase.') }}</small>
+                        <p style="font-size: 0.82rem; color: #64748b; margin: 0 0 0.75rem;">{{ __('Jika database berada di server yang berbeda dari SSH host, isi host dan port database target di sini. Kosongkan jika database ada di server SSH yang sama (akan default ke 127.0.0.1).') }}</p>
+                        <div class="form-row two-col">
+                            <div class="form-group">
+                                <label>{{ __('DB Host (dari SSH server)') }}</label>
+                                <input type="text" name="host" id="dbHostInput" placeholder="127.0.0.1">
+                            </div>
+                            <div class="form-group">
+                                <label>{{ __('DB Port (dari SSH server)') }}</label>
+                                <input type="number" name="port" id="dbPortInput" placeholder="5432">
+                            </div>
+                        </div>
+                        <small style="color:#64748b;">{{ __('Contoh: database AWS RDS di jaringan private yang hanya bisa diakses dari dalam server SSH.') }}</small>
                     </div>
                 </div>
 
@@ -1262,6 +1329,161 @@ html.dark .toast { background: rgba(30,41,59,0.95); }
 .toast.toast-info { border-color: rgba(99,102,241,0.3); }
 .toast.toast-info i { color: #818cf8; }
 
+/* ── SSH Section Premium Styles ── */
+.ssh-toggle-card {
+    border: 1.5px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    transition: all 0.3s ease;
+    background: var(--bg-main);
+}
+.ssh-toggle-card.ssh-active {
+    border-color: rgba(99,102,241,0.5);
+    background: rgba(99,102,241,0.04);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+}
+.ssh-toggle-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.ssh-toggle-icon {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: rgba(99,102,241,0.1);
+    display: flex; align-items: center; justify-content: center;
+    color: #818cf8; font-size: 1rem; flex-shrink: 0;
+    transition: all 0.3s;
+}
+.ssh-toggle-card.ssh-active .ssh-toggle-icon {
+    background: linear-gradient(135deg,#6366f1,#8b5cf6);
+    color: white;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+}
+.ssh-toggle-info { flex: 1; }
+.ssh-toggle-desc { font-size: 0.8rem; color: #64748b; margin: 0.15rem 0 0; }
+.ssh-badge {
+    padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.7rem;
+    font-weight: 700; letter-spacing: 0.05em;
+    background: rgba(100,116,139,0.15); color: #94a3b8;
+    border: 1px solid rgba(100,116,139,0.2);
+    flex-shrink: 0;
+}
+.ssh-badge-on {
+    background: rgba(16,185,129,0.12); color: #10b981;
+    border-color: rgba(16,185,129,0.3);
+}
+/* ssh section cards */
+.ssh-section-card {
+    background: var(--bg-main);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+}
+.ssh-section-title {
+    font-weight: 700; font-size: 0.85rem;
+    color: #818cf8;
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.85rem;
+    text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ssh-optional-badge {
+    font-size: 0.7rem; font-weight: 600;
+    background: rgba(245,158,11,0.12); color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 20px; padding: 0.15rem 0.55rem;
+    letter-spacing: 0; text-transform: none;
+    margin-left: auto;
+}
+/* Auth tabs */
+.ssh-auth-tabs {
+    display: flex; gap: 0.5rem;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px; padding: 0.3rem;
+}
+.ssh-auth-tab {
+    flex: 1; padding: 0.5rem 0.75rem;
+    border: none; border-radius: 9px;
+    background: transparent; cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; color: #64748b;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    transition: all 0.2s; font-family: inherit;
+}
+.ssh-auth-tab.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.35);
+}
+.ssh-auth-tab:not(.active):hover { color: #818cf8; background: rgba(99,102,241,0.08); }
+/* Drag & drop zone */
+.ssh-dropzone {
+    border: 2px dashed var(--glass-border);
+    border-radius: 14px;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    background: var(--bg-main);
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    position: relative;
+}
+.ssh-dropzone:hover, .ssh-dropzone.drag-over {
+    border-color: #6366f1;
+    background: rgba(99,102,241,0.06);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+.ssh-dropzone.drag-over { border-style: solid; }
+.ssh-dropzone-icon {
+    width: 48px; height: 48px;
+    background: rgba(99,102,241,0.1);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; color: #818cf8;
+    margin-bottom: 0.25rem;
+    transition: all 0.3s;
+}
+.ssh-dropzone:hover .ssh-dropzone-icon, .ssh-dropzone.drag-over .ssh-dropzone-icon {
+    background: linear-gradient(135deg,#6366f1,#8b5cf6);
+    color: white;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+}
+.ssh-dropzone-main { font-weight: 600; font-size: 0.9rem; display: block; }
+.ssh-dropzone-sub { font-size: 0.82rem; color: #64748b; display: block; }
+.ssh-dropzone-browse {
+    background: none; border: none; cursor: pointer;
+    color: #818cf8; font-size: 0.82rem; font-weight: 600;
+    text-decoration: underline; font-family: inherit;
+    padding: 0;
+}
+.ssh-dropzone-browse:hover { color: #6366f1; }
+.ssh-dropzone-formats { font-size: 0.75rem; color: #94a3b8; display: block; }
+/* Loaded key indicator */
+.ssh-key-loaded {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.25);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+}
+.ssh-key-loaded-icon { color: #10b981; font-size: 1.1rem; }
+.ssh-key-loaded-info { flex: 1; }
+.ssh-key-loaded-name { font-weight: 600; font-size: 0.85rem; display: block; }
+.ssh-key-loaded-size { font-size: 0.78rem; color: #64748b; }
+.ssh-key-loaded-remove {
+    background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);
+    color: #ef4444; border-radius: 8px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 0.75rem; flex-shrink: 0;
+    transition: all 0.2s;
+}
+.ssh-key-loaded-remove:hover { background: rgba(239,68,68,0.2); }
+html.dark .ssh-section-card { background: rgba(30,41,59,0.5); }
+html.dark .ssh-dropzone { background: rgba(15,23,42,0.5); }
+html.dark .ssh-toggle-card { background: rgba(15,23,42,0.4); }
+
 /* Responsive */
 @media (max-width: 768px) {
     .database-grid { grid-template-columns: 1fr; }
@@ -1272,6 +1494,7 @@ html.dark .toast { background: rgba(30,41,59,0.95); }
     .toolbar-view { justify-content: flex-end; }
     .db-page-header { flex-direction: column; }
     .health-bar { flex-wrap: wrap; justify-content: center; }
+    .ssh-auth-tabs { flex-direction: column; }
 }
 </style>
 @endsection
@@ -1449,8 +1672,8 @@ window.showDatabaseModal = function(type, db = null) {
     form.reset();
     const sshKeyFileEl = document.getElementById('sshKeyFile');
     if (sshKeyFileEl) sshKeyFileEl.value = '';
-    const sshKeyFileNameEl = document.getElementById('sshKeyFileName');
-    if (sshKeyFileNameEl) sshKeyFileNameEl.textContent = "{{ __('Belum ada file dipilih') }}";
+    // Reset drag-drop zone
+    clearSshKey();
     document.getElementById('dbSchemaInput').style.display = 'block';
     document.getElementById('dbSchemaSelect').style.display = 'none';
     document.getElementById('testPreviewResult').style.display = 'none';
@@ -1516,8 +1739,9 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbSshAuthTypeInput').value = db.ssh_auth_type || 'password';
         document.getElementById('dbSshPasswordInput').value = '';
         document.getElementById('dbSshPrivateKeyInput').value = db.ssh_private_key || '';
+        // Sync auth tab visual
+        selectSshAuthTab(db.ssh_auth_type || 'password', true);
         toggleSshFields();
-        toggleSshAuthType();
 
         document.getElementById('dbPasswordInput').required = false;
         document.getElementById('passwordHint').style.display = 'block';
@@ -1556,7 +1780,7 @@ window.toggleSshFields = function() {
     const driver = document.getElementById('dbDriverSelect').value;
     const isSqlite = (driver === 'sqlite');
 
-    // Hide hostPortRow when SSH is used or when SQLite is used
+    // Show/hide the standard host/port row (when SSH enabled, it's inside sshFieldsSection)
     const hostPortRow = document.getElementById('hostPortRow');
     if (hostPortRow) {
         hostPortRow.style.display = (useSsh || isSqlite) ? 'none' : 'flex';
@@ -1597,34 +1821,60 @@ window.toggleSshFields = function() {
         passwordMark.style.display = (!useSsh && !isSqlite && isCreate) ? 'inline' : 'none';
     }
 
+    // Toggle card visual state
+    const card = document.getElementById('sshToggleCard');
+    const badgeOff = document.getElementById('sshBadgeOff');
+    const badgeOn  = document.getElementById('sshBadgeOn');
+    if (card) card.classList.toggle('ssh-active', useSsh);
+    if (badgeOff) badgeOff.style.display = useSsh ? 'none'  : '';
+    if (badgeOn)  badgeOn.style.display  = useSsh ? ''      : 'none';
+
     // Update SSH Password / Key asterisks
-    toggleSshAuthType();
+    selectSshAuthTab(document.getElementById('dbSshAuthTypeInput').value || 'password', true);
 };
 
-window.toggleSshAuthType = function() {
+// selectSshAuthTab is the new function replacing toggleSshAuthType
+window.selectSshAuthTab = function(type, silentTabSync = false) {
     const useSsh = document.getElementById('dbUseSshInput').checked;
-    const authType = document.getElementById('dbSshAuthTypeInput').value;
-    const passGroup = document.getElementById('sshPasswordGroup');
-    const keyGroup = document.getElementById('sshKeyGroup');
     const isCreate = (editingDatabaseId === null);
 
-    const passLabel = document.getElementById('sshPasswordLabel');
-    const keyLabel = document.getElementById('sshKeyLabel');
+    // Update hidden input
+    document.getElementById('dbSshAuthTypeInput').value = type;
 
-    if (authType === 'key') {
+    // Update tab active state
+    if (!silentTabSync) {
+        document.getElementById('tabPassword').classList.toggle('active', type === 'password');
+        document.getElementById('tabKey').classList.toggle('active', type === 'key');
+    } else {
+        document.getElementById('tabPassword').classList.toggle('active', type === 'password');
+        document.getElementById('tabKey').classList.toggle('active', type === 'key');
+    }
+
+    const passGroup = document.getElementById('sshPasswordGroup');
+    const keyGroup  = document.getElementById('sshKeyGroup');
+    const passLabel = document.getElementById('sshPasswordLabel');
+    const keyLabel  = document.getElementById('sshKeyLabel');
+
+    if (type === 'key') {
         passGroup.style.display = 'none';
-        keyGroup.style.display = 'block';
+        keyGroup.style.display  = 'block';
         if (keyLabel) {
             keyLabel.innerHTML = (useSsh && isCreate) ? `SSH Private Key <span class="req">*</span>` : `SSH Private Key`;
         }
     } else {
         passGroup.style.display = 'block';
-        keyGroup.style.display = 'none';
+        keyGroup.style.display  = 'none';
         if (passLabel) {
             passLabel.innerHTML = (useSsh && isCreate) ? `SSH Password <span class="req">*</span>` : `SSH Password`;
         }
     }
 };
+
+// Keep backward compat
+window.toggleSshAuthType = function() {
+    selectSshAuthTab(document.getElementById('dbSshAuthTypeInput').value || 'password');
+};
+
 
 window.toggleSshPassword = function() {
     const input = document.getElementById('dbSshPasswordInput');
@@ -2120,18 +2370,59 @@ function showToast(msg, type = 'info') {
 window.handleSshKeyUpload = function(input) {
     const file = input.files[0];
     if (!file) return;
+    loadSshKeyFile(file);
+};
 
-    document.getElementById('sshKeyFileName').textContent = file.name;
+window.clearSshKey = function() {
+    const fileEl = document.getElementById('sshKeyFile');
+    if (fileEl) fileEl.value = '';
+    const textarea = document.getElementById('dbSshPrivateKeyInput');
+    if (textarea) textarea.value = '';
+    document.getElementById('sshKeyLoaded').style.display  = 'none';
+    document.getElementById('sshDropzone').style.display   = 'flex';
+};
 
+function loadSshKeyFile(file) {
     const reader = new FileReader();
     reader.onload = function(e) {
         document.getElementById('dbSshPrivateKeyInput').value = e.target.result;
+        // Show loaded indicator
+        document.getElementById('sshKeyLoadedName').textContent = file.name;
+        document.getElementById('sshKeyLoadedSize').textContent = formatBytes(file.size);
+        document.getElementById('sshKeyLoaded').style.display  = 'flex';
+        document.getElementById('sshDropzone').style.display   = 'none';
         showToast("{{ __('File private key berhasil dimuat!') }}", 'success');
     };
     reader.onerror = function() {
         showToast("{{ __('Gagal membaca file private key') }}", 'error');
     };
     reader.readAsText(file);
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Drag & drop handlers ──
+window.handleDragOver = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('sshDropzone').classList.add('drag-over');
+};
+
+window.handleDragLeave = function(e) {
+    e.preventDefault();
+    document.getElementById('sshDropzone').classList.remove('drag-over');
+};
+
+window.handleDrop = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('sshDropzone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) loadSshKeyFile(file);
 };
 
 // ═══════════════════════════════════════
