@@ -561,19 +561,39 @@
                             <span>{{ __('DB Host & Port') }}</span>
                             <span class="ssh-optional-tag">{{ __('Opsional') }}</span>
                         </div>
-                        <p class="ssh-inner-hint">{{ __('Isi jika database berada di alamat berbeda dari SSH server. Kosongkan untuk menggunakan default (127.0.0.1 & port driver).') }}</p>
+
+                        {{-- Scenario helper --}}
+                        <div class="ssh-scenario-row">
+                            <div class="ssh-scenario">
+                                <span class="ssh-scenario-icon">✅</span>
+                                <div>
+                                    <strong>{{ __('Kosongkan') }}</strong>
+                                    <span>{{ __('— database ada di mesin SSH yang sama (paling umum)') }}</span>
+                                </div>
+                            </div>
+                            <div class="ssh-scenario">
+                                <span class="ssh-scenario-icon">📝</span>
+                                <div>
+                                    <strong>{{ __('Isi') }}</strong>
+                                    <span>{{ __('— database di server lain dalam jaringan private (mis. AWS RDS via bastion)') }}</span>
+                                </div>
+                            </div>
+                        </div>
 
                         {{-- Host & Port (opsional) --}}
                         <div class="form-row two-col" style="margin-bottom:0;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>{{ __('DB Host') }}</label>
                                 <input type="text" name="host" id="dbHostInput" placeholder="127.0.0.1">
+                                <small>{{ __('Default: 127.0.0.1') }}</small>
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>{{ __('DB Port') }}</label>
                                 <input type="number" name="port" id="dbPortInput" placeholder="5432">
+                                <small>{{ __('Default: sesuai driver') }}</small>
                             </div>
                         </div>
+
                     </div>
 
                 </div>
@@ -1509,6 +1529,19 @@ html.dark .ssh-toggle-card { background: transparent; }
     font-size: 0.77rem; color: #64748b;
     margin: 0 0 0.75rem; line-height: 1.5;
 }
+/* Scenario helper pills */
+.ssh-scenario-row {
+    display: flex; flex-direction: column; gap: 0.35rem;
+    margin: 0.4rem 0 0.85rem;
+}
+.ssh-scenario {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    font-size: 0.78rem; color: var(--text-muted);
+    line-height: 1.45;
+}
+.ssh-scenario-icon { font-size: 0.85rem; flex-shrink: 0; margin-top: 1px; }
+.ssh-scenario strong { color: var(--text-main); margin-right: 2px; }
+
 
 
 /* Responsive */
