@@ -220,7 +220,7 @@ class DatabaseConnection extends Model
 
         // Let the adapter add driver-specific options
         return $adapter->getConnectionOptions($config);
-    }   }
+    }
 
     /**
      * Test the database connection
