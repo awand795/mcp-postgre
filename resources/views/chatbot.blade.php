@@ -4656,33 +4656,34 @@
                     return getLocalizedMonthName(strVal);
                 }
 
+                // Helper: parse angka dari string, support format Indonesia (titik=ribuan, koma=desimal)
+                // contoh: "Rp 517.000" → 517000, "Rp 1.500.000" → 1500000, "517000" → 517000
+                const parseIndonesianNumber = (s) => {
+                    let v = s.toLowerCase().trim();
+                    // Hapus prefix Rp dan spasi
+                    v = v.replace(/rp\s?/g, '');
+                    // Deteksi format Indonesia: titik sebagai pemisah ribuan
+                    // Kasus 1: ada koma → koma adalah desimal, titik adalah ribuan
+                    // Contoh: "1.500.000,50" atau "517.000,00"
+                    if (v.includes(',')) {
+                        v = v.replace(/\./g, '').replace(',', '.');
+                    }
+                    // Kasus 2: ada titik tapi BUKAN desimal (titik ribuan Indonesia)
+                    // Deteksi: jika ada LEBIH DARI SATU titik, atau titik diikuti tepat 3 digit di akhir
+                    else if ((v.match(/\./g) || []).length > 1) {
+                        // Lebih dari satu titik → semua titik adalah ribuan
+                        v = v.replace(/\./g, '');
+                    } else if (/\.\d{3}$/.test(v)) {
+                        // Satu titik, diikuti tepat 3 digit → titik ribuan (contoh: "517.000")
+                        v = v.replace(/\./g, '');
+                    }
+                    // Kasus 3: shorthand k (contoh: "517k")
+                    let num = parseFloat(v.replace(/[^0-9.-]/g, ''));
+                    if (v.endsWith('k')) num *= 1000;
+                    return num;
+                };
+
                 if (isMoney) {
-                    // Helper: parse angka dari string, support format Indonesia (titik=ribuan, koma=desimal)
-                    // contoh: "Rp 517.000" → 517000, "Rp 1.500.000" → 1500000, "517000" → 517000
-                    const parseIndonesianNumber = (s) => {
-                        let v = s.toLowerCase().trim();
-                        // Hapus prefix Rp dan spasi
-                        v = v.replace(/rp\s?/g, '');
-                        // Deteksi format Indonesia: titik sebagai pemisah ribuan
-                        // Kasus 1: ada koma → koma adalah desimal, titik adalah ribuan
-                        // Contoh: "1.500.000,50" atau "517.000,00"
-                        if (v.includes(',')) {
-                            v = v.replace(/\./g, '').replace(',', '.');
-                        }
-                        // Kasus 2: ada titik tapi BUKAN desimal (titik ribuan Indonesia)
-                        // Deteksi: jika ada LEBIH DARI SATU titik, atau titik diikuti tepat 3 digit di akhir
-                        else if ((v.match(/\./g) || []).length > 1) {
-                            // Lebih dari satu titik → semua titik adalah ribuan
-                            v = v.replace(/\./g, '');
-                        } else if (/\.\d{3}$/.test(v)) {
-                            // Satu titik, diikuti tepat 3 digit → titik ribuan (contoh: "517.000")
-                            v = v.replace(/\./g, '');
-                        }
-                        // Kasus 3: shorthand k (contoh: "517k")
-                        let num = parseFloat(v.replace(/[^0-9.]/g, ''));
-                        if (v.endsWith('k')) num *= 1000;
-                        return num;
-                    };
 
                     // Handle ranges like "200000-300000" atau "Rp 517.000 - Rp 520.000"
                     if (strVal.includes('-') && !strVal.startsWith('-')) {
@@ -4714,12 +4715,12 @@
                 }
 
                 // Standard number parsing for non-money columns
-                const numVal = parseFloat(strVal.replace(/[^0-9.-]/g, ''));
+                const numVal = parseIndonesianNumber(strVal);
 
                 // If string looks like a pure number and is long, format it ONLY if not an ID/Code/Ref
                 // Round values for display as requested
                 if (!isNaN(numVal) && !isNonNumericStyled) {
-                    if ((strVal.length > 3 && /^-?\d+(\.\d+)?$/.test(strVal))) {
+                    if ((strVal.length > 3 && /^-?\d+([\.,]\d+)?$/.test(strVal))) {
                         return numVal.toLocaleString('id-ID', { maximumFractionDigits: 0 });
                     }
                 }

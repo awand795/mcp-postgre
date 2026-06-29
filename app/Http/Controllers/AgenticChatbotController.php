@@ -2381,7 +2381,7 @@ PROMPT;
                     $newParams = $params;
                     $newParams['headers'] = $columns;
                     $newParams['rows'] = $normalizedRows;
-                    if (!isset($newParams['currency_columns']) && !empty($toolRes['currency_columns'])) {
+                    if (empty($newParams['currency_columns']) && !empty($toolRes['currency_columns'])) {
                         $newParams['currency_columns'] = $toolRes['currency_columns'];
                     }
                     if (empty($newParams['title']) && !empty($toolRes['label'])) {
