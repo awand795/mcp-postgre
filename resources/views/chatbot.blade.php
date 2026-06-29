@@ -2502,7 +2502,7 @@
                                 // ── Notifikasi proses (label bisnis) ──────────────
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
-                                    const icon = toolIcons[tc.name] || '';
+                                    const icon = toolIcons[tc.name] || '⚙️';
                                     const label = toolLabels[tc.name] || '{{ __('Memproses data') }}';
 
                                     if (tc.status === 'running') {
@@ -4859,7 +4859,7 @@
                             wrap.prepend(titleEl);
                         }
                     }
-                    titleEl.innerHTML = `<span class="text-orange-500">📋</span> <span>${finalLabel}</span>`;
+                    titleEl.innerHTML = `<span class="text-orange-500">📋</span> <span>${finalLabel.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</span>`;
                 }
 
                 const info = wrap.querySelector('.smart-table-info');
@@ -5000,7 +5000,7 @@
                     wrapDiv.setAttribute('data-title', tableTitle);
 
                     wrapDiv.innerHTML = `
-                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${tableTitle}</span></div>
+                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${tableTitle.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</span></div>
                     <div class="smart-table-toolbar">
                         <span class="smart-table-info">📊 ${rows.length} {{ __('baris') }} · ${headers.length} {{ __('kol') }}</span>
                         <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
@@ -5115,7 +5115,7 @@
                 wrapDiv.setAttribute('data-headers-b64', hb64);
                 wrapDiv.setAttribute('data-rows-b64', rb64);
                 wrapDiv.innerHTML = `
-                <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title}</span></div>
+                <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${stData.title.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</span></div>
                 <div class="smart-table-toolbar">
                     <span class="smart-table-info">📊 ${stData.rows.length} {{ __('baris') }} · ${stData.headers.length} {{ __('kol') }}</span>
                     <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
@@ -5520,7 +5520,7 @@
                                     const dataReady = (params.headers && params.headers.length > 0) ? true : false;
 
                                     return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="${idx}"${titleAttr}${hAttr}${rAttr}${currAttr}>
-                                    ${params.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${params.title}</span></div>` : ''}
+                                    ${params.title ? `<div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${params.title.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</span></div>` : ''}
                                     <div class="smart-table-toolbar">
                                         <span class="smart-table-info">📊 ${dataReady ? '{{ __('Menginisialisasi tabel...') }}' : 'Memuat...'}</span>
                                         <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
@@ -5545,7 +5545,7 @@
                                     const tableId = 'st-direct-fallback-' + Math.random().toString(36).substr(2, 9);
                                     const titleAttr = ` data-title="${fallbackTitle.replace(/"/g, '&quot;')}"`;
                                     return `<div class="smart-table-wrap" id="${tableId}" data-table-id="${tableId}" data-tool-index="-1"${titleAttr}>
-                                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${fallbackTitle}</span></div>
+                                    <div class="smart-table-title"><span class="text-orange-500">📋</span> <span>${fallbackTitle.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</span></div>
                                     <div class="smart-table-toolbar">
                                         <span class="smart-table-info">📊 {{ __('Memulihkan data...') }}</span>
                                         <input class="smart-table-search" type="text" placeholder="{{ __('🔍 Cari di tabel...') }}">
@@ -5734,7 +5734,7 @@
 
                                 if (parsed.tool_call) {
                                     const tc = parsed.tool_call;
-                                    const icon = toolIcons[tc.name] || '';
+                                    const icon = toolIcons[tc.name] || '⚙️';
                                     const label = toolLabels[tc.name] || '{{ __('Memproses data') }}';
                                     if (tc.status === 'running') {
                                         const badge = document.createElement('div');
