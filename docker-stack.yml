@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    image: awandadarkotech/darkoai:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:5000
+    env_file:
+      - .env
+    stop_grace_period: 30m
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 15s
+        order: start-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: start-first
+      restart_policy:
+        condition: any
