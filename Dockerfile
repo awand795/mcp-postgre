@@ -1,50 +1,87 @@
-FROM dunglas/frankenphp:php8.2
+# =============================================================================
+# Stage 1: PHP vendor — install composer dependencies
+# =============================================================================
+FROM dunglas/frankenphp:php8.2 AS vendor
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    libpq-dev \
-    nodejs \
-    npm \
-    sqlite3 \
-    libsqlite3-dev \
-    libzip-dev
-
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
-RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring exif pcntl bcmath gd zip intl redis
+# Install PHP extensions needed for composer & runtime
+RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring \
+    exif pcntl bcmath gd zip intl redis
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /app
 
-# Copy existing application directory contents
-COPY . /app
+# Copy only dependency files (leverage cache)
+COPY composer.json composer.lock ./
 
-# Install Node modules and build
-RUN npm install && npm run build && rm -rf node_modules
+# Install production dependencies only (no scripts — artisan not available yet)
+RUN composer install --optimize-autoloader --no-dev --no-scripts
 
-# Install PHP dependencies
-RUN composer install --optimize-autoloader --no-dev
+
+# =============================================================================
+# Stage 2: Frontend assets — build CSS/JS with Vite
+# =============================================================================
+FROM node:20-alpine AS frontend
+
+WORKDIR /build
+
+# Copy dependency manifests
+COPY package.json package-lock.json vite.config.js ./
+
+# Install npm dependencies
+RUN npm install
+
+# Copy source files
+COPY resources/ resources/
+
+# Build production assets
+RUN npm run build
+
+
+# =============================================================================
+# Stage 3: Final — minimal production image
+# =============================================================================
+FROM dunglas/frankenphp:php8.2
+
+# Install PHP extensions (runtime only)
+RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring \
+    exif pcntl bcmath gd zip intl redis
+
+WORKDIR /app
+
+# Copy Composer binary (needed for Octane)
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Copy vendor from composer stage
+COPY --from=vendor /app/vendor ./vendor
+
+# Copy built frontend assets
+COPY --from=frontend /build/public/build ./public/build
+
+# Copy application source code (only what's needed at runtime)
+COPY app/ app/
+COPY bootstrap/ bootstrap/
+COPY config/ config/
+COPY database/ database/
+COPY lang/ lang/
+COPY public/ public/
+COPY resources/ resources/
+COPY routes/ routes/
+COPY storage/ storage/
+COPY artisan .
+COPY composer.json composer.lock ./
+
+# Regenerate autoloader with full app context (runs package:discover properly)
+RUN composer dump-autoload --optimize
 
 # Set up Laravel Octane for FrankenPHP
 RUN php artisan octane:install --server=frankenphp
 
-# Ensure permissions (FrankenPHP runs as root by default, but we should make sure storage is writable)
+# Clear cached files and set permissions
 RUN rm -rf /app/bootstrap/cache/*.php
 RUN chmod -R 777 /app/storage /app/bootstrap/cache
 
 EXPOSE 5000
 
-# Start Laravel Octane using FrankenPHP
 CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=5000", "--admin-port=2019"]
