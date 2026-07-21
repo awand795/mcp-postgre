@@ -3,8 +3,7 @@ version: '3.8'
 services:
   redis:
     image: redis:7-alpine
-    environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: ["redis-server", "--requirepass", "darkoRedis2024", "--appendonly", "no"]
     volumes:
       - redis_data:/data
     deploy:

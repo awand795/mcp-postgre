@@ -5,6 +5,10 @@ set -e
 
 echo "Menyiapkan deployment darkoAI ke Docker Swarm..."
 
+# Export variables from .env so Docker Stack can resolve ${VAR} references
+# Note: Docker Stack (unlike Docker Compose) does NOT read .env automatically
+export REDIS_PASSWORD=$(grep '^REDIS_PASSWORD=' .env | cut -d= -f2 | head -1)
+
 # Tarik image terbaru dari registry
 echo "Menarik image awandadarkotech/darkoai:latest..."
 docker pull awandadarkotech/darkoai:latest
