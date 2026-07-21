@@ -576,7 +576,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|unique:database_connections',
             'code' => 'required|unique:database_connections|alpha_dash',
-            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
             'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
             'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
@@ -670,7 +670,7 @@ class AdminController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|unique:database_connections,name,' . $database->id,
-            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+            'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
             'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
             'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
@@ -849,7 +849,7 @@ class AdminController extends Controller
     {
         try {
             $validated = $request->validate([
-                'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite',
+                'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
                 'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
                 'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
                 'database' => 'required',

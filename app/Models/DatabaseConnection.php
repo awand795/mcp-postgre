@@ -235,7 +235,9 @@ class DatabaseConnection extends Model
             DB::purge('test_connection');
             config(["database.connections.test_connection" => $config]);
 
-            $pdo = DB::connection('test_connection')->getPdo();
+            if ($this->driver !== 'clickhouse') {
+                $pdo = DB::connection('test_connection')->getPdo();
+            }
             $versionQuery = DriverFactory::getVersionQuery($this->driver);
             $result = DB::connection('test_connection')->select($versionQuery);
 
@@ -283,7 +285,7 @@ class DatabaseConnection extends Model
 
             // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
             // (lebih reliable daripada DATABASE() pada dynamic connections)
-            if ($this->driver === 'mysql' || $this->driver === 'mariadb') {
+            if ($this->driver === 'mysql' || $this->driver === 'mariadb' || $this->driver === 'clickhouse') {
                 $tables = DB::connection($tempConn)->select($query, [$this->database]);
             } else {
                 // SQLite uses PRAGMA which can't be parameterized

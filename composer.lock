@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "62cc69950f66132b0461e8a9c979f98d",
+    "content-hash": "11bce8bcc774fa8c1cf85295a0b56a85",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -82,6 +82,183 @@
                 }
             ],
             "time": "2026-02-21T08:51:10+00:00"
+        },
+        {
+            "name": "bavix/clickhouse-builder",
+            "version": "6.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bavix/ClickhouseBuilder.git",
+                "reference": "c69eaec9be5ae050c4c4360f2add937e19c057d7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bavix/ClickhouseBuilder/zipball/c69eaec9be5ae050c4c4360f2add937e19c057d7",
+                "reference": "c69eaec9be5ae050c4c4360f2add937e19c057d7",
+                "shasum": ""
+            },
+            "require": {
+                "myclabs/php-enum": "^1.5",
+                "php": "^8.2",
+                "the-tinderbox/clickhouse-php-client": "^3.0"
+            },
+            "replace": {
+                "the-tinderbox/clickhouse-builder": "self.version"
+            },
+            "require-dev": {
+                "illuminate/config": "5.*",
+                "illuminate/database": "5.*",
+                "illuminate/events": "5.*",
+                "illuminate/pagination": "5.*",
+                "mockery/mockery": "^0.9.9|^1.4",
+                "phpunit/phpunit": "^6.1|^9.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Tinderbox\\ClickhouseBuilder\\Integrations\\Laravel\\ClickhouseServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
+                "psr-4": {
+                    "Tinderbox\\ClickhouseBuilder\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "authors": [
+                {
+                    "name": "FacedSID",
+                    "email": "ay@imagespark.ru"
+                },
+                {
+                    "name": "Evsign",
+                    "email": "evsign.alex@gmail.com"
+                }
+            ],
+            "description": "Clickhouse sql query builder",
+            "support": {
+                "source": "https://github.com/bavix/ClickhouseBuilder/tree/6.2.1"
+            },
+            "time": "2026-02-26T18:19:50+00:00"
+        },
+        {
+            "name": "bavix/clickhouse-php-client",
+            "version": "3.2.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bavix/ClickhouseClient.git",
+                "reference": "bbddd11519d99151105121a637b1a231af84253f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bavix/ClickhouseClient/zipball/bbddd11519d99151105121a637b1a231af84253f",
+                "reference": "bbddd11519d99151105121a637b1a231af84253f",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^6.0|^7.0",
+                "php": "^8.2"
+            },
+            "replace": {
+                "the-tinderbox/clickhouse-php-client": "self.version"
+            },
+            "require-dev": {
+                "mockery/mockery": "^0.9|^1.4",
+                "php-coveralls/php-coveralls": "^2.2",
+                "phpunit/phpcov": "^5.0|^6.0|^7.0|^8.0",
+                "phpunit/phpunit": "^7.0|^8.0|^9.0"
+            },
+            "bin": [
+                "bin/ccat_linux",
+                "bin/ccat_darwin"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tinderbox\\Clickhouse\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "authors": [
+                {
+                    "name": "FacedSID",
+                    "email": "ay@imagespark.ru"
+                }
+            ],
+            "description": "Clickhouse client over HTTP",
+            "support": {
+                "source": "https://github.com/bavix/ClickhouseClient/tree/3.2.1"
+            },
+            "time": "2026-02-26T18:19:25+00:00"
+        },
+        {
+            "name": "bavix/laravel-clickhouse",
+            "version": "3.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bavix/laravel-clickhouse.git",
+                "reference": "f1cbd0091f99d224434b56447e0ee3bbea8f9531"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bavix/laravel-clickhouse/zipball/f1cbd0091f99d224434b56447e0ee3bbea8f9531",
+                "reference": "f1cbd0091f99d224434b56447e0ee3bbea8f9531",
+                "shasum": ""
+            },
+            "require": {
+                "bavix/clickhouse-builder": "^6.2",
+                "bavix/clickhouse-php-client": "^3.2",
+                "ext-json": "*",
+                "laravel/framework": "^11.0|^12.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "driftingly/rector-laravel": "^1.0|^2.0",
+                "ergebnis/phpstan-rules": "^2.1",
+                "fakerphp/faker": "^1.23",
+                "infection/infection": "~0.27",
+                "larastan/larastan": "^2.0|^3.0",
+                "mockery/mockery": "^1.6",
+                "nunomaduro/collision": "^7.0|^8.0",
+                "orchestra/testbench": "^8.0|^9.0|^10.0",
+                "phpstan/phpstan": "^1.0|^2.0",
+                "phpunit/phpunit": "^10.5|^11.0",
+                "rector/rector": "^1.0|^2.0",
+                "symplify/easy-coding-standard": "^12.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Bavix\\LaravelClickHouse\\ClickHouseServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Bavix\\LaravelClickHouse\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Eloquent model for ClickHouse",
+            "keywords": [
+                "clickhouse",
+                "eloquent",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/bavix/laravel-clickhouse/issues",
+                "source": "https://github.com/bavix/laravel-clickhouse/tree/3.1.0"
+            },
+            "time": "2026-02-26T18:35:18+00:00"
         },
         {
             "name": "brick/math",
@@ -3294,6 +3471,69 @@
                 }
             ],
             "time": "2026-01-02T08:56:05+00:00"
+        },
+        {
+            "name": "myclabs/php-enum",
+            "version": "1.8.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/myclabs/php-enum.git",
+                "reference": "e7be26966b7398204a234f8673fdad5ac6277802"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/myclabs/php-enum/zipball/e7be26966b7398204a234f8673fdad5ac6277802",
+                "reference": "e7be26966b7398204a234f8673fdad5ac6277802",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "php": "^7.3 || ^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^9.5",
+                "squizlabs/php_codesniffer": "1.*",
+                "vimeo/psalm": "^4.6.2 || ^5.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "MyCLabs\\Enum\\": "src/"
+                },
+                "classmap": [
+                    "stubs/Stringable.php"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP Enum contributors",
+                    "homepage": "https://github.com/myclabs/php-enum/graphs/contributors"
+                }
+            ],
+            "description": "PHP Enum implementation",
+            "homepage": "https://github.com/myclabs/php-enum",
+            "keywords": [
+                "enum"
+            ],
+            "support": {
+                "issues": "https://github.com/myclabs/php-enum/issues",
+                "source": "https://github.com/myclabs/php-enum/tree/1.8.5"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/mnapoli",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/myclabs/php-enum",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2025-01-14T11:49:03+00:00"
         },
         {
             "name": "nesbot/carbon",

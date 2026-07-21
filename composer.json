@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "*",
+        "bavix/laravel-clickhouse": "*",
         "laravel/framework": "^12.0",
         "laravel/octane": "*",
         "laravel/sanctum": "^4.0",

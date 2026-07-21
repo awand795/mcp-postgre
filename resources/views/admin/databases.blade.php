@@ -65,6 +65,7 @@
             <option value="pgsql">PostgreSQL</option>
             <option value="mysql">MySQL</option>
             <option value="mariadb">MariaDB</option>
+            <option value="clickhouse">ClickHouse</option>
         </select>
         <select id="filterStatus" onchange="filterDatabases()" class="filter-select">
             <option value="">{{ __('Semua Status') }}</option>
@@ -117,7 +118,7 @@
             {{-- Card Header --}}
             <div class="db-card-header">
                 <div class="db-icon driver-icon-{{ $db->driver }}">
-                    <i class="fas {{ $db->driver === 'mysql' || $db->driver === 'mariadb' ? 'fa-database' : ($db->driver === 'sqlsrv' ? 'fa-server' : ($db->driver === 'sqlite' ? 'fa-file-code' : 'fa-database')) }}"></i>
+                    <i class="fas {{ $db->driver === 'mysql' || $db->driver === 'mariadb' ? 'fa-database' : ($db->driver === 'sqlsrv' ? 'fa-server' : ($db->driver === 'sqlite' ? 'fa-file-code' : ($db->driver === 'clickhouse' ? 'fa-chart-pie' : 'fa-database'))) }}"></i>
                 </div>
                 <div class="db-title-block">
                     <h3 class="db-name">{{ $db->name }}</h3>
@@ -318,6 +319,10 @@
                         <div class="driver-option" data-driver="mariadb" onclick="selectDriver('mariadb')">
                             <div class="driver-opt-icon mariadb-icon"><i class="fas fa-database"></i></div>
                             <span>MariaDB</span>
+                        </div>
+                        <div class="driver-option" data-driver="clickhouse" onclick="selectDriver('clickhouse')">
+                            <div class="driver-opt-icon clickhouse-icon"><i class="fas fa-chart-pie"></i></div>
+                            <span>ClickHouse</span>
                         </div>
                     </div>
                     <input type="hidden" name="driver" id="dbDriverSelect" value="pgsql">
@@ -981,6 +986,7 @@ html.dark .btn-cancel:hover { background: rgba(225, 29, 72, 0.2); color: #fda4af
 .driver-icon-mysql, .driver-icon-mariadb { background: linear-gradient(135deg, #00758f, #f29111); }
 .driver-icon-sqlsrv  { background: linear-gradient(135deg, #e04e3d, #f47b2b); }
 .driver-icon-sqlite  { background: linear-gradient(135deg, #003b57, #44a0d3); }
+.driver-icon-clickhouse { background: linear-gradient(135deg, #ffd700, #ff8c00); }
 
 .db-title-block { flex: 1; min-width: 0; }
 .db-name { font-size: 1rem; font-weight: 700; margin: 0 0 0.35rem 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1271,6 +1277,7 @@ html.dark .chip-pending { color: #f59e0b; border-color: rgba(245,158,11,0.2); }
 .mariadb-icon { background: linear-gradient(135deg, #003545, #c0765a); }
 .sqlsrv-icon  { background: linear-gradient(135deg, #e04e3d, #f47b2b); }
 .sqlite-icon  { background: linear-gradient(135deg, #003b57, #44a0d3); }
+.clickhouse-icon { background: linear-gradient(135deg, #ffd700, #ff8c00); }
 
 /* Checkbox */
 .checkbox-label {
@@ -1575,6 +1582,7 @@ const driverConfig = {
     mariadb: { port: 3306,  usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database MariaDB') }}", schemaHint: "{{ __('MariaDB: kosongkan untuk otomatis') }}" },
     sqlsrv:  { port: 1433,  usesSchema: true,  defaultSchema: 'dbo',    hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database SQL Server') }}", schemaHint: "{{ __('SQL Server: dbo, sch_nama') }}" },
     sqlite:  { port: 0,     usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Path File') }}", dbLabel: "{{ __('Path File SQLite') }}", dbHint: "{{ __('Path lengkap ke file .sqlite atau .db') }}", schemaHint: '' },
+    clickhouse:{ port: 8123,  usesSchema: false, defaultSchema: '',       hostLabel: "{{ __('Host') }}", dbLabel: "{{ __('Nama Database') }}", dbHint: "{{ __('Nama database ClickHouse') }}", schemaHint: '' },
 };
 
 // ═══════════════════════════════════════

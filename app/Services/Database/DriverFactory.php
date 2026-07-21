@@ -19,6 +19,7 @@ class DriverFactory
         'mariadb' => MySqlAdapter::class, // MariaDB uses same adapter as MySQL
         'sqlsrv' => SqlServerAdapter::class,
         'sqlite' => SqliteAdapter::class,
+        'clickhouse' => ClickhouseAdapter::class,
     ];
 
     /**
@@ -63,6 +64,7 @@ class DriverFactory
             'mariadb' => 3306,
             'sqlsrv'  => 1433,
             'sqlite'  => null,
+            'clickhouse' => 8123,
             default   => null,
         };
     }
@@ -82,7 +84,7 @@ class DriverFactory
     public static function getVersionQuery(string $driver): string
     {
         return match ($driver) {
-            'pgsql', 'mysql', 'mariadb' => 'SELECT version() AS version',
+            'pgsql', 'mysql', 'mariadb', 'clickhouse' => 'SELECT version() AS version',
             'sqlsrv' => 'SELECT @@version AS version',
             'sqlite' => 'SELECT sqlite_version() AS version',
             default => 'SELECT version() AS version',
