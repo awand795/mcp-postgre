@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
-RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring exif pcntl bcmath gd zip
+RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring exif pcntl bcmath gd zip intl redis
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -32,7 +32,7 @@ WORKDIR /app
 COPY . /app
 
 # Install Node modules and build
-RUN npm install && npm run build
+RUN npm install && npm run build && rm -rf node_modules
 
 # Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev
@@ -41,6 +41,7 @@ RUN composer install --optimize-autoloader --no-dev
 RUN php artisan octane:install --server=frankenphp
 
 # Ensure permissions (FrankenPHP runs as root by default, but we should make sure storage is writable)
+RUN rm -rf /app/bootstrap/cache/*.php
 RUN chmod -R 777 /app/storage /app/bootstrap/cache
 
 EXPOSE 5000
