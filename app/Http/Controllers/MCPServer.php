@@ -17,7 +17,7 @@ use PhpMcp\Laravel\Server;
  * Entry point untuk MCP Server project ini.
  *
  * Fitur:
- *   - Multi-database (PostgreSQL, MySQL, MariaDB, SQL Server, SQLite)
+ *   - Multi-database (PostgreSQL, MySQL, MariaDB, SQL Server, SQLite, ClickHouse)
  *   - Multi-provider AI (Claude, OpenAI, Groq, Mistral, OpenRouter, dll)
  *   - RBAC per-user / per-role (tabel & schema yang boleh diakses)
  *   - Autentikasi via Bearer token (mcp_api_token)

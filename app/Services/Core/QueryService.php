@@ -173,6 +173,13 @@ class QueryService extends BaseService
         } elseif ($driver === 'mysql' || $driver === 'mariadb') {
             $forbidden[] = 'load'; // MySQL LOAD DATA
             $forbidden[] = 'into'; // SELECT ... INTO
+        } elseif ($driver === 'clickhouse') {
+            // ClickHouse: blokir perintah DDL & INSERT
+            $forbidden[] = 'insert';
+            $forbidden[] = 'optimize'; // OPTIMIZE TABLE (memakan resource)
+            $forbidden[] = 'attach';   // ATTACH TABLE
+            $forbidden[] = 'detach';   // DETACH TABLE
+            $forbidden[] = 'system';   // SYSTEM commands
         }
 
         $lowerSql = strtolower($sqlStripped);
@@ -433,16 +440,20 @@ class QueryService extends BaseService
             }
 
             // Cek apakah koneksi sudah ada dan masih hidup (keep-alive check)
+            // NOTE: ClickHouse HTTP driver tidak support getPdo(), skip ping
             $needNewConn = true;
-            try {
-                // Coba ping koneksi yang sudah ada
-                DB::connection($connName)->getPdo();
-                $needNewConn = false;
-                Log::info("[QueryService] Reusing persistent connection for {$databaseCode}");
-            } catch (\Throwable $pingEx) {
-                // Koneksi belum ada atau sudah mati → buat baru
-                Log::info("[QueryService] Creating new persistent connection for {$databaseCode}");
+            if ($driver === 'clickhouse') {
+                // ClickHouse: HTTP stateless — selalu buat koneksi baru
                 $needNewConn = true;
+            } else {
+                try {
+                    DB::connection($connName)->getPdo();
+                    $needNewConn = false;
+                    Log::info("[QueryService] Reusing persistent connection for {$databaseCode}");
+                } catch (\Throwable $pingEx) {
+                    Log::info("[QueryService] Creating new persistent connection for {$databaseCode}");
+                    $needNewConn = true;
+                }
             }
 
             if ($needNewConn) {
@@ -484,12 +495,10 @@ class QueryService extends BaseService
                 config(["database.connections.{$connName}" => $connConfig]);
 
                 // Buka koneksi dan set server-side unlimited timeout
+                // ClickHouse tidak support statement_timeout — skip
                 if ($driver === 'pgsql') {
-                    // statement_timeout sudah di-set via DSN options di atas,
-                    // ini sebagai double confirmation
                     DB::connection($connName)->statement('SET statement_timeout = 0');
                 } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                    // Untuk MySQL, INIT_COMMAND sudah handle, tapi set lagi untuk safety
                     DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
                 }
 
@@ -626,6 +635,7 @@ class QueryService extends BaseService
             'mariadb' => ['Statement timeout', 'max_execution_time'],
             'sqlsrv' => ['Timeout expired', 'execution timeout'],
             'sqlite' => ['database is locked'],
+            'clickhouse' => ['timeout', 'e.connect', 'received EOF', 'connection refused'],
         ];
 
         $isTimeout = false;

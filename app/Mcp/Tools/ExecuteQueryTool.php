@@ -25,7 +25,7 @@ class ExecuteQueryTool
 
     #[McpTool(
         name: 'execute_query',
-        description: 'Eksekusi SQL SELECT pada database yang diizinkan. Hanya SELECT yang diperbolehkan. Dukung PostgreSQL, MySQL, MariaDB, SQL Server, SQLite.'
+        description: 'Eksekusi SQL SELECT pada database yang diizinkan. Hanya SELECT yang diperbolehkan. Dukung PostgreSQL, MySQL, MariaDB, SQL Server, SQLite, ClickHouse.'
     )]
     public function handle(
         string $database_code,

@@ -43,6 +43,7 @@ class ExecuteQuery
         if ($driver === 'pgsql')                         $forbidden[] = 'copy';
         elseif ($driver === 'sqlsrv')                    $forbidden[] = 'bulk';
         elseif (in_array($driver, ['mysql','mariadb']))  { $forbidden[] = 'load'; $forbidden[] = 'into'; }
+        elseif ($driver === 'clickhouse')                 { $forbidden[] = 'optimize'; $forbidden[] = 'attach'; $forbidden[] = 'detach'; $forbidden[] = 'system'; }
 
         $lower = strtolower($stripped);
         foreach ($forbidden as $kw) {
@@ -103,6 +104,7 @@ class ExecuteQuery
             } elseif (in_array($driver, ['mysql','mariadb'])) {
                 DB::connection($connName)->statement('SET SESSION max_execution_time = 0');
             }
+            // ClickHouse: tidak support SET timeout commands — skip
 
             $rows = DB::connection($connName)->select($clean);
             DB::purge($connName);
