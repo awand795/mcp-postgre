@@ -577,11 +577,11 @@ class AdminController extends Controller
             'name' => 'required|unique:database_connections',
             'code' => 'required|unique:database_connections|alpha_dash',
             'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
-            'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
-            'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
+            'host' => $this->isHostNullable($request) ? 'nullable|string' : 'required|string',
+            'port' => $this->isHostNullable($request) ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
             'username' => 'nullable',
-            'password' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required',
+            'password' => $this->isHostNullable($request) ? 'nullable|string' : 'required',
             'schema' => 'nullable',
             'ssl_mode' => 'nullable|in:,prefer,require,verify-ca,verify-full',
             'connection_timeout' => 'nullable|integer|min:5|max:300',
@@ -600,8 +600,8 @@ class AdminController extends Controller
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
 
-        // Apply defaults if SSH is used and standard fields are empty
-        if ($validated['use_ssh']) {
+        // Apply defaults if SSH is used (or ClickHouse) and standard fields are empty
+        if ($validated['use_ssh'] || $validated['driver'] === 'clickhouse') {
             if (empty($validated['host'])) {
                 $validated['host'] = '127.0.0.1';
             }
@@ -610,12 +610,14 @@ class AdminController extends Controller
                     'pgsql' => 5432,
                     'mysql', 'mariadb' => 3306,
                     'sqlsrv' => 1433,
+                    'clickhouse' => 8123,
                     default => 0,
                 };
             }
             if (empty($validated['username'])) {
                 $validated['username'] = match ($validated['driver']) {
                     'pgsql' => 'postgres',
+                    'clickhouse' => 'default',
                     default => 'root',
                 };
             }
@@ -671,8 +673,8 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|unique:database_connections,name,' . $database->id,
             'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
-            'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
-            'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
+            'host' => $this->isHostNullable($request) ? 'nullable|string' : 'required|string',
+            'port' => $this->isHostNullable($request) ? 'nullable|integer' : 'required|integer',
             'database' => 'required',
             'username' => 'nullable',
             'password' => 'nullable',
@@ -694,8 +696,8 @@ class AdminController extends Controller
         $validated['is_active'] = $request->has('is_active');
         $validated['is_default'] = $request->has('is_default');
 
-        // Apply defaults if SSH is used and standard fields are empty
-        if ($validated['use_ssh']) {
+        // Apply defaults if SSH is used (or ClickHouse) and standard fields are empty
+        if ($validated['use_ssh'] || $validated['driver'] === 'clickhouse') {
             if (empty($validated['host'])) {
                 $validated['host'] = '127.0.0.1';
             }
@@ -704,12 +706,14 @@ class AdminController extends Controller
                     'pgsql' => 5432,
                     'mysql', 'mariadb' => 3306,
                     'sqlsrv' => 1433,
+                    'clickhouse' => 8123,
                     default => 0,
                 };
             }
             if (empty($validated['username'])) {
                 $validated['username'] = match ($validated['driver']) {
                     'pgsql' => 'postgres',
+                    'clickhouse' => 'default',
                     default => 'root',
                 };
             }
@@ -850,8 +854,8 @@ class AdminController extends Controller
         try {
             $validated = $request->validate([
                 'driver' => 'required|in:pgsql,mysql,mariadb,sqlsrv,sqlite,clickhouse',
-                'host' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|string' : 'required|string',
-                'port' => $request->has('use_ssh') || $request->input('driver') === 'sqlite' ? 'nullable|integer' : 'required|integer',
+                'host' => $this->isHostNullable($request) ? 'nullable|string' : 'required|string',
+                'port' => $this->isHostNullable($request) ? 'nullable|integer' : 'required|integer',
                 'database' => 'required',
                 'username' => 'nullable',
                 'password' => 'nullable',
@@ -871,8 +875,8 @@ class AdminController extends Controller
 
             $validated['use_ssh'] = $request->boolean('use_ssh');
 
-            // Apply defaults if SSH is used and standard fields are empty
-            if ($validated['use_ssh']) {
+            // Apply defaults if SSH is used (or ClickHouse) and standard fields are empty
+            if ($validated['use_ssh'] || $validated['driver'] === 'clickhouse') {
                 if (empty($validated['host'])) {
                     $validated['host'] = '127.0.0.1';
                 }
@@ -881,12 +885,14 @@ class AdminController extends Controller
                         'pgsql' => 5432,
                         'mysql', 'mariadb' => 3306,
                         'sqlsrv' => 1433,
+                        'clickhouse' => 8123,
                         default => 0,
                     };
                 }
                 if (empty($validated['username'])) {
                     $validated['username'] = match ($validated['driver']) {
                         'pgsql' => 'postgres',
+                        'clickhouse' => 'default',
                         default => 'root',
                     };
                 }
@@ -1455,5 +1461,15 @@ class AdminController extends Controller
         }
 
         return $user->managers()->where('admin_id', auth()->id())->exists();
+    }
+
+    /**
+     * Determine if host/port/password can be nullable based on driver and SSH usage.
+     * ClickHouse and SQLite don't always require host/port/password to be filled.
+     */
+    private function isHostNullable(Request $request): bool
+    {
+        $driver = $request->input('driver');
+        return $request->has('use_ssh') || $driver === 'sqlite' || $driver === 'clickhouse';
     }
 }
