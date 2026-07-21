@@ -46,4 +46,4 @@ RUN chmod -R 777 /app/storage /app/bootstrap/cache
 EXPOSE 5000
 
 # Start Laravel Octane using FrankenPHP
-CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=5000"]
+CMD ["php", "artisan", "octane:start", "--server=frankenphp", "--host=0.0.0.0", "--port=5000", "--admin-port=2019"]
