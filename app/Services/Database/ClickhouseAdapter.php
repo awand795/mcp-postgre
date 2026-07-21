@@ -122,13 +122,16 @@ class ClickhouseAdapter extends DriverAdapter
         if (is_array($result) && isset($result[0])) {
             $row = $result[0];
             if (is_array($row)) {
-                return $row['version'] ?? $row['version()'] ?? 'Unknown';
+                $version = $row['version'] ?? $row['version()'] ?? null;
+                if ($version) return 'ClickHouse ' . $version;
             }
             if (is_object($row)) {
-                return $row->version ?? 'Unknown';
+                $version = $row->version ?? null;
+                if ($version) return 'ClickHouse ' . $version;
             }
         }
-        return parent::formatVersion($result);
+        $fallback = parent::formatVersion($result);
+        return $fallback !== 'Unknown' ? 'ClickHouse ' . $fallback : $fallback;
     }
 
     public function getConnectionOptions(array $connection): array
