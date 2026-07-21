@@ -1,8 +1,29 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+      restart_policy:
+        condition: any
+
   app:
     image: awandadarkotech/darkoai:latest
+    depends_on:
+      - redis
     ports:
       - "5000:5000"
     environment:
@@ -29,3 +50,6 @@ services:
         order: start-first
       restart_policy:
         condition: any
+
+volumes:
+  redis_data:
