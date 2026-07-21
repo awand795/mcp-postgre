@@ -174,8 +174,7 @@ class QueryService extends BaseService
             $forbidden[] = 'load'; // MySQL LOAD DATA
             $forbidden[] = 'into'; // SELECT ... INTO
         } elseif ($driver === 'clickhouse') {
-            // ClickHouse: blokir perintah DDL & INSERT
-            $forbidden[] = 'insert';
+            // ClickHouse: blokir perintah DDL berbahaya
             $forbidden[] = 'optimize'; // OPTIMIZE TABLE (memakan resource)
             $forbidden[] = 'attach';   // ATTACH TABLE
             $forbidden[] = 'detach';   // DETACH TABLE
