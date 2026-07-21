@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: awand795/darkoai:latest
+    image: awandadarkotech/darkoai:latest
     build:
       context: .
       dockerfile: Dockerfile
