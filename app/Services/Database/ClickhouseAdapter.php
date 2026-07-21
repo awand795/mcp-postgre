@@ -116,6 +116,21 @@ class ClickhouseAdapter extends DriverAdapter
         return '';
     }
 
+    public function formatVersion(mixed $result): string
+    {
+        // ClickHouse HTTP client returns results as arrays of arrays, not stdClass
+        if (is_array($result) && isset($result[0])) {
+            $row = $result[0];
+            if (is_array($row)) {
+                return $row['version'] ?? $row['version()'] ?? 'Unknown';
+            }
+            if (is_object($row)) {
+                return $row->version ?? 'Unknown';
+            }
+        }
+        return parent::formatVersion($result);
+    }
+
     public function getConnectionOptions(array $connection): array
     {
         $connection['options'] = [

@@ -543,21 +543,21 @@
                             <i class="fas fa-database"></i> {{ __('Kredensial Database') }}
                         </div>
 
-                        {{-- Username & Password (wajib/opsional) --}}
+                        {{-- Username & Password (wajib/opsional) — NOTA: pakai class selector & data-ssh-name, bukan name, agar tidak konflik dgn field standard saat SSH mati --}}
                         <div class="form-row two-col">
                             <div class="form-group">
                                 <label>{{ __('DB Username') }} <span class="req" id="usernameRequiredMark">*</span></label>
-                                <input type="text" name="username" id="dbUsernameInput" placeholder="postgres">
+                                <input type="text" data-ssh-name="username" id="dbUsernameInputSsh" placeholder="postgres" disabled>
                             </div>
-                            <div class="form-group" id="passwordGroup">
+                            <div class="form-group" id="passwordGroupSsh">
                                 <label>{{ __('DB Password') }}</label>
                                 <div class="input-with-icon">
-                                    <input type="password" name="password" id="dbPasswordInput" placeholder="••••••••">
-                                    <button type="button" class="toggle-pass" onclick="togglePassword()">
-                                        <i class="fas fa-eye" id="passEyeIcon"></i>
+                                    <input type="password" data-ssh-name="password" id="dbPasswordInputSsh" placeholder="••••••••" disabled>
+                                    <button type="button" class="toggle-pass" onclick="togglePasswordSsh()">
+                                        <i class="fas fa-eye" id="sshPassEyeIconDb"></i>
                                     </button>
                                 </div>
-                                <small id="passwordHint" style="display:none;">{{ __('Kosongkan jika tidak ingin mengubah') }}</small>
+                                <small id="passwordHintSsh" style="display:none;">{{ __('Kosongkan jika tidak ingin mengubah') }}</small>
                             </div>
                         </div>
 
@@ -585,16 +585,16 @@
                             </div>
                         </div>
 
-                        {{-- Host & Port (opsional) --}}
+                        {{-- Host & Port (opsional) — pakai data-ssh-name agar tidak konflik dgn field standard saat SSH mati --}}
                         <div class="form-row two-col" style="margin-bottom:0;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>{{ __('DB Host') }}</label>
-                                <input type="text" name="host" id="dbHostInput" placeholder="127.0.0.1">
+                                <input type="text" data-ssh-name="host" id="dbHostInputSsh" placeholder="127.0.0.1" disabled>
                                 <small>{{ __('Default: 127.0.0.1') }}</small>
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label>{{ __('DB Port') }}</label>
-                                <input type="number" name="port" id="dbPortInput" placeholder="5432">
+                                <input type="number" data-ssh-name="port" id="dbPortInputSsh" placeholder="5432" disabled>
                                 <small>{{ __('Default: sesuai driver') }}</small>
                             </div>
                         </div>
@@ -1840,6 +1840,21 @@ window.togglePassword = function() {
     }
 };
 
+// Toggle password visibility for SSH section's DB password field
+window.togglePasswordSsh = function() {
+    const input = document.getElementById('dbPasswordInputSsh');
+    const icon  = document.getElementById('sshPassEyeIconDb');
+    if (input && icon) {
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    }
+};
+
 window.toggleSshFields = function() {
     const useSsh = document.getElementById('dbUseSshInput').checked;
     const section = document.getElementById('sshFieldsSection');
@@ -1864,6 +1879,26 @@ window.toggleSshFields = function() {
     const portInputEl = document.getElementById('dbPortInput');
     if (hostInputEl) hostInputEl.required = !useSsh && !isSqlite;
     if (portInputEl) portInputEl.required = !useSsh && !isSqlite;
+
+    // ── FIX: Kelola SSH section DB credential fields (data-ssh-name) ──
+    // Mencegah field duplikat ikut terkirim saat SSH tidak aktif
+    const sshCredFields = document.querySelectorAll('#sshFieldsSection [data-ssh-name]');
+    sshCredFields.forEach(function(field) {
+        const sshName = field.getAttribute('data-ssh-name');
+        if (useSsh) {
+            // Saat SSH aktif: beri name agar terkirim, enable, dan copy nilai dari field standard
+            field.setAttribute('name', sshName);
+            field.disabled = false;
+            const standardField = document.getElementById('db' + sshName.charAt(0).toUpperCase() + sshName.slice(1) + 'Input');
+            if (standardField && !field.value) {
+                field.value = standardField.value;
+            }
+        } else {
+            // Saat SSH non-aktif: hapus name & disabled agar TIDAK terkirim
+            field.removeAttribute('name');
+            field.disabled = true;
+        }
+    });
 
     // Update visual asterisks for standard fields
     const hostLabel    = document.getElementById('hostLabel');
@@ -2309,7 +2344,7 @@ window.deleteDatabase = function(dbId, dbName) {
     const isDark = document.documentElement.classList.contains('dark');
     Swal.fire({
         title: "{{ __('Hapus Database?') }}",
-        html: "{{ __('Koneksi') }} <strong>" + dbName + "</strong> {{ __('akan dihapus.<br><small style=\"color:#64748b;\">Data pada database tidak akan terpengaruh.</small>') }}",
+        html: "{{ __('Koneksi') }} <strong>" + dbName + "</strong> {{ __('akan dihapus.') }}<br><small style=\"color:#64748b;\">{{ __('Data pada database tidak akan terpengaruh.') }}</small>",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
