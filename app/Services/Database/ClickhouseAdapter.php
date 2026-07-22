@@ -164,6 +164,10 @@ class ClickhouseAdapter extends DriverAdapter
      *
      * The bavix/laravel-clickhouse HTTP driver IGNORES the $bindings parameter
      * in its select() method. So we must inline values directly into the SQL.
+     * 
+     * Also, the ClickHouse driver returns results as arrays (not stdClass),
+     * so we convert each row to an object for compatibility with the rest
+     * of the codebase which uses ->property syntax.
      */
     public function executeSelect(string $connectionName, string $query, array $bindings = []): array
     {
@@ -178,7 +182,12 @@ class ClickhouseAdapter extends DriverAdapter
             $sql = $query;
         }
 
-        return \Illuminate\Support\Facades\DB::connection($connectionName)->select($sql);
+        $rows = \Illuminate\Support\Facades\DB::connection($connectionName)->select($sql);
+
+        // Convert array rows to stdClass for compatibility with the rest of the codebase
+        return array_map(function ($row) {
+            return is_array($row) ? (object) $row : $row;
+        }, $rows);
     }
 
     public function getDistinctValuesQuery(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
