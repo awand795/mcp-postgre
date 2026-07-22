@@ -136,13 +136,21 @@ class ClickhouseAdapter extends DriverAdapter
 
     public function getConnectionOptions(array $connection): array
     {
+        // bavix/laravel-clickhouse driver expects these fields at the top level
+        $connection['timeout_connect'] = $connection['connection_timeout'] ?? 5;
+        $connection['timeout_query'] = $connection['connection_timeout'] ?? 5;
+        $connection['https'] = (int)($connection['port'] ?? 8123) === 8443;
+        $connection['retries'] = 0;
+
+        // Nested options for the underlying HTTP client
         $connection['options'] = [
             'database' => $connection['database'] ?? 'default',
             'connect_timeout' => $connection['connection_timeout'] ?? 5,
+            'enable_http_compression' => 1,
         ];
-        
-        $connection['https'] = (int)($connection['port'] ?? 8123) === 8443;
-        $connection['retries'] = 0;
+
+        // Clean up keys not used by ClickHouse driver
+        unset($connection['connection_timeout'], $connection['ssl_mode'], $connection['schema']);
 
         return $connection;
     }

@@ -304,6 +304,10 @@ class DatabaseConnection extends Model
             }
 
             return array_map(function($table) {
+                // Handle both stdClass objects (PDO drivers) and arrays (ClickHouse HTTP driver)
+                if (is_array($table)) {
+                    $table = (object) $table;
+                }
                 $isView = isset($table->table_type) && stripos($table->table_type, 'view') !== false;
                 return [
                     'table_name' => $table->table_name,
