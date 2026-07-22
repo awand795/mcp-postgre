@@ -287,6 +287,19 @@ abstract class BaseService
         $allTables = $connModel->getTables();
         $keywords = [];
 
+        // First, collect all allowed table names so we can skip keywords that
+        // are also present in tables the user DOES have access to.
+        // e.g. 'view_master_cabang_mbi' is NOT allowed but 'v_ms_cabang' IS allowed
+        // → keyword "cabang" should NOT be blocked because it exists in allowed table 'v_ms_cabang'
+        $allowedTableNames = [];
+        foreach ($allTables as $tableInfo) {
+            $tableName = $tableInfo['table_name'];
+            $schema = $tableInfo['schema_name'];
+            if ($this->isTableAllowed($databaseCode, $schema, $tableName, $allowedDbs)) {
+                $allowedTableNames[] = strtolower($tableName);
+            }
+        }
+
         foreach ($allTables as $tableInfo) {
             $tableName = $tableInfo['table_name'];
             $schema = $tableInfo['schema_name'];
@@ -306,7 +319,21 @@ abstract class BaseService
                 $clean = str_replace(['view_master_', 'master_', 'view_', 'mst_', 'm_', '_mbi'], '', $lowTable);
                 $parts = explode('_', $clean);
                 foreach ($parts as $p) {
-                    if (strlen($p) >= 4) $keywords[] = $p;
+                    if (strlen($p) >= 4) {
+                        // Skip keyword if it also exists in an ALLOWED table name
+                        // This prevents generic keywords (like "cabang") from blocking
+                        // authorized tables that share the same word in their name
+                        $keywordInAllowedTable = false;
+                        foreach ($allowedTableNames as $allowedTbl) {
+                            if (str_contains($allowedTbl, $p)) {
+                                $keywordInAllowedTable = true;
+                                break;
+                            }
+                        }
+                        if (!$keywordInAllowedTable) {
+                            $keywords[] = $p;
+                        }
+                    }
                 }
             }
         }
