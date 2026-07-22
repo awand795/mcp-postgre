@@ -21,7 +21,7 @@ class ClickhouseAdapter extends DriverAdapter
                 name AS table_name,
                 database AS table_schema,
                 comment AS description,
-                if(engine IN ('View', 'MaterializedView', 'LiveView', 'WindowView'), 'view', 'table') AS table_type
+                if(lower(engine) LIKE '%view', 'view', 'table') AS table_type
             FROM system.tables
             WHERE database = ?
             ORDER BY name
