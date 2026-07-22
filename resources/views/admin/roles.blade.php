@@ -522,7 +522,7 @@
                                 <span class="badge badge-db">${table.database_name}</span>
                                 <span class="badge badge-schema">${table.schema_name}</span>
                                 <div class="table-name" style="color:var(--text-main);">${table.table_name}</div>
-                                <span class="badge badge-type" style="${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : table.table_type === 'materialized_view' ? 'background: rgba(16, 185, 129, 0.2); color: #34d399;' : 'background: rgba(148, 163, 184, 0.1); color: #94a3b8;'}">${table.table_type === 'view' ? 'View' : table.table_type === 'materialized_view' ? 'Materialized View' : 'Table'}</span>
+                                <span class="badge badge-type" style="${table.table_type === 'view' ? 'background: rgba(168, 85, 247, 0.2); color: #c084fc;' : table.table_type === 'materialized_view' ? 'background: rgba(16, 185, 129, 0.2); color: #34d399;' : 'background: rgba(59, 130, 246, 0.15); color: #60a5fa;'}">${table.table_type === 'view' ? 'View' : table.table_type === 'materialized_view' ? 'Materialized View' : 'Table'}</span>
                             </div>
                             <div class="table-description" style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${table.description || '{{ __("Tidak ada deskripsi") }}'}</div>
                         </div>
