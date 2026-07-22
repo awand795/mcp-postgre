@@ -136,7 +136,7 @@ class SchemaService extends BaseService
             } else {
                 $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
                 $query = $adapter->describeTableWithKeysQuery();
-                $columns = DB::connection($useConn)->select($query, [$tableName, $schemaParam]);
+                $columns = $adapter->executeSelect($useConn, $query, [$tableName, $schemaParam]);
 
                 $forbiddenCols = $this->getForbiddenColumns($databaseCode, $allowedDbs);
 
@@ -160,7 +160,7 @@ class SchemaService extends BaseService
 
                 // Get Index Info
                 $idxQuery = $adapter->getTableIndexesQuery();
-                $idxData = DB::connection($useConn)->select($idxQuery, [$tableName, $schemaParam]);
+                $idxData = $adapter->executeSelect($useConn, $idxQuery, [$tableName, $schemaParam]);
                 foreach ($idxData as $idx) {
                     $indexes[] = [
                         'name' => $idx->index_name,
@@ -398,7 +398,7 @@ class SchemaService extends BaseService
             // FIX: Untuk MySQL/MariaDB, gunakan database name sebagai schema param
             $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
             $params = ($dbModel->driver === 'sqlite') ? [$viewName] : [$viewName, $schemaParam];
-            $definition = DB::connection($connName)->select($query, $params);
+            $definition = $adapter->executeSelect($connName, $query, $params);
 
             DB::purge($connName);
             return $this->safeJsonEncode([
@@ -441,7 +441,7 @@ class SchemaService extends BaseService
                 $placeholderCount = substr_count($query, '?');
                 $params = array_fill(0, $placeholderCount, $searchTerm);
 
-                $matches = DB::connection($connName)->select($query, $params);
+                $matches = $adapter->executeSelect($connName, $query, $params);
 
                 $forbidden = $this->getForbiddenColumns($dbCode, $allowedDbs);
 
@@ -720,7 +720,7 @@ class SchemaService extends BaseService
 
             $schemaParam = $adapter->usesSchema() ? $schemaName : $dbModel->database;
             $query = $adapter->describeTableWithKeysQuery();
-            $columns = DB::connection($connName)->select($query, [$tableName, $schemaParam]);
+            $columns = $adapter->executeSelect($connName, $query, [$tableName, $schemaParam]);
 
             $result = array_map(fn($col) => $col->column_name, $columns);
 

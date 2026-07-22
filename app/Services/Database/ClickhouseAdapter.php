@@ -159,6 +159,28 @@ class ClickhouseAdapter extends DriverAdapter
         return $connection;
     }
 
+    /**
+     * Execute a SELECT query via ClickHouse, properly handling parameter bindings.
+     *
+     * The bavix/laravel-clickhouse HTTP driver IGNORES the $bindings parameter
+     * in its select() method. So we must inline values directly into the SQL.
+     */
+    public function executeSelect(string $connectionName, string $query, array $bindings = []): array
+    {
+        if (!empty($bindings)) {
+            $parts = explode('?', $query);
+            $sql = $parts[0] ?? '';
+            for ($i = 0; $i < count($bindings); $i++) {
+                $escaped = str_replace("'", "''", $bindings[$i]);
+                $sql .= "'{$escaped}'" . ($parts[$i + 1] ?? '');
+            }
+        } else {
+            $sql = $query;
+        }
+
+        return \Illuminate\Support\Facades\DB::connection($connectionName)->select($sql);
+    }
+
     public function getDistinctValuesQuery(string $schemaName, string $tableName, string $columnName, int $limit = 20): string
     {
         return "SELECT DISTINCT `{$columnName}` FROM `{$tableName}` WHERE `{$columnName}` IS NOT NULL LIMIT {$limit}";

@@ -125,6 +125,23 @@ abstract class DriverAdapter
     }
 
     /**
+     * Execute a SELECT query on a database connection, properly handling bindings.
+     *
+     * Default implementation uses standard parameter binding.
+     * Subclasses (e.g. ClickhouseAdapter) can override if the driver doesn't
+     * support parameter binding in select().
+     *
+     * @param  string $connectionName Laravel connection name
+     * @param  string $query          SQL query with ? placeholders
+     * @param  array  $bindings       Values to bind to ? placeholders
+     * @return array  Array of stdClass results
+     */
+    public function executeSelect(string $connectionName, string $query, array $bindings = []): array
+    {
+        return \Illuminate\Support\Facades\DB::connection($connectionName)->select($query, $bindings);
+    }
+
+    /**
      * Check if a column name pattern suggests monetary/currency data
      */
     public function isCurrencyColumn(string $columnName): bool

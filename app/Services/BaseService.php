@@ -358,7 +358,8 @@ abstract class BaseService
                 ? [$table, $schema ?: $connModel->schema ?: 'public']
                 : [$table, $connModel->database];
 
-            $results = \Illuminate\Support\Facades\DB::connection($tempConn)->select($query, $params);
+            // Use adapter's executeSelect() to properly handle ClickHouse binding issue
+            $results = $adapter->executeSelect($tempConn, $query, $params);
             \Illuminate\Support\Facades\DB::purge($tempConn);
 
             return array_map(fn($r) => $r->column_name, $results);
