@@ -965,6 +965,7 @@ class AdminController extends Controller
                             'table_name'    => $table['table_name'],
                             'description'   => $table['description'] ?? '',
                             'table_type'    => $table['table_type'] ?? 'table',
+                            'engine'        => $table['engine'] ?? ($table['table_type'] === 'view' ? 'View' : 'Table'),
                         ];
                     }
                 } catch (\Exception $e) {

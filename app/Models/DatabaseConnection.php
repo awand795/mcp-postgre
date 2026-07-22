@@ -323,6 +323,7 @@ class DatabaseConnection extends Model
                     'schema_name' => $table->table_schema ?? $this->schema ?? '',
                     'description' => $table->description ?? '',
                     'table_type' => $isView ? 'view' : 'table',
+                    'engine' => $table->engine ?? ($isView ? 'View' : 'Table'),
                 ];
             }, $tables);
         } catch (\Exception $e) {
