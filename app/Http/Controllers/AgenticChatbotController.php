@@ -1492,13 +1492,21 @@ class AgenticChatbotController extends Controller
 
         $mainTablesHint = [];
         try {
-            $conns = \App\Models\DatabaseConnection::active()->get();
-            foreach ($conns as $conn) {
-                $tables = $conn->getTables();
-                $tableNames = array_column($tables, 'table_name');
-
+            // Gunakan allowedDatabases (RBAC) untuk menyusun hint tabel, BUKAN
+            // fetch semua tabel dari semua koneksi — agar AI hanya melihat tabel
+            // yang memang diizinkan untuk role user yang login.
+            foreach ($allowedDatabases as $dbCode => $schemas) {
+                $tableNames = [];
+                foreach ($schemas as $schema => $tables) {
+                    foreach ($tables as $t) {
+                        $name = is_array($t) ? ($t['name'] ?? '') : $t;
+                        if (!empty($name) && $name !== '*') {
+                            $tableNames[] = $name;
+                        }
+                    }
+                }
                 if (!empty($tableNames)) {
-                    $mainTablesHint[] = "Database [{$conn->database}]: " . implode(', ', $tableNames);
+                    $mainTablesHint[] = "Database [{$dbCode}]: " . implode(', ', array_unique($tableNames));
                 }
             }
         } catch (\Exception $e) {
