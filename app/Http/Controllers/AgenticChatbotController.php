@@ -89,7 +89,8 @@ class AgenticChatbotController extends Controller
         }
 
         $allowedDatabases = [];
-        if ($user->is_admin || $user->is_super_admin) {
+        // Only Super Admin sees all databases. Regular admin follows RBAC.
+        if ($user->is_super_admin) {
             $conns = \App\Models\DatabaseConnection::active()->get();
             foreach ($conns as $c) {
                 $tables = $c->getTables();

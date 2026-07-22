@@ -77,8 +77,9 @@ class QueryService extends BaseService
 
         $user = Auth::user();
 
-        // Admin sees all active databases
-        if ($user->is_admin || $user->is_super_admin) {
+        // Only Super Admin sees all active databases.
+        // Regular admin (is_admin = true) must follow role-based permissions.
+        if ($user->is_super_admin) {
             $connections = \App\Models\DatabaseConnection::where('is_active', true)->get();
             $result = [];
             foreach ($connections as $conn) {

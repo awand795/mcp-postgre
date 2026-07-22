@@ -181,8 +181,9 @@ abstract class BaseService
      */
     protected function getForbiddenColumns(string $databaseCode, array $allowedDbs): array
     {
-        // Admin has no column restrictions
-        if (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_super_admin)) {
+        // Only Super Admin has no column restrictions.
+        // Regular admin follows RBAC column restrictions.
+        if (auth()->check() && auth()->user()->is_super_admin) {
             return [];
         }
 
@@ -277,7 +278,8 @@ abstract class BaseService
      */
     public function getForbiddenKeywords(string $databaseCode, array $allowedDbs): array
     {
-        if (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_super_admin)) return [];
+        // Only Super Admin skips forbidden keywords. Regular admin follows RBAC.
+        if (auth()->check() && auth()->user()->is_super_admin) return [];
 
         $connModel = \App\Models\DatabaseConnection::where('database', $databaseCode)->active()->first();
         if (!$connModel) return [];
@@ -359,8 +361,8 @@ abstract class BaseService
      */
     protected function getUnderlyingTables(string $databaseCode, ?string $schema, string $table): array
     {
-        // Don't check for admin (they have access anyway)
-        if (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_super_admin)) {
+        // Only Super Admin bypasses Deep RBAC. Regular admin must follow RBAC.
+        if (auth()->check() && auth()->user()->is_super_admin) {
             return [];
         }
 
