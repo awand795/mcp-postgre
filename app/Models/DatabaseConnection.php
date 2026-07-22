@@ -283,9 +283,18 @@ class DatabaseConnection extends Model
 
             $query = $adapter->listTablesQuery();
 
-            // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
-            // (lebih reliable daripada DATABASE() pada dynamic connections)
-            if ($this->driver === 'mysql' || $this->driver === 'mariadb' || $this->driver === 'clickhouse') {
+            if ($this->driver === 'clickhouse') {
+                // ClickHouse HTTP driver (bavix/laravel-clickhouse) IGNORES the $bindings parameter.
+                // The select() method signature is: select($query, $bindings = [], $tables = [])
+                // and it passes $tables (3rd param) to readOne(), not $bindings (2nd param).
+                // So we must inline the database name directly into the SQL query.
+                // Escape single quotes dengan cara SQL standar (double single-quote)
+                $escapedDb = str_replace("'", "''", $this->database);
+                $query = str_replace('?', "'{$escapedDb}'", $query);
+                $tables = DB::connection($tempConn)->select($query);
+            } elseif ($this->driver === 'mysql' || $this->driver === 'mariadb') {
+                // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
+                // (lebih reliable daripada DATABASE() pada dynamic connections)
                 $tables = DB::connection($tempConn)->select($query, [$this->database]);
             } else {
                 // SQLite uses PRAGMA which can't be parameterized
