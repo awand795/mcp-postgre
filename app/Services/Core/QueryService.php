@@ -214,11 +214,16 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 5: Validasi akses tabel (Strict RBAC) ──────────────────────
-        $allowedDbs = $this->getAllowedTables();
+        // Super Admin memiliki akses penuh tanpa filter table RBAC
+        $user = Auth::user();
+        if ($user && $user->is_super_admin) {
+            // Super Admin bypasses table access validation
+        } else {
+            $allowedDbs = $this->getAllowedTables();
 
-        if (!isset($allowedDbs[$databaseCode])) {
-            return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
-        }
+            if (!isset($allowedDbs[$databaseCode])) {
+                return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
+            }
 
         // BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
         //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
@@ -323,10 +328,11 @@ class QueryService extends BaseService
             }
         }
 
-        // ── LAYER 5.5: Global Security Policy (Columns & Keywords) ───────────
-        $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $sqlForRbacScan);
-        if ($policyViolation) {
-            return $policyViolation;
+            // ── LAYER 5.5: Global Security Policy (Columns & Keywords) ───────────
+            $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $sqlForRbacScan);
+            if ($policyViolation) {
+                return $policyViolation;
+            }
         }
 
         // ── LAYER 5.8: Inject User Table Filters (Row Level Security) ────────
