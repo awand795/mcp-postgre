@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: PHP vendor — install composer dependencies
 # =============================================================================
-FROM dunglas/frankenphp:php8.2 AS vendor
+FROM dunglas/frankenphp:php8.2-alpine AS vendor
 
 # Install PHP extensions needed for composer & runtime
 RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring \
@@ -42,7 +42,7 @@ RUN npm run build
 # =============================================================================
 # Stage 3: Final — minimal production image
 # =============================================================================
-FROM dunglas/frankenphp:php8.2
+FROM dunglas/frankenphp:php8.2-alpine
 
 # Install PHP extensions (runtime only)
 RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring \
