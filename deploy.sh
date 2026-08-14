@@ -1,20 +1,24 @@
 #!/bin/bash
-
-# Pastikan script berhenti jika ada error
 set -e
 
-echo "Menyiapkan deployment darkoAI ke Docker Swarm..."
+echo "Menyiapkan deployment darkoAI..."
 
-# Export variables from .env so Docker Stack can resolve ${VAR} references
-# Note: Docker Stack (unlike Docker Compose) does NOT read .env automatically
-export REDIS_PASSWORD=$(grep '^REDIS_PASSWORD=' .env | cut -d= -f2 | head -1)
+# Pastikan berada di direktori yang benar
+cd /home/awanda/darkoAI
 
-# Tarik image terbaru dari registry
+# Hentikan container lama jika ada
+echo "Menghentikan service lama..."
+docker compose -f docker-compose.prod.yml down || true
+
+# Tarik image terbaru
 echo "Menarik image awandadarkotech/darkoai:latest..."
-docker pull awandadarkotech/darkoai:latest
+docker compose -f docker-compose.prod.yml pull
 
-# Deploy ke Docker Swarm
-echo "Mendeploy stack darkoAI..."
-docker stack deploy -c docker-stack.yml darkoAI --with-registry-auth
+# Jalankan container baru
+echo "Membangun dan menjalankan service baru..."
+docker compose -f docker-compose.prod.yml up -d
 
-echo "Deployment berhasil dikirim ke Swarm. Gunakan 'docker service ls' atau 'docker stack ps darkoAI' untuk melihat status."
+echo "========================================="
+echo "Deployment berhasil! "
+echo "Gunakan 'docker compose -f docker-compose.prod.yml ps' untuk melihat status."
+echo "========================================="

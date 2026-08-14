@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  app:
+    image: awandadarkotech/darkoai:latest
+    container_name: mcp_app
+    restart: always
+    # Host network: app must reach PostgreSQL (8832), ClickHouse (8123), etc.
+    # on the host's 127.0.0.1 — pg_hba.conf only allows localhost connections.
+    network_mode: host
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+    env_file:
+      - .env
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: mcp_redis
+    restart: always
+    command: ["redis-server", "--requirepass", "darkoRedis2024", "--appendonly", "no"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - mcp_network
+
+  # SearXNG metasearch engine for the app's web_search tool.
+  # Only reachable from localhost (app runs on host network).
+  searxng:
+    image: searxng/searxng:latest
+    container_name: mcp_searxng
+    restart: always
+    ports:
+      - "127.0.0.1:5100:8080"
+    environment:
+      - SEARXNG_BASE_URL=http://127.0.0.1:5100/
+    volumes:
+      - searxng_config:/etc/searxng
+
+networks:
+  mcp_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  searxng_config:
