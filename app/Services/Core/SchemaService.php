@@ -20,6 +20,13 @@ class SchemaService extends BaseService
      */
     private QueryService $queryService;
 
+    /**
+     * Batas jumlah nama tabel yang dikembalikan get_database_schema_info per database.
+     * Menjaga hasil tool tetap kecil (hemat input token) — tabel lain tetap bisa
+     * ditemukan model lewat search_schema.
+     */
+    private const MAX_SCHEMA_INFO_TABLES = 60;
+
     public function __construct(QueryService $queryService)
     {
         $this->queryService = $queryService;
@@ -623,9 +630,38 @@ class SchemaService extends BaseService
             foreach ($schemas as $schema => $tables) {
                 $formattedTables = [];
 
+                // HEMAT INPUT TOKEN: batasi daftar tabel yang dikembalikan (paralel
+                // dengan hint di system prompt) — tabel ber-prefix "mv_" (materialized
+                // view mirror) dan "cdc_" (copy per-perusahaan) di-skip, sisanya
+                // diprioritaskan (master > view) lalu di-cap per database. Tabel lain
+                // tetap bisa ditemukan model lewat search_schema.
+                $tableNames = [];
                 foreach ($tables as $t) {
-                    $tableName = is_array($t) ? ($t['name'] ?? '') : $t;
+                    $name = is_array($t) ? ($t['name'] ?? '') : $t;
+                    if (empty($name) || $name === '*') {
+                        continue;
+                    }
+                    if (str_starts_with($name, 'mv_') || str_starts_with($name, 'cdc_')) {
+                        continue;
+                    }
+                    $tableNames[] = $name;
+                }
+                $tableNames = array_values(array_unique($tableNames));
+                usort($tableNames, function ($a, $b) {
+                    $rank = function (string $n): int {
+                        if (preg_match('/^ms_/i', $n) || stripos($n, 'master') !== false) return 0;
+                        if (str_starts_with($n, 'view_')) return 1;
+                        if (str_starts_with($n, 'v_')) return 2;
+                        return 3;
+                    };
+                    $ra = $rank($a);
+                    $rb = $rank($b);
+                    if ($ra !== $rb) return $ra <=> $rb;
+                    return strcmp($a, $b);
+                });
+                $tableNames = array_slice($tableNames, 0, self::MAX_SCHEMA_INFO_TABLES);
 
+                foreach ($tableNames as $tableName) {
                     // ── Security Policy Check (Keywords & Columns) ───────────────────
                     // Filter out tables that violate global security policy (e.g. contains 'cabang')
                     if ($this->validateSecurityPolicy($dbCode, $allowedDbs, $tableName)) {
@@ -685,8 +721,8 @@ class SchemaService extends BaseService
                 '(5) Jika tabel adalah VIEW (nama mengandung view_), DILARANG panggil get_column_values — gunakan execute_query SELECT DISTINCT sebagai gantinya.',
             ]),
             'usage_note' => $isSmallSchema
-                ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*" as schema_name.'
-                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*".',
+                ? 'Column info is eager loaded. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above when calling describe_table or execute_query. NEVER use "*". Daftar tabel di atas hanyalah SEBAGIAN dari total ' . $totalTables . ' tabel yang tersedia — untuk tabel lain gunakan search_schema.'
+                : 'Use describe_table(database_code, schema_name, table_name) to see columns. IMPORTANT: Use the EXACT schema_name from MANDATORY_SCHEMA_USAGE above. NEVER use "*". Daftar tabel di atas hanyalah SEBAGIAN dari total ' . $totalTables . ' tabel yang tersedia — untuk nama tabel lain gunakan search_schema.',
         ]);
 
         // Cache schema info 10 menit
