@@ -615,6 +615,21 @@
 
             {{-- ── STEP 3: Advanced ── --}}
             <div class="wizard-panel" id="panel3" style="display:none;">
+                
+                {{-- Table Filters --}}
+                <div class="form-group" id="tableFiltersGroup">
+                    <label id="tableFiltersLabel">{{ __('Filter Tabel (RegEx)') }}</label>
+                    <textarea name="table_filters" id="dbTableFiltersInput" rows="3" placeholder="^cdc_&#10;^mv_"></textarea>
+                    <div class="regex-guide" style="margin-top:0.5rem; background:rgba(99,102,241,0.05); padding:0.75rem; border-radius:8px; border: 1px dashed rgba(99,102,241,0.3);">
+                        <strong style="font-size:0.75rem; color:#818cf8; display:block; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i> {{ __('Panduan Penulisan (Tiap kondisi di baris baru):') }}</strong>
+                        <ul style="margin:0; padding-left:1.2rem; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+                            <li><code>^cdc_</code> = Sembunyikan tabel yang <b>berawalan</b> cdc_ (tanpa bintang *)</li>
+                            <li><code>_log$</code> = Sembunyikan tabel yang <b>berakhiran</b> _log</li>
+                            <li><code>cdc</code> = Sembunyikan tabel yang <b>mengandung</b> kata cdc</li>
+                        </ul>
+                    </div>
+                </div>
+
                 {{-- Test Connection Preview --}}
                 <div class="test-preview-box" id="testPreviewBox">
                     <div class="test-preview-header">
@@ -1768,6 +1783,7 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbSshAuthTypeInput').value = 'password';
         document.getElementById('dbSshPasswordInput').value = '';
         document.getElementById('dbSshPrivateKeyInput').value = '';
+        document.getElementById('dbTableFiltersInput').value = '';
         toggleSshFields();
         toggleSshAuthType();
     } else {
@@ -1797,6 +1813,7 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbIsDefaultInput').checked = !!db.is_default;
         document.getElementById('dbSslModeInput').value = db.ssl_mode || '';
         document.getElementById('dbTimeoutInput').value = db.connection_timeout || 30;
+        document.getElementById('dbTableFiltersInput').value = db.table_filters || '';
 
         // Populate SSH fields
         const useSsh = !!db.use_ssh;

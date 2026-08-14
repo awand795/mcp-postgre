@@ -25,6 +25,7 @@ class DatabaseConnection extends Model
         'username',
         'password',
         'schema',
+        'table_filters',
         'ssl_mode',
         'connection_timeout',
         'options',
@@ -312,7 +313,7 @@ class DatabaseConnection extends Model
                 \Log::warning("No tables or views found in database: {$this->name}");
             }
 
-            return array_map(function($table) {
+            $mappedTables = array_map(function($table) {
                 // Handle both stdClass objects (PDO drivers) and arrays (ClickHouse HTTP driver)
                 if (is_array($table)) {
                     $table = (object) $table;
@@ -325,6 +326,24 @@ class DatabaseConnection extends Model
                     'table_type' => $isView ? $table->table_type : 'table',
                 ];
             }, $tables);
+
+            if (!empty($this->table_filters)) {
+                $filters = array_filter(array_map('trim', explode("\n", $this->table_filters)));
+                if (!empty($filters)) {
+                    $mappedTables = array_filter($mappedTables, function($item) use ($filters) {
+                        foreach ($filters as $filter) {
+                            $pattern = '/' . str_replace('/', '\/', $filter) . '/i';
+                            if (@preg_match($pattern, $item['table_name'])) {
+                                return false; // exclude
+                            }
+                        }
+                        return true;
+                    });
+                    $mappedTables = array_values($mappedTables);
+                }
+            }
+
+            return $mappedTables;
         } catch (\Exception $e) {
             \Log::error("Failed to get tables from database: {$this->name}", [
                 'driver'   => $this->driver,
