@@ -765,6 +765,21 @@ class AdminController extends Controller
         return back()->with('success', __('Database berhasil diperbarui.'));
     }
 
+    public function updateFilters(Request $request, DatabaseConnection $database)
+    {
+        $validated = $request->validate([
+            'table_filters' => 'nullable|string',
+        ]);
+
+        $database->update([
+            'table_filters' => $validated['table_filters'],
+        ]);
+
+        $this->clearTableCache();
+
+        return back()->with('success', __('Filter tabel database berhasil diperbarui.'));
+    }
+
     public function databaseDelete(DatabaseConnection $database)
     {
         if (!auth()->user()->is_super_admin && $database->added_by !== auth()->id()) {

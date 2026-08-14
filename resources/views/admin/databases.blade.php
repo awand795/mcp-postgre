@@ -140,6 +140,9 @@
                     <button class="btn-icon btn-icon-edit" onclick="showDatabaseModal('edit', {{ json_encode($db) }})" title="{{ __('Ubah') }}">
                         <i class="fas fa-edit"></i>
                     </button>
+                    <button class="btn-icon btn-icon-filter" onclick="showFilterModal({{ json_encode($db) }})" title="{{ __('Filter Tabel') }}">
+                        <i class="fas fa-filter"></i>
+                    </button>
                     @if(!$db->is_default)
                         <button class="btn-icon btn-icon-danger" onclick="deleteDatabase({{ $db->id }}, '{{ $db->name }}')" title="{{ __('Hapus') }}">
                             <i class="fas fa-trash"></i>
@@ -615,20 +618,6 @@
 
             {{-- ── STEP 3: Advanced ── --}}
             <div class="wizard-panel" id="panel3" style="display:none;">
-                
-                {{-- Table Filters --}}
-                <div class="form-group" id="tableFiltersGroup">
-                    <label id="tableFiltersLabel">{{ __('Filter Tabel (RegEx)') }}</label>
-                    <textarea name="table_filters" id="dbTableFiltersInput" rows="3" placeholder="^cdc_&#10;^mv_"></textarea>
-                    <div class="regex-guide" style="margin-top:0.5rem; background:rgba(99,102,241,0.05); padding:0.75rem; border-radius:8px; border: 1px dashed rgba(99,102,241,0.3);">
-                        <strong style="font-size:0.75rem; color:#818cf8; display:block; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i> {{ __('Panduan Penulisan (Tiap kondisi di baris baru):') }}</strong>
-                        <ul style="margin:0; padding-left:1.2rem; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
-                            <li><code>^cdc_</code> = Sembunyikan tabel yang <b>berawalan</b> cdc_ (tanpa bintang *)</li>
-                            <li><code>_log$</code> = Sembunyikan tabel yang <b>berakhiran</b> _log</li>
-                            <li><code>cdc</code> = Sembunyikan tabel yang <b>mengandung</b> kata cdc</li>
-                        </ul>
-                    </div>
-                </div>
 
                 {{-- Test Connection Preview --}}
                 <div class="test-preview-box" id="testPreviewBox">
@@ -650,6 +639,38 @@
                         <i class="fas fa-save"></i> {{ __('Simpan Database') }}
                     </button>
                 </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ── Filter Modal ── --}}
+<div id="filterModal" class="modal-backdrop" style="display:none;" onclick="backdropClose(event)">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-filter"></i> {{ __('Filter Tabel Database') }}</h3>
+            <button type="button" class="modal-close" onclick="closeFilterModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="filterForm" method="POST" action="">
+            @csrf
+            @method('PUT')
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div class="form-group" id="tableFiltersGroup">
+                    <label id="tableFiltersLabel">{{ __('Filter Tabel (RegEx)') }}</label>
+                    <textarea name="table_filters" id="dbTableFiltersInputFilter" rows="5" placeholder="^cdc_&#10;^mv_"></textarea>
+                    <div class="regex-guide" style="margin-top:0.5rem; background:rgba(99,102,241,0.05); padding:0.75rem; border-radius:8px; border: 1px dashed rgba(99,102,241,0.3);">
+                        <strong style="font-size:0.75rem; color:#818cf8; display:block; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i> {{ __('Panduan Penulisan (Tiap kondisi di baris baru):') }}</strong>
+                        <ul style="margin:0; padding-left:1.2rem; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+                            <li><code>^cdc_</code> = Sembunyikan tabel yang <b>berawalan</b> cdc_ (tanpa bintang *)</li>
+                            <li><code>_log$</code> = Sembunyikan tabel yang <b>berakhiran</b> _log</li>
+                            <li><code>cdc</code> = Sembunyikan tabel yang <b>mengandung</b> kata cdc</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 1.25rem 1.5rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--bg-main); border-radius: 0 0 16px 16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeFilterModal()">{{ __('Batal') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Simpan') }}</button>
             </div>
         </form>
     </div>
@@ -1040,6 +1061,7 @@ html.dark .badge-inactive { color: #94a3b8; border-color: rgba(100,116,139,0.2);
 }
 .btn-icon:hover { background: rgba(99,102,241,0.1); color: var(--primary); }
 .btn-icon.btn-icon-edit:hover { background: rgba(245,158,11,0.15); color: #f59e0b; border-color: rgba(245,158,11,0.3); }
+.btn-icon.btn-icon-filter:hover { background: rgba(59,130,246,0.15); color: #3b82f6; border-color: rgba(59,130,246,0.3); }
 .btn-icon.btn-icon-danger { color: #ef4444; }
 html.dark .btn-icon.btn-icon-danger { color: #f87171; }
 .btn-icon.btn-icon-danger:hover { background: rgba(239,68,68,0.15); color: #dc2626; border-color: rgba(239,68,68,0.3); }
@@ -1783,7 +1805,6 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbSshAuthTypeInput').value = 'password';
         document.getElementById('dbSshPasswordInput').value = '';
         document.getElementById('dbSshPrivateKeyInput').value = '';
-        document.getElementById('dbTableFiltersInput').value = '';
         toggleSshFields();
         toggleSshAuthType();
     } else {
@@ -1813,7 +1834,6 @@ window.showDatabaseModal = function(type, db = null) {
         document.getElementById('dbIsDefaultInput').checked = !!db.is_default;
         document.getElementById('dbSslModeInput').value = db.ssl_mode || '';
         document.getElementById('dbTimeoutInput').value = db.connection_timeout || 30;
-        document.getElementById('dbTableFiltersInput').value = db.table_filters || '';
 
         // Populate SSH fields
         const useSsh = !!db.use_ssh;
@@ -1840,6 +1860,23 @@ window.backdropClose = function(e) {
     if (e.target === document.getElementById('databaseModal')) {
         document.getElementById('databaseModal').style.display = 'none';
     }
+    if (e.target === document.getElementById('filterModal')) {
+        document.getElementById('filterModal').style.display = 'none';
+    }
+};
+
+window.showFilterModal = function(db) {
+    const modal = document.getElementById('filterModal');
+    const form = document.getElementById('filterForm');
+    
+    form.action = `/admin/databases/${db.id}/filters`;
+    document.getElementById('dbTableFiltersInputFilter').value = db.table_filters || '';
+    
+    modal.style.display = 'flex';
+};
+
+window.closeFilterModal = function() {
+    document.getElementById('filterModal').style.display = 'none';
 };
 
 // ═══════════════════════════════════════

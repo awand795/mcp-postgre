@@ -96,6 +96,7 @@ Route::middleware('auth.smart')->group(function () {
         Route::get('/databases', [AdminController::class, 'databases'])->name('databases');
         Route::post('/databases', [AdminController::class, 'databaseStore'])->name('databases.store');
         Route::put('/databases/{database}', [AdminController::class, 'databaseUpdate'])->name('databases.update');
+        Route::put('/databases/{database}/filters', [AdminController::class, 'updateFilters'])->name('databases.updateFilters');
         Route::delete('/databases/{database}', [AdminController::class, 'databaseDelete'])->name('databases.delete');
         Route::post('/databases/{database}/test', [AdminController::class, 'databaseTest'])->name('databases.test');
         Route::get('/databases/{database}/schemas', [AdminController::class, 'databaseSchemas'])->name('databases.schemas');
