@@ -646,7 +646,7 @@
 
 {{-- ── Filter Modal ── --}}
 <div id="filterModal" class="modal-backdrop" style="display:none;" onclick="backdropClose(event)">
-    <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-container glass-card" style="max-width: 520px;">
         <div class="modal-header">
             <h3><i class="fas fa-filter"></i> {{ __('Filter Tabel Database') }}</h3>
             <button type="button" class="modal-close" onclick="closeFilterModal()"><i class="fas fa-times"></i></button>
@@ -654,13 +654,13 @@
         <form id="filterForm" method="POST" action="">
             @csrf
             @method('PUT')
-            <div class="modal-body" style="padding: 1.5rem;">
+            <div class="modal-body" style="padding: 0;">
                 <div class="form-group" id="tableFiltersGroup">
                     <label id="tableFiltersLabel">{{ __('Filter Tabel (RegEx)') }}</label>
                     <textarea name="table_filters" id="dbTableFiltersInputFilter" rows="5" placeholder="^cdc_&#10;^mv_"></textarea>
-                    <div class="regex-guide" style="margin-top:0.5rem; background:rgba(99,102,241,0.05); padding:0.75rem; border-radius:8px; border: 1px dashed rgba(99,102,241,0.3);">
-                        <strong style="font-size:0.75rem; color:#818cf8; display:block; margin-bottom:0.25rem;"><i class="fas fa-info-circle"></i> {{ __('Panduan Penulisan (Tiap kondisi di baris baru):') }}</strong>
-                        <ul style="margin:0; padding-left:1.2rem; font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+                    <div class="regex-guide" style="margin-top:0.6rem; background:rgba(99,102,241,0.05); padding:0.85rem; border-radius:12px; border: 1px dashed rgba(99,102,241,0.3);">
+                        <strong style="font-size:0.78rem; color:#818cf8; display:block; margin-bottom:0.35rem;"><i class="fas fa-info-circle"></i> {{ __('Panduan Penulisan (Tiap kondisi di baris baru):') }}</strong>
+                        <ul style="margin:0; padding-left:1.2rem; font-size:0.75rem; color:var(--text-muted); line-height:1.5;">
                             <li><code>^cdc_</code> = Sembunyikan tabel yang <b>berawalan</b> cdc_ (tanpa bintang *)</li>
                             <li><code>_log$</code> = Sembunyikan tabel yang <b>berakhiran</b> _log</li>
                             <li><code>cdc</code> = Sembunyikan tabel yang <b>mengandung</b> kata cdc</li>
@@ -668,9 +668,9 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 1.25rem 1.5rem; border-top: 1px solid var(--glass-border2); display: flex; justify-content: flex-end; gap: 0.75rem; background: var(--bg-main); border-radius: 0 0 16px 16px;">
-                <button type="button" class="btn btn-secondary" onclick="closeFilterModal()">{{ __('Batal') }}</button>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Simpan') }}</button>
+            <div class="wizard-nav" style="margin-top: 1.5rem; padding-top: 1rem;">
+                <button type="button" class="btn btn-cancel" onclick="closeFilterModal()">{{ __('Batal') }}</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> {{ __('Simpan Filter') }}</button>
             </div>
         </form>
     </div>
