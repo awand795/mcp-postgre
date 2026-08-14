@@ -1547,7 +1547,10 @@ class AgenticChatbotController extends Controller
                 . "\n\n**Catatan: daftar di atas hanyalah SEBAGIAN dari seluruh tabel yang tersedia.** Untuk nama persis tabel lain (termasuk tabel per-perusahaan `cdc_*` dan materialized view `mv_*`), gunakan tool `get_database_schema_info` atau `search_schema` sebelum menulis query."
             : "Panggil get_database_schema_info untuk melihat daftar tabel.";
 
-        $currentTime = now()->translatedFormat('l, d F Y H:i');
+        // Tanggal saja (tanpa jam:menit) agar teks system prompt identik sepanjang hari
+        // → provider dapat mengaktifkan context caching (prefix prompt di-cache),
+        //   sehingga ribuan token system prompt dibayar ~10% di pesan berikutnya.
+        $currentTime = now()->translatedFormat('l, d F Y');
 
         $outOfDomainSection = $scopeLimited
             ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis, ERP, atau informasi umum/publik (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool pencarian tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis, Konsultan Sistem ERP, dan pencarian informasi bisnis terkini. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis atau informasi pasar/regulasi (cabang, dealer, penjualan, keuangan, stok, tarif PPN, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool web_search atau database dulu, baru putuskan)"
