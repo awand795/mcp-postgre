@@ -22,6 +22,11 @@ class AgenticChatbotController extends Controller
     private int $maxToolLoops = 20;
     private $maxHistory = 15;
 
+    // Batas jumlah nama tabel yang didaftarkan di system prompt per database.
+    // Nilai ini menjaga input token tetap kecil — tabel lain tetap bisa ditemukan
+    // model lewat tool get_database_schema_info / search_schema.
+    private const MAX_TABLES_HINT = 60;
+
     private \App\Services\ToolCallExecutor $toolExecutor;
     private \App\Services\Core\QueryService $queryService;
     private McpClientService $mcpClient;
@@ -1495,24 +1500,52 @@ class AgenticChatbotController extends Controller
             // Gunakan allowedDatabases (RBAC) untuk menyusun hint tabel, BUKAN
             // fetch semua tabel dari semua koneksi — agar AI hanya melihat tabel
             // yang memang diizinkan untuk role user yang login.
+            // HEMAT INPUT TOKEN: daftar tabel di-dedupe dan dibatasi. Tabel ber-
+            // prefix "mv_" (materialized view mirror) dan "cdc_" (copy per-
+            // perusahaan) TIDAK didaftarkan — jumlahnya sangat banyak, namanya
+            // panjang, dan isinya dobel/hampir identik dengan tabel lain. Model
+            // tetap bisa menemukannya lewat tool get_database_schema_info / search_schema.
             foreach ($allowedDatabases as $dbCode => $schemas) {
                 $tableNames = [];
                 foreach ($schemas as $schema => $tables) {
                     foreach ($tables as $t) {
                         $name = is_array($t) ? ($t['name'] ?? '') : $t;
-                        if (!empty($name) && $name !== '*') {
-                            $tableNames[] = $name;
+                        if (empty($name) || $name === '*') {
+                            continue;
                         }
+                        if (str_starts_with($name, 'mv_') || str_starts_with($name, 'cdc_')) {
+                            continue;
+                        }
+                        $tableNames[] = $name;
                     }
                 }
+                $tableNames = array_values(array_unique($tableNames));
+                // Prioritaskan tabel master, lalu view bisnis, agar yang paling
+                // sering dipakai masuk dalam daftar terbatas ini.
+                usort($tableNames, function ($a, $b) {
+                    $rank = function (string $n): int {
+                        if (preg_match('/^ms_/i', $n) || stripos($n, 'master') !== false) return 0;
+                        if (str_starts_with($n, 'view_')) return 1;
+                        if (str_starts_with($n, 'v_')) return 2;
+                        return 3;
+                    };
+                    $ra = $rank($a);
+                    $rb = $rank($b);
+                    if ($ra !== $rb) return $ra <=> $rb;
+                    return strcmp($a, $b);
+                });
+                $tableNames = array_slice($tableNames, 0, self::MAX_TABLES_HINT);
                 if (!empty($tableNames)) {
-                    $mainTablesHint[] = "Database [{$dbCode}]: " . implode(', ', array_unique($tableNames));
+                    $mainTablesHint[] = "Database [{$dbCode}]: " . implode(', ', $tableNames);
                 }
             }
         } catch (\Exception $e) {
             Log::warning("[Agentic] Failed to fetch table hints for prompt: " . $e->getMessage());
         }
-        $tableHintText = !empty($mainTablesHint) ? implode("\n", $mainTablesHint) : "Panggil get_database_schema_info untuk melihat daftar tabel.";
+        $tableHintText = !empty($mainTablesHint)
+            ? implode("\n", $mainTablesHint)
+                . "\n\n**Catatan: daftar di atas hanyalah SEBAGIAN dari seluruh tabel yang tersedia.** Untuk nama persis tabel lain (termasuk tabel per-perusahaan `cdc_*` dan materialized view `mv_*`), gunakan tool `get_database_schema_info` atau `search_schema` sebelum menulis query."
+            : "Panggil get_database_schema_info untuk melihat daftar tabel.";
 
         $currentTime = now()->translatedFormat('l, d F Y H:i');
 
