@@ -3477,21 +3477,21 @@ PROMPT;
             $status = $response->status();
             Log::error("[Agentic] API Error ({$providerCode}) status={$status} body=" . $body);
 
-            if ($status === 429) {
-                Log::warning("[Agentic] Rate Limit ({$providerCode}): " . $body);
+            if ($status === 429 || $status === 402) {
+                Log::warning("[Agentic] Rate Limit / Insufficient Balance ({$providerCode}): " . $body);
                 throw new \RuntimeException('__RATE_LIMIT__');
             }
 
-            if ($providerCode === 'gemini') {
-                $bodyLower = strtolower($body);
-                if (
-                    str_contains($bodyLower, 'quota') ||
-                    str_contains($bodyLower, 'resource_exhausted') ||
-                    str_contains($bodyLower, 'rate_limit') ||
-                    str_contains($bodyLower, 'exceeded')
-                ) {
-                    throw new \RuntimeException('__RATE_LIMIT__');
-                }
+            $bodyLower = strtolower($body);
+            if (
+                str_contains($bodyLower, 'quota') ||
+                str_contains($bodyLower, 'resource_exhausted') ||
+                str_contains($bodyLower, 'rate_limit') ||
+                str_contains($bodyLower, 'insufficient_balance') ||
+                str_contains($bodyLower, 'balance') ||
+                str_contains($bodyLower, 'exceeded')
+            ) {
+                throw new \RuntimeException('__RATE_LIMIT__');
             }
 
             return null;
@@ -3878,7 +3878,7 @@ PROMPT;
         if ($httpCode >= 400) {
             Log::error("[StreamSSE] HTTP {$httpCode} ({$providerCode}) Response body: " . substr($rawBody, 0, 1000));
         }
-        if ($httpCode === 429) {
+        if ($httpCode === 429 || $httpCode === 402) {
             throw new \RuntimeException('__RATE_LIMIT__');
         }
 
