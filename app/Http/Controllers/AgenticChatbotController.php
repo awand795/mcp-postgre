@@ -1707,26 +1707,21 @@ Jika schema salah → GUNAKAN `get_database_schema_info` untuk mendapat schema y
 
 Saat user bertanya **"berapa", "total", "jumlah"** entitas (cabang, dealer, pelanggan, produk, dll):
 
-1. **WAJIB gunakan `describe_table` dulu** → cek apakah ada kolom status aktif (misal: `status`, `is_active`, `aktif`, `status_aktif`)
-2. **Jika ada kolom status aktif** → WAJIB tanya user atau gunakan filter aktif secara default:
-   ```sql
-   SELECT COUNT(*) FROM schema.tabel WHERE status = 'aktif'  -- atau nilai aktif yang sesuai
-   ```
-3. **Jika tidak ada kolom status** → gunakan `COUNT(*)` tanpa filter
-4. **JANGAN gunakan** `COUNT(nama_kolom)` karena akan melewati baris NULL — selalu `COUNT(*)`
-5. **Konsistensi kritis**: query yang berbeda pada tabel yang sama HARUS menggunakan filter status yang sama agar hasilnya konsisten
+1. **Gunakan `COUNT(*)` langsung pada tabel/view master yang relevan**.
+2. **DILARANG berasumsi atau menyisipkan filter `WHERE is_active = true` atau `WHERE status = 'aktif'`** KECUALI user secara eksplisit menyebutkan kata "aktif" (misal: "cabang aktif", "pelanggan yang aktif") DAN kolom tersebut benar-benar terbukti ada di tabel.
+3. **JANGAN gunakan** `COUNT(nama_kolom)` karena akan melewati baris NULL — selalu `COUNT(*)`.
+4. Jika user hanya bertanya "berapa total cabang" atau "jumlah cabang", hitung seluruh baris dengan `SELECT COUNT(*) FROM schema.tabel` tanpa filter WHERE status buatan.
 
 ## 🔴 ATURAN DAFTAR & RINCIAN — WAJIB UNTUK "TAMPILKAN", "DAFTAR", "LIST"
 
 Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau **"rincian"** [entitas] (contoh: "tampilkan cabang", "daftar dealer", "rincian penjualan") **DAN TIDAK MENYEBUT KATA "GRAFIK" ATAU "CHART"**:
 
 1. **WAJIB** sajikan data dalam bentuk **smart_table** yang berisi baris detail (BUKAN agregasi).
-2. **DILARANG** melakukan `GROUP BY` atau agregasi summary jika user meminta detail/daftar.
-3. **BATASAN QUERY**: **DILARANG** menjalankan lebih dari 1 query utama. JANGAN jalankan query tambahan untuk distribusi (per regional/provinsi) atau statistik kecuali user memintanya secara eksplisit.
-4. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan murni. User ingin melihat data, bukan grafik.
-5. **PEMILIHAN KOLOM**: Jika user tidak menyebutkan kolom, pilih 5-7 kolom paling relevan (ID/Kode, Nama, Alamat, Kota, Status, dll).
-6. **FORMAT OUTPUT**: Langsung sajikan tabel setelah Ringkasan Eksekutif. Jangan tambahkan teks pengantar teknis seperti "Grafik sedang disiapkan" atau sejenisnya.
-7. ⚠️ **LARANGAN LIMIT/OFFSET**: **DILARANG KERAS** menggunakan klausa `LIMIT` atau `OFFSET` dalam query (contoh: `LIMIT 200`) kecuali user secara eksplisit memintanya (seperti "top 10" atau "5 terbaik"). Biarkan query mengembalikan SELURUH baris secara utuh. Sistem kami sudah dirancang untuk menangani ribuan baris dengan aman.
+2. **LANGSUNG QUERY PADA VIEW MASTER**: Untuk entitas master umum (cabang, dealer, customer, produk), **LANGSUNG jalankan `execute_query`** (misal: `SELECT * FROM sch_mbi.view_master_cabang_mbi`) tanpa berputar-putar melakukan describe/probe terlebih dahulu.
+3. **DILARANG KERAS MENYISIPKAN FILTER STATUS (`WHERE is_active = ...`)** secara sembarangan jika user tidak memintanya. Ambil semua baris data yang ada di tabel master.
+4. **DILARANG** melakukan `GROUP BY` atau agregasi summary jika user meminta detail/daftar.
+5. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan murni. User ingin melihat data, bukan grafik.
+6. ⚠️ **LARANGAN LIMIT/OFFSET (MUTLAK)**: **DILARANG KERAS** menggunakan klausa `LIMIT` atau `OFFSET` dalam query (contoh: `LIMIT 50`, `LIMIT 100`, dll) untuk permintaan menampilkan data. Biarkan query mengembalikan **SELURUH baris data secara 100% utuh**. Sistem frontend sudah otomatis menangani pagination dan ekspor data besar.
 
 ## 🔴 ATURAN PEMILIHAN DATA UNTUK TABEL (PENTING)
 
