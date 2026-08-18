@@ -212,6 +212,12 @@ html.dark {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 
+.rm-rc-creator {
+    font-size: 0.68rem; color: var(--rm-muted); opacity: 0.85;
+    display: flex; align-items: center; gap: 5px;
+}
+.rm-rc-creator i { font-size: 0.65rem; color: var(--rm-dim); }
+
 .rm-rc-meta {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
     font-size: 0.7rem; color: var(--rm-muted);
@@ -855,6 +861,10 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <div class="rm-rc-desc">{{ $role->description }}</div>
                 @endif
 
+                <div class="rm-rc-creator">
+                    <i class="fas fa-user-edit"></i> {{ $role->addedBy->name ?? 'System' }} &bull; {{ $role->created_at ? $role->created_at->format('d M Y') : '-' }}
+                </div>
+
                 <div class="rm-rc-meta">
                     <span class="rm-rc-pill users"><i class="fas fa-users"></i> {{ $userCount }} User</span>
                     <span class="rm-rc-pill tables" id="rc-perm-count-{{ $role->id }}"><i class="fas fa-table"></i> {{ $permCount }}/{{ $totalTbl }} Tabel</span>
@@ -884,6 +894,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                         <span class="rm-hero-chip highlight" id="heroPermChip"><i class="fas fa-check-circle"></i> <strong id="heroPermCount">0</strong> {{ __('Tabel Diizinkan') }}</span>
                         <span class="rm-hero-chip" id="heroUserChip"><i class="fas fa-users"></i> <strong id="heroUserCount">0</strong> {{ __('Pengguna') }}</span>
                         <span class="rm-hero-chip" id="heroDbChip"><i class="fas fa-database"></i> <strong id="heroDbCount">0</strong> {{ __('Database') }}</span>
+                        <span class="rm-hero-chip" id="heroCreatorChip"><i class="fas fa-user-edit"></i> <span id="heroCreatedBy">{{ $roles[0]->addedBy->name ?? 'System' }}</span> &bull; <span id="heroCreatedAt">{{ $roles[0]->created_at ? $roles[0]->created_at->format('d M Y') : '-' }}</span></span>
                     </div>
                 </div>
             </div>
@@ -1150,6 +1161,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const dbSet = new Set();
         (role.permissions || []).forEach(p => { if (p.database_code) dbSet.add(p.database_code); });
         document.getElementById('heroDbCount').textContent = dbSet.size;
+
+        // Creator & Created At info
+        const creatorName = (role.added_by && typeof role.added_by === 'object' && role.added_by.name)
+            ? role.added_by.name
+            : (role.added_by_user ? role.added_by_user.name : (role.addedBy ? role.addedBy.name : 'System'));
+        const createdDate = role.created_at ? new Date(role.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+        const heroCreatedByEl = document.getElementById('heroCreatedBy');
+        if (heroCreatedByEl) heroCreatedByEl.textContent = creatorName;
+        const heroCreatedAtEl = document.getElementById('heroCreatedAt');
+        if (heroCreatedAtEl) heroCreatedAtEl.textContent = createdDate;
 
         renderMembersTab(userList);
         setHasChanges(false);
