@@ -376,6 +376,12 @@
                     <i class="fas fa-search aic-search-icon"></i>
                     <input class="aic-search-input" type="text" id="searchModels"
                            placeholder="{{ __('Cari model AI...') }}" oninput="filterAicItems('models')">
+                    <div class="aic-provider-filter-wrap">
+                        <i class="fas fa-filter aic-filter-icon"></i>
+                        <select class="aic-provider-select" id="filterProviderModels" onchange="filterAicItems('models')">
+                            <option value="">{{ __('Semua Provider') }}</option>
+                        </select>
+                    </div>
                     <button type="button" class="aic-select-all-btn" onclick="selectAllVisible('models', true)">
                         <i class="fas fa-check-double"></i> {{ __('Pilih Semua') }}
                     </button>
@@ -392,6 +398,12 @@
                     <i class="fas fa-search aic-search-icon"></i>
                     <input class="aic-search-input" type="text" id="searchKeys"
                            placeholder="{{ __('Cari API key...') }}" oninput="filterAicItems('keys')">
+                    <div class="aic-provider-filter-wrap">
+                        <i class="fas fa-filter aic-filter-icon"></i>
+                        <select class="aic-provider-select" id="filterProviderKeys" onchange="filterAicItems('keys')">
+                            <option value="">{{ __('Semua Provider') }}</option>
+                        </select>
+                    </div>
                     <button type="button" class="aic-select-all-btn" onclick="selectAllVisible('keys', true)">
                         <i class="fas fa-check-double"></i> {{ __('Pilih Semua') }}
                     </button>
@@ -950,6 +962,42 @@
     .aic-footer-hint { margin: 0; font-size: 0.73rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; }
     .aic-footer-actions { display: flex; gap: 0.75rem; }
 
+    .aic-provider-filter-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .aic-provider-filter-wrap .aic-filter-icon {
+        position: absolute;
+        left: 10px;
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        pointer-events: none;
+    }
+    .aic-provider-select {
+        background: var(--input-bg);
+        border: 1px solid var(--input-border);
+        padding: 0.45rem 1rem 0.45rem 1.85rem;
+        border-radius: 10px;
+        color: var(--text-main);
+        font-size: 0.8rem;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
+        height: 35px;
+    }
+    .aic-provider-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    }
+    .aic-provider-select option {
+        background: var(--card-bg);
+        color: var(--text-main);
+    }
+
     /* Provider colors */
     .aic-prov-openai     { background: #10a37f; }
     .aic-prov-gemini     { background: #4285f4; }
@@ -958,6 +1006,10 @@
     .aic-prov-groq       { background: #f55036; }
     .aic-prov-openrouter { background: #7c3aed; }
     .aic-prov-deepseek   { background: #0ea5e9; }
+    .aic-prov-bynara     { background: #ec4899; }
+    .aic-prov-llm7io     { background: #06b6d4; }
+    .aic-prov-tokenfaucet{ background: #f59e0b; }
+    .aic-prov-nvidia     { background: #76b900; }
     .aic-prov-default    { background: #6366f1; }
 
     @media (max-width: 600px) {
@@ -1127,9 +1179,34 @@
     let _aicActiveTab = 'models';
 
     function providerColorClass(name) {
-        const map = { openai:'openai', gemini:'gemini', claude:'claude', mistral:'mistral', groq:'groq', openrouter:'openrouter', deepseek:'deepseek' };
-        const key = name.toLowerCase().replace(/[^a-z]/g,'');
+        const map = { 
+            openai:'openai', 
+            gemini:'gemini', 
+            claude:'claude', 
+            mistral:'mistral', 
+            groq:'groq', 
+            openrouter:'openrouter', 
+            deepseek:'deepseek',
+            bynara:'bynara',
+            llm7io:'llm7io',
+            tokenfaucet:'tokenfaucet',
+            nvidia:'nvidia'
+        };
+        const key = name.toLowerCase().replace(/[^a-z0-9]/g,'');
         return 'aic-prov-' + (map[key] || 'default');
+    }
+
+    function populateProviderFilter(selectId, providers) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.innerHTML = `<option value="">{{ __('Semua Provider') }} (${providers.length})</option>`;
+        providers.slice().sort((a, b) => a.localeCompare(b)).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.toLowerCase();
+            opt.textContent = p;
+            select.appendChild(opt);
+        });
+        select.value = '';
     }
 
     function renderAicGroup(container, groupedData, checkedIds, nameField, inputName, isKey) {
@@ -1221,8 +1298,18 @@
 
     function filterAicItems(type) {
         const query = document.getElementById(type === 'models' ? 'searchModels' : 'searchKeys').value.toLowerCase().trim();
+        const providerFilter = document.getElementById(type === 'models' ? 'filterProviderModels' : 'filterProviderKeys').value.toLowerCase().trim();
         const container = document.getElementById(type === 'models' ? 'aiModelsGrouped' : 'aiKeysGrouped');
+
         container.querySelectorAll('.aic-provider-block').forEach(block => {
+            const blockProv = (block.dataset.provider || '').toLowerCase();
+            const providerMatch = !providerFilter || blockProv === providerFilter;
+
+            if (!providerMatch) {
+                block.classList.add('aic-block-hidden');
+                return;
+            }
+
             let visibleCount = 0;
             block.querySelectorAll('.aic-item').forEach(item => {
                 const match = !query || item.dataset.name.includes(query);
@@ -1235,7 +1322,7 @@
 
     function selectAllVisible(type, checked) {
         const container = document.getElementById(type === 'models' ? 'aiModelsGrouped' : 'aiKeysGrouped');
-        container.querySelectorAll('.aic-item:not(.aic-item-hidden)').forEach(item => {
+        container.querySelectorAll('.aic-provider-block:not(.aic-block-hidden) .aic-item:not(.aic-item-hidden)').forEach(item => {
             const cb = item.querySelector('input');
             if (cb.checked !== checked) {
                 cb.checked = checked;
@@ -1306,6 +1393,9 @@
             groupedKeys[p].push(k);
         });
 
+        populateProviderFilter('filterProviderModels', Object.keys(groupedModels));
+        populateProviderFilter('filterProviderKeys', Object.keys(groupedKeys));
+
         renderAicGroup(document.getElementById('aiModelsGrouped'), groupedModels, userModels, 'display_name', 'ai_models[]', false);
         renderAicGroup(document.getElementById('aiKeysGrouped'),   groupedKeys,   userKeys,   'key_name',     'ai_keys[]',   true);
 
@@ -1313,6 +1403,10 @@
         switchAicTab('models');
         document.getElementById('searchModels').value = '';
         document.getElementById('searchKeys').value   = '';
+        if (document.getElementById('filterProviderModels')) document.getElementById('filterProviderModels').value = '';
+        if (document.getElementById('filterProviderKeys')) document.getElementById('filterProviderKeys').value = '';
+        filterAicItems('models');
+        filterAicItems('keys');
 
         document.getElementById('aiConfigModal').style.display = 'flex';
     }
