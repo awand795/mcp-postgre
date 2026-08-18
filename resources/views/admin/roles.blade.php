@@ -348,13 +348,22 @@ html.dark .rm-rc-progress { background: rgba(255,255,255,0.05); }
     box-shadow: 0 4px 10px rgba(99,102,241,0.35) !important;
 }
 
-.rm-btn-slate {
-    background: #64748b !important; color: white !important; border: 1px solid #475569 !important;
-    box-shadow: 0 2px 6px rgba(100,116,139,0.25) !important;
+.rm-btn-purple {
+    background: #8b5cf6 !important; color: white !important; border: 1px solid #7c3aed !important;
+    box-shadow: 0 2px 8px rgba(139,92,246,0.25) !important;
 }
-.rm-btn-slate:hover {
-    background: #475569 !important; transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(100,116,139,0.35) !important;
+.rm-btn-purple:hover {
+    background: #7c3aed !important; transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139,92,246,0.35) !important;
+}
+
+.rm-btn-orange {
+    background: #f97316 !important; color: white !important; border: 1px solid #ea580c !important;
+    box-shadow: 0 2px 8px rgba(249,115,22,0.25) !important;
+}
+.rm-btn-orange:hover {
+    background: #ea580c !important; transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249,115,22,0.35) !important;
 }
 
 .rm-btn-cyan {
@@ -376,10 +385,11 @@ html.dark .rm-rc-progress { background: rgba(255,255,255,0.05); }
 }
 
 .rm-btn-rose-subtle {
-    background: rgba(239,68,68,0.15) !important; color: #f87171 !important; border: 1px solid rgba(239,68,68,0.3) !important;
+    background: rgba(239,68,68,0.12) !important; color: #ef4444 !important; border: 1px solid rgba(239,68,68,0.3) !important;
 }
 .rm-btn-rose-subtle:hover {
     background: #ef4444 !important; color: white !important;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.3) !important;
 }
 
 /* Sidebar action buttons */
@@ -979,7 +989,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                         <button type="button" class="rm-btn rm-btn-indigo rm-btn-sm" onclick="toggleAllAccordions(true)" title="{{ __('Buka semua accordion') }}">
                             <i class="fas fa-folder-open"></i> {{ __('Buka Semua') }}
                         </button>
-                        <button type="button" class="rm-btn rm-btn-slate rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
+                        <button type="button" class="rm-btn rm-btn-purple rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
                             <i class="fas fa-folder"></i> {{ __('Tutup') }}
                         </button>
                     </div>
@@ -1055,7 +1065,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <textarea name="description" id="roleDescInput" rows="3" placeholder="{{ __('Deskripsi singkat mengenai wewenang role ini...') }}"></textarea>
             </div>
             <div class="rm-modal-foot">
-                <button type="button" class="rm-btn rm-btn-slate" onclick="closeRoleModal()">{{ __('Batal') }}</button>
+                <button type="button" class="rm-btn rm-btn-rose-subtle" onclick="closeRoleModal()"><i class="fas fa-times"></i> {{ __('Batal') }}</button>
                 <button type="submit" class="rm-btn rm-btn-primary">{{ __('Simpan Role') }}</button>
             </div>
         </form>
@@ -1084,7 +1094,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <textarea id="cloneRoleDescInput" rows="3" placeholder="{{ __('Deskripsi untuk role baru...') }}"></textarea>
             </div>
             <div class="rm-modal-foot">
-                <button type="button" class="rm-btn rm-btn-slate" onclick="closeCloneModal()">{{ __('Batal') }}</button>
+                <button type="button" class="rm-btn rm-btn-rose-subtle" onclick="closeCloneModal()"><i class="fas fa-times"></i> {{ __('Batal') }}</button>
                 <button type="submit" class="rm-btn rm-btn-cyan" id="btnSubmitClone">
                     <i class="fas fa-clone"></i> {{ __('Duplikat & Buat') }}
                 </button>
