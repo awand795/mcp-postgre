@@ -613,6 +613,7 @@ class AgenticChatbotController extends Controller
                 $finalContent = $this->stripThinkingLeakage($finalContent);
                 $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
                 $processedContent = $this->injectSmartTableDataIntoContent($processedContent, $allTurnToolResults);
+                $processedContent = $this->synchronizeExecutiveSummaryWithTableData($processedContent, $allTurnToolResults);
 
                 if ($chatSessionId) {
                     ChatMessage::create([
@@ -2529,6 +2530,50 @@ PROMPT;
 
         // Append missing closers in reverse order
         return $jsonStr . implode('', array_reverse($stack));
+    }
+
+    /**
+     * Otomatis sinkronisasi angka total di Ringkasan Eksekutif dengan jumlah baris nyata dari query detail.
+     */
+    private function synchronizeExecutiveSummaryWithTableData(string $content, array $toolResults): string
+    {
+        if (empty($toolResults)) {
+            return $content;
+        }
+
+        // Cari hasil execute_query yang mengembalikan baris data list/detail
+        $totalRows = null;
+        foreach (array_reverse($toolResults) as $tr) {
+            $d = $tr['data'] ?? null;
+            if (is_array($d) && !empty($d['rows']) && is_array($d['rows'])) {
+                $count = count($d['rows']);
+                // Hanya sinkronkan jika data detail (bukan 1 baris agregasi)
+                if ($count > 1) {
+                    $totalRows = $count;
+                    break;
+                }
+            }
+        }
+
+        if ($totalRows === null) {
+            return $content;
+        }
+
+        // Koreksi pola umum seperti: "terdapat [total] X cabang", "memiliki [total] X cabang", "total X cabang/dealer/pelanggan"
+        $patterns = [
+            '/(terdapat\s+(?:total\s+)?)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
+            '/(memiliki\s+(?:total\s+)?)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
+            '/(total\s+)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit)\s+yang)/i',
+            '/(currently\s+(?:has\s+)?(?:a\s+total\s+of\s+)?)\d+(\s+(?:active\s+)?(?:branches|dealers|customers|products|items))/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            $content = preg_replace_callback($pattern, function ($m) use ($totalRows) {
+                return $m[1] . $totalRows . $m[2];
+            }, $content, 1);
+        }
+
+        return $content;
     }
 
     private function extractOriginalUserMessage(array $messages): string
