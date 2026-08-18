@@ -635,6 +635,13 @@ class AgenticChatbotController extends Controller
                 return;
             }
 
+            $messages[] = [
+                'role' => 'assistant',
+                'content' => $textContent ?? '',
+                'tool_calls' => $toolCalls,
+                '_is_live_gemini_response' => true,
+            ];
+
             $toolCallCount = count($toolCalls);
             $useParallel = $toolCallCount > 1;
 
@@ -1412,12 +1419,49 @@ class AgenticChatbotController extends Controller
         }
 
         $internalFields = ['decoded_data', '_is_live_gemini_response'];
-        return array_map(function ($m) use ($internalFields) {
+        $cleaned = [];
+        $lastRole = null;
+        $pendingToolCallIds = [];
+
+        foreach ($messages as $m) {
             foreach ($internalFields as $field) {
                 unset($m[$field]);
             }
-            return $m;
-        }, $messages);
+
+            $role = $m['role'] ?? '';
+
+            // OpenAI / llm7io strict rule:
+            // 1. role 'system' can only appear at the very beginning (index 0). Mid-conversation system messages must be converted to role 'user'
+            if ($role === 'system') {
+                if (!empty($cleaned)) {
+                    $m['role'] = 'user';
+                    $role = 'user';
+                }
+            }
+
+            // 2. Track tool_calls in assistant messages
+            if ($role === 'assistant') {
+                if (!empty($m['tool_calls'])) {
+                    $pendingToolCallIds = array_column($m['tool_calls'], 'id');
+                } else {
+                    $pendingToolCallIds = [];
+                }
+            }
+
+            // 3. Tool results must immediately follow the assistant message that requested them.
+            // If a mid-conversation system/user message was injected before tool results, move tool results directly after assistant or keep order valid.
+            if ($role === 'tool') {
+                // Keep tool result
+                $cleaned[] = $m;
+                $lastRole = 'tool';
+                continue;
+            }
+
+            $cleaned[] = $m;
+            $lastRole = $role;
+        }
+
+        return $cleaned;
     }
 
     private function buildMessages(string $systemPrompt, array $history, string $userMessage): array
