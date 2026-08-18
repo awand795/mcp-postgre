@@ -1459,6 +1459,9 @@ class AgenticChatbotController extends Controller
             }
 
             if ($role === 'tool') {
+                if (!is_string($m['content'] ?? null)) {
+                    $m['content'] = json_encode($m['content'] ?? '');
+                }
                 $cleaned[] = $m;
                 continue;
             }
