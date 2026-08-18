@@ -210,19 +210,16 @@ class AiController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $builtIn = ['openai', 'gemini', 'claude', 'mistral'];
-        if (in_array($provider->code, $builtIn)) {
-            return back()->with('error', __('Provider built-in tidak dapat dihapus.'));
+        $builtIn = ['openai', 'gemini', 'claude', 'google', 'anthropic'];
+        if (in_array(strtolower($provider->code), $builtIn)) {
+            return back()->with('error', __('Provider bawaan (:name) tidak dapat dihapus.', ['name' => $provider->name]));
         }
 
-        if ($provider->apiKeys()->count() > 0) {
-            return back()->with('error', __('Hapus semua API Key provider ini terlebih dahulu sebelum menghapus provider.'));
-        }
-
+        $provider->apiKeys()->delete();
         $provider->models()->delete();
         $provider->delete();
 
-        return back()->with('success', __('Provider ":name" berhasil dihapus.', ['name' => $provider->name]));
+        return back()->with('success', __('Provider ":name" dan seluruh konfigurasi terkait berhasil dihapus.', ['name' => $provider->name]));
     }
 
     // ──────────────────────────────────────────────────────────────────────────

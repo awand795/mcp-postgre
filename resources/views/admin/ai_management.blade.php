@@ -871,7 +871,7 @@ html.dark .limit-alert-bar { color: #f87171; }
                 <span class="sw-thumb"></span>
             </button>
             @if(auth()->user()->is_super_admin)
-                @if(!in_array($provider->code, ['openai','gemini','claude','mistral']))
+                @if(!in_array(strtolower($provider->code), ['openai','gemini','claude','google','anthropic']))
                 <form action="{{ route('admin.ai_management.delete_provider', $provider->id) }}" method="POST"
                       style="display:inline"
                       onsubmit="confirmDelete(event, '{{ __('Hapus Provider?') }}', '{{ __('Seluruh API Key dan Model di bawah provider ini akan ikut terhapus.') }}')">
