@@ -5476,14 +5476,15 @@
                                     });
                                 }
 
-                                if (chartIdx < 0) {
+                                if (chartIdx < 0 && !chartData?.type) {
                                     return '<div class="chart-container"><div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs">⚠️ {{ __('Format grafik tidak valid') }}</span></div></div>';
                                 }
 
                                 const chartId = 'chart-' + Math.random().toString(36).substr(2, 9);
-                                const titleAttr = chartLabel ? ` data-title="${chartLabel}"` : '';
+                                const titleAttr = chartLabel ? ` data-title="${encodeURIComponent(chartLabel)}"` : '';
                                 const currencyAttr = currencyColumns.length > 0 ? ` data-currency-columns='${JSON.stringify(currencyColumns)}'` : '';
-                                return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}"${titleAttr}${currencyAttr}>
+                                const configB64 = btoa(unescape(encodeURIComponent(JSON.stringify(chartData))));
+                                return `<div class="chart-container" id="${chartId}" data-tool-index="${chartIdx}" data-chart-config="${configB64}"${titleAttr}${currencyAttr}>
                                 ${chartLabel ? `<div class="chart-title"><span class="text-orange-500">📈</span> <span>${chartLabel}</span></div>` : ''}
                                 <canvas id="${chartId}-canvas"></canvas>
                             </div>`;
@@ -5882,59 +5883,66 @@
             function initChartsInBubble(bubble, messageToolResults = null) {
                 const toolResults = messageToolResults !== null ? messageToolResults : currentToolResults;
 
-                bubble.querySelectorAll('.chart-container[data-tool-index]').forEach((container) => {
+                bubble.querySelectorAll('.chart-container').forEach((container) => {
                     const chartId = container.id;
                     const canvas = document.getElementById(`${chartId}-canvas`);
-                    const toolIdx = parseInt(container.getAttribute('data-tool-index'));
-
                     if (!canvas || canvas.getAttribute('data-chart-initialized')) return;
-                    if (isNaN(toolIdx) || toolIdx < 0) return;
-
-                    if (!toolResults || toolIdx >= toolResults.length) {
-                        return;
-                    }
-
-                    const toolRes = toolResults[toolIdx];
-
-                    if (!toolRes || !toolRes.data) {
-                        return;
-                    }
 
                     let config = null;
-                    if (toolRes.data.chart_config) {
-                        config = toolRes.data.chart_config;
-                    } else if (toolRes.data.config) {
-                        config = toolRes.data.config;
-                    } else if (toolRes.data.type) {
-                        config = toolRes.data;
+                    let currencyColumns = [];
+                    let chartLabel = null;
+
+                    // 1. Try reading directly from data-chart-config base64 attribute
+                    const b64Config = container.getAttribute('data-chart-config');
+                    if (b64Config) {
+                        try {
+                            config = JSON.parse(decodeURIComponent(escape(atob(b64Config))));
+                        } catch (e) {
+                            console.warn('[ChartInit] Failed to parse data-chart-config b64:', e);
+                        }
+                    }
+
+                    // 2. Fallback to toolResults via data-tool-index
+                    const toolIdx = parseInt(container.getAttribute('data-tool-index'));
+                    if (!config && !isNaN(toolIdx) && toolIdx >= 0 && toolResults && toolResults[toolIdx]) {
+                        const toolRes = toolResults[toolIdx];
+                        if (toolRes && toolRes.data) {
+                            if (toolRes.data.chart_config) {
+                                config = toolRes.data.chart_config;
+                            } else if (toolRes.data.config) {
+                                config = toolRes.data.config;
+                            } else if (toolRes.data.type) {
+                                config = toolRes.data;
+                            }
+                            currencyColumns = toolRes.currency_columns || toolRes.data.currency_columns || [];
+                            chartLabel = toolRes.label || toolRes.data?.label || null;
+                        }
                     }
 
                     if (!config || !config.type) {
-                        container.innerHTML = '<div class="flex items-center justify-center h-full"><span class="opacity-40 text-xs text-red-400">⚠️ {{ __('Format grafik tidak valid') }}</span></div>';
                         return;
                     }
 
-                    const currencyColumns = toolRes.currency_columns || (toolRes.data ? toolRes.data.currency_columns : []);
-
-                    // Also check HTML attribute as fallback
-                    let containerCurrencyCols = [];
+                    // Check HTML attribute for currency columns and title
                     try {
-                        const storedCols = container?.getAttribute('data-currency-columns');
-                        if (storedCols) {
-                            containerCurrencyCols = JSON.parse(storedCols);
+                        const storedCols = container.getAttribute('data-currency-columns');
+                        if (storedCols && currencyColumns.length === 0) {
+                            currencyColumns = JSON.parse(storedCols);
                         }
                     } catch (e) { }
 
-                    // Use container attribute if toolRes doesn't have currencyColumns
-                    const finalCurrencyCols = currencyColumns.length > 0 ? currencyColumns : containerCurrencyCols;
+                    try {
+                        const storedTitle = container.getAttribute('data-title');
+                        if (storedTitle && !chartLabel) {
+                            chartLabel = decodeURIComponent(storedTitle);
+                        }
+                    } catch (e) { }
 
-                    // Store label on container for export
-                    const chartLabel = toolRes.label || toolRes.data?.label || null;
                     if (chartLabel) container.setAttribute('data-title', chartLabel);
-                    if (finalCurrencyCols.length > 0) {
-                        container.setAttribute('data-currency-columns', JSON.stringify(finalCurrencyCols));
+                    if (currencyColumns.length > 0) {
+                        container.setAttribute('data-currency-columns', JSON.stringify(currencyColumns));
                     }
-                    initChartWithConfig(canvas, config, container, chartId, finalCurrencyCols);
+                    initChartWithConfig(canvas, config, container, chartId, currencyColumns);
                 });
 
                 // LEGACY: Handle old chart format with base64 data (for backward compatibility)
