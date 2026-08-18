@@ -635,13 +635,6 @@ class AgenticChatbotController extends Controller
                 return;
             }
 
-            $messages[] = [
-                'role' => 'assistant',
-                'content' => $textContent ?? '',
-                'tool_calls' => $toolCalls,
-                '_is_live_gemini_response' => true,
-            ];
-
             $toolCallCount = count($toolCalls);
             $useParallel = $toolCallCount > 1;
 
