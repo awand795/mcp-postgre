@@ -314,6 +314,43 @@ html.dark .rm-rc-progress { background: rgba(255,255,255,0.05); }
     padding: 5px 10px; font-size: 0.74rem; border-radius: 7px;
 }
 
+/* Color Variants for Action Buttons */
+.rm-btn-emerald {
+    background: #10b981 !important; color: white !important; border: 1px solid #059669 !important;
+    box-shadow: 0 2px 6px rgba(16,185,129,0.25) !important;
+}
+.rm-btn-emerald:hover {
+    background: #059669 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(16,185,129,0.35) !important;
+}
+
+.rm-btn-rose {
+    background: #ef4444 !important; color: white !important; border: 1px solid #dc2626 !important;
+    box-shadow: 0 2px 6px rgba(239,68,68,0.25) !important;
+}
+.rm-btn-rose:hover {
+    background: #dc2626 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(239,68,68,0.35) !important;
+}
+
+.rm-btn-indigo {
+    background: #6366f1 !important; color: white !important; border: 1px solid #4f46e5 !important;
+    box-shadow: 0 2px 6px rgba(99,102,241,0.25) !important;
+}
+.rm-btn-indigo:hover {
+    background: #4f46e5 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(99,102,241,0.35) !important;
+}
+
+.rm-btn-slate {
+    background: #64748b !important; color: white !important; border: 1px solid #475569 !important;
+    box-shadow: 0 2px 6px rgba(100,116,139,0.25) !important;
+}
+.rm-btn-slate:hover {
+    background: #475569 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(100,116,139,0.35) !important;
+}
+
 /* ── Tabs Navigation ─────────────────────────────────── */
 .rm-tabs {
     display: flex; gap: 8px; border-bottom: 1px solid var(--rm-border);
@@ -889,16 +926,16 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
 
                     {{-- Bulk Actions & Accordion Controls --}}
                     <div class="rm-tb-actions">
-                        <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="bulkAction('select')" title="{{ __('Pilih semua tabel yang tampil') }}">
+                        <button type="button" class="rm-btn rm-btn-emerald rm-btn-sm" onclick="bulkAction('select')" title="{{ __('Pilih semua tabel yang tampil') }}">
                             <i class="fas fa-check-square"></i> {{ __('Pilih Semua') }}
                         </button>
-                        <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="bulkAction('deselect')" title="{{ __('Hapus semua tabel yang tampil') }}">
+                        <button type="button" class="rm-btn rm-btn-rose rm-btn-sm" onclick="bulkAction('deselect')" title="{{ __('Hapus semua tabel yang tampil') }}">
                             <i class="fas fa-square"></i> {{ __('Hapus Semua') }}
                         </button>
-                        <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="toggleAllAccordions(true)" title="{{ __('Buka semua accordion') }}">
+                        <button type="button" class="rm-btn rm-btn-indigo rm-btn-sm" onclick="toggleAllAccordions(true)" title="{{ __('Buka semua accordion') }}">
                             <i class="fas fa-folder-open"></i> {{ __('Buka Semua') }}
                         </button>
-                        <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
+                        <button type="button" class="rm-btn rm-btn-slate rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
                             <i class="fas fa-folder"></i> {{ __('Tutup') }}
                         </button>
                     </div>
@@ -1237,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </span>
                     </div>
                     <div class="rm-db-controls" onclick="event.stopPropagation()">
-                        <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="toggleDatabaseAll('${dbCode}', ${!isFullDb})">
+                        <button type="button" class="rm-btn ${isFullDb ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" onclick="toggleDatabaseAll('${dbCode}', ${!isFullDb})">
                             <i class="fas ${isFullDb ? 'fa-square' : 'fa-check-square'}"></i>
                             ${isFullDb ? '{{ __("Hapus Semua DB") }}' : '{{ __("Pilih Semua DB") }}'}
                         </button>
@@ -1269,9 +1306,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         <div style="display:flex;align-items:center;gap:10px;">
                             <span class="rm-schema-count">${selectedInSchema}/${tables.length} {{ __('Terpilih') }}</span>
-                            <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" style="padding:2px 8px;font-size:0.7rem;"
+                            <button type="button" class="rm-btn ${isFullSchema ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" style="padding:3px 10px;font-size:0.72rem;"
                                     onclick="toggleSchemaAll('${dbCode}', '${schemaName}', ${!isFullSchema})">
-                                ${isFullSchema ? '{{ __("Hapus Schema") }}' : '{{ __("Pilih Schema") }}'}
+                                ${isFullSchema ? '<i class="fas fa-times"></i> {{ __("Hapus Schema") }}' : '<i class="fas fa-check"></i> {{ __("Pilih Schema") }}'}
                             </button>
                         </div>
                     </div>
