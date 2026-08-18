@@ -5035,7 +5035,7 @@
                 function extractQueryData(tr) {
                     if (!tr) return null;
                     const toolName = tr.tool_name || tr.tool || '';
-                    if (!['execute_query', 'describe_table'].includes(toolName)) return null;
+                    if (toolName !== 'execute_query') return null;
 
                     // Coba berbagai lokasi data
                     const candidates = [
@@ -5047,27 +5047,16 @@
                     for (const d of candidates) {
                         if (!d || typeof d !== 'object') continue;
 
-                        if (toolName === 'execute_query') {
-                            const rows = d.rows || [];
-                            const cols = d.columns || [];
-                            if (Array.isArray(rows) && rows.length > 0 && Array.isArray(cols) && cols.length >= 1) {
-                                return {
-                                    type: 'query',
-                                    rows,
-                                    cols,
-                                    currCols: d.currency_columns || tr.currency_columns || [],
-                                    label: d.label || tr.label || 'Hasil Data',
-                                };
-                            }
-                        } else if (toolName === 'describe_table') {
-                            const cols = d.columns || [];
-                            if (Array.isArray(cols) && cols.length > 0) {
-                                return {
-                                    type: 'schema',
-                                    cols,
-                                    tableName: d.table_name || d.table || tr.label || 'Tabel',
-                                };
-                            }
+                        const rows = d.rows || [];
+                        const cols = d.columns || [];
+                        if (Array.isArray(rows) && rows.length > 0 && Array.isArray(cols) && cols.length >= 1) {
+                            return {
+                                type: 'query',
+                                rows,
+                                cols,
+                                currCols: d.currency_columns || tr.currency_columns || [],
+                                label: d.label || tr.label || 'Hasil Data',
+                            };
                         }
                     }
                     return null;
