@@ -352,6 +352,7 @@ class AgenticChatbotController extends Controller
 
                         if ($chatSessionId) {
                             $textContent = $this->injectSmartTableDataIntoContent($textContent, $allTurnToolResults);
+                            $textContent = $this->injectChartDataIntoContent($textContent, $allTurnToolResults);
                             ChatMessage::create([
                                     'chat_session_id' => $chatSessionId,
                                     'role' => 'assistant',
@@ -614,6 +615,7 @@ class AgenticChatbotController extends Controller
                 $finalContent = $this->stripThinkingLeakage($finalContent);
                 $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
                 $processedContent = $this->injectSmartTableDataIntoContent($processedContent, $allTurnToolResults);
+                $processedContent = $this->injectChartDataIntoContent($processedContent, $allTurnToolResults);
                 $processedContent = $this->synchronizeExecutiveSummaryWithTableData($processedContent, $allTurnToolResults);
 
                 if ($chatSessionId) {
@@ -2490,6 +2492,108 @@ PROMPT;
 
                 } catch (\Throwable $e) {
                     Log::warning('[SmartTableInject] Failed: ' . $e->getMessage());
+                    return $matches[0];
+                }
+            },
+            $content
+        );
+
+        return $content;
+    }
+
+    private function injectChartDataIntoContent(string $content, array $toolResults): string
+    {
+        if (empty($toolResults) || strpos($content, 'chart') === false) {
+            return $content;
+        }
+
+        $content = preg_replace_callback(
+            '/```chart\s*([\s\S]*?)```/m',
+            function (array $matches) use ($toolResults) {
+                $rawJson = trim($matches[1]);
+                if (empty($rawJson)) return $matches[0];
+
+                try {
+                    $config = json_decode($rawJson, true);
+                    if (!is_array($config)) return $matches[0];
+
+                    $toolIdx = isset($config['tool_index']) ? (int) $config['tool_index'] : -1;
+                    $toolRes = null;
+                    if ($toolIdx >= 0 && !empty($toolResults[$toolIdx])) {
+                        $toolRes = $toolResults[$toolIdx];
+                    } else {
+                        // Find latest execute_query tool result
+                        foreach (array_reverse($toolResults) as $tr) {
+                            if (!empty($tr['is_probe'])) continue;
+                            $d = $tr['data'] ?? null;
+                            if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
+                                $toolRes = $tr;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!$toolRes) return $matches[0];
+
+                    $dataObj = $toolRes['data'] ?? null;
+                    if (is_string($dataObj)) $dataObj = json_decode($dataObj, true) ?: null;
+                    if (!is_array($dataObj) || empty($dataObj['rows']) || empty($dataObj['columns'])) {
+                        return $matches[0];
+                    }
+
+                    $rows = $dataObj['rows'];
+                    $cols = $dataObj['columns'];
+                    if (count($cols) < 2) return $matches[0];
+
+                    $labelCol = $cols[0];
+                    $valCol = $cols[1];
+
+                    // Month mapping
+                    $monthMap = [
+                        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
+                        5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu',
+                        9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
+                    ];
+
+                    $labels = [];
+                    $values = [];
+                    foreach ($rows as $row) {
+                        $rawLabel = is_array($row) ? ($row[$labelCol] ?? ($row[0] ?? '')) : '';
+                        $rawVal = is_array($row) ? ($row[$valCol] ?? ($row[1] ?? 0)) : 0;
+
+                        if (is_numeric($rawLabel) && isset($monthMap[(int)$rawLabel])) {
+                            $labels[] = $monthMap[(int)$rawLabel];
+                        } else {
+                            $labels[] = (string) $rawLabel;
+                        }
+                        $values[] = is_numeric($rawVal) ? (float) $rawVal : $rawVal;
+                    }
+
+                    // Reconstruct config data perfectly matching DB query
+                    $type = $config['type'] ?? 'line';
+                    $title = $config['title'] ?? ($toolRes['label'] ?? 'Grafik Penjualan');
+                    $datasetLabel = (string) $valCol;
+
+                    $newConfig = [
+                        'type' => $type,
+                        'title' => $title,
+                        'data' => [
+                            'labels' => $labels,
+                            'datasets' => [
+                                [
+                                    'label' => $datasetLabel,
+                                    'data' => $values
+                                ]
+                            ]
+                        ]
+                    ];
+
+                    $newJson = json_encode($newConfig, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                    Log::info('[ChartInject] Injected ' . count($values) . ' points from DB query into chart block');
+                    return "```chart\n" . $newJson . "\n```";
+
+                } catch (\Throwable $e) {
+                    Log::warning('[ChartInject] Failed: ' . $e->getMessage());
                     return $matches[0];
                 }
             },
