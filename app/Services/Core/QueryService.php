@@ -551,7 +551,12 @@ class QueryService extends BaseService
         }
 
         // Apply Column-level RBAC: Redact forbidden columns from results
-        $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+        $forbidden = [];
+        $user = Auth::user();
+        if (!$user || !$user->is_super_admin) {
+            $allowedDbs = $allowedDbs ?? $this->getAllowedTables();
+            $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
+        }
 
         $data = array_map(function ($row) use ($forbidden) {
             $r = (array) $row;
