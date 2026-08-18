@@ -345,6 +345,7 @@ class AgenticChatbotController extends Controller
                     if (!empty(trim($textContent)) && empty($toolCalls)) {
                         $textContent = $this->stripThinkingLeakage($textContent);
                         $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
+                        $textContent = $this->synchronizeExecutiveSummaryWithTableData($textContent, $allTurnToolResults);
 
                         ApiKeyResolver::autoResetIfNeeded($apiKey);
                         $apiKey->recordUsage((int) ($response['_tokens'] ?? 0));
@@ -2559,12 +2560,13 @@ PROMPT;
             return $content;
         }
 
-        // Koreksi pola umum seperti: "terdapat [total] X cabang", "memiliki [total] X cabang", "total X cabang/dealer/pelanggan"
+        // Koreksi pola umum seperti: "terdapat [total] [**]X[**] cabang", "memiliki [total] [**]X[**] cabang", dll.
         $patterns = [
-            '/(terdapat\s+(?:total\s+)?)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
-            '/(memiliki\s+(?:total\s+)?)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
-            '/(total\s+)\d+(\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit)\s+yang)/i',
-            '/(currently\s+(?:has\s+)?(?:a\s+total\s+of\s+)?)\d+(\s+(?:active\s+)?(?:branches|dealers|customers|products|items))/i',
+            '/(terdapat\s+(?:total\s+)?(?:\*\*)?)\d+((?:\*\*)?\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
+            '/(memiliki\s+(?:total\s+)?(?:\*\*)?)\d+((?:\*\*)?\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit|data))/i',
+            '/(total\s+(?:\*\*)?)\d+((?:\*\*)?\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit)\s+yang)/i',
+            '/(sebanyak\s+(?:\*\*)?)\d+((?:\*\*)?\s+(?:cabang|dealer|pelanggan|customer|produk|barang|outlet|unit))/i',
+            '/(currently\s+(?:has\s+)?(?:a\s+total\s+of\s+)?(?:\*\*)?)\d+((?:\*\*)?\s+(?:active\s+)?(?:branches|dealers|customers|products|items))/i',
         ];
 
         foreach ($patterns as $pattern) {
