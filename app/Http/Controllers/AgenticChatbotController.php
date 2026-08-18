@@ -2546,7 +2546,8 @@ PROMPT;
                     if (count($cols) < 2) return $matches[0];
 
                     $labelCol = $cols[0];
-                    $valCol = $cols[1];
+                    // All other columns are dataset series (e.g., "Penjualan 2025", "Penjualan 2026")
+                    $valCols = array_slice($cols, 1);
 
                     // Month mapping
                     $monthMap = [
@@ -2556,40 +2557,57 @@ PROMPT;
                     ];
 
                     $labels = [];
-                    $values = [];
                     foreach ($rows as $row) {
                         $rawLabel = is_array($row) ? ($row[$labelCol] ?? ($row[0] ?? '')) : '';
-                        $rawVal = is_array($row) ? ($row[$valCol] ?? ($row[1] ?? 0)) : 0;
-
                         if (is_numeric($rawLabel) && isset($monthMap[(int)$rawLabel])) {
                             $labels[] = $monthMap[(int)$rawLabel];
                         } else {
                             $labels[] = (string) $rawLabel;
                         }
-                        $values[] = is_numeric($rawVal) ? (float) $rawVal : $rawVal;
+                    }
+
+                    $currentMonth = (int) date('n'); // e.g. 8 for August
+                    $currentYear = (string) date('Y'); // e.g. '2026'
+
+                    $datasets = [];
+                    foreach ($valCols as $colIndex => $colName) {
+                        $seriesValues = [];
+                        $isCurrentYearSeries = str_contains((string) $colName, $currentYear);
+
+                        foreach ($rows as $rIdx => $row) {
+                            $rawVal = is_array($row) ? ($row[$colName] ?? ($row[$colIndex + 1] ?? null)) : null;
+                            $val = is_numeric($rawVal) ? (float) $rawVal : null;
+
+                            // If this series is current year and month is past current month and value is 0 or null -> null
+                            $monthNum = $rIdx + 1;
+                            if ($isCurrentYearSeries && $monthNum > $currentMonth && ($val === 0.0 || $val === null)) {
+                                $val = null;
+                            }
+
+                            $seriesValues[] = $val;
+                        }
+
+                        $datasets[] = [
+                            'label' => (string) $colName,
+                            'data' => $seriesValues
+                        ];
                     }
 
                     // Reconstruct config data perfectly matching DB query
                     $type = $config['type'] ?? 'line';
-                    $title = $config['title'] ?? ($toolRes['label'] ?? 'Grafik Penjualan');
-                    $datasetLabel = (string) $valCol;
+                    $title = $config['title'] ?? ($toolRes['label'] ?? 'Grafik Perbandingan Penjualan');
 
                     $newConfig = [
                         'type' => $type,
                         'title' => $title,
                         'data' => [
                             'labels' => $labels,
-                            'datasets' => [
-                                [
-                                    'label' => $datasetLabel,
-                                    'data' => $values
-                                ]
-                            ]
+                            'datasets' => $datasets
                         ]
                     ];
 
                     $newJson = json_encode($newConfig, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-                    Log::info('[ChartInject] Injected ' . count($values) . ' points from DB query into chart block');
+                    Log::info('[ChartInject] Injected ' . count($datasets) . ' datasets with ' . count($labels) . ' points from DB query into chart block');
                     return "```chart\n" . $newJson . "\n```";
 
                 } catch (\Throwable $e) {
