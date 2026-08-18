@@ -214,10 +214,9 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 5: Validasi akses tabel (Strict RBAC) ──────────────────────
-        // Super Admin memiliki akses penuh tanpa filter table RBAC
         $user = Auth::user();
         if ($user && $user->is_super_admin) {
-            // Super Admin bypasses table access validation
+            // Super Admin bypasses table access validation & security policy
         } else {
             $allowedDbs = $this->getAllowedTables();
 
@@ -225,90 +224,69 @@ class QueryService extends BaseService
                 return $this->errorResponse("Akses ditolak: Anda tidak memiliki akses ke database '{$databaseCode}'.");
             }
 
-        // BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
-        //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
-        // Strategi: hapus dulu semua konteks "FUNGSI(... FROM ...)" dari SQL
-        // sebelum di-scan RBAC, sehingga FROM di dalam fungsi tidak ikut tertangkap.
-        $sqlFunctionsUsingFrom = ['EXTRACT', 'TRIM', 'OVERLAY', 'POSITION', 'SUBSTRING'];
-        $sqlForRbacScan = $trimmedSql;
-        foreach ($sqlFunctionsUsingFrom as $fn) {
-            $sqlForRbacScan = preg_replace(
-                '/\b' . preg_quote($fn, '/') . '\s*\([^)]*\bFROM\b[^)]*\)/i',
-                $fn . '(__RBAC_SKIP__)',
-                $sqlForRbacScan
-            );
-        }
+            // BUG FIX: Exclude FROM yang ada di dalam fungsi SQL seperti:
+            //   EXTRACT(MONTH FROM tgl_fak_jl)  → 'tgl_fak_jl' bukan nama tabel!
+            // Strategi: hapus dulu semua konteks "FUNGSI(... FROM ...)" dari SQL
+            // sebelum di-scan RBAC, sehingga FROM di dalam fungsi tidak ikut tertangkap.
+            $sqlFunctionsUsingFrom = ['EXTRACT', 'TRIM', 'OVERLAY', 'POSITION', 'SUBSTRING'];
+            $sqlForRbacScan = $trimmedSql;
+            foreach ($sqlFunctionsUsingFrom as $fn) {
+                $sqlForRbacScan = preg_replace(
+                    '/\b' . preg_quote($fn, '/') . '\s*\([^)]*\bFROM\b[^)]*\)/i',
+                    $fn . '(__RBAC_SKIP__)',
+                    $sqlForRbacScan
+                );
+            }
 
-        $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
-        // Cocokkan FROM/JOIN diikuti identifier, tapi TIDAK diikuti '(' (itu subquery/fungsi)
-        $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?(?!\s*\()/i';
+            $identPattern = '(?:"([^"]+)"|([a-zA-Z0-9_]+))';
+            // Cocokkan FROM/JOIN diikuti identifier, tapi TIDAK diikuti '(' (itu subquery/fungsi)
+            $pattern = '/\b(?:FROM|JOIN)\s+' . $identPattern . '(?:\s*\.\s*' . $identPattern . ')?(?!\s*\()/i';
 
-        if (preg_match_all($pattern, $sqlForRbacScan, $matches, PREG_SET_ORDER)) {
-            foreach ($matches as $match) {
-                $hasDot = !empty($match[3]) || !empty($match[4]);
-                $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
-                $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
+            if (preg_match_all($pattern, $sqlForRbacScan, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $match) {
+                    $hasDot = !empty($match[3]) || !empty($match[4]);
+                    $firstId = strtolower(!empty($match[1]) ? $match[1] : $match[2]);
+                    $secondId = $hasDot ? strtolower(!empty($match[3]) ? $match[3] : $match[4]) : null;
 
-                $schemaUsed = $hasDot ? $firstId : null;
-                $tbl = $hasDot ? $secondId : $firstId;
+                    $schemaUsed = $hasDot ? $firstId : null;
+                    $tbl = $hasDot ? $secondId : $firstId;
 
-                // Skip SQL keywords dan placeholder fungsi
-                $sqlKeywords = [
-                    'select',
-                    'where',
-                    'on',
-                    'and',
-                    'or',
-                    'as',
-                    'lateral',
-                    'join',
-                    'inner',
-                    'left',
-                    'right',
-                    'outer',
-                    'cross',
-                    'full',
-                    '__rbac_skip__',
-                ];
-                if (in_array($tbl, $sqlKeywords)) {
-                    continue;
-                }
-
-                // VALIDASI KETAT: Periksa apakah (schema.table) diizinkan secara spesifik
-                if (!$this->isTableAllowed($databaseCode, $schemaUsed, $tbl, $allowedDbs)) {
-                    Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in schema '" . ($schemaUsed ?: 'any') . "' on DB '{$databaseCode}' for user " . Auth::id());
-
-                    // Kumpulkan contoh tabel yang diizinkan untuk membantu AI memperbaiki query
-                    $allowedSample = [];
-                    foreach ($allowedDbs[$databaseCode] as $s => $entries) {
-                        foreach ($entries as $e) {
-                            $n = is_array($e) ? ($e['name'] ?? '') : (string) $e;
-                            if ($n !== '*')
-                                $allowedSample[] = $n;
-                        }
+                    // Skip SQL keywords dan placeholder fungsi
+                    $sqlKeywords = [
+                        'select',
+                        'where',
+                        'on',
+                        'and',
+                        'or',
+                        'as',
+                        'lateral',
+                        'join',
+                        'inner',
+                        'left',
+                        'right',
+                        'outer',
+                        'cross',
+                        'full',
+                        '__rbac_skip__',
+                    ];
+                    if (in_array($tbl, $sqlKeywords)) {
+                        continue;
                     }
 
-                    return $this->safeJsonEncode([
-                        'error' => 'ACCESS_DENIED_FINAL',
-                        'MANDATORY_AI_ACTION' => implode(' ', [
-                            "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
-                            "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
-                            "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
-                            "(2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
-                            "(3) Melakukan loop atau retry dalam bentuk apapun.",
-                            "(4) Menyebutkan nama tabel teknis kepada user.",
-                            "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
-                            "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
-                            "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
-                        ]),
-                    ]);
-                }
+                    // VALIDASI KETAT: Periksa apakah (schema.table) diizinkan secara spesifik
+                    if (!$this->isTableAllowed($databaseCode, $schemaUsed, $tbl, $allowedDbs)) {
+                        Log::warning("[ToolCallExecutor] Access denied to table '{$tbl}' in schema '" . ($schemaUsed ?: 'any') . "' on DB '{$databaseCode}' for user " . Auth::id());
 
-                // ── DEEP RBAC: Jika ini View, pastikan tabel dasarnya juga diizinkan ──
-                $underlying = $this->getUnderlyingTables($databaseCode, $schemaUsed, $tbl);
-                foreach ($underlying as $u) {
-                    if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
-                        Log::warning("[ToolCallExecutor] Deep RBAC Denied: View '{$tbl}' uses unauthorized table '{$u['table']}' for User " . Auth::id());
+                        // Kumpulkan contoh tabel yang diizinkan untuk membantu AI memperbaiki query
+                        $allowedSample = [];
+                        foreach ($allowedDbs[$databaseCode] as $s => $entries) {
+                            foreach ($entries as $e) {
+                                $n = is_array($e) ? ($e['name'] ?? '') : (string) $e;
+                                if ($n !== '*')
+                                    $allowedSample[] = $n;
+                            }
+                        }
+
                         return $this->safeJsonEncode([
                             'error' => 'ACCESS_DENIED_FINAL',
                             'MANDATORY_AI_ACTION' => implode(' ', [
@@ -324,9 +302,30 @@ class QueryService extends BaseService
                             ]),
                         ]);
                     }
+
+                    // ── DEEP RBAC: Jika ini View, pastikan tabel dasarnya juga diizinkan ──
+                    $underlying = $this->getUnderlyingTables($databaseCode, $schemaUsed, $tbl);
+                    foreach ($underlying as $u) {
+                        if (!$this->isTableAllowed($databaseCode, $u['schema'], $u['table'], $allowedDbs)) {
+                            Log::warning("[ToolCallExecutor] Deep RBAC Denied: View '{$tbl}' uses unauthorized table '{$u['table']}' for User " . Auth::id());
+                            return $this->safeJsonEncode([
+                                'error' => 'ACCESS_DENIED_FINAL',
+                                'MANDATORY_AI_ACTION' => implode(' ', [
+                                    "=== AKSES DITOLAK — INSTRUKSI FINAL, TIDAK DAPAT DIGANGGU GUGAT ===",
+                                    "Data yang diminta TIDAK DAPAT diakses oleh akun Anda berdasarkan kebijakan keamanan data perusahaan.",
+                                    "DILARANG MUTLAK: (1) Mencoba tabel/view lain yang mungkin mengandung data serupa.",
+                                    " (2) Menggunakan describe_table, search_schema, atau tool apapun untuk mencari alternatif.",
+                                    "(3) Melakukan loop atau retry dalam bentuk apapun.",
+                                    "(4) Menyebutkan nama tabel teknis kepada user.",
+                                    "WAJIB LAKUKAN SEKARANG — HENTIKAN SEMUA TOOL CALL DAN SAMPAIKAN PESAN INI KEPADA USER:",
+                                    "\"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator atau pihak yang memiliki kewenangan akses. Terima kasih atas pengertiannya.\"",
+                                    "INI ADALAH INSTRUKSI AKHIR. TIDAK ADA LANGKAH SELANJUTNYA.",
+                                ]),
+                            ]);
+                        }
+                    }
                 }
             }
-        }
 
             // ── LAYER 5.5: Global Security Policy (Columns & Keywords) ───────────
             $policyViolation = $this->validateSecurityPolicy($databaseCode, $allowedDbs, $sqlForRbacScan);
