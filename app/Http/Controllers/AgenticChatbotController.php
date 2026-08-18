@@ -2100,16 +2100,16 @@ Contoh:
 
 - `labels`: array label sumbu X (nama bulan, nama cabang, dll)
 - `datasets`: array dataset, masing-masing punya `label` dan `data` (array angka)
-- Untuk data tren bulanan: gunakan nama bulan sebagai label ("Jan", "Feb", dst)
+- Untuk data tren bulanan tahun berjalan (single year): **HANYA sertakan label bulan yang sudah berjalan/memiliki data transaksi** (contoh jika data sampai Agustus, gunakan `["Jan", "Feb", ..., "Agu"]`). JANGAN sertakan bulan mendatang yang belum berjalan (Sep-Des) agar sumbu X bersih dan tidak ada ruang kosong di ujung kanan.
 - Untuk data per cabang: gunakan nama cabang sebagai label
 
 **PANDUAN KHUSUS PERBANDINGAN TAHUN/PERIODE (YoY):**
 Jika user meminta perbandingan antar tahun (contoh: "penjualan 2025 vs 2026" atau "grafik 2025 dan 2026"):
 - **DILARANG** menggunakan label sumbu X yang memanjang secara sekuensial (contoh sekuensial SALAH: "Jan 2025", "Feb 2025", ..., "Jan 2026").
-- **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan saja ("Jan", "Feb", ..., "Des").
+- **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan ("Jan", "Feb", ..., "Des").
 - **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun).
 - Contoh dataset label: `{"label": "Penjualan 2025", "data": [...]}`, `{"label": "Penjualan 2026", "data": [...]}`.
-- **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan (sesuai tanggal konteks saat ini), data untuk bulan-bulan yang belum dilalui **WAJIB** diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya dan tidak drop ke angka nol di bulan mendatang.
+- **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan dalam grafik perbandingan multi-tahun, data untuk bulan-bulan yang belum dilalui diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya.
 
 **URUTAN WAJIB jika user minta grafik/analisis:**
 1. Ringkasan Eksekutif

@@ -5999,6 +5999,30 @@
                     config.data.datasets = [];
                 }
 
+                // If single dataset or all datasets end with trailing nulls (upcoming months), trim trailing nulls & labels
+                if (config.data.labels && Array.isArray(config.data.labels) && config.data.datasets.length > 0) {
+                    let maxNonNullIdx = -1;
+                    config.data.datasets.forEach(ds => {
+                        if (Array.isArray(ds.data)) {
+                            for (let i = ds.data.length - 1; i >= 0; i--) {
+                                if (ds.data[i] !== null && ds.data[i] !== undefined) {
+                                    if (i > maxNonNullIdx) maxNonNullIdx = i;
+                                    break;
+                                }
+                            }
+                        }
+                    });
+
+                    if (maxNonNullIdx >= 0 && maxNonNullIdx < config.data.labels.length - 1) {
+                        config.data.labels = config.data.labels.slice(0, maxNonNullIdx + 1);
+                        config.data.datasets.forEach(ds => {
+                            if (Array.isArray(ds.data)) {
+                                ds.data = ds.data.slice(0, maxNonNullIdx + 1);
+                            }
+                        });
+                    }
+                }
+
                 const isDark = document.documentElement.classList.contains('dark');
                 const theme = {
                     text: isDark ? '#f8fafc' : '#475569',   // axis tick labels — brighter (Slate 50)
