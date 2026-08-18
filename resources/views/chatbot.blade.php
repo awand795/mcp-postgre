@@ -5983,6 +5983,22 @@
             function initChartWithConfig(canvas, config, container, chartId, currencyColumns = []) {
                 if (!config || !canvas) return;
 
+                // Normalize config structure: Handle LLM returning root {type, labels, datasets} vs {type, data: {labels, datasets}}
+                if (!config.data) {
+                    config.data = {};
+                }
+                if (config.labels && !config.data.labels) {
+                    config.data.labels = config.data.labels || config.labels;
+                }
+                if (config.datasets && !config.data.datasets) {
+                    config.data.datasets = config.data.datasets || config.datasets;
+                }
+
+                // If datasets is still missing or empty, ensure array
+                if (!config.data.datasets) {
+                    config.data.datasets = [];
+                }
+
                 const isDark = document.documentElement.classList.contains('dark');
                 const theme = {
                     text: isDark ? '#f8fafc' : '#475569',   // axis tick labels — brighter (Slate 50)
