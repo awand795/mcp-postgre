@@ -138,17 +138,104 @@ html.dark .aim-stat-val.cyan { color: #22d3ee; }
 html.dark .aim-stat-icon { opacity: .06; }
 
 /* ══════════════════════════════════════════
-   SECTION HEADING
+   SECTION HEADING & CONTROLS
 ══════════════════════════════════════════ */
 .aim-section-head {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 14px; gap: 12px; flex-wrap: wrap;
+}
+.aim-section-title-wrap {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 .aim-section-head h2 {
-    font-size: 0.78rem; font-weight: 700;
+    font-size: 0.82rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: .06em;
+    color: var(--aim-muted); margin: 0;
+}
+.aim-filter-hint {
+    font-size: 0.75rem; color: var(--aim-indigo); font-weight: 600;
+}
+
+.aim-controls {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.aim-search-box {
+    position: relative; display: flex; align-items: center;
+}
+.aim-search-icon {
+    position: absolute; left: 12px; color: var(--aim-muted);
+    font-size: 0.8rem; pointer-events: none;
+}
+.aim-search-input {
+    background: var(--aim-surface);
+    border: 1px solid var(--aim-border);
+    padding: 7px 32px 7px 34px;
+    border-radius: 10px;
+    color: var(--aim-text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none; transition: all .2s;
+    width: 240px;
+}
+.aim-search-input:focus {
+    border-color: var(--aim-indigo);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+    width: 280px;
+}
+.aim-search-clear {
+    position: absolute; right: 8px;
+    background: none; border: none;
+    color: var(--aim-muted); cursor: pointer;
+    font-size: 0.75rem; padding: 4px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+}
+.aim-search-clear:hover { color: var(--aim-text); }
+
+.aim-filter-select-wrap {
+    position: relative; display: flex; align-items: center;
+}
+.aim-filter-select-icon {
+    position: absolute; left: 10px; color: var(--aim-muted);
+    font-size: 0.72rem; pointer-events: none;
+}
+.aim-filter-select {
+    background: var(--aim-surface);
+    border: 1px solid var(--aim-border);
+    padding: 7px 12px 7px 28px;
+    border-radius: 10px;
+    color: var(--aim-text);
+    font-size: 0.82rem;
+    font-family: inherit; font-weight: 500;
+    outline: none; cursor: pointer; transition: all .2s;
+    height: 35px;
+}
+.aim-filter-select:focus {
+    border-color: var(--aim-indigo);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.aim-filter-select option {
+    background: var(--aim-surface);
+    color: var(--aim-text);
+}
+
+.aim-no-providers {
+    grid-column: 1 / -1;
+    text-align: center; padding: 3rem 1.5rem;
+    background: var(--aim-surface);
+    border: 1px dashed var(--aim-border);
+    border-radius: var(--aim-radius);
     color: var(--aim-muted);
 }
+.aim-no-providers i { font-size: 2rem; margin-bottom: 0.75rem; display: block; opacity: 0.4; }
+.aim-no-providers p { font-size: 0.9rem; margin: 0 0 1rem; }
+.aim-btn-reset-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 8px;
+    border: 1px solid var(--aim-border);
+    background: rgba(99,102,241,0.08); color: var(--aim-indigo);
+    font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all .2s;
+}
+.aim-btn-reset-filter:hover { background: rgba(99,102,241,0.18); }
 
 /* ══════════════════════════════════════════
    PROVIDER GRID
@@ -194,6 +281,10 @@ html.dark .pcard:hover { border-color: rgba(99,102,241,.25); box-shadow: 0 8px 3
 .av-groq       { background: rgba(245,80,54,.1);   }
 .av-openrouter { background: rgba(124,58,237,.1);  }
 .av-deepseek   { background: rgba(14,165,233,.1);  }
+.av-bynara     { background: rgba(236,72,153,.1);  }
+.av-llm7io     { background: rgba(6,182,212,.1);   }
+.av-tokenfaucet{ background: rgba(245,158,11,.1);  }
+.av-nvidia     { background: rgba(118,185,0,.1);   }
 .av-default    { background: rgba(99,102,241,.1);  }
 
 .pcard-name  { font-size: 0.92rem; font-weight: 600; flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; }
@@ -690,7 +781,35 @@ html.dark .limit-alert-bar { color: #f87171; }
 
 {{-- ── PROVIDER GRID ──────────────────────────────────────────── --}}
 <div class="aim-section-head">
-    <h2>{{ __('Providers') }} ({{ $totalProviders }})</h2>
+    <div class="aim-section-title-wrap">
+        <h2>{{ __('Providers') }} (<span id="providerCountBadge">{{ $totalProviders }}</span>)</h2>
+        <span class="aim-filter-hint" id="providerFilterHint" style="display:none;"></span>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="aim-controls">
+        <!-- Search Input -->
+        <div class="aim-search-box">
+            <i class="fas fa-search aim-search-icon"></i>
+            <input type="text" id="searchProviderInput" class="aim-search-input"
+                   placeholder="{{ __('Cari provider, kode, model...') }}"
+                   oninput="filterProviders()">
+            <button type="button" class="aim-search-clear" id="btnSearchClear" onclick="clearProviderSearch()" title="{{ __('Reset pencarian') }}" style="display:none;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Status Filter Select -->
+        <div class="aim-filter-select-wrap">
+            <i class="fas fa-filter aim-filter-select-icon"></i>
+            <select id="statusFilterSelect" class="aim-filter-select" onchange="filterProviders()">
+                <option value="all">{{ __('Semua Status') }}</option>
+                <option value="active">{{ __('Aktif Saja') }}</option>
+                <option value="inactive">{{ __('Nonaktif Saja') }}</option>
+                <option value="limit">{{ __('Rate Limited') }}</option>
+            </select>
+        </div>
+    </div>
 </div>
 
 <div class="aim-provider-grid">
@@ -709,11 +828,20 @@ html.dark .limit-alert-bar { color: #f87171; }
             'groq'        => '⚡',
             'openrouter'  => '🌐',
             'deepseek'    => '🌊',
+            'bynara'      => '🌸',
+            'llm7io'      => '💠',
+            'tokenfaucet' => '🪙',
+            'nvidia'      => '🟢',
             default       => '🤖',
         };
-        $avClass = 'av-' . (in_array($provider->code, ['openai','gemini','claude','mistral','groq','openrouter','deepseek']) ? $provider->code : 'default');
+        $avClass = 'av-' . (in_array($provider->code, ['openai','gemini','claude','mistral','groq','openrouter','deepseek','bynara','llm7io','tokenfaucet','nvidia']) ? $provider->code : 'default');
     @endphp
-    <div class="pcard {{ !$provider->is_active ? 'pcard--off' : '' }}" id="pcard-{{ $provider->id }}">
+    <div class="pcard {{ !$provider->is_active ? 'pcard--off' : '' }}" 
+         id="pcard-{{ $provider->id }}"
+         data-provider-name="{{ strtolower($provider->name) }}"
+         data-provider-code="{{ strtolower($provider->code) }}"
+         data-provider-status="{{ $provider->is_active ? 'active' : 'inactive' }}"
+         data-provider-limit="{{ $hasLimit ? 'true' : 'false' }}">
 
         {{-- Head --}}
         <div class="pcard-head">
@@ -918,12 +1046,21 @@ html.dark .limit-alert-bar { color: #f87171; }
 
     {{-- Add new provider card --}}
     @if(auth()->user()->is_super_admin)
-    <button class="pcard-add-new" type="button"
+    <button class="pcard-add-new" id="pcardAddNewBtn" type="button"
             onclick="document.getElementById('providerModal').style.display='flex'">
         <span class="add-icon"><i class="fas fa-plus"></i></span>
         <span>{{ __('Tambah Provider Baru') }}</span>
     </button>
     @endif
+
+    {{-- Empty State --}}
+    <div class="aim-no-providers" id="noProvidersFound" style="display:none;">
+        <i class="fas fa-search"></i>
+        <p>{{ __('Tidak ada provider yang cocok dengan filter pencarian.') }}</p>
+        <button type="button" class="aim-btn-reset-filter" onclick="resetAllProviderFilters()">
+            <i class="fas fa-undo"></i> {{ __('Reset Filter') }}
+        </button>
+    </div>
 </div>
 
 
@@ -1552,6 +1689,96 @@ function escHtml(str) {
     return String(str)
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════════════════════
+   PROVIDER SEARCH & FILTER
+══════════════════════════════════════════════════════════ */
+function filterProviders() {
+    const searchInput = document.getElementById('searchProviderInput');
+    const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+    const statusSelect = document.getElementById('statusFilterSelect');
+    const status = (statusSelect ? statusSelect.value : 'all');
+    const clearBtn = document.getElementById('btnSearchClear');
+    
+    if (clearBtn) clearBtn.style.display = query ? 'flex' : 'none';
+
+    const cards = document.querySelectorAll('.aim-provider-grid .pcard');
+    let visibleCount = 0;
+    const totalCount = cards.length;
+
+    cards.forEach(card => {
+        const name = (card.dataset.providerName || '').toLowerCase();
+        const code = (card.dataset.providerCode || '').toLowerCase();
+        const cardStatus = card.dataset.providerStatus || '';
+        const cardLimit = card.dataset.providerLimit === 'true';
+
+        // Search match (name or code or model chips within the card)
+        let matchesQuery = !query || name.includes(query) || code.includes(query);
+        if (!matchesQuery) {
+            // Also check models and keys inside card
+            const subItems = card.querySelectorAll('.model-chip, .key-name');
+            for (let item of subItems) {
+                if (item.textContent.toLowerCase().includes(query)) {
+                    matchesQuery = true;
+                    break;
+                }
+            }
+        }
+
+        // Status match
+        let matchesStatus = true;
+        if (status === 'active') {
+            matchesStatus = cardStatus === 'active';
+        } else if (status === 'inactive') {
+            matchesStatus = cardStatus === 'inactive';
+        } else if (status === 'limit') {
+            matchesStatus = cardLimit;
+        }
+
+        const isVisible = matchesQuery && matchesStatus;
+        card.style.display = isVisible ? 'flex' : 'none';
+        if (isVisible) visibleCount++;
+    });
+
+    // Handle add-new provider card button during search
+    const addBtn = document.getElementById('pcardAddNewBtn');
+    if (addBtn) {
+        addBtn.style.display = (query || status !== 'all') ? 'none' : 'flex';
+    }
+
+    const noResults = document.getElementById('noProvidersFound');
+    if (noResults) noResults.style.display = (visibleCount === 0 && totalCount > 0) ? 'block' : 'none';
+
+    const countBadge = document.getElementById('providerCountBadge');
+    if (countBadge) countBadge.textContent = visibleCount;
+
+    const hint = document.getElementById('providerFilterHint');
+    if (hint) {
+        if (query || status !== 'all') {
+            hint.textContent = `(Menampilkan ${visibleCount} dari ${totalCount} provider)`;
+            hint.style.display = 'inline';
+        } else {
+            hint.style.display = 'none';
+        }
+    }
+}
+
+function clearProviderSearch() {
+    const input = document.getElementById('searchProviderInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    filterProviders();
+}
+
+function resetAllProviderFilters() {
+    const input = document.getElementById('searchProviderInput');
+    if (input) input.value = '';
+    const select = document.getElementById('statusFilterSelect');
+    if (select) select.value = 'all';
+    filterProviders();
 }
 
 /* ══════════════════════════════════════════════════════════
