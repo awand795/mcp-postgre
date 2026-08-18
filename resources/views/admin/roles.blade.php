@@ -4,7 +4,7 @@
 @section('content')
 
 {{-- ══════════════════════════════════════════════════════════════
-     ROLE & PERMISSIONS MANAGEMENT — Modern Enterprise Redesign v3
+     ROLE & PERMISSIONS MANAGEMENT — Enterprise Ultra-Fast v3
 ══════════════════════════════════════════════════════════════ --}}
 
 <style>
@@ -322,6 +322,16 @@ html.dark .rm-btn-emerald:hover { color: white !important; }
 html.dark .rm-btn-rose { color: #f87171 !important; }
 html.dark .rm-btn-rose:hover { color: white !important; }
 
+.rm-btn-rose-subtle {
+    background: var(--rm-rose-soft) !important;
+    color: var(--rm-rose-dark) !important;
+    border-color: rgba(239,68,68,0.25) !important;
+}
+.rm-btn-rose-subtle:hover {
+    background: var(--rm-rose) !important;
+    color: white !important;
+}
+
 .rm-btn-indigo {
     background: var(--rm-primary-soft) !important;
     color: var(--rm-primary-dark) !important;
@@ -377,17 +387,6 @@ html.dark .rm-btn-cyan:hover { color: white !important; }
 }
 html.dark .rm-btn-amber { color: #fde68a !important; }
 html.dark .rm-btn-amber:hover { color: white !important; }
-
-.rm-btn-subtle {
-    background: var(--rm-bg-subtle) !important;
-    color: var(--rm-text-muted) !important;
-    border-color: var(--rm-border) !important;
-}
-.rm-btn-subtle:hover {
-    background: var(--rm-bg-hover) !important;
-    color: var(--rm-text-main) !important;
-    border-color: var(--rm-border-focus) !important;
-}
 
 /* ── Tabs Navigation ─────────────────────────────────── */
 .rm-tabs {
@@ -578,7 +577,7 @@ html.dark .rm-schema-row td { background: rgba(255,255,255,0.02); }
 
 /* Table Item Row */
 .rm-row-item {
-    cursor: pointer; transition: background .12s;
+    cursor: pointer; transition: background .12s; user-select: none;
 }
 .rm-row-item:hover {
     background: var(--rm-bg-hover);
@@ -750,7 +749,7 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
 }
 .rm-modal-foot {
     display: flex; align-items: center; justify-content: flex-end; gap: 8px;
-    margin-top: 1.25rem; pt: 8px; border-top: 1px solid var(--rm-border);
+    margin-top: 1.25rem; padding-top: 8px; border-top: 1px solid var(--rm-border);
 }
 </style>
 
@@ -813,7 +812,7 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
                         <button type="button" class="rm-rc-btn clone" title="{{ __('Duplikat Role ini') }}" onclick="duplicateRole({{ $role->id }})">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <button type="button" class="rm-rc-btn edit" title="{{ __('Edit Info Role') }}" onclick="showRoleModal('edit', {{ json_encode($role) }})">
+                        <button type="button" class="rm-rc-btn edit" title="{{ __('Edit Info Role') }}" onclick="editRoleById({{ $role->id }})">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button type="button" class="rm-rc-btn del" title="{{ __('Hapus Role') }}" onclick="deleteRole({{ $role->id }})">
@@ -1061,9 +1060,8 @@ document.addEventListener('DOMContentLoaded', function() {
     ══════════════════════════════════════════════════════════ */
     const allRoles   = @json($roles);
     const allTables  = @json($allTables);
-    const allDbs     = @json($databases);
 
-    let currentRoleId          = {{ $roles->first()->id ?? 'null' }};
+    let currentRoleId          = {{ $roles->first() ? $roles->first()->id : 'null' }};
     let selectedTables         = new Set();
     let originalSelectedTables = new Set();
     let currentStatusFilter    = 'all'; // 'all' | 'allowed' | 'not_allowed'
@@ -1117,9 +1115,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('heroDbCount').textContent = dbSet.size;
 
         // Creator & Created At info
-        const creatorName = (role.added_by && typeof role.added_by === 'object' && role.added_by.name)
-            ? role.added_by.name
-            : (role.added_by_user ? role.added_by_user.name : (role.addedBy ? role.addedBy.name : 'System'));
+        let creatorName = 'System';
+        if (role.added_by && typeof role.added_by === 'object' && role.added_by.name) {
+            creatorName = role.added_by.name;
+        } else if (role.added_by_user && role.added_by_user.name) {
+            creatorName = role.added_by_user.name;
+        } else if (role.addedBy && role.addedBy.name) {
+            creatorName = role.addedBy.name;
+        }
         const createdDate = role.created_at ? new Date(role.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
         const heroCreatedByEl = document.getElementById('heroCreatedBy');
@@ -1157,20 +1160,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /* ══════════════════════════════════════════════════════════
-       RENDER PERMISSIONS STRUCTURED TABLE TREE
+       HIGH-PERFORMANCE STRING-TEMPLATE TREE RENDERING
     ══════════════════════════════════════════════════════════ */
     function renderTree(visibleTables) {
         const container = document.getElementById('treeContainer');
         const emptyState = document.getElementById('tableEmptyState');
-        container.innerHTML = '';
 
         if (visibleTables.length === 0) {
+            container.innerHTML = '';
             emptyState.style.display = 'block';
             return;
         }
         emptyState.style.display = 'none';
 
-        // Group the visible tables
+        // Group visible tables
         const filteredGrouped = {};
         visibleTables.forEach(t => {
             const dbCode = t.database_code || 'default';
@@ -1186,94 +1189,85 @@ document.addEventListener('DOMContentLoaded', function() {
             filteredGrouped[dbCode].schemas[schema].push(t);
         });
 
-        Object.entries(filteredGrouped).forEach(([dbCode, dbData]) => {
+        let html = '';
+
+        for (const [dbCode, dbData] of Object.entries(filteredGrouped)) {
             let totalInDb = 0;
             let selectedInDb = 0;
 
-            Object.values(dbData.schemas).forEach(tables => {
-                tables.forEach(t => {
+            for (const tables of Object.values(dbData.schemas)) {
+                for (const t of tables) {
                     totalInDb++;
                     const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
                     if (selectedTables.has(key)) selectedInDb++;
-                });
-            });
+                }
+            }
 
             const isFullDb = (totalInDb > 0 && selectedInDb === totalInDb);
             const pctDb    = totalInDb > 0 ? Math.round((selectedInDb / totalInDb) * 100) : 0;
 
-            const dbSection = document.createElement('div');
-            dbSection.className = 'rm-db-section';
-            dbSection.id = 'db-card-' + dbCode;
-
-            // Database Header Bar
-            dbSection.innerHTML = `
-                <div class="rm-db-header-bar" onclick="toggleDbAccordion('${dbCode}')">
-                    <div class="rm-db-header-left">
-                        <div class="rm-db-header-icon"><i class="fas fa-database"></i></div>
-                        <span class="rm-db-title-text">${escHtml(dbData.dbName)}</span>
-                        <span class="rm-db-stat-badge ${isFullDb ? 'full' : ''}" id="db-badge-${dbCode}">
-                            ${selectedInDb}/${totalInDb} {{ __('Tabel') }} (${pctDb}%)
-                        </span>
+            html += `
+                <div class="rm-db-section" id="db-card-${dbCode}">
+                    <div class="rm-db-header-bar" data-action="toggle-db-accordion" data-db="${dbCode}">
+                        <div class="rm-db-header-left">
+                            <div class="rm-db-header-icon"><i class="fas fa-database"></i></div>
+                            <span class="rm-db-title-text">${escHtml(dbData.dbName)}</span>
+                            <span class="rm-db-stat-badge ${isFullDb ? 'full' : ''}" id="db-badge-${dbCode}">
+                                ${selectedInDb}/${totalInDb} {{ __('Tabel') }} (${pctDb}%)
+                            </span>
+                        </div>
+                        <div class="rm-db-header-right">
+                            <button type="button" class="rm-btn ${isFullDb ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm"
+                                    data-action="toggle-db-all" data-db="${dbCode}" data-select="${!isFullDb}">
+                                <i class="fas ${isFullDb ? 'fa-square' : 'fa-check-square'}"></i>
+                                ${isFullDb ? '{{ __("Hapus DB") }}' : '{{ __("Pilih Semua DB") }}'}
+                            </button>
+                            <i class="fas fa-chevron-down rm-db-toggle-ico"></i>
+                        </div>
                     </div>
-                    <div class="rm-db-header-right" onclick="event.stopPropagation()">
-                        <button type="button" class="rm-btn ${isFullDb ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" onclick="toggleDatabaseAll('${dbCode}', ${!isFullDb})">
-                            <i class="fas ${isFullDb ? 'fa-square' : 'fa-check-square'}"></i>
-                            ${isFullDb ? '{{ __("Hapus DB") }}' : '{{ __("Pilih Semua DB") }}'}
-                        </button>
-                        <i class="fas fa-chevron-down rm-db-toggle-ico"></i>
-                    </div>
-                </div>
-                <div class="rm-db-content-area" id="db-body-${dbCode}">
-                    <table class="rm-perm-table">
-                        <thead>
-                            <tr>
-                                <th style="width:40px;text-align:center;"></th>
-                                <th>{{ __('Nama Tabel / View') }}</th>
-                                <th style="width:120px;">{{ __('Schema') }}</th>
-                                <th style="width:100px;">{{ __('Tipe') }}</th>
-                                <th style="width:110px;text-align:right;">{{ __('Status') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-${dbCode}"></tbody>
-                    </table>
-                </div>
+                    <div class="rm-db-content-area" id="db-body-${dbCode}">
+                        <table class="rm-perm-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;text-align:center;"></th>
+                                    <th>{{ __('Nama Tabel / View') }}</th>
+                                    <th style="width:120px;">{{ __('Schema') }}</th>
+                                    <th style="width:100px;">{{ __('Tipe') }}</th>
+                                    <th style="width:110px;text-align:right;">{{ __('Status') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
             `;
 
-            const tbody = dbSection.querySelector(`#tbody-${dbCode}`);
-
-            // Render Schemas & Table Rows
-            Object.entries(dbData.schemas).forEach(([schemaName, tables]) => {
+            for (const [schemaName, tables] of Object.entries(dbData.schemas)) {
                 let selectedInSchema = 0;
-                tables.forEach(t => {
+                for (const t of tables) {
                     const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
                     if (selectedTables.has(key)) selectedInSchema++;
-                });
+                }
                 const isFullSchema = (tables.length > 0 && selectedInSchema === tables.length);
 
-                // Schema Subheader Row
-                const schemaRow = document.createElement('tr');
-                schemaRow.className = 'rm-schema-row';
-                schemaRow.innerHTML = `
-                    <td colspan="5">
-                        <div style="display:flex;align-items:center;justify-content:space-between;">
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <i class="fas fa-layer-group" style="color:var(--rm-cyan)"></i>
-                                <span>SCHEMA: ${escHtml(schemaName)} (${tables.length} tabel)</span>
+                html += `
+                    <tr class="rm-schema-row">
+                        <td colspan="5">
+                            <div style="display:flex;align-items:center;justify-content:space-between;">
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <i class="fas fa-layer-group" style="color:var(--rm-cyan)"></i>
+                                    <span>SCHEMA: ${escHtml(schemaName)} (${tables.length} tabel)</span>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-size:0.68rem;color:var(--rm-text-dim)">${selectedInSchema}/${tables.length} {{ __('Terpilih') }}</span>
+                                    <button type="button" class="rm-btn ${isFullSchema ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" style="padding:1px 6px;font-size:0.68rem;"
+                                            data-action="toggle-schema-all" data-db="${dbCode}" data-schema="${escHtml(schemaName)}" data-select="${!isFullSchema}">
+                                        ${isFullSchema ? '<i class="fas fa-times"></i> {{ __("Hapus") }}' : '<i class="fas fa-check"></i> {{ __("Pilih") }}'}
+                                    </button>
+                                </div>
                             </div>
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <span style="font-size:0.68rem;color:var(--rm-text-dim)">${selectedInSchema}/${tables.length} {{ __('Terpilih') }}</span>
-                                <button type="button" class="rm-btn ${isFullSchema ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" style="padding:1px 6px;font-size:0.68rem;"
-                                        onclick="toggleSchemaAll('${dbCode}', '${schemaName}', ${!isFullSchema})">
-                                    ${isFullSchema ? '<i class="fas fa-times"></i> {{ __("Hapus") }}' : '<i class="fas fa-check"></i> {{ __("Pilih") }}'}
-                                </button>
-                            </div>
-                        </div>
-                    </td>
+                        </td>
+                    </tr>
                 `;
-                tbody.appendChild(schemaRow);
 
-                // Table Item Rows
-                tables.forEach(t => {
+                for (const t of tables) {
                     const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
                     const isAllowed = selectedTables.has(key);
                     const type = (t.table_type || 'TABLE').toUpperCase();
@@ -1288,71 +1282,104 @@ document.addEventListener('DOMContentLoaded', function() {
                         typeIco   = 'fa-eye';
                     }
 
-                    const row = document.createElement('tr');
-                    row.className = `rm-row-item ${isAllowed ? 'allowed' : ''}`;
-                    row.id = `row-${dbCode}-${schemaName}-${t.table_name}`;
-                    row.onclick = () => toggleTable(key, row);
-
-                    row.innerHTML = `
-                        <td style="text-align:center;">
-                            <div class="rm-check-box">
-                                <i class="fas fa-check"></i>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="rm-tbl-name">
-                                <i class="fas ${typeIco}"></i>
-                                <span>${escHtml(t.table_name)}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <span style="font-size:0.75rem;color:var(--rm-text-muted);font-family:var(--rm-font-mono)">${escHtml(t.schema_name)}</span>
-                        </td>
-                        <td>
-                            <span class="rm-tag ${typeClass}">${escHtml(type)}</span>
-                        </td>
-                        <td style="text-align:right;">
-                            <span class="rm-status-badge">
-                                <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-minus-circle'}"></i>
-                                <span>${isAllowed ? '{{ __("Diizinkan") }}' : '{{ __("Terkunci") }}'}</span>
-                            </span>
-                        </td>
+                    html += `
+                        <tr class="rm-row-item ${isAllowed ? 'allowed' : ''}" data-action="toggle-row" data-key="${escHtml(key)}">
+                            <td style="text-align:center;">
+                                <div class="rm-check-box"><i class="fas fa-check"></i></div>
+                            </td>
+                            <td>
+                                <div class="rm-tbl-name">
+                                    <i class="fas ${typeIco}"></i>
+                                    <span>${escHtml(t.table_name)}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span style="font-size:0.75rem;color:var(--rm-text-muted);font-family:var(--rm-font-mono)">${escHtml(t.schema_name)}</span>
+                            </td>
+                            <td>
+                                <span class="rm-tag ${typeClass}">${escHtml(type)}</span>
+                            </td>
+                            <td style="text-align:right;">
+                                <span class="rm-status-badge">
+                                    <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-minus-circle'}"></i>
+                                    <span>${isAllowed ? '{{ __("Diizinkan") }}' : '{{ __("Terkunci") }}'}</span>
+                                </span>
+                            </td>
+                        </tr>
                     `;
-                    tbody.appendChild(row);
-                });
-            });
+                }
+            }
 
-            container.appendChild(dbSection);
-        });
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
 
+        container.innerHTML = html;
         updatePillCounts();
     }
 
     /* ══════════════════════════════════════════════════════════
-       TABLE TOGGLE & PERMISSION STATE MANAGEMENT
+       BLAZING FAST EVENT DELEGATION FOR TREE CONTAINER
     ══════════════════════════════════════════════════════════ */
-    window.toggleTable = function(key, rowEl) {
-        if (selectedTables.has(key)) {
-            selectedTables.delete(key);
-            if (rowEl) {
-                rowEl.classList.remove('allowed');
-                const badge = rowEl.querySelector('.rm-status-badge');
-                if (badge) badge.innerHTML = '<i class="fas fa-minus-circle"></i> <span>{{ __("Terkunci") }}</span>';
+    const treeContainer = document.getElementById('treeContainer');
+    treeContainer.addEventListener('click', function(e) {
+        // 1. Check if button click
+        const btn = e.target.closest('button[data-action]');
+        if (btn) {
+            e.stopPropagation();
+            const action = btn.getAttribute('data-action');
+            if (action === 'toggle-db-all') {
+                const dbCode = btn.getAttribute('data-db');
+                const selectAll = btn.getAttribute('data-select') === 'true';
+                toggleDatabaseAll(dbCode, selectAll);
+            } else if (action === 'toggle-schema-all') {
+                const dbCode = btn.getAttribute('data-db');
+                const schemaName = btn.getAttribute('data-schema');
+                const selectAll = btn.getAttribute('data-select') === 'true';
+                toggleSchemaAll(dbCode, schemaName, selectAll);
             }
-        } else {
-            selectedTables.add(key);
-            if (rowEl) {
-                rowEl.classList.add('allowed');
-                const badge = rowEl.querySelector('.rm-status-badge');
-                if (badge) badge.innerHTML = '<i class="fas fa-check-circle"></i> <span>{{ __("Diizinkan") }}</span>';
-            }
+            return;
         }
 
-        checkChanges();
-        updateCountsAndBadges();
-    };
+        // 2. Check if table row click
+        const row = e.target.closest('.rm-row-item');
+        if (row) {
+            const key = row.getAttribute('data-key');
+            if (key) {
+                if (selectedTables.has(key)) {
+                    selectedTables.delete(key);
+                    row.classList.remove('allowed');
+                    const badge = row.querySelector('.rm-status-badge');
+                    if (badge) badge.innerHTML = '<i class="fas fa-minus-circle"></i> <span>{{ __("Terkunci") }}</span>';
+                } else {
+                    selectedTables.add(key);
+                    row.classList.add('allowed');
+                    const badge = row.querySelector('.rm-status-badge');
+                    if (badge) badge.innerHTML = '<i class="fas fa-check-circle"></i> <span>{{ __("Diizinkan") }}</span>';
+                }
+                checkChanges();
+                updateCountsAndBadges();
+            }
+            return;
+        }
 
-    window.toggleDatabaseAll = function(dbCode, selectAll) {
+        // 3. Check if DB header accordion toggle
+        const dbHead = e.target.closest('.rm-db-header-bar');
+        if (dbHead) {
+            const dbCode = dbHead.getAttribute('data-db');
+            if (dbCode) toggleDbAccordion(dbCode);
+            return;
+        }
+    });
+
+    /* ══════════════════════════════════════════════════════════
+       TABLE TOGGLE & PERMISSION STATE MANAGEMENT
+    ══════════════════════════════════════════════════════════ */
+    function toggleDatabaseAll(dbCode, selectAll) {
         const dbData = groupedTables[dbCode];
         if (!dbData) return;
 
@@ -1366,9 +1393,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         checkChanges();
         applyFilters();
-    };
+    }
 
-    window.toggleSchemaAll = function(dbCode, schemaName, selectAll) {
+    function toggleSchemaAll(dbCode, schemaName, selectAll) {
         const tables = groupedTables[dbCode]?.schemas[schemaName];
         if (!tables) return;
 
@@ -1380,7 +1407,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         checkChanges();
         applyFilters();
-    };
+    }
 
     window.bulkAction = function(action) {
         const visible = getFilteredTables();
@@ -1518,10 +1545,10 @@ document.addEventListener('DOMContentLoaded', function() {
         setStatusFilter('all', document.querySelector('.rm-seg-btn[data-status="all"]'));
     };
 
-    window.toggleDbAccordion = function(dbCode) {
+    function toggleDbAccordion(dbCode) {
         const el = document.getElementById('db-card-' + dbCode);
         if (el) el.classList.toggle('collapsed');
-    };
+    }
 
     window.toggleAllAccordions = function(expand) {
         document.querySelectorAll('.rm-db-section').forEach(el => {
@@ -1536,27 +1563,28 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderMembersTab(users) {
         const grid = document.getElementById('membersGrid');
         const emptyState = document.getElementById('membersEmptyState');
-        grid.innerHTML = '';
 
         if (!users || users.length === 0) {
+            grid.innerHTML = '';
             emptyState.style.display = 'block';
             return;
         }
         emptyState.style.display = 'none';
 
+        let html = '';
         users.forEach(u => {
-            const card = document.createElement('div');
-            card.className = 'rm-user-card';
             const initials = (u.name || 'U').substring(0, 2).toUpperCase();
-            card.innerHTML = `
-                <div class="rm-user-card-avatar">${escHtml(initials)}</div>
-                <div class="rm-user-card-info">
-                    <h5>${escHtml(u.name)}</h5>
-                    <span>${escHtml(u.email || '-')}</span>
+            html += `
+                <div class="rm-user-card">
+                    <div class="rm-user-card-avatar">${escHtml(initials)}</div>
+                    <div class="rm-user-card-info">
+                        <h5>${escHtml(u.name)}</h5>
+                        <span>${escHtml(u.email || '-')}</span>
+                    </div>
                 </div>
             `;
-            grid.appendChild(card);
         });
+        grid.innerHTML = html;
     }
 
     window.switchMainTab = function(tabName) {
@@ -1732,9 +1760,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('roleModal').classList.remove('open');
     };
 
-    window.editCurrentRole = function() {
-        const r = allRoles.find(x => x.id == currentRoleId);
+    window.editRoleById = function(roleId) {
+        const r = allRoles.find(x => x.id == roleId);
         if (r) showRoleModal('edit', r);
+    };
+
+    window.editCurrentRole = function() {
+        editRoleById(currentRoleId);
     };
 
     window.duplicateRole = function(roleId) {
