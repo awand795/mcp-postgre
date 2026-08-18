@@ -2107,11 +2107,25 @@ Contoh:
 
 **PANDUAN KHUSUS PERBANDINGAN TAHUN/PERIODE (YoY):**
 Jika user meminta perbandingan antar tahun (contoh: "penjualan 2025 vs 2026" atau "grafik 2025 dan 2026"):
-- **DILARANG** menggunakan label sumbu X yang memanjang secara sekuensial (contoh sekuensial SALAH: "Jan 2025", "Feb 2025", ..., "Jan 2026").
-- **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan ("Jan", "Feb", ..., "Des").
-- **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun).
-- Contoh dataset label: `{"label": "Penjualan 2025", "data": [...]}`, `{"label": "Penjualan 2026", "data": [...]}`.
-- **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan dalam grafik perbandingan multi-tahun, data untuk bulan-bulan yang belum dilalui diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya.
+1. **STRUKTUR QUERY SQL WAJIB BERBENTUK PIVOT / WIDE FORMAT**:
+   - Query SQL **WAJIB** menghasilkan 1 baris per bulan dengan kolom terpisah untuk tiap tahun menggunakan `SUM(CASE WHEN ...)`:
+   ```sql
+   SELECT 
+       periode_bulan AS "Bulan",
+       SUM(CASE WHEN periode_tahun = '2025' THEN total_netto ELSE 0 END) AS "Penjualan 2025",
+       SUM(CASE WHEN periode_tahun = '2026' THEN total_netto ELSE 0 END) AS "Penjualan 2026"
+   FROM sch_mbi.view_data_penjualan_rinci_mbi
+   WHERE periode_tahun IN ('2025', '2026')
+   GROUP BY periode_bulan
+   ORDER BY periode_bulan::int;
+   ```
+   - **DILARANG KERAS** melakukan `GROUP BY periode_tahun, periode_bulan` secara vertikal (yang menghasilkan 20+ baris). Query vertikal akan merusak format visualisasi grafik dan tabel!
+2. **FORMAT GRAFIK (CHART)**:
+   - **DILARANG** menggunakan label sumbu X yang memanjang sekuensial atau menampilkan tahun sebagai sumbu X ("2025", "2026").
+   - **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan ("Jan", "Feb", ..., "Des").
+   - **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun):
+     `{"labels": ["Jan", "Feb", ...], "datasets": [{"label": "Penjualan 2025", "data": [...]}, {"label": "Penjualan 2026", "data": [...]}]}`
+   - **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan (2026), data untuk bulan-bulan yang belum dilalui diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya.
 
 **URUTAN WAJIB jika user minta grafik/analisis:**
 1. Ringkasan Eksekutif
@@ -2463,25 +2477,85 @@ PROMPT;
                         return $matches[0];
 
                     $rawRows = $tableData['rows'] ?? [];
+                    $rawRows = $tableData['rows'] ?? [];
                     $columns = $tableData['columns'] ?? [];
 
                     if (empty($rawRows) || empty($columns))
                         return $matches[0];
 
-                    $normalizedRows = array_map(function ($row) use ($columns) {
-                        if (is_array($row) && array_values($row) === $row)
-                            return $row;
-                        if (is_array($row))
-                            return array_map(fn($c) => $row[$c] ?? null, $columns);
-                        return [$row];
-                    }, $rawRows);
+                    $monthMap = [
+                        1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
+                        5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu',
+                        9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
+                    ];
 
-                    $newParams = $params;
-                    $newParams['headers'] = $columns;
-                    $newParams['rows'] = $normalizedRows;
-                    if (empty($newParams['currency_columns']) && !empty($toolRes['currency_columns'])) {
-                        $newParams['currency_columns'] = $toolRes['currency_columns'];
+                    $isVerticalPeriod = false;
+                    // Detect if query returned vertical columns: [Tahun, Bulan, Total Netto] or similar
+                    if (count($columns) === 3 && preg_match('/tahun|year/i', $columns[0]) && preg_match('/bulan|month/i', $columns[1])) {
+                        $isVerticalPeriod = true;
                     }
+
+                    if ($isVerticalPeriod) {
+                        $yearCol = $columns[0];
+                        $monthCol = $columns[1];
+                        $valCol = $columns[2];
+
+                        $pivotData = [];
+                        $allYears = [];
+                        $allMonths = [];
+
+                        foreach ($rawRows as $row) {
+                            $y = (string) ($row[$yearCol] ?? '');
+                            $m = (int) ($row[$monthCol] ?? 0);
+                            $v = is_numeric($row[$valCol] ?? null) ? (float) $row[$valCol] : 0;
+
+                            if (!in_array($y, $allYears)) $allYears[] = $y;
+                            if ($m > 0 && !in_array($m, $allMonths)) $allMonths[] = $m;
+
+                            if (!isset($pivotData[$m])) $pivotData[$m] = [];
+                            $pivotData[$m][$y] = $v;
+                        }
+                        sort($allMonths);
+                        sort($allYears);
+
+                        $newHeaders = ['Bulan'];
+                        $newCurrencyCols = [];
+                        foreach ($allYears as $y) {
+                            $colName = 'Penjualan ' . $y;
+                            $newHeaders[] = $colName;
+                            $newCurrencyCols[] = $colName;
+                        }
+
+                        $normalizedRows = [];
+                        foreach ($allMonths as $m) {
+                            $rowArr = [$monthMap[$m] ?? (string) $m];
+                            foreach ($allYears as $y) {
+                                $rowArr[] = $pivotData[$m][$y] ?? 0;
+                            }
+                            $normalizedRows[] = $rowArr;
+                        }
+
+                        $newParams = $params;
+                        $newParams['headers'] = $newHeaders;
+                        $newParams['rows'] = $normalizedRows;
+                        $newParams['currency_columns'] = $newCurrencyCols;
+                    } else {
+                        $normalizedRows = array_map(function ($row) use ($columns) {
+                            if (is_array($row) && array_values($row) === $row)
+                                return $row;
+                            if (is_array($row))
+                                return array_map(fn($c) => $row[$c] ?? null, $columns);
+                            return [$row];
+                        }, $rawRows);
+
+                        $newParams = $params;
+                        $newParams['headers'] = $columns;
+                        $newParams['rows'] = $normalizedRows;
+                        if (empty($newParams['currency_columns']) && !empty($toolRes['currency_columns'])) {
+                            $newParams['currency_columns'] = $toolRes['currency_columns'];
+                        }
+                    }
+
                     if (empty($newParams['title']) && !empty($toolRes['label'])) {
                         $newParams['title'] = $toolRes['label'];
                     }
@@ -2545,10 +2619,6 @@ PROMPT;
                     $cols = $dataObj['columns'];
                     if (count($cols) < 2) return $matches[0];
 
-                    $labelCol = $cols[0];
-                    // All other columns are dataset series (e.g., "Penjualan 2025", "Penjualan 2026")
-                    $valCols = array_slice($cols, 1);
-
                     // Month mapping
                     $monthMap = [
                         1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr',
@@ -2556,41 +2626,98 @@ PROMPT;
                         9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'
                     ];
 
-                    $labels = [];
-                    foreach ($rows as $row) {
-                        $rawLabel = is_array($row) ? ($row[$labelCol] ?? ($row[0] ?? '')) : '';
-                        if (is_numeric($rawLabel) && isset($monthMap[(int)$rawLabel])) {
-                            $labels[] = $monthMap[(int)$rawLabel];
-                        } else {
-                            $labels[] = (string) $rawLabel;
-                        }
-                    }
-
                     $currentMonth = (int) date('n'); // e.g. 8 for August
                     $currentYear = (string) date('Y'); // e.g. '2026'
 
-                    $datasets = [];
-                    foreach ($valCols as $colIndex => $colName) {
-                        $seriesValues = [];
-                        $isCurrentYearSeries = str_contains((string) $colName, $currentYear);
+                    $isVerticalPeriod = false;
+                    // Detect if query returned vertical columns: [Tahun, Bulan, Total Netto] or similar
+                    if (count($cols) === 3 && preg_match('/tahun|year/i', $cols[0]) && preg_match('/bulan|month/i', $cols[1])) {
+                        $isVerticalPeriod = true;
+                    }
 
-                        foreach ($rows as $rIdx => $row) {
-                            $rawVal = is_array($row) ? ($row[$colName] ?? ($row[$colIndex + 1] ?? null)) : null;
-                            $val = is_numeric($rawVal) ? (float) $rawVal : null;
+                    if ($isVerticalPeriod) {
+                        $yearCol = $cols[0];
+                        $monthCol = $cols[1];
+                        $valCol = $cols[2];
 
-                            // If this series is current year and month is past current month and value is 0 or null -> null
-                            $monthNum = $rIdx + 1;
-                            if ($isCurrentYearSeries && $monthNum > $currentMonth && ($val === 0.0 || $val === null)) {
-                                $val = null;
-                            }
+                        $pivotData = []; // [year => [month => val]]
+                        $allYears = [];
+                        $allMonths = [];
 
-                            $seriesValues[] = $val;
+                        foreach ($rows as $row) {
+                            $y = (string) ($row[$yearCol] ?? '');
+                            $m = (int) ($row[$monthCol] ?? 0);
+                            $v = is_numeric($row[$valCol] ?? null) ? (float) $row[$valCol] : 0;
+
+                            if (!in_array($y, $allYears)) $allYears[] = $y;
+                            if ($m > 0 && !in_array($m, $allMonths)) $allMonths[] = $m;
+
+                            if (!isset($pivotData[$y])) $pivotData[$y] = [];
+                            $pivotData[$y][$m] = $v;
+                        }
+                        sort($allMonths);
+                        sort($allYears);
+
+                        $labels = [];
+                        foreach ($allMonths as $m) {
+                            $labels[] = $monthMap[$m] ?? (string) $m;
                         }
 
-                        $datasets[] = [
-                            'label' => (string) $colName,
-                            'data' => $seriesValues
-                        ];
+                        $datasets = [];
+                        foreach ($allYears as $y) {
+                            $seriesValues = [];
+                            $isCurrentYear = ($y === $currentYear);
+
+                            foreach ($allMonths as $m) {
+                                $v = $pivotData[$y][$m] ?? null;
+                                if ($isCurrentYear && $m > $currentMonth && ($v === 0.0 || $v === null)) {
+                                    $v = null;
+                                }
+                                $seriesValues[] = $v;
+                            }
+
+                            $datasets[] = [
+                                'label' => 'Penjualan ' . $y,
+                                'data' => $seriesValues
+                            ];
+                        }
+                    } else {
+                        $labelCol = $cols[0];
+                        $valCols = array_slice($cols, 1);
+
+                        $labels = [];
+                        foreach ($rows as $row) {
+                            $rawLabel = is_array($row) ? ($row[$labelCol] ?? ($row[0] ?? '')) : '';
+                            if (is_numeric($rawLabel) && isset($monthMap[(int)$rawLabel])) {
+                                $labels[] = $monthMap[(int)$rawLabel];
+                            } else {
+                                $labels[] = (string) $rawLabel;
+                            }
+                        }
+
+                        $datasets = [];
+                        foreach ($valCols as $colIndex => $colName) {
+                            $seriesValues = [];
+                            $isCurrentYearSeries = str_contains((string) $colName, $currentYear);
+
+                            foreach ($rows as $rIdx => $row) {
+                                $rawVal = is_array($row) ? ($row[$colName] ?? ($row[$colIndex + 1] ?? null)) : null;
+                                $val = is_numeric($rawVal) ? (float) $rawVal : null;
+
+                                // If this series is current year and month is past current month and value is 0 or null -> null
+                                $monthNum = $rIdx + 1;
+                                if ($isCurrentYearSeries && $monthNum > $currentMonth && ($val === 0.0 || $val === null)) {
+                                    $val = null;
+                                }
+
+                                $seriesValues[] = $val;
+                            }
+
+                            $datasets[] = [
+                                'label' => (string) $colName,
+                                'data' => $seriesValues
+                            ];
+                        }
                     }
 
                     // Reconstruct config data perfectly matching DB query
