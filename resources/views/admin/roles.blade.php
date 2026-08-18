@@ -1050,8 +1050,9 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
         </form>
     </div>
 </div>
+@endsection
 
-@push('scripts')
+@section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -1883,6 +1884,4 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-@endpush
-
 @endsection

@@ -767,6 +767,7 @@
     </div>
 
     @yield('scripts')
+    @stack('scripts')
     <script>
         function toggleLangDropdown(event) {
             event.stopPropagation();
