@@ -427,7 +427,9 @@ class AdminController extends Controller
         
         $user = auth()->user();
         
-        $rolesQuery = Role::with(['permissions', 'addedBy']);
+        $rolesQuery = Role::with(['permissions', 'addedBy', 'users' => function($q) {
+            $q->select('id', 'name', 'email', 'role', 'is_admin', 'is_super_admin');
+        }])->withCount('users');
         $databasesQuery = DatabaseConnection::active();
         
         if (!$user->is_super_admin) {
