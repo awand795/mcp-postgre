@@ -60,93 +60,36 @@ class ToolCallExecutor
         return [
             [
                 'type' => 'function',
-                'name' => 'get_database_schema_info',
-                'description' => 'Mendapatkan daftar lengkap database, schema, dan tabel yang diizinkan untuk diakses oleh pengguna saat ini. SELALU panggil tool ini pertama kali sebelum menulis query SQL agar Anda tahu database apa saja yang tersedia.',
-                'parameters' => [
-                    'type' => 'object',
-                    'properties' => [
-                        'justification' => [
-                            'type' => 'string',
-                            'description' => 'Alasan mengapa Anda memanggil tool ini (misal: "Memeriksa daftar tabel yang tersedia sebelum menulis query").',
-                        ],
-                    ],
-                    'required' => ['justification'],
-                ],
-            ],
-            [
-                'type' => 'function',
-                'name' => 'describe_table',
-                'description' => 'Mendapatkan informasi semua kolom, tipe data, INDEX, dan relasi FOREIGN KEY untuk tabel tertentu. Gunakan ini untuk memahami struktur tabel dan kolom mana yang bisa di-JOIN atau difilter secara cepat.',
+                'name' => 'execute_query',
+                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database. Gunakan tool ini secara langsung (Single-Shot) untuk menjawab pertanyaan bisnis atau mengambil data master tanpa perlu describe jika tabelnya sudah diketahui dari daftar prompt. Untuk PostgreSQL gunakan format schema_name.table_name (contoh: sch_mbi.view_master_cabang_mbi). DILARANG menggunakan LIMIT kecuali user memintanya secara eksplisit.',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
                         'database_code' => [
                             'type' => 'string',
-                            'description' => 'Kode database.',
+                            'description' => 'Nama database target (contoh: data_mbi).',
                         ],
-                        'schema_name' => [
+                        'sql' => [
                             'type' => 'string',
-                            'description' => 'Nama schema.',
+                            'description' => 'Query SQL SELECT yang valid. Untuk PostgreSQL gunakan format schema_name.table_name (contoh: sch_mbi.view_master_cabang_mbi).',
                         ],
-                        'table_name' => [
+                        'label' => [
                             'type' => 'string',
-                            'description' => 'Nama tabel (tanpa prefix schema).',
+                            'description' => 'Deskripsi singkat tentang data yang diambil.',
+                        ],
+                        'currency_columns' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Kolom yang mewakili nilai mata uang untuk diformat "Rp".',
                         ],
                     ],
-                    'required' => ['database_code', 'schema_name', 'table_name'],
+                    'required' => ['database_code', 'sql', 'label'],
                 ],
             ],
             [
                 'type' => 'function',
-                'name' => 'get_column_values',
-                'description' => 'Mengambil nilai unik (DISTINCT) dari sebuah kolom tabel FISIK (maks 20 nilai). PERINGATAN KERAS: DILARANG MUTLAK menggunakan tool ini pada tabel/view yang namanya mengandung prefix "view_" atau apapun yang merupakan VIEW — tool ini PASTI ERROR pada VIEW karena PostgreSQL tidak support TABLESAMPLE pada VIEW. Sebagai gantinya, gunakan execute_query dengan SELECT DISTINCT kolom FROM schema.tabel LIMIT 20. Gunakan tool ini HANYA untuk tabel fisik kecil (bukan VIEW) saat Anda butuh nilai enum/kategori sebelum query utama.',
-                'parameters' => [
-                    'type' => 'object',
-                    'properties' => [
-                        'database_code' => ['type' => 'string'],
-                        'schema_name' => ['type' => 'string'],
-                        'table_name' => [
-                            'type' => 'string',
-                            'description' => 'Nama tabel FISIK saja — DILARANG memasukkan nama yang mengandung "view_" atau yang merupakan VIEW.',
-                        ],
-                        'column_name' => ['type' => 'string'],
-                    ],
-                    'required' => ['database_code', 'schema_name', 'table_name', 'column_name'],
-                ],
-            ],
-            [
-                'type' => 'function',
-                'name' => 'get_view_definition',
-                'description' => 'Mendapatkan DDL/logika query di balik sebuah View. Gunakan jika tabel yang Anda hadapi adalah VIEW dan Anda perlu tahu dari tabel mana saja kolom-kolomnya berasal.',
-                'parameters' => [
-                    'type' => 'object',
-                    'properties' => [
-                        'database_code' => ['type' => 'string'],
-                        'schema_name' => ['type' => 'string'],
-                        'view_name' => ['type' => 'string'],
-                    ],
-                    'required' => ['database_code', 'schema_name', 'view_name'],
-                ],
-            ],
-            [
-                'type' => 'function',
-                'name' => 'search_schema',
-                'description' => 'Mencari tabel atau kolom berdasarkan kata kunci. ATURAN PENGGUNAAN KETAT: (1) DILARANG MUTLAK memanggil search_schema jika nama tabel sudah diketahui dari describe_table atau get_database_schema_info — langsung lanjut ke execute_query. (2) Panggil HANYA SEKALI per topik pencarian — jika hasil pertama sudah mengandung tabel yang relevan, STOP dan langsung ke describe_table. (3) DILARANG memanggil search_schema lebih dari 1 kali untuk topik yang sama meskipun dengan sinonim berbeda. (4) Gunakan 1 kata pendek saja sebagai keyword ("jual" bukan "data penjualan cabang"). (5) DILARANG memanggil search_schema sebagai langkah "konfirmasi" atau "verifikasi" nama tabel yang sudah diketahui — ini pemborosan loop yang memperlambat jawaban untuk pengguna. INGAT: Setiap pemanggilan search_schema yang tidak perlu menambah minimal 2–3 detik latensi dan satu agentic loop yang sia-sia.',
-                'parameters' => [
-                    'type' => 'object',
-                    'properties' => [
-                        'keyword' => [
-                            'type' => 'string',
-                            'description' => 'SATU kata pendek saja (contoh: "jual", "cabang", "stok"). DILARANG lebih dari satu kata atau frasa panjang.',
-                        ],
-                    ],
-                    'required' => ['keyword'],
-                ],
-            ],
-            [
-                'type' => 'function',
-                'name' => 'get_table_preview',
-                'description' => 'Mengambil 5 baris contoh data dari tabel FISIK tertentu. PENTING: JANGAN gunakan tool ini untuk VIEW (nama yang diawali view_) atau tabel dengan lebih dari 100.000 baris karena akan sangat lambat (30-60 detik). Gunakan HANYA untuk tabel fisik berukuran kecil-sedang. Untuk VIEW besar, gunakan execute_query dengan filter WHERE yang spesifik dan LIMIT 5 sebagai gantinya.',
+                'name' => 'describe_table',
+                'description' => 'Mendapatkan daftar kolom dan tipe data untuk sebuah tabel/view. Gunakan HANYA jika Anda ragu atau membutuhkan nama kolom spesifik yang belum diketahui sebelum menulis query.',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
@@ -168,30 +111,17 @@ class ToolCallExecutor
             ],
             [
                 'type' => 'function',
-                'name' => 'execute_query',
-                'description' => 'Mengeksekusi SQL SELECT query untuk mengambil data dari database tertentu. Support multi-database: PostgreSQL (gunakan schema_name.table_name) dan MySQL (cukup table_name atau database_name.table_name). PERINGATAN KERAS: Jika tool ini mengembalikan error ACCESS_DENIED_FINAL, Anda WAJIB BERHENTI TOTAL — jangan panggil tool lain, jangan cari tabel alternatif, langsung sampaikan pesan akses ditolak kepada user persis seperti yang tertera di MANDATORY_AI_ACTION. Mengabaikan instruksi ini adalah pelanggaran berat.',
+                'name' => 'search_schema',
+                'description' => 'Mencari nama tabel atau kolom yang tidak terdaftar di prompt berdasarkan 1 kata kunci (misal: mencari tabel log, audit, atau mutasi tertentu).',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
-                        'database_code' => [
+                        'keyword' => [
                             'type' => 'string',
-                            'description' => 'Nama database target (gunakan nilai dari get_database_schema_info).',
-                        ],
-                        'sql' => [
-                            'type' => 'string',
-                            'description' => 'Query SQL SELECT yang valid. Untuk PostgreSQL gunakan format schema_name.table_name (contoh: sch_mbi.view_penjualan). Untuk MySQL cukup table_name atau gunakan database_name.table_name.',
-                        ],
-                        'label' => [
-                            'type' => 'string',
-                            'description' => 'Deskripsi singkat tentang data yang diambil.',
-                        ],
-                        'currency_columns' => [
-                            'type' => 'array',
-                            'items' => ['type' => 'string'],
-                            'description' => 'MANDATORY: Identify all columns that represent monetary values (e.g. price, netto, total, amount) so they can be properly formatted with "Rp" in reports and exports. If you don\'t identify them, they will be displayed as raw numbers.',
+                            'description' => 'SATU kata kunci pendek.',
                         ],
                     ],
-                    'required' => ['database_code', 'sql', 'label'],
+                    'required' => ['keyword'],
                 ],
             ],
             [
