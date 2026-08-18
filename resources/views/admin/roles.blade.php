@@ -4,940 +4,790 @@
 @section('content')
 
 {{-- ══════════════════════════════════════════════════════════════
-     ROLE & PERMISSIONS MANAGEMENT — Modern Redesign v2
+     ROLE & PERMISSIONS MANAGEMENT — Modern Enterprise Redesign v3
 ══════════════════════════════════════════════════════════════ --}}
 
 <style>
-/* ── Root Variables & Theming ────────────────────────── */
+/* ── Design System Variables ────────────────────────── */
 :root {
-    --rm-primary:    #6366f1;
-    --rm-primary-d:  #4f46e5;
-    --rm-primary-l:  rgba(99,102,241,0.1);
-    --rm-emerald:    #10b981;
-    --rm-emerald-l:  rgba(16,185,129,0.1);
-    --rm-amber:      #f59e0b;
-    --rm-amber-l:    rgba(245,158,11,0.1);
-    --rm-rose:       #ef4444;
-    --rm-rose-l:     rgba(239,68,68,0.1);
-    --rm-cyan:       #06b6d4;
-    --rm-cyan-l:     rgba(6,182,212,0.1);
-    --rm-surface:    #ffffff;
-    --rm-surface-sub:#f8fafc;
-    --rm-border:     rgba(99,102,241,0.16);
-    --rm-border-h:   rgba(99,102,241,0.35);
-    --rm-text:       #0f172a;
-    --rm-muted:      #64748b;
-    --rm-dim:        #94a3b8;
-    --rm-radius:     16px;
-    --rm-radius-sm:  10px;
+    --rm-primary:      #6366f1;
+    --rm-primary-dark: #4f46e5;
+    --rm-primary-soft: rgba(99,102,241,0.1);
+    --rm-emerald:      #10b981;
+    --rm-emerald-dark: #059669;
+    --rm-emerald-soft: rgba(16,185,129,0.1);
+    --rm-rose:         #ef4444;
+    --rm-rose-dark:    #dc2626;
+    --rm-rose-soft:    rgba(239,68,68,0.1);
+    --rm-amber:        #f59e0b;
+    --rm-amber-soft:   rgba(245,158,11,0.1);
+    --rm-cyan:         #06b6d4;
+    --rm-cyan-soft:    rgba(6,182,212,0.1);
+    --rm-purple:       #8b5cf6;
+    --rm-purple-soft:  rgba(139,92,246,0.1);
+    
+    --rm-bg-surface:   #ffffff;
+    --rm-bg-subtle:    #f8fafc;
+    --rm-bg-hover:     #f1f5f9;
+    --rm-border:       #e2e8f0;
+    --rm-border-focus: #cbd5e1;
+    --rm-text-main:    #0f172a;
+    --rm-text-muted:   #64748b;
+    --rm-text-dim:     #94a3b8;
+    --rm-radius-lg:    14px;
+    --rm-radius-md:    10px;
+    --rm-radius-sm:    6px;
+    --rm-font-mono:    'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 html.dark {
-    --rm-surface:    rgba(15,23,42,0.7);
-    --rm-surface-sub:rgba(30,41,59,0.5);
-    --rm-border:     rgba(255,255,255,0.08);
-    --rm-border-h:   rgba(99,102,241,0.4);
-    --rm-text:       #f1f5f9;
-    --rm-muted:      #94a3b8;
-    --rm-dim:        #475569;
+    --rm-bg-surface:   #0f172a;
+    --rm-bg-subtle:    #1e293b;
+    --rm-bg-hover:     #334155;
+    --rm-border:       #334155;
+    --rm-border-focus: #475569;
+    --rm-text-main:    #f8fafc;
+    --rm-text-muted:   #94a3b8;
+    --rm-text-dim:     #64748b;
 }
 
-/* ── Top Bar ─────────────────────────────────────────── */
-.rm-topbar {
+/* ── Top Bar / Header ────────────────────────────────── */
+.rm-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;
 }
-.rm-topbar-title {
+.rm-header-left {
     display: flex; align-items: center; gap: 12px;
 }
-.rm-topbar-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: linear-gradient(135deg, var(--rm-primary), #8b5cf6);
+.rm-header-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--rm-primary), var(--rm-purple));
     display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 1.25rem;
-    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+    color: white; font-size: 1.2rem;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.25);
 }
-.rm-topbar-title h1 {
-    font-size: 1.35rem; font-weight: 700; color: var(--rm-text); margin: 0;
+.rm-header-title h1 {
+    font-size: 1.25rem; font-weight: 700; color: var(--rm-text-main); margin: 0;
+    letter-spacing: -0.01em;
 }
-.rm-topbar-title p {
-    font-size: 0.82rem; color: var(--rm-muted); margin: 2px 0 0;
+.rm-header-title p {
+    font-size: 0.8rem; color: var(--rm-text-muted); margin: 2px 0 0;
 }
 
 /* ── Main 2-Panel Layout ────────────────────────────── */
 .rm-layout {
     display: grid;
-    grid-template-columns: 350px 1fr;
-    gap: 1.5rem;
+    grid-template-columns: 310px 1fr;
+    gap: 1.25rem;
     align-items: start;
 }
-
 @media (max-width: 1080px) {
     .rm-layout { grid-template-columns: 1fr; }
 }
 
-/* ── Left Sidebar (Role Navigation) ──────────────────── */
+/* ── Left Sidebar (Role Navigator) ──────────────────── */
 .rm-sidebar {
-    background: var(--rm-surface);
-    backdrop-filter: blur(12px);
+    background: var(--rm-bg-surface);
     border: 1px solid var(--rm-border);
-    border-radius: var(--rm-radius);
-    padding: 1.25rem;
+    border-radius: var(--rm-radius-lg);
+    padding: 1rem;
     position: sticky;
     top: 20px;
-    display: flex; flex-direction: column; gap: 1rem;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
-.rm-sidebar-head {
+.rm-sidebar-top {
     display: flex; align-items: center; justify-content: space-between;
 }
-.rm-sidebar-head h3 {
-    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--rm-muted); margin: 0;
+.rm-sidebar-title {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--rm-text-muted);
     display: flex; align-items: center; gap: 6px;
 }
-
-.rm-role-search {
+.rm-role-search-box {
     position: relative; display: flex; align-items: center;
 }
-.rm-role-search input {
+.rm-role-search-box input {
     width: 100%;
-    background: var(--rm-surface-sub);
+    background: var(--rm-bg-subtle);
     border: 1px solid var(--rm-border);
-    padding: 8px 30px 8px 32px;
-    border-radius: var(--rm-radius-sm);
-    color: var(--rm-text);
-    font-size: 0.82rem;
+    padding: 7px 28px 7px 30px;
+    border-radius: var(--rm-radius-md);
+    color: var(--rm-text-main);
+    font-size: 0.8rem;
     font-family: inherit;
     outline: none; transition: all .2s;
 }
-.rm-role-search input:focus {
+.rm-role-search-box input:focus {
     border-color: var(--rm-primary);
-    box-shadow: 0 0 0 3px var(--rm-primary-l);
+    background: var(--rm-bg-surface);
+    box-shadow: 0 0 0 3px var(--rm-primary-soft);
 }
-.rm-role-search .search-ico {
-    position: absolute; left: 10px; color: var(--rm-muted);
-    font-size: 0.8rem; pointer-events: none;
+.rm-role-search-box .ico {
+    position: absolute; left: 10px; color: var(--rm-text-dim);
+    font-size: 0.75rem; pointer-events: none;
 }
-.rm-role-search .clear-ico {
-    position: absolute; right: 8px; color: var(--rm-muted);
-    font-size: 0.75rem; cursor: pointer; padding: 4px;
-    display: none;
+.rm-role-search-box .clear-btn {
+    position: absolute; right: 8px; color: var(--rm-text-dim);
+    font-size: 0.75rem; cursor: pointer; display: none;
 }
 
 .rm-role-list {
-    display: flex; flex-direction: column; gap: 8px;
-    max-height: calc(100vh - 280px);
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: calc(100vh - 240px);
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 2px;
     scrollbar-width: thin;
 }
 .rm-role-list::-webkit-scrollbar { width: 4px; }
 .rm-role-list::-webkit-scrollbar-thumb { background: var(--rm-border); border-radius: 4px; }
 
-/* Role Card Item */
+/* Role Card Navigation Item */
 .rm-role-card {
-    background: var(--rm-surface-sub);
+    background: var(--rm-bg-subtle);
     border: 1px solid var(--rm-border);
-    border-radius: 12px;
-    padding: 12px 14px;
+    border-radius: var(--rm-radius-md);
+    padding: 10px 12px;
     cursor: pointer;
-    transition: all .2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all .15s ease;
     position: relative;
     overflow: hidden;
-    display: flex; flex-direction: column; gap: 8px;
+    display: flex; flex-direction: column; gap: 6px;
     text-align: left;
 }
 .rm-role-card:hover {
-    border-color: var(--rm-border-h);
+    background: var(--rm-bg-hover);
+    border-color: var(--rm-border-focus);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 .rm-role-card.active {
-    background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.04));
+    background: rgba(99,102,241,0.06);
     border-color: var(--rm-primary);
-    box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+    box-shadow: 0 2px 10px rgba(99,102,241,0.1);
 }
 .rm-role-card.active::before {
     content: ''; position: absolute;
-    top: 0; left: 0; bottom: 0; width: 4px;
-    background: linear-gradient(180deg, var(--rm-primary), #8b5cf6);
-    border-radius: 0 4px 4px 0;
-}
-.rm-role-card.has-changes {
-    border-color: var(--rm-amber) !important;
-}
-.rm-role-card.has-changes::after {
-    content: '⚠️ Belum disimpan';
-    position: absolute; right: 10px; top: 10px;
-    font-size: 0.65rem; font-weight: 700; color: var(--rm-amber);
+    top: 0; left: 0; bottom: 0; width: 3px;
+    background: var(--rm-primary);
 }
 
-.rm-rc-top {
+.rm-rc-head {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
-.rm-rc-title-wrap {
-    display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;
-}
-.rm-rc-icon {
-    width: 28px; height: 28px; border-radius: 8px;
-    background: var(--rm-primary-l); color: var(--rm-primary);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.85rem; flex-shrink: 0;
-}
 .rm-rc-name {
-    font-size: 0.9rem; font-weight: 700; color: var(--rm-text);
+    font-size: 0.85rem; font-weight: 700; color: var(--rm-text-main);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 6px;
 }
 .rm-rc-actions {
-    display: flex; align-items: center; gap: 4px; opacity: 0.7; transition: opacity .2s;
+    display: flex; align-items: center; gap: 3px; opacity: 0; transition: opacity .15s;
 }
 .rm-role-card:hover .rm-rc-actions { opacity: 1; }
+
 .rm-rc-btn {
-    width: 24px; height: 24px; border-radius: 6px;
+    width: 22px; height: 22px; border-radius: 5px;
     border: 1px solid var(--rm-border);
-    background: var(--rm-surface); color: var(--rm-muted);
+    background: var(--rm-bg-surface); color: var(--rm-text-muted);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.72rem; cursor: pointer; transition: all .15s;
+    font-size: 0.68rem; cursor: pointer; transition: all .15s;
 }
-.rm-rc-btn:hover { color: var(--rm-text); background: var(--rm-surface-sub); transform: scale(1.05); }
-.rm-rc-btn.edit:hover { color: var(--rm-amber); border-color: rgba(245,158,11,0.3); }
-.rm-rc-btn.clone:hover { color: var(--rm-cyan); border-color: rgba(6,182,212,0.3); }
-.rm-rc-btn.del:hover { color: var(--rm-rose); border-color: rgba(239,68,68,0.3); }
+.rm-rc-btn.edit:hover { background: var(--rm-amber); color: white; border-color: var(--rm-amber); }
+.rm-rc-btn.clone:hover { background: var(--rm-cyan); color: white; border-color: var(--rm-cyan); }
+.rm-rc-btn.del:hover { background: var(--rm-rose); color: white; border-color: var(--rm-rose); }
 
 .rm-rc-desc {
-    font-size: 0.74rem; color: var(--rm-muted);
-    line-height: 1.35; max-height: 2.7em;
-    overflow: hidden; text-overflow: ellipsis;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    font-size: 0.72rem; color: var(--rm-text-muted);
+    line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.rm-rc-creator {
-    font-size: 0.68rem; color: var(--rm-muted); opacity: 0.85;
-    display: flex; align-items: center; gap: 5px;
-}
-.rm-rc-creator i { font-size: 0.65rem; color: var(--rm-dim); }
-
 .rm-rc-meta {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
-    font-size: 0.7rem; color: var(--rm-muted);
+    font-size: 0.68rem; color: var(--rm-text-muted);
 }
 .rm-rc-pill {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 7px; border-radius: 6px;
-    font-size: 0.68rem; font-weight: 600;
-    background: rgba(0,0,0,0.03); border: 1px solid var(--rm-border);
+    padding: 1px 6px; border-radius: 4px;
+    font-size: 0.65rem; font-weight: 600;
+    background: var(--rm-bg-surface); border: 1px solid var(--rm-border);
 }
-html.dark .rm-rc-pill { background: rgba(255,255,255,0.04); }
 .rm-rc-pill.users { color: var(--rm-primary); }
 .rm-rc-pill.tables { color: var(--rm-emerald); }
 
-/* Progress bar mini */
-.rm-rc-progress {
-    width: 100%; height: 3px; border-radius: 2px;
-    background: rgba(0,0,0,0.05); overflow: hidden;
-}
-html.dark .rm-rc-progress { background: rgba(255,255,255,0.05); }
-.rm-rc-progress-bar {
-    height: 100%; background: linear-gradient(90deg, var(--rm-primary), var(--rm-emerald));
-    border-radius: 2px; transition: width .3s ease;
+.rm-rc-creator {
+    font-size: 0.65rem; color: var(--rm-text-dim);
+    display: flex; align-items: center; gap: 4px;
 }
 
-/* ── Right Panel (Permissions & Detail Area) ─────────── */
+/* ── Right Panel (Workspace Canvas) ──────────────────── */
 .rm-main {
-    display: flex; flex-direction: column; gap: 1.25rem;
+    display: flex; flex-direction: column; gap: 1rem;
 }
 
-/* Hero Card */
-.rm-hero {
-    background: var(--rm-surface);
-    backdrop-filter: blur(12px);
+/* Compact Role Control Bar (Header) */
+.rm-workspace-header {
+    background: var(--rm-bg-surface);
     border: 1px solid var(--rm-border);
-    border-radius: var(--rm-radius);
-    padding: 1.1rem 1.35rem;
+    border-radius: var(--rm-radius-lg);
+    padding: 1rem 1.25rem;
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
-.rm-hero-info {
+.rm-wh-info {
     display: flex; align-items: center; gap: 12px; min-width: 0;
 }
-.rm-hero-avatar {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.12));
-    border: 1px solid rgba(99,102,241,0.22);
+.rm-wh-avatar {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: var(--rm-primary-soft);
+    border: 1px solid rgba(99,102,241,0.2);
     color: var(--rm-primary);
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem; flex-shrink: 0;
+    font-size: 1.2rem; flex-shrink: 0;
 }
-.rm-hero-text h2 {
-    font-size: 1.15rem; font-weight: 700; color: var(--rm-text); margin: 0;
+.rm-wh-text h2 {
+    font-size: 1.15rem; font-weight: 700; color: var(--rm-text-main); margin: 0;
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
-.rm-hero-text p {
-    font-size: 0.8rem; color: var(--rm-muted); margin: 2px 0 0;
+.rm-wh-text p {
+    font-size: 0.78rem; color: var(--rm-text-muted); margin: 2px 0 0;
 }
-.rm-hero-chips {
-    display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap;
+.rm-wh-badges {
+    display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap;
 }
-.rm-hero-chip {
-    font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 6px;
-    background: var(--rm-surface-sub); border: 1px solid var(--rm-border);
-    color: var(--rm-muted); display: inline-flex; align-items: center; gap: 4px;
+.rm-wh-badge {
+    font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 5px;
+    background: var(--rm-bg-subtle); border: 1px solid var(--rm-border);
+    color: var(--rm-text-muted); display: inline-flex; align-items: center; gap: 4px;
 }
-.rm-hero-chip.highlight {
-    background: var(--rm-emerald-l); border-color: rgba(16,185,129,0.25); color: var(--rm-emerald);
+.rm-wh-badge.highlight {
+    background: var(--rm-emerald-soft); border-color: rgba(16,185,129,0.25); color: var(--rm-emerald-dark);
 }
+html.dark .rm-wh-badge.highlight { color: var(--rm-emerald); }
 
-.rm-hero-actions {
+.rm-wh-actions {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 
-/* Action Buttons */
+/* ── Soft Harmonious Action Buttons ──────────────────── */
 .rm-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 14px; border-radius: 8px;
-    font-size: 0.8rem; font-weight: 600;
-    cursor: pointer; transition: all .2s; border: none;
-    font-family: inherit; text-decoration: none;
+    padding: 6px 12px; border-radius: var(--rm-radius-sm);
+    font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: all .15s ease; border: 1px solid transparent;
+    font-family: inherit; text-decoration: none; user-select: none;
 }
+.rm-btn-sm {
+    padding: 4px 9px; font-size: 0.72rem; border-radius: 5px;
+}
+
+/* Primary CTA Button */
 .rm-btn-primary {
-    background: linear-gradient(135deg, var(--rm-primary), var(--rm-primary-d));
-    color: white; box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+    background: linear-gradient(135deg, var(--rm-primary), var(--rm-primary-dark));
+    color: white !important;
+    border: 1px solid var(--rm-primary-dark) !important;
+    box-shadow: 0 2px 6px rgba(99,102,241,0.25);
 }
 .rm-btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
-}
-.rm-btn-secondary {
-    background: var(--rm-surface-sub);
-    color: var(--rm-text); border: 1px solid var(--rm-border);
-}
-.rm-btn-secondary:hover {
-    background: var(--rm-surface); border-color: var(--rm-border-h);
-    transform: translateY(-1px);
-}
-.rm-btn-sm {
-    padding: 4px 9px; font-size: 0.72rem; border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(99,102,241,0.35);
 }
 
-/* ── Soft Harmonious Color Variants for Action Buttons (Calm on Eyes) ── */
+/* Soft Color Buttons */
 .rm-btn-emerald {
-    background: rgba(16, 185, 129, 0.12) !important;
-    color: #059669 !important;
-    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    background: var(--rm-emerald-soft) !important;
+    color: var(--rm-emerald-dark) !important;
+    border-color: rgba(16,185,129,0.25) !important;
 }
 .rm-btn-emerald:hover {
-    background: #10b981 !important;
-    color: #ffffff !important;
-    border-color: #059669 !important;
+    background: var(--rm-emerald) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(16,185,129,0.25);
 }
-html.dark .rm-btn-emerald {
-    background: rgba(16, 185, 129, 0.16) !important;
-    color: #34d399 !important;
-    border-color: rgba(16, 185, 129, 0.35) !important;
-}
-html.dark .rm-btn-emerald:hover {
-    background: #10b981 !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-emerald { color: #34d399 !important; }
+html.dark .rm-btn-emerald:hover { color: white !important; }
 
 .rm-btn-rose {
-    background: rgba(239, 68, 68, 0.12) !important;
-    color: #dc2626 !important;
-    border: 1px solid rgba(239, 68, 68, 0.3) !important;
+    background: var(--rm-rose-soft) !important;
+    color: var(--rm-rose-dark) !important;
+    border-color: rgba(239,68,68,0.25) !important;
 }
 .rm-btn-rose:hover {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-    border-color: #dc2626 !important;
+    background: var(--rm-rose) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(239,68,68,0.25);
 }
-html.dark .rm-btn-rose {
-    background: rgba(239, 68, 68, 0.16) !important;
-    color: #f87171 !important;
-    border-color: rgba(239, 68, 68, 0.35) !important;
-}
-html.dark .rm-btn-rose:hover {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-rose { color: #f87171 !important; }
+html.dark .rm-btn-rose:hover { color: white !important; }
 
 .rm-btn-indigo {
-    background: rgba(99, 102, 241, 0.12) !important;
-    color: #4f46e5 !important;
-    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    background: var(--rm-primary-soft) !important;
+    color: var(--rm-primary-dark) !important;
+    border-color: rgba(99,102,241,0.25) !important;
 }
 .rm-btn-indigo:hover {
-    background: #6366f1 !important;
-    color: #ffffff !important;
-    border-color: #4f46e5 !important;
+    background: var(--rm-primary) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.25);
 }
-html.dark .rm-btn-indigo {
-    background: rgba(99, 102, 241, 0.16) !important;
-    color: #a5b4fc !important;
-    border-color: rgba(99, 102, 241, 0.35) !important;
-}
-html.dark .rm-btn-indigo:hover {
-    background: #6366f1 !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-indigo { color: #a5b4fc !important; }
+html.dark .rm-btn-indigo:hover { color: white !important; }
 
 .rm-btn-purple {
-    background: rgba(139, 92, 246, 0.12) !important;
+    background: var(--rm-purple-soft) !important;
     color: #7c3aed !important;
-    border: 1px solid rgba(139, 92, 246, 0.3) !important;
+    border-color: rgba(139,92,246,0.25) !important;
 }
 .rm-btn-purple:hover {
-    background: #8b5cf6 !important;
-    color: #ffffff !important;
-    border-color: #7c3aed !important;
+    background: var(--rm-purple) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(139,92,246,0.25);
 }
-html.dark .rm-btn-purple {
-    background: rgba(139, 92, 246, 0.16) !important;
-    color: #c4b5fd !important;
-    border-color: rgba(139, 92, 246, 0.35) !important;
-}
-html.dark .rm-btn-purple:hover {
-    background: #8b5cf6 !important;
-    color: #ffffff !important;
-}
-
-.rm-btn-orange {
-    background: rgba(249, 115, 22, 0.12) !important;
-    color: #ea580c !important;
-    border: 1px solid rgba(249, 115, 22, 0.3) !important;
-}
-.rm-btn-orange:hover {
-    background: #f97316 !important;
-    color: #ffffff !important;
-    border-color: #ea580c !important;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25) !important;
-}
-html.dark .rm-btn-orange {
-    background: rgba(249, 115, 22, 0.16) !important;
-    color: #fdba74 !important;
-    border-color: rgba(249, 115, 22, 0.35) !important;
-}
-html.dark .rm-btn-orange:hover {
-    background: #f97316 !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-purple { color: #c4b5fd !important; }
+html.dark .rm-btn-purple:hover { color: white !important; }
 
 .rm-btn-cyan {
-    background: rgba(6, 182, 212, 0.12) !important;
+    background: var(--rm-cyan-soft) !important;
     color: #0891b2 !important;
-    border: 1px solid rgba(6, 182, 212, 0.3) !important;
+    border-color: rgba(6,182,212,0.25) !important;
 }
 .rm-btn-cyan:hover {
-    background: #06b6d4 !important;
-    color: #ffffff !important;
-    border-color: #0891b2 !important;
+    background: var(--rm-cyan) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(6,182,212,0.25);
 }
-html.dark .rm-btn-cyan {
-    background: rgba(6, 182, 212, 0.16) !important;
-    color: #67e8f9 !important;
-    border-color: rgba(6, 182, 212, 0.35) !important;
-}
-html.dark .rm-btn-cyan:hover {
-    background: #06b6d4 !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-cyan { color: #67e8f9 !important; }
+html.dark .rm-btn-cyan:hover { color: white !important; }
 
 .rm-btn-amber {
-    background: rgba(245, 158, 11, 0.12) !important;
+    background: var(--rm-amber-soft) !important;
     color: #d97706 !important;
-    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    border-color: rgba(245,158,11,0.25) !important;
 }
 .rm-btn-amber:hover {
-    background: #f59e0b !important;
-    color: #ffffff !important;
-    border-color: #d97706 !important;
+    background: var(--rm-amber) !important;
+    color: white !important;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.25);
 }
-html.dark .rm-btn-amber {
-    background: rgba(245, 158, 11, 0.16) !important;
-    color: #fde68a !important;
-    border-color: rgba(245, 158, 11, 0.35) !important;
-}
-html.dark .rm-btn-amber:hover {
-    background: #f59e0b !important;
-    color: #ffffff !important;
-}
+html.dark .rm-btn-amber { color: #fde68a !important; }
+html.dark .rm-btn-amber:hover { color: white !important; }
 
-.rm-btn-rose-subtle {
-    background: rgba(239, 68, 68, 0.1) !important;
-    color: #dc2626 !important;
-    border: 1px solid rgba(239, 68, 68, 0.25) !important;
+.rm-btn-subtle {
+    background: var(--rm-bg-subtle) !important;
+    color: var(--rm-text-muted) !important;
+    border-color: var(--rm-border) !important;
 }
-.rm-btn-rose-subtle:hover {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-    border-color: #dc2626 !important;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25) !important;
+.rm-btn-subtle:hover {
+    background: var(--rm-bg-hover) !important;
+    color: var(--rm-text-main) !important;
+    border-color: var(--rm-border-focus) !important;
 }
-html.dark .rm-btn-rose-subtle {
-    background: rgba(239, 68, 68, 0.14) !important;
-    color: #f87171 !important;
-    border-color: rgba(239, 68, 68, 0.3) !important;
-}
-html.dark .rm-btn-rose-subtle:hover {
-    background: #ef4444 !important;
-    color: #ffffff !important;
-}
-
-/* Sidebar action buttons */
-.rm-rc-btn.edit { background: rgba(245,158,11,0.1); color: #d97706; border-color: rgba(245,158,11,0.25); }
-.rm-rc-btn.edit:hover { background: #f59e0b; color: white; border-color: #d97706; }
-.rm-rc-btn.clone { background: rgba(6,182,212,0.1); color: #0891b2; border-color: rgba(6,182,212,0.25); }
-.rm-rc-btn.clone:hover { background: #06b6d4; color: white; border-color: #0891b2; }
-.rm-rc-btn.del { background: rgba(239,68,68,0.1); color: #ef4444; border-color: rgba(239,68,68,0.25); }
-.rm-rc-btn.del:hover { background: #ef4444; color: white; border-color: #dc2626; }
 
 /* ── Tabs Navigation ─────────────────────────────────── */
 .rm-tabs {
-    display: flex; gap: 8px; border-bottom: 1px solid var(--rm-border);
+    display: flex; gap: 6px; border-bottom: 1px solid var(--rm-border);
     padding-bottom: 2px;
 }
 .rm-tab-btn {
     background: none; border: none;
-    padding: 8px 16px; font-size: 0.85rem; font-weight: 600;
-    color: var(--rm-muted); cursor: pointer;
+    padding: 7px 14px; font-size: 0.82rem; font-weight: 600;
+    color: var(--rm-text-muted); cursor: pointer;
     border-bottom: 2px solid transparent;
-    transition: all .2s; display: inline-flex; align-items: center; gap: 6px;
+    transition: all .15s ease; display: inline-flex; align-items: center; gap: 6px;
     font-family: inherit; margin-bottom: -1px;
 }
-.rm-tab-btn:hover { color: var(--rm-text); }
+.rm-tab-btn:hover { color: var(--rm-text-main); }
 .rm-tab-btn.active {
     color: var(--rm-primary); border-bottom-color: var(--rm-primary);
 }
 .rm-tab-badge {
-    font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 10px;
-    background: var(--rm-primary-l); color: var(--rm-primary);
+    font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+    background: var(--rm-primary-soft); color: var(--rm-primary);
 }
 
-/* ── Filter & Search Toolbar ─────────────────────────── */
+/* ── Unified Single-Row Workspace Toolbar ────────────── */
 .rm-toolbar {
-    background: var(--rm-surface);
-    backdrop-filter: blur(12px);
+    background: var(--rm-bg-surface);
     border: 1px solid var(--rm-border);
-    border-radius: var(--rm-radius);
-    padding: 1rem 1.25rem;
-    display: flex; flex-direction: column; gap: 12px;
+    border-radius: var(--rm-radius-md);
+    padding: 8px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
-.rm-tb-row1 {
-    display: grid;
-    grid-template-columns: 2fr 1.2fr 1.2fr;
-    gap: 10px;
+.rm-tb-left {
+    display: flex; align-items: center; gap: 8px; flex: 1; min-width: 280px; flex-wrap: wrap;
 }
-@media (max-width: 768px) {
-    .rm-tb-row1 { grid-template-columns: 1fr; }
+.rm-tb-right {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
 
 .rm-input-wrap {
-    position: relative; display: flex; align-items: center;
+    position: relative; display: flex; align-items: center; min-width: 140px;
 }
+.rm-input-wrap.search { flex: 1.5; min-width: 200px; }
 .rm-input-wrap .ico {
-    position: absolute; left: 11px; color: var(--rm-muted);
-    font-size: 0.8rem; pointer-events: none;
+    position: absolute; left: 9px; color: var(--rm-text-dim);
+    font-size: 0.75rem; pointer-events: none;
 }
 .rm-input-wrap .clear-btn {
-    position: absolute; right: 9px; color: var(--rm-muted);
-    font-size: 0.75rem; cursor: pointer; background: none; border: none;
-    padding: 3px; display: none;
+    position: absolute; right: 8px; color: var(--rm-text-dim);
+    font-size: 0.72rem; cursor: pointer; background: none; border: none;
+    padding: 2px; display: none;
 }
 .rm-input-wrap input, .rm-input-wrap select {
     width: 100%;
-    background: var(--rm-surface-sub);
+    background: var(--rm-bg-subtle);
     border: 1px solid var(--rm-border);
-    padding: 7px 30px 7px 34px;
+    padding: 6px 26px 6px 28px;
     border-radius: var(--rm-radius-sm);
-    color: var(--rm-text);
-    font-size: 0.82rem;
+    color: var(--rm-text-main);
+    font-size: 0.78rem;
     font-family: inherit;
-    outline: none; transition: all .2s;
-    height: 36px;
+    outline: none; transition: all .15s;
+    height: 32px;
 }
-.rm-input-wrap select { cursor: pointer; padding-right: 14px; }
+.rm-input-wrap select { cursor: pointer; padding-right: 12px; }
 .rm-input-wrap input:focus, .rm-input-wrap select:focus {
     border-color: var(--rm-primary);
-    box-shadow: 0 0 0 3px var(--rm-primary-l);
+    background: var(--rm-bg-surface);
+    box-shadow: 0 0 0 2px var(--rm-primary-soft);
 }
 
-.rm-tb-row2 {
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 10px; pt: 4px;
-}
-.rm-pills {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-}
-.rm-pill-btn {
-    background: var(--rm-surface-sub);
+/* Status Filter Segmented Control */
+.rm-segmented-pills {
+    display: inline-flex; align-items: center;
+    background: var(--rm-bg-subtle);
     border: 1px solid var(--rm-border);
-    border-radius: 20px;
-    padding: 4px 12px; font-size: 0.74rem; font-weight: 600;
-    color: var(--rm-muted); cursor: pointer;
-    transition: all .15s; font-family: inherit;
-    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: var(--rm-radius-sm);
+    padding: 2px; gap: 2px;
 }
-.rm-pill-btn:hover { color: var(--rm-text); border-color: var(--rm-border-h); }
-.rm-pill-btn.active {
-    background: var(--rm-primary); color: white; border-color: var(--rm-primary);
-    box-shadow: 0 2px 6px rgba(99,102,241,0.25);
+.rm-seg-btn {
+    background: none; border: none;
+    padding: 4px 9px; font-size: 0.72rem; font-weight: 600;
+    color: var(--rm-text-muted); cursor: pointer;
+    border-radius: 4px; transition: all .15s; font-family: inherit;
+    display: inline-flex; align-items: center; gap: 4px;
 }
-.rm-pill-btn.active.allowed {
-    background: var(--rm-emerald); border-color: var(--rm-emerald);
+.rm-seg-btn:hover { color: var(--rm-text-main); }
+.rm-seg-btn.active {
+    background: var(--rm-bg-surface);
+    color: var(--rm-primary);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
-.rm-pill-btn.active.not-allowed {
-    background: var(--rm-rose); border-color: var(--rm-rose);
-}
+.rm-seg-btn.active.allowed { color: var(--rm-emerald); }
+.rm-seg-btn.active.not-allowed { color: var(--rm-rose); }
 
-.rm-tb-stats {
-    font-size: 0.78rem; color: var(--rm-muted); display: flex; align-items: center; gap: 8px;
-}
-.rm-tb-actions {
-    display: flex; align-items: center; gap: 6px;
-}
-
-/* ── Tree / Accordion View per Database & Schema ─────── */
-.rm-tree-container {
+/* ── Structured Permissions Table Tree ───────────────── */
+.rm-table-tree {
     display: flex; flex-direction: column; gap: 10px;
 }
 
-/* Database Accordion Card */
-.rm-db-card {
-    background: var(--rm-surface);
-    backdrop-filter: blur(12px);
+/* Database Group Container */
+.rm-db-section {
+    background: var(--rm-bg-surface);
     border: 1px solid var(--rm-border);
-    border-radius: 12px;
+    border-radius: var(--rm-radius-md);
     overflow: hidden;
-    transition: all .2s ease;
-}
-.rm-db-card:hover {
-    border-color: var(--rm-border-h);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+    transition: all .15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
-.rm-db-head {
-    padding: 10px 14px;
-    background: var(--rm-surface-sub);
+.rm-db-header-bar {
+    padding: 8px 14px;
+    background: var(--rm-bg-subtle);
     border-bottom: 1px solid var(--rm-border);
     display: flex; align-items: center; justify-content: space-between;
     cursor: pointer; user-select: none;
-    transition: background .2s;
+    transition: background .15s;
 }
-.rm-db-head:hover { background: rgba(99,102,241,0.03); }
-.rm-db-title {
-    display: flex; align-items: center; gap: 9px;
-}
-.rm-db-icon {
-    width: 28px; height: 28px; border-radius: 7px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: white; display: flex; align-items: center; justify-content: center;
-    font-size: 0.82rem; box-shadow: 0 2px 6px rgba(79,70,229,0.22);
-}
-.rm-db-name {
-    font-size: 0.88rem; font-weight: 700; color: var(--rm-text);
-}
-.rm-db-badge {
-    font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 6px;
-    background: var(--rm-primary-l); color: var(--rm-primary); border: 1px solid rgba(99,102,241,0.18);
-}
-.rm-db-badge.full {
-    background: var(--rm-emerald-l); color: var(--rm-emerald); border-color: rgba(16,185,129,0.25);
-}
+.rm-db-header-bar:hover { background: var(--rm-bg-hover); }
 
-.rm-db-controls {
+.rm-db-header-left {
     display: flex; align-items: center; gap: 8px;
 }
-.rm-db-chevron {
-    color: var(--rm-muted); transition: transform .25s ease;
-    font-size: 0.8rem; padding: 4px;
+.rm-db-header-icon {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: var(--rm-primary-soft);
+    color: var(--rm-primary); display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; border: 1px solid rgba(99,102,241,0.2);
 }
-.rm-db-card.collapsed .rm-db-chevron {
+.rm-db-title-text {
+    font-size: 0.85rem; font-weight: 700; color: var(--rm-text-main);
+}
+.rm-db-stat-badge {
+    font-size: 0.68rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+    background: var(--rm-bg-surface); border: 1px solid var(--rm-border);
+    color: var(--rm-text-muted); font-variant-numeric: tabular-nums;
+}
+.rm-db-stat-badge.full {
+    background: var(--rm-emerald-soft); border-color: rgba(16,185,129,0.25); color: var(--rm-emerald-dark);
+}
+html.dark .rm-db-stat-badge.full { color: var(--rm-emerald); }
+
+.rm-db-header-right {
+    display: flex; align-items: center; gap: 8px;
+}
+.rm-db-toggle-ico {
+    color: var(--rm-text-dim); transition: transform .2s ease;
+    font-size: 0.75rem;
+}
+.rm-db-section.collapsed .rm-db-toggle-ico {
     transform: rotate(-90deg);
 }
-.rm-db-card.collapsed .rm-db-body {
+.rm-db-section.collapsed .rm-db-content-area {
     display: none;
 }
 
-.rm-db-body {
-    padding: 12px 14px;
-    display: flex; flex-direction: column; gap: 10px;
+.rm-db-content-area {
+    padding: 0;
 }
 
-/* Schema Group */
-.rm-schema-group {
-    background: rgba(0,0,0,0.012);
-    border: 1px solid var(--rm-border);
-    border-radius: 10px;
-    padding: 10px 12px;
+/* Structured Table View */
+.rm-perm-table {
+    width: 100%; border-collapse: collapse; text-align: left;
+    font-size: 0.8rem;
 }
-html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
+.rm-perm-table th {
+    background: var(--rm-bg-subtle);
+    padding: 6px 12px; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--rm-text-muted); border-bottom: 1px solid var(--rm-border);
+}
+.rm-perm-table td {
+    padding: 6px 12px; border-bottom: 1px solid var(--rm-border);
+    color: var(--rm-text-main); vertical-align: middle;
+}
+.rm-perm-table tr:last-child td { border-bottom: none; }
 
-.rm-schema-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px; padding-bottom: 5px;
-    border-bottom: 1px dashed var(--rm-border);
+/* Schema Subheader Row */
+.rm-schema-row td {
+    background: rgba(0,0,0,0.015);
+    padding: 5px 12px; font-size: 0.72rem; font-weight: 700;
+    color: var(--rm-text-muted); text-transform: uppercase; letter-spacing: 0.03em;
+    border-top: 1px solid var(--rm-border);
 }
-.rm-schema-title {
-    display: flex; align-items: center; gap: 5px;
-    font-size: 0.78rem; font-weight: 700; color: var(--rm-muted);
-    text-transform: uppercase; letter-spacing: 0.03em;
-}
-.rm-schema-title i { color: var(--rm-cyan); font-size: 0.75rem; }
-.rm-schema-count {
-    font-size: 0.7rem; font-weight: 600; color: var(--rm-muted);
-}
+html.dark .rm-schema-row td { background: rgba(255,255,255,0.02); }
 
-/* Tables Grid */
-.rm-table-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 6px;
+/* Table Item Row */
+.rm-row-item {
+    cursor: pointer; transition: background .12s;
 }
-
-/* Table Item Card */
-.rm-table-card {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px; border-radius: 8px;
-    background: var(--rm-surface);
-    border: 1px solid var(--rm-border);
-    cursor: pointer; user-select: none;
-    transition: all .15s ease;
+.rm-row-item:hover {
+    background: var(--rm-bg-hover);
 }
-.rm-table-card:hover {
-    border-color: var(--rm-primary);
-    background: rgba(99,102,241,0.03);
-    transform: translateY(-1px);
+.rm-row-item.allowed {
+    background: rgba(16,185,129,0.04);
 }
-.rm-table-card.allowed {
-    border-color: rgba(16,185,129,0.3);
-    background: rgba(16,185,129,0.05);
-}
-.rm-table-card.allowed:hover {
-    border-color: #10b981;
-    background: rgba(16,185,129,0.09);
+.rm-row-item.allowed:hover {
+    background: rgba(16,185,129,0.08);
 }
 
-/* Custom Checkbox */
-.rm-chk {
+.rm-tbl-name {
+    font-family: var(--rm-font-mono);
+    font-size: 0.8rem; font-weight: 600; color: var(--rm-text-main);
+    display: flex; align-items: center; gap: 7px;
+}
+.rm-tbl-name i { color: var(--rm-text-dim); font-size: 0.72rem; }
+.rm-row-item.allowed .rm-tbl-name i { color: var(--rm-emerald); }
+
+/* Type Tag */
+.rm-tag {
+    font-size: 0.62rem; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    display: inline-block; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.rm-tag.table { background: var(--rm-primary-soft); color: var(--rm-primary); }
+.rm-tag.view  { background: var(--rm-cyan-soft); color: var(--rm-cyan); }
+.rm-tag.matview { background: var(--rm-amber-soft); color: var(--rm-amber); }
+
+/* Custom Checkbox / Toggle */
+.rm-check-box {
     width: 17px; height: 17px; border-radius: 4px;
-    border: 1.5px solid var(--rm-dim);
+    border: 1.5px solid var(--rm-border-focus);
     display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 0.65rem; flex-shrink: 0;
-    transition: all .15s; background: var(--rm-surface);
+    color: white; font-size: 0.65rem; transition: all .12s;
+    background: var(--rm-bg-surface);
 }
-.rm-table-card.allowed .rm-chk {
-    background: #10b981;
-    border-color: #10b981;
+.rm-row-item.allowed .rm-check-box {
+    background: var(--rm-emerald);
+    border-color: var(--rm-emerald);
 }
-.rm-chk i { opacity: 0; transform: scale(0.5); transition: all .15s; }
-.rm-table-card.allowed .rm-chk i { opacity: 1; transform: scale(1); }
+.rm-check-box i { opacity: 0; transform: scale(0.5); transition: all .12s; }
+.rm-row-item.allowed .rm-check-box i { opacity: 1; transform: scale(1); }
 
-.rm-table-info {
-    min-width: 0; flex: 1;
-}
-.rm-table-name {
-    font-size: 0.85rem; font-weight: 600; color: var(--rm-text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    display: flex; align-items: center; gap: 6px;
-}
-.rm-table-type-badge {
-    font-size: 0.6rem; font-weight: 700; padding: 1px 5px; border-radius: 4px;
-    text-transform: uppercase; letter-spacing: 0.03em;
-}
-.rm-type-table { background: rgba(99,102,241,0.1); color: var(--rm-primary); }
-.rm-type-view  { background: rgba(168,85,247,0.1); color: #a855f7; }
-.rm-type-mview { background: rgba(16,185,129,0.1); color: var(--rm-emerald); }
-
-.rm-table-desc {
-    font-size: 0.7rem; color: var(--rm-muted); margin-top: 2px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* ── Users Tab Content ───────────────────────────────── */
-.rm-users-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-}
-.rm-user-card {
-    background: var(--rm-surface);
-    backdrop-filter: blur(12px);
+/* Status Toggle Badge */
+.rm-status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    background: var(--rm-bg-subtle); color: var(--rm-text-dim);
     border: 1px solid var(--rm-border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    display: flex; align-items: center; gap: 12px;
 }
-.rm-user-avatar {
-    width: 40px; height: 40px; border-radius: 10px;
-    background: linear-gradient(135deg, var(--rm-primary), #8b5cf6);
-    color: white; font-size: 1rem; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+.rm-row-item.allowed .rm-status-badge {
+    background: var(--rm-emerald-soft); color: var(--rm-emerald-dark);
+    border-color: rgba(16,185,129,0.25);
 }
-.rm-user-info {
-    min-width: 0; flex: 1;
-}
-.rm-user-name {
-    font-size: 0.88rem; font-weight: 600; color: var(--rm-text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.rm-user-email {
-    font-size: 0.74rem; color: var(--rm-muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
 
 /* ── Empty State ─────────────────────────────────────── */
 .rm-empty-state {
-    text-align: center; padding: 3.5rem 1.5rem;
-    background: var(--rm-surface);
-    border: 1px dashed var(--rm-border);
-    border-radius: var(--rm-radius);
-    color: var(--rm-muted);
+    text-align: center; padding: 2.5rem 1rem;
+    background: var(--rm-bg-surface); border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-md);
 }
-.rm-empty-state i { font-size: 2.2rem; margin-bottom: 0.75rem; opacity: 0.4; display: block; }
-.rm-empty-state h4 { font-size: 1rem; font-weight: 600; color: var(--rm-text); margin: 0 0 4px; }
-.rm-empty-state p { font-size: 0.82rem; margin: 0 0 1rem; }
+.rm-empty-state i {
+    font-size: 2rem; color: var(--rm-text-dim); margin-bottom: 0.75rem;
+}
+.rm-empty-state h4 {
+    font-size: 0.95rem; font-weight: 700; color: var(--rm-text-main); margin: 0 0 4px;
+}
+.rm-empty-state p {
+    font-size: 0.78rem; color: var(--rm-text-muted); margin: 0 0 1rem;
+}
 
-/* ── Floating Save Dock (Bar Simpan Mengambang) ──────── */
+/* ── Members Grid (Tab 2) ────────────────────────────── */
+.rm-members-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+}
+.rm-user-card {
+    background: var(--rm-bg-surface); border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-md); padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+}
+.rm-user-card-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--rm-primary-soft); color: var(--rm-primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.8rem;
+}
+.rm-user-card-info h5 {
+    font-size: 0.82rem; font-weight: 700; color: var(--rm-text-main); margin: 0;
+}
+.rm-user-card-info span {
+    font-size: 0.72rem; color: var(--rm-text-muted);
+}
+
+/* ── Floating Sticky Save Bar ────────────────────────── */
 .rm-floating-dock {
-    position: fixed;
-    bottom: 24px; left: 50%;
+    position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(100px);
-    opacity: 0; pointer-events: none;
-    transition: all .3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    background: rgba(15,23,42,0.92);
+    background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 50px;
-    padding: 10px 18px;
-    display: flex; align-items: center; gap: 16px;
-    box-shadow: 0 12px 36px rgba(0,0,0,0.35);
-    z-index: 999; color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 30px;
+    padding: 7px 12px 7px 18px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+    transition: transform .25s cubic-bezier(0.4, 0, 0.2, 1), opacity .25s ease;
+    opacity: 0; pointer-events: none;
 }
 .rm-floating-dock.show {
     transform: translateX(-50%) translateY(0);
     opacity: 1; pointer-events: auto;
 }
 .rm-dock-msg {
-    font-size: 0.84rem; font-weight: 600;
+    font-size: 0.78rem; font-weight: 600; color: #f1f5f9;
     display: flex; align-items: center; gap: 8px;
 }
 .rm-dock-msg i { color: var(--rm-amber); }
 .rm-dock-actions {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: 6px;
 }
 .rm-dock-btn-save {
-    background: linear-gradient(135deg, var(--rm-emerald), #059669);
-    color: white; border: none; border-radius: 30px;
-    padding: 7px 18px; font-size: 0.82rem; font-weight: 700;
-    cursor: pointer; transition: all .2s; display: inline-flex; align-items: center; gap: 6px;
-    box-shadow: 0 4px 12px rgba(16,185,129,0.35);
+    background: var(--rm-emerald); color: white; border: 1px solid var(--rm-emerald-dark);
+    padding: 5px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    transition: all .15s; box-shadow: 0 2px 8px rgba(16,185,129,0.3);
 }
-.rm-dock-btn-save:hover { transform: scale(1.03); }
-.rm-dock-btn-cancel {
-    background: rgba(255,255,255,0.1); color: #cbd5e1;
-    border: none; border-radius: 30px; padding: 7px 14px;
-    font-size: 0.82rem; font-weight: 600; cursor: pointer;
-    transition: all .2s;
-}
-.rm-dock-btn-cancel:hover { background: rgba(255,255,255,0.2); color: white; }
+.rm-dock-btn-save:hover { background: var(--rm-emerald-dark); transform: translateY(-1px); }
 
 /* ── Modals ──────────────────────────────────────────── */
 .rm-modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.65);
-    backdrop-filter: blur(6px);
-    z-index: 9999;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
     display: none; align-items: center; justify-content: center;
-    padding: 1rem;
+    z-index: 1100; padding: 1rem;
 }
+.rm-modal-overlay.open { display: flex; }
 .rm-modal-box {
-    background: var(--rm-surface);
+    background: var(--rm-bg-surface);
     border: 1px solid var(--rm-border);
-    border-radius: var(--rm-radius);
-    width: 100%; max-width: 440px;
-    padding: 1.5rem; color: var(--rm-text);
-    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-    animation: rmModalPop .2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--rm-radius-lg);
+    width: 100%; max-width: 480px;
+    padding: 1.25rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: rmModalIn .2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-@keyframes rmModalPop {
-    from { opacity: 0; transform: scale(0.95); }
-    to   { opacity: 1; transform: scale(1); }
+@keyframes rmModalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(-10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .rm-modal-head {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem; padding-bottom: 8px; border-bottom: 1px solid var(--rm-border);
 }
-.rm-modal-head h3 { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--rm-text); }
-.rm-modal-close {
-    background: none; border: none; font-size: 1rem;
-    color: var(--rm-muted); cursor: pointer; padding: 4px;
-}
-.rm-modal-close:hover { color: var(--rm-text); }
-.rm-form-grp {
-    margin-bottom: 1rem; display: flex; flex-direction: column; gap: 6px;
-}
-.rm-form-grp label {
-    font-size: 0.78rem; font-weight: 600; color: var(--rm-muted);
-}
+.rm-modal-head h3 { font-size: 1rem; font-weight: 700; color: var(--rm-text-main); margin: 0; }
+.rm-modal-close { background: none; border: none; color: var(--rm-text-dim); cursor: pointer; font-size: 0.9rem; }
+.rm-modal-close:hover { color: var(--rm-rose); }
+.rm-form-grp { margin-bottom: 0.85rem; }
+.rm-form-grp label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--rm-text-muted); margin-bottom: 4px; }
 .rm-form-grp input, .rm-form-grp textarea {
-    width: 100%;
-    background: var(--rm-surface-sub);
-    border: 1px solid var(--rm-border);
-    padding: 8px 12px; border-radius: var(--rm-radius-sm);
-    color: var(--rm-text); font-size: 0.85rem; font-family: inherit;
-    outline: none; transition: all .2s;
+    width: 100%; background: var(--rm-bg-subtle); border: 1px solid var(--rm-border);
+    padding: 7px 10px; border-radius: var(--rm-radius-sm); color: var(--rm-text-main);
+    font-size: 0.82rem; font-family: inherit; outline: none; transition: all .15s;
 }
 .rm-form-grp input:focus, .rm-form-grp textarea:focus {
-    border-color: var(--rm-primary); box-shadow: 0 0 0 3px var(--rm-primary-l);
+    border-color: var(--rm-primary); background: var(--rm-bg-surface);
+    box-shadow: 0 0 0 2px var(--rm-primary-soft);
 }
 .rm-modal-foot {
-    display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 1.25rem;
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    margin-top: 1.25rem; pt: 8px; border-top: 1px solid var(--rm-border);
 }
 </style>
 
-{{-- ── TOP BAR ────────────────────────────────────────────────── --}}
-<div class="rm-topbar">
-    <div class="rm-topbar-title">
-        <div class="rm-topbar-icon">
-            <i class="fas fa-user-shield"></i>
+{{-- ── TOP HEADER ─────────────────────────────────────────────── --}}
+<div class="rm-header">
+    <div class="rm-header-left">
+        <div class="rm-header-icon">
+            <i class="fas fa-shield-alt"></i>
         </div>
-        <div>
-            <h1>{{ __('Role & Permissions') }}</h1>
-            <p>{{ __('Kelola hak akses tabel per database & schema untuk setiap peran pengguna') }}</p>
+        <div class="rm-header-title">
+            <h1>{{ __('Management Role & Hak Akses') }}</h1>
+            <p>{{ __('Atur wewenang akses database, schema, dan tabel per peran pengguna') }}</p>
         </div>
     </div>
-    <button class="rm-btn rm-btn-primary" type="button" onclick="showRoleModal('create')">
-        <i class="fas fa-plus"></i> {{ __('Tambah Role Baru') }}
-    </button>
+    <div class="rm-header-right">
+        <button class="rm-btn rm-btn-primary" type="button" onclick="showRoleModal('create')">
+            <i class="fas fa-plus"></i> {{ __('Tambah Role Baru') }}
+        </button>
+    </div>
 </div>
 
-{{-- ── MAIN LAYOUT ────────────────────────────────────────────── --}}
+{{-- ── MAIN 2-PANEL LAYOUT ────────────────────────────────────── --}}
 <div class="rm-layout">
 
-    {{-- ── LEFT PANEL: Role List ─────────────────────────────── --}}
+    {{-- ── LEFT PANEL: Role Navigator ─────────────────────────── --}}
     <div class="rm-sidebar">
-        <div class="rm-sidebar-head">
-            <h3><i class="fas fa-shield-alt"></i> {{ __('Daftar Role') }} (<span id="roleCountBadge">{{ $roles->count() }}</span>)</h3>
+        <div class="rm-sidebar-top">
+            <div class="rm-sidebar-title">
+                <i class="fas fa-layer-group"></i> {{ __('Daftar Role') }} (<span id="roleCountBadge">{{ $roles->count() }}</span>)
+            </div>
         </div>
 
         {{-- Role Search Input --}}
-        <div class="rm-role-search">
-            <i class="fas fa-search search-ico"></i>
+        <div class="rm-role-search-box">
+            <i class="fas fa-search ico"></i>
             <input type="text" id="searchRoleInput" placeholder="{{ __('Cari role...') }}" oninput="filterRoleList(this.value)">
-            <i class="fas fa-times clear-ico" id="clearRoleSearch" onclick="clearRoleSearchInput()"></i>
+            <i class="fas fa-times clear-btn" id="clearRoleSearch" onclick="clearRoleSearchInput()"></i>
         </div>
 
         {{-- Role Cards List --}}
@@ -947,7 +797,6 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
                 $userCount = $role->users_count ?? ($role->users ? $role->users->count() : 0);
                 $permCount = $role->permissions ? $role->permissions->count() : 0;
                 $totalTbl  = count($allTables);
-                $pct       = $totalTbl > 0 ? min(100, round(($permCount / $totalTbl) * 100)) : 0;
             @endphp
             <div class="rm-role-card {{ $loop->first ? 'active' : '' }}"
                  id="role-card-{{ $role->id }}"
@@ -955,12 +804,10 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
                  data-role-name="{{ strtolower($role->name) }}"
                  onclick="selectRole({{ $role->id }}, this)">
                 
-                <div class="rm-rc-top">
-                    <div class="rm-rc-title-wrap">
-                        <div class="rm-rc-icon">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <span class="rm-rc-name" title="{{ $role->name }}">{{ $role->name }}</span>
+                <div class="rm-rc-head">
+                    <div class="rm-rc-name" title="{{ $role->name }}">
+                        <i class="fas fa-user-shield" style="color:var(--rm-primary);font-size:0.8rem"></i>
+                        <span>{{ $role->name }}</span>
                     </div>
                     <div class="rm-rc-actions" onclick="event.stopPropagation()">
                         <button type="button" class="rm-rc-btn clone" title="{{ __('Duplikat Role ini') }}" onclick="duplicateRole({{ $role->id }})">
@@ -979,51 +826,47 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
                 <div class="rm-rc-desc">{{ $role->description }}</div>
                 @endif
 
-                <div class="rm-rc-creator">
-                    <i class="fas fa-user-edit"></i> {{ $role->addedBy->name ?? 'System' }} &bull; {{ $role->created_at ? $role->created_at->format('d M Y') : '-' }}
-                </div>
-
                 <div class="rm-rc-meta">
                     <span class="rm-rc-pill users"><i class="fas fa-users"></i> {{ $userCount }} User</span>
                     <span class="rm-rc-pill tables" id="rc-perm-count-{{ $role->id }}"><i class="fas fa-table"></i> {{ $permCount }}/{{ $totalTbl }} Tabel</span>
                 </div>
 
-                <div class="rm-rc-progress">
-                    <div class="rm-rc-progress-bar" id="rc-progress-{{ $role->id }}" style="width: {{ $pct }}%"></div>
+                <div class="rm-rc-creator">
+                    <i class="fas fa-user-edit"></i> {{ $role->addedBy->name ?? 'System' }} &bull; {{ $role->created_at ? $role->created_at->format('d M Y') : '-' }}
                 </div>
             </div>
             @endforeach
         </div>
     </div>
 
-    {{-- ── RIGHT PANEL: Permissions & Member Canvas ──────────── --}}
+    {{-- ── RIGHT PANEL: Permissions & Workspace Canvas ────────── --}}
     <div class="rm-main">
 
-        {{-- Role Hero Card --}}
-        <div class="rm-hero">
-            <div class="rm-hero-info">
-                <div class="rm-hero-avatar" id="heroAvatar">
+        {{-- Compact Role Control Bar --}}
+        <div class="rm-workspace-header">
+            <div class="rm-wh-info">
+                <div class="rm-wh-avatar">
                     <i class="fas fa-user-shield"></i>
                 </div>
-                <div class="rm-hero-text">
+                <div class="rm-wh-text">
                     <h2 id="heroRoleName">{{ $roles[0]->name ?? __('Pilih Role') }}</h2>
                     <p id="heroRoleDesc">{{ $roles[0]->description ?? __('Pilih salah satu role di panel kiri untuk mengatur hak akses.') }}</p>
-                    <div class="rm-hero-chips">
-                        <span class="rm-hero-chip highlight" id="heroPermChip"><i class="fas fa-check-circle"></i> <strong id="heroPermCount">0</strong> {{ __('Tabel Diizinkan') }}</span>
-                        <span class="rm-hero-chip" id="heroUserChip"><i class="fas fa-users"></i> <strong id="heroUserCount">0</strong> {{ __('Pengguna') }}</span>
-                        <span class="rm-hero-chip" id="heroDbChip"><i class="fas fa-database"></i> <strong id="heroDbCount">0</strong> {{ __('Database') }}</span>
-                        <span class="rm-hero-chip" id="heroCreatorChip"><i class="fas fa-user-edit"></i> <span id="heroCreatedBy">{{ $roles[0]->addedBy->name ?? 'System' }}</span> &bull; <span id="heroCreatedAt">{{ $roles[0]->created_at ? $roles[0]->created_at->format('d M Y') : '-' }}</span></span>
+                    <div class="rm-wh-badges">
+                        <span class="rm-wh-badge highlight" id="heroPermChip"><i class="fas fa-check-circle"></i> <strong id="heroPermCount">0</strong> {{ __('Tabel Diizinkan') }}</span>
+                        <span class="rm-wh-badge" id="heroUserChip"><i class="fas fa-users"></i> <strong id="heroUserCount">0</strong> {{ __('Pengguna') }}</span>
+                        <span class="rm-wh-badge" id="heroDbChip"><i class="fas fa-database"></i> <strong id="heroDbCount">0</strong> {{ __('Database') }}</span>
+                        <span class="rm-wh-badge" id="heroCreatorChip"><i class="fas fa-user-edit"></i> <span id="heroCreatedBy">{{ $roles[0]->addedBy->name ?? 'System' }}</span> &bull; <span id="heroCreatedAt">{{ $roles[0]->created_at ? $roles[0]->created_at->format('d M Y') : '-' }}</span></span>
                     </div>
                 </div>
             </div>
-            <div class="rm-hero-actions">
+            <div class="rm-wh-actions">
                 <button type="button" class="rm-btn rm-btn-cyan" onclick="duplicateCurrentRole()">
-                    <i class="fas fa-copy"></i> {{ __('Duplikat Role') }}
+                    <i class="fas fa-copy"></i> {{ __('Duplikat') }}
                 </button>
                 <button type="button" class="rm-btn rm-btn-amber" onclick="editCurrentRole()">
                     <i class="fas fa-edit"></i> {{ __('Edit Info') }}
                 </button>
-                <button type="button" class="rm-btn rm-btn-emerald" onclick="savePermissions()">
+                <button type="button" class="rm-btn rm-btn-primary" onclick="savePermissions()">
                     <i class="fas fa-save"></i> <span>{{ __('Simpan Akses') }}</span>
                 </button>
             </div>
@@ -1032,7 +875,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
         {{-- Tabs Navigation --}}
         <div class="rm-tabs">
             <button type="button" class="rm-tab-btn active" id="tabBtnPermissions" onclick="switchMainTab('permissions')">
-                <i class="fas fa-table"></i> {{ __('Hak Akses Tabel & Database') }}
+                <i class="fas fa-table"></i> {{ __('Hak Akses Tabel & View') }}
             </button>
             <button type="button" class="rm-tab-btn" id="tabBtnMembers" onclick="switchMainTab('members')">
                 <i class="fas fa-users"></i> {{ __('Daftar Pengguna') }}
@@ -1042,13 +885,13 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
 
         {{-- TAB 1: PERMISSIONS CONTENT --}}
         <div id="tabContentPermissions">
-            {{-- Filter & Search Toolbar --}}
+            {{-- Unified Single-Row Workspace Toolbar --}}
             <div class="rm-toolbar">
-                <div class="rm-tb-row1">
-                    {{-- Search Table / Description --}}
-                    <div class="rm-input-wrap">
+                <div class="rm-tb-left">
+                    {{-- Search Table / Schema --}}
+                    <div class="rm-input-wrap search">
                         <i class="fas fa-search ico"></i>
-                        <input type="text" id="tableSearchInput" placeholder="{{ __('Cari nama tabel, schema, atau deskripsi...') }}" oninput="applyFilters()">
+                        <input type="text" id="tableSearchInput" placeholder="{{ __('Cari nama tabel atau schema...') }}" oninput="applyFilters()">
                         <button type="button" class="clear-btn" id="clearTableSearch" onclick="clearTableSearchInput()"><i class="fas fa-times"></i></button>
                     </div>
 
@@ -1056,7 +899,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
                     <div class="rm-input-wrap">
                         <i class="fas fa-database ico"></i>
                         <select id="dbFilterSelect" onchange="handleDbFilterChange(this.value)">
-                            <option value="">{{ __('Semua Database') }}</option>
+                            <option value="">{{ __('Semua DB') }}</option>
                             @foreach($databases as $db)
                                 <option value="{{ $db->database }}">{{ $db->database }}</option>
                             @endforeach
@@ -1070,47 +913,45 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
                             <option value="">{{ __('Semua Schema') }}</option>
                         </select>
                     </div>
-                </div>
 
-                <div class="rm-tb-row2">
-                    {{-- Quick Status Filter Pills --}}
-                    <div class="rm-pills">
-                        <button type="button" class="rm-pill-btn active" data-status="all" onclick="setStatusFilter('all', this)">
-                            {{ __('Semua Tabel') }} (<span id="pillCountAll">0</span>)
+                    {{-- Status Filter Segmented Control --}}
+                    <div class="rm-segmented-pills">
+                        <button type="button" class="rm-seg-btn active" data-status="all" onclick="setStatusFilter('all', this)">
+                            {{ __('Semua') }} (<span id="pillCountAll">0</span>)
                         </button>
-                        <button type="button" class="rm-pill-btn" data-status="allowed" onclick="setStatusFilter('allowed', this)">
+                        <button type="button" class="rm-seg-btn" data-status="allowed" onclick="setStatusFilter('allowed', this)">
                             <i class="fas fa-check" style="font-size:.65rem"></i> {{ __('Diizinkan') }} (<span id="pillCountAllowed">0</span>)
                         </button>
-                        <button type="button" class="rm-pill-btn" data-status="not_allowed" onclick="setStatusFilter('not_allowed', this)">
-                            <i class="fas fa-times" style="font-size:.65rem"></i> {{ __('Belum Diizinkan') }} (<span id="pillCountNotAllowed">0</span>)
+                        <button type="button" class="rm-seg-btn" data-status="not_allowed" onclick="setStatusFilter('not_allowed', this)">
+                            <i class="fas fa-times" style="font-size:.65rem"></i> {{ __('Belum') }} (<span id="pillCountNotAllowed">0</span>)
                         </button>
                     </div>
+                </div>
 
+                <div class="rm-tb-right">
                     {{-- Bulk Actions & Accordion Controls --}}
-                    <div class="rm-tb-actions">
-                        <button type="button" class="rm-btn rm-btn-emerald rm-btn-sm" onclick="bulkAction('select')" title="{{ __('Pilih semua tabel yang tampil') }}">
-                            <i class="fas fa-check-square"></i> {{ __('Pilih Semua') }}
-                        </button>
-                        <button type="button" class="rm-btn rm-btn-rose rm-btn-sm" onclick="bulkAction('deselect')" title="{{ __('Hapus semua tabel yang tampil') }}">
-                            <i class="fas fa-square"></i> {{ __('Hapus Semua') }}
-                        </button>
-                        <button type="button" class="rm-btn rm-btn-indigo rm-btn-sm" onclick="toggleAllAccordions(true)" title="{{ __('Buka semua accordion') }}">
-                            <i class="fas fa-folder-open"></i> {{ __('Buka Semua') }}
-                        </button>
-                        <button type="button" class="rm-btn rm-btn-purple rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
-                            <i class="fas fa-folder"></i> {{ __('Tutup') }}
-                        </button>
-                    </div>
+                    <button type="button" class="rm-btn rm-btn-emerald rm-btn-sm" onclick="bulkAction('select')" title="{{ __('Pilih semua tabel yang tampil') }}">
+                        <i class="fas fa-check-square"></i> {{ __('Pilih Semua') }}
+                    </button>
+                    <button type="button" class="rm-btn rm-btn-rose rm-btn-sm" onclick="bulkAction('deselect')" title="{{ __('Hapus semua tabel yang tampil') }}">
+                        <i class="fas fa-square"></i> {{ __('Hapus Semua') }}
+                    </button>
+                    <button type="button" class="rm-btn rm-btn-indigo rm-btn-sm" onclick="toggleAllAccordions(true)" title="{{ __('Buka semua accordion') }}">
+                        <i class="fas fa-folder-open"></i> {{ __('Buka') }}
+                    </button>
+                    <button type="button" class="rm-btn rm-btn-purple rm-btn-sm" onclick="toggleAllAccordions(false)" title="{{ __('Ciutkan semua accordion') }}">
+                        <i class="fas fa-folder"></i> {{ __('Tutup') }}
+                    </button>
                 </div>
             </div>
 
-            {{-- Accordion Tree Container --}}
-            <div class="rm-tree-container" id="treeContainer" style="margin-top: 1rem;">
+            {{-- Structured Permissions Table Tree --}}
+            <div class="rm-table-tree" id="treeContainer" style="margin-top: 0.75rem;">
                 {{-- Rendered dynamically by JS --}}
             </div>
 
             {{-- Empty State (Search / Filter Not Found) --}}
-            <div class="rm-empty-state" id="tableEmptyState" style="display: none; margin-top: 1rem;">
+            <div class="rm-empty-state" id="tableEmptyState" style="display: none; margin-top: 0.75rem;">
                 <i class="fas fa-search"></i>
                 <h4>{{ __('Tidak Ada Tabel yang Cocok') }}</h4>
                 <p>{{ __('Coba sesuaikan kata kunci pencarian atau filter database/schema Anda.') }}</p>
@@ -1122,7 +963,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
 
         {{-- TAB 2: MEMBERS CONTENT --}}
         <div id="tabContentMembers" style="display: none;">
-            <div class="rm-users-grid" id="membersGrid">
+            <div class="rm-members-grid" id="membersGrid">
                 {{-- Rendered by JS --}}
             </div>
             <div class="rm-empty-state" id="membersEmptyState" style="display: none;">
@@ -1145,7 +986,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
         <span>{{ __('Ada perubahan hak akses yang belum disimpan') }}</span>
     </div>
     <div class="rm-dock-actions">
-        <button type="button" class="rm-dock-btn-cancel rm-btn-rose-subtle" onclick="discardChanges()">
+        <button type="button" class="rm-btn rm-btn-rose-subtle rm-btn-sm" onclick="discardChanges()">
             <i class="fas fa-undo"></i> {{ __('Batalkan') }}
         </button>
         <button type="button" class="rm-dock-btn-save" onclick="savePermissions()">
@@ -1190,7 +1031,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
         <form id="cloneForm" onsubmit="handleCloneSubmit(event)">
             @csrf
             <input type="hidden" id="cloneSourceRoleId">
-            <p style="font-size:0.82rem;color:var(--rm-muted);margin:0 0 1rem;">
+            <p style="font-size:0.78rem;color:var(--rm-text-muted);margin:0 0 0.85rem;">
                 {{ __('Seluruh hak akses tabel dari role asal akan disalin otomatis ke role baru.') }}
             </p>
             <div class="rm-form-grp">
@@ -1211,43 +1052,38 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.015); }
     </div>
 </div>
 
-{{-- ── Global Initial Data ────────────────────────────────────── --}}
+@push('scripts')
 <script>
-    window.allTables = @json($allTables);
-    window.allRoles = @json($roles->load(['permissions', 'users'])->toArray());
-    window.allDatabases = @json($databases);
-</script>
-
-@endsection
-
-@section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    let allRoles = window.allRoles || [];
-    let allTables = window.allTables || [];
-    let currentRoleId = allRoles.length > 0 ? allRoles[0].id : null;
-    let selectedTables = new Set();
-    let originalSelectedTables = new Set();
-    let hasChanges = false;
-    let currentStatusFilter = 'all';
-    let currentActiveTab = 'permissions';
-
-    const treeContainer = document.getElementById('treeContainer');
-    const tableEmptyState = document.getElementById('tableEmptyState');
-    const floatingSaveDock = document.getElementById('floatingSaveDock');
-    const tableSearchInput = document.getElementById('tableSearchInput');
-    const clearTableSearch = document.getElementById('clearTableSearch');
+document.addEventListener('DOMContentLoaded', function() {
 
     /* ══════════════════════════════════════════════════════════
-       INITIALIZATION
+       DATA INITIALIZATION
     ══════════════════════════════════════════════════════════ */
-    function init() {
-        if (currentRoleId) {
-            loadRolePermissions(currentRoleId);
+    const allRoles   = @json($roles);
+    const allTables  = @json($allTables);
+    const allDbs     = @json($databases);
+
+    let currentRoleId          = {{ $roles->first()->id ?? 'null' }};
+    let selectedTables         = new Set();
+    let originalSelectedTables = new Set();
+    let currentStatusFilter    = 'all'; // 'all' | 'allowed' | 'not_allowed'
+    let hasChanges             = false;
+
+    // Group tables by database_code -> schema_name -> [table objects]
+    const groupedTables = {};
+    allTables.forEach(t => {
+        const dbCode   = t.database_code || 'default';
+        const dbName   = t.database_name || dbCode;
+        const schema   = t.schema_name   || 'public';
+
+        if (!groupedTables[dbCode]) {
+            groupedTables[dbCode] = { dbName: dbName, schemas: {} };
         }
-        updatePillCounts();
-    }
+        if (!groupedTables[dbCode].schemas[schema]) {
+            groupedTables[dbCode].schemas[schema] = [];
+        }
+        groupedTables[dbCode].schemas[schema].push(t);
+    });
 
     /* ══════════════════════════════════════════════════════════
        ROLE LOADING & SELECTION
@@ -1267,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', function () {
             originalSelectedTables.add(key);
         });
 
-        // Update Hero Details
+        // Update Header Details
         document.getElementById('heroRoleName').textContent = role.name;
         document.getElementById('heroRoleDesc').textContent = role.description || "{{ __('Tidak ada deskripsi.') }}";
         
@@ -1321,104 +1157,36 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* ══════════════════════════════════════════════════════════
-       DIRTY STATE / FLOATING SAVE BAR
+       RENDER PERMISSIONS STRUCTURED TABLE TREE
     ══════════════════════════════════════════════════════════ */
-    function setHasChanges(value) {
-        hasChanges = value;
-        if (floatingSaveDock) {
-            if (value) floatingSaveDock.classList.add('show');
-            else floatingSaveDock.classList.remove('show');
-        }
+    function renderTree(visibleTables) {
+        const container = document.getElementById('treeContainer');
+        const emptyState = document.getElementById('tableEmptyState');
+        container.innerHTML = '';
 
-        const activeCard = document.getElementById('role-card-' + currentRoleId);
-        if (activeCard) {
-            if (value) activeCard.classList.add('has-changes');
-            else activeCard.classList.remove('has-changes');
-        }
-    }
-
-    function checkIfChanged() {
-        if (selectedTables.size !== originalSelectedTables.size) return true;
-        for (let item of selectedTables) {
-            if (!originalSelectedTables.has(item)) return true;
-        }
-        return false;
-    }
-
-    window.discardChanges = function() {
-        selectedTables = new Set(originalSelectedTables);
-        setHasChanges(false);
-        applyFilters();
-    };
-
-    /* ══════════════════════════════════════════════════════════
-       TABLE CHECKBOX TOGGLE
-    ══════════════════════════════════════════════════════════ */
-    window.toggleTable = function(key) {
-        if (selectedTables.has(key)) {
-            selectedTables.delete(key);
-        } else {
-            selectedTables.add(key);
-        }
-
-        setHasChanges(checkIfChanged());
-        applyFilters();
-        updateCountsAndPills();
-    };
-
-    function updateCountsAndPills() {
-        document.getElementById('heroPermCount').textContent = selectedTables.size;
-        updatePillCounts();
-
-        // Update progress on sidebar
-        const total = allTables.length;
-        const count = selectedTables.size;
-        const pct = total > 0 ? Math.min(100, Math.round((count / total) * 100)) : 0;
-        
-        const countLabel = document.getElementById('rc-perm-count-' + currentRoleId);
-        if (countLabel) countLabel.innerHTML = `<i class="fas fa-table"></i> ${count}/${total} Tabel`;
-        
-        const progressBar = document.getElementById('rc-progress-' + currentRoleId);
-        if (progressBar) progressBar.style.width = pct + '%';
-    }
-
-    function updatePillCounts() {
-        const allowedCount = selectedTables.size;
-        const totalCount   = allTables.length;
-        const notAllowed   = Math.max(0, totalCount - allowedCount);
-
-        document.getElementById('pillCountAll').textContent = totalCount;
-        document.getElementById('pillCountAllowed').textContent = allowedCount;
-        document.getElementById('pillCountNotAllowed').textContent = notAllowed;
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       ACCORDION TREE RENDERING
-    ══════════════════════════════════════════════════════════ */
-    function renderTree(filteredTables) {
-        treeContainer.innerHTML = '';
-
-        if (filteredTables.length === 0) {
-            tableEmptyState.style.display = 'block';
+        if (visibleTables.length === 0) {
+            emptyState.style.display = 'block';
             return;
         }
-        tableEmptyState.style.display = 'none';
+        emptyState.style.display = 'none';
 
-        // Group tables by database_code -> schema_name
-        const dbGroups = {};
-        filteredTables.forEach(table => {
-            const db = table.database_code || 'default';
-            const schema = table.schema_name || 'public';
+        // Group the visible tables
+        const filteredGrouped = {};
+        visibleTables.forEach(t => {
+            const dbCode = t.database_code || 'default';
+            const dbName = t.database_name || dbCode;
+            const schema = t.schema_name   || 'public';
 
-            if (!dbGroups[db]) dbGroups[db] = { dbName: table.database_name || db, schemas: {} };
-            if (!dbGroups[db].schemas[schema]) dbGroups[db].schemas[schema] = [];
-            dbGroups[db].schemas[schema].push(table);
+            if (!filteredGrouped[dbCode]) {
+                filteredGrouped[dbCode] = { dbName: dbName, schemas: {} };
+            }
+            if (!filteredGrouped[dbCode].schemas[schema]) {
+                filteredGrouped[dbCode].schemas[schema] = [];
+            }
+            filteredGrouped[dbCode].schemas[schema].push(t);
         });
 
-        const searchTerm = (tableSearchInput.value || '').toLowerCase().trim();
-
-        Object.entries(dbGroups).forEach(([dbCode, dbData]) => {
-            // Count total and selected tables in this DB
+        Object.entries(filteredGrouped).forEach(([dbCode, dbData]) => {
             let totalInDb = 0;
             let selectedInDb = 0;
 
@@ -1431,35 +1199,49 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             const isFullDb = (totalInDb > 0 && selectedInDb === totalInDb);
+            const pctDb    = totalInDb > 0 ? Math.round((selectedInDb / totalInDb) * 100) : 0;
 
-            const dbCard = document.createElement('div');
-            dbCard.className = 'rm-db-card';
-            dbCard.id = 'db-card-' + dbCode;
+            const dbSection = document.createElement('div');
+            dbSection.className = 'rm-db-section';
+            dbSection.id = 'db-card-' + dbCode;
 
-            // Database Header
-            dbCard.innerHTML = `
-                <div class="rm-db-head" onclick="toggleDbAccordion('${dbCode}')">
-                    <div class="rm-db-title">
-                        <div class="rm-db-icon"><i class="fas fa-database"></i></div>
-                        <span class="rm-db-name">${escHtml(dbData.dbName)}</span>
-                        <span class="rm-db-badge ${isFullDb ? 'full' : ''}" id="db-badge-${dbCode}">
-                            ${selectedInDb}/${totalInDb} {{ __('Tabel') }}
+            // Database Header Bar
+            dbSection.innerHTML = `
+                <div class="rm-db-header-bar" onclick="toggleDbAccordion('${dbCode}')">
+                    <div class="rm-db-header-left">
+                        <div class="rm-db-header-icon"><i class="fas fa-database"></i></div>
+                        <span class="rm-db-title-text">${escHtml(dbData.dbName)}</span>
+                        <span class="rm-db-stat-badge ${isFullDb ? 'full' : ''}" id="db-badge-${dbCode}">
+                            ${selectedInDb}/${totalInDb} {{ __('Tabel') }} (${pctDb}%)
                         </span>
                     </div>
-                    <div class="rm-db-controls" onclick="event.stopPropagation()">
+                    <div class="rm-db-header-right" onclick="event.stopPropagation()">
                         <button type="button" class="rm-btn ${isFullDb ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" onclick="toggleDatabaseAll('${dbCode}', ${!isFullDb})">
                             <i class="fas ${isFullDb ? 'fa-square' : 'fa-check-square'}"></i>
-                            ${isFullDb ? '{{ __("Hapus Semua DB") }}' : '{{ __("Pilih Semua DB") }}'}
+                            ${isFullDb ? '{{ __("Hapus DB") }}' : '{{ __("Pilih Semua DB") }}'}
                         </button>
-                        <i class="fas fa-chevron-down rm-db-chevron"></i>
+                        <i class="fas fa-chevron-down rm-db-toggle-ico"></i>
                     </div>
                 </div>
-                <div class="rm-db-body" id="db-body-${dbCode}"></div>
+                <div class="rm-db-content-area" id="db-body-${dbCode}">
+                    <table class="rm-perm-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;text-align:center;"></th>
+                                <th>{{ __('Nama Tabel / View') }}</th>
+                                <th style="width:120px;">{{ __('Schema') }}</th>
+                                <th style="width:100px;">{{ __('Tipe') }}</th>
+                                <th style="width:110px;text-align:right;">{{ __('Status') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-${dbCode}"></tbody>
+                    </table>
+                </div>
             `;
 
-            const dbBody = dbCard.querySelector(`#db-body-${dbCode}`);
+            const tbody = dbSection.querySelector(`#tbody-${dbCode}`);
 
-            // Render Schemas inside this DB
+            // Render Schemas & Table Rows
             Object.entries(dbData.schemas).forEach(([schemaName, tables]) => {
                 let selectedInSchema = 0;
                 tables.forEach(t => {
@@ -1468,487 +1250,607 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 const isFullSchema = (tables.length > 0 && selectedInSchema === tables.length);
 
-                const schemaGroup = document.createElement('div');
-                schemaGroup.className = 'rm-schema-group';
-
-                schemaGroup.innerHTML = `
-                    <div class="rm-schema-head">
-                        <div class="rm-schema-title">
-                            <i class="fas fa-layer-group"></i>
-                            <span>Schema: ${escHtml(schemaName)}</span>
+                // Schema Subheader Row
+                const schemaRow = document.createElement('tr');
+                schemaRow.className = 'rm-schema-row';
+                schemaRow.innerHTML = `
+                    <td colspan="5">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <i class="fas fa-layer-group" style="color:var(--rm-cyan)"></i>
+                                <span>SCHEMA: ${escHtml(schemaName)} (${tables.length} tabel)</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <span style="font-size:0.68rem;color:var(--rm-text-dim)">${selectedInSchema}/${tables.length} {{ __('Terpilih') }}</span>
+                                <button type="button" class="rm-btn ${isFullSchema ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" style="padding:1px 6px;font-size:0.68rem;"
+                                        onclick="toggleSchemaAll('${dbCode}', '${schemaName}', ${!isFullSchema})">
+                                    ${isFullSchema ? '<i class="fas fa-times"></i> {{ __("Hapus") }}' : '<i class="fas fa-check"></i> {{ __("Pilih") }}'}
+                                </button>
+                            </div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <span class="rm-schema-count">${selectedInSchema}/${tables.length} {{ __('Terpilih') }}</span>
-                            <button type="button" class="rm-btn ${isFullSchema ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm" style="padding:3px 10px;font-size:0.72rem;"
-                                    onclick="toggleSchemaAll('${dbCode}', '${schemaName}', ${!isFullSchema})">
-                                ${isFullSchema ? '<i class="fas fa-times"></i> {{ __("Hapus Schema") }}' : '<i class="fas fa-check"></i> {{ __("Pilih Schema") }}'}
-                            </button>
-                        </div>
-                    </div>
-                    <div class="rm-table-grid" id="grid-${dbCode}-${schemaName}"></div>
+                    </td>
                 `;
+                tbody.appendChild(schemaRow);
 
-                const tableGrid = schemaGroup.querySelector(`#grid-${dbCode}-${schemaName}`);
-
-                // Render Table Cards
+                // Table Item Rows
                 tables.forEach(t => {
                     const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
                     const isAllowed = selectedTables.has(key);
+                    const type = (t.table_type || 'TABLE').toUpperCase();
+                    let typeClass = 'table';
+                    let typeIco   = 'fa-table';
 
-                    const typeClass = t.table_type === 'view' ? 'rm-type-view' : (t.table_type === 'materialized_view' ? 'rm-type-mview' : 'rm-type-table');
-                    const typeLabel = t.table_type === 'view' ? 'View' : (t.table_type === 'materialized_view' ? 'Mat.View' : 'Table');
+                    if (type.includes('VIEW') && type.includes('MAT')) {
+                        typeClass = 'matview';
+                        typeIco   = 'fa-cube';
+                    } else if (type.includes('VIEW')) {
+                        typeClass = 'view';
+                        typeIco   = 'fa-eye';
+                    }
 
-                    const tableNameDisplay = highlightSearch(t.table_name, searchTerm);
+                    const row = document.createElement('tr');
+                    row.className = `rm-row-item ${isAllowed ? 'allowed' : ''}`;
+                    row.id = `row-${dbCode}-${schemaName}-${t.table_name}`;
+                    row.onclick = () => toggleTable(key, row);
 
-                    const tableCard = document.createElement('div');
-                    tableCard.className = `rm-table-card ${isAllowed ? 'allowed' : ''}`;
-                    tableCard.onclick = () => toggleTable(key);
-
-                    tableCard.innerHTML = `
-                        <div class="rm-chk">
-                            <i class="fas fa-check"></i>
-                        </div>
-                        <div class="rm-table-info">
-                            <div class="rm-table-name">
-                                <span>${tableNameDisplay}</span>
-                                <span class="rm-table-type-badge ${typeClass}">${typeLabel}</span>
+                    row.innerHTML = `
+                        <td style="text-align:center;">
+                            <div class="rm-check-box">
+                                <i class="fas fa-check"></i>
                             </div>
-                            <div class="rm-table-desc" title="${escHtml(t.description || '')}">
-                                ${escHtml(t.description || '{{ __("Tidak ada deskripsi") }}')}
+                        </td>
+                        <td>
+                            <div class="rm-tbl-name">
+                                <i class="fas ${typeIco}"></i>
+                                <span>${escHtml(t.table_name)}</span>
                             </div>
-                        </div>
+                        </td>
+                        <td>
+                            <span style="font-size:0.75rem;color:var(--rm-text-muted);font-family:var(--rm-font-mono)">${escHtml(t.schema_name)}</span>
+                        </td>
+                        <td>
+                            <span class="rm-tag ${typeClass}">${escHtml(type)}</span>
+                        </td>
+                        <td style="text-align:right;">
+                            <span class="rm-status-badge">
+                                <i class="fas ${isAllowed ? 'fa-check-circle' : 'fa-minus-circle'}"></i>
+                                <span>${isAllowed ? '{{ __("Diizinkan") }}' : '{{ __("Terkunci") }}'}</span>
+                            </span>
+                        </td>
                     `;
-
-                    tableGrid.appendChild(tableCard);
+                    tbody.appendChild(row);
                 });
-
-                dbBody.appendChild(schemaGroup);
             });
 
-            treeContainer.appendChild(dbCard);
+            container.appendChild(dbSection);
         });
 
-        updateCountsAndPills();
+        updatePillCounts();
     }
 
     /* ══════════════════════════════════════════════════════════
-       FILTERING LOGIC
+       TABLE TOGGLE & PERMISSION STATE MANAGEMENT
     ══════════════════════════════════════════════════════════ */
-    function getFilteredTables() {
-        const searchTerm = (tableSearchInput ? tableSearchInput.value : '').toLowerCase().trim();
-        const dbFilter = (document.getElementById('dbFilterSelect') ? document.getElementById('dbFilterSelect').value : '');
-        const schemaFilter = (document.getElementById('schemaFilterSelect') ? document.getElementById('schemaFilterSelect').value : '');
-
-        if (clearTableSearch) {
-            clearTableSearch.style.display = searchTerm ? 'inline' : 'none';
+    window.toggleTable = function(key, rowEl) {
+        if (selectedTables.has(key)) {
+            selectedTables.delete(key);
+            if (rowEl) {
+                rowEl.classList.remove('allowed');
+                const badge = rowEl.querySelector('.rm-status-badge');
+                if (badge) badge.innerHTML = '<i class="fas fa-minus-circle"></i> <span>{{ __("Terkunci") }}</span>';
+            }
+        } else {
+            selectedTables.add(key);
+            if (rowEl) {
+                rowEl.classList.add('allowed');
+                const badge = rowEl.querySelector('.rm-status-badge');
+                if (badge) badge.innerHTML = '<i class="fas fa-check-circle"></i> <span>{{ __("Diizinkan") }}</span>';
+            }
         }
 
-        return allTables.filter(table => {
-            const key = `${table.database_code}|${table.schema_name}|${table.table_name}`;
-            
-            // Search Query match
-            const nameMatch = !searchTerm || 
-                table.table_name.toLowerCase().includes(searchTerm) ||
-                (table.schema_name && table.schema_name.toLowerCase().includes(searchTerm)) ||
-                (table.description && table.description.toLowerCase().includes(searchTerm));
+        checkChanges();
+        updateCountsAndBadges();
+    };
 
-            // Database Match
-            const dbMatch = !dbFilter || table.database_code === dbFilter;
+    window.toggleDatabaseAll = function(dbCode, selectAll) {
+        const dbData = groupedTables[dbCode];
+        if (!dbData) return;
 
-            // Schema Match
-            const schemaMatch = !schemaFilter || table.schema_name === schemaFilter;
+        Object.values(dbData.schemas).forEach(tables => {
+            tables.forEach(t => {
+                const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
+                if (selectAll) selectedTables.add(key);
+                else selectedTables.delete(key);
+            });
+        });
 
-            // Status Match (all / allowed / not_allowed)
-            let statusMatch = true;
-            if (currentStatusFilter === 'allowed') statusMatch = selectedTables.has(key);
-            else if (currentStatusFilter === 'not_allowed') statusMatch = !selectedTables.has(key);
+        checkChanges();
+        applyFilters();
+    };
 
-            return nameMatch && dbMatch && schemaMatch && statusMatch;
+    window.toggleSchemaAll = function(dbCode, schemaName, selectAll) {
+        const tables = groupedTables[dbCode]?.schemas[schemaName];
+        if (!tables) return;
+
+        tables.forEach(t => {
+            const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
+            if (selectAll) selectedTables.add(key);
+            else selectedTables.delete(key);
+        });
+
+        checkChanges();
+        applyFilters();
+    };
+
+    window.bulkAction = function(action) {
+        const visible = getFilteredTables();
+        visible.forEach(t => {
+            const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
+            if (action === 'select') selectedTables.add(key);
+            else if (action === 'deselect') selectedTables.delete(key);
+        });
+
+        checkChanges();
+        applyFilters();
+    };
+
+    function updateCountsAndBadges() {
+        const total = allTables.length;
+        const selected = selectedTables.size;
+
+        // Header Count
+        document.getElementById('heroPermCount').textContent = selected;
+
+        // Sidebar current role pill
+        const sidebarPill = document.getElementById('rc-perm-count-' + currentRoleId);
+        if (sidebarPill) sidebarPill.innerHTML = `<i class="fas fa-table"></i> ${selected}/${total} Tabel`;
+
+        // Update DB header badges
+        Object.entries(groupedTables).forEach(([dbCode, dbData]) => {
+            let totalDb = 0;
+            let selDb   = 0;
+            Object.values(dbData.schemas).forEach(tbls => {
+                tbls.forEach(t => {
+                    totalDb++;
+                    const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
+                    if (selectedTables.has(key)) selDb++;
+                });
+            });
+            const badge = document.getElementById('db-badge-' + dbCode);
+            if (badge) {
+                const isFull = (totalDb > 0 && selDb === totalDb);
+                const pct = totalDb > 0 ? Math.round((selDb / totalDb) * 100) : 0;
+                badge.className = `rm-db-stat-badge ${isFull ? 'full' : ''}`;
+                badge.textContent = `${selDb}/${totalDb} {{ __('Tabel') }} (${pct}%)`;
+            }
+        });
+
+        updatePillCounts();
+    }
+
+    function updatePillCounts() {
+        const visible = getFilteredTablesWithoutStatus();
+        let allowed = 0;
+        let notAllowed = 0;
+
+        visible.forEach(t => {
+            const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
+            if (selectedTables.has(key)) allowed++;
+            else notAllowed++;
+        });
+
+        document.getElementById('pillCountAll').textContent        = visible.length;
+        document.getElementById('pillCountAllowed').textContent    = allowed;
+        document.getElementById('pillCountNotAllowed').textContent = notAllowed;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FILTERING & SEARCH LOGIC
+    ══════════════════════════════════════════════════════════ */
+    function getFilteredTablesWithoutStatus() {
+        const q       = (document.getElementById('tableSearchInput').value || '').toLowerCase().trim();
+        const selDb   = document.getElementById('dbFilterSelect').value;
+        const selSch  = document.getElementById('schemaFilterSelect').value;
+
+        return allTables.filter(t => {
+            if (selDb && t.database_code !== selDb) return false;
+            if (selSch && t.schema_name !== selSch) return false;
+            if (q) {
+                const matchName   = (t.table_name || '').toLowerCase().includes(q);
+                const matchSchema = (t.schema_name || '').toLowerCase().includes(q);
+                const matchDb     = (t.database_name || t.database_code || '').toLowerCase().includes(q);
+                if (!matchName && !matchSchema && !matchDb) return false;
+            }
+            return true;
         });
     }
 
+    function getFilteredTables() {
+        const list = getFilteredTablesWithoutStatus();
+        if (currentStatusFilter === 'allowed') {
+            return list.filter(t => selectedTables.has(`${t.database_code}|${t.schema_name}|${t.table_name}`));
+        } else if (currentStatusFilter === 'not_allowed') {
+            return list.filter(t => !selectedTables.has(`${t.database_code}|${t.schema_name}|${t.table_name}`));
+        }
+        return list;
+    }
+
     window.applyFilters = function() {
+        const q = (document.getElementById('tableSearchInput').value || '').trim();
+        document.getElementById('clearTableSearch').style.display = q ? 'block' : 'none';
+
         const filtered = getFilteredTables();
         renderTree(filtered);
     };
 
-    window.setStatusFilter = function(status, btn) {
+    window.setStatusFilter = function(status, el) {
         currentStatusFilter = status;
-        document.querySelectorAll('.rm-pill-btn').forEach(b => b.classList.remove('active', 'allowed', 'not-allowed'));
-        if (btn) {
-            btn.classList.add('active');
-            if (status === 'allowed') btn.classList.add('allowed');
-            if (status === 'not_allowed') btn.classList.add('not-allowed');
+        document.querySelectorAll('.rm-seg-btn').forEach(b => b.classList.remove('active'));
+        if (el) el.classList.add('active');
+        applyFilters();
+    };
+
+    window.handleDbFilterChange = function(dbVal) {
+        const schemaSelect = document.getElementById('schemaFilterSelect');
+        schemaSelect.innerHTML = '<option value="">{{ __("Semua Schema") }}</option>';
+
+        if (dbVal && groupedTables[dbVal]) {
+            Object.keys(groupedTables[dbVal].schemas).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s; opt.textContent = s;
+                schemaSelect.appendChild(opt);
+            });
         }
         applyFilters();
     };
 
     window.clearTableSearchInput = function() {
-        if (tableSearchInput) {
-            tableSearchInput.value = '';
-            tableSearchInput.focus();
-        }
+        document.getElementById('tableSearchInput').value = '';
+        document.getElementById('clearTableSearch').style.display = 'none';
         applyFilters();
     };
 
     window.resetAllTableFilters = function() {
-        if (tableSearchInput) tableSearchInput.value = '';
-        const dbSelect = document.getElementById('dbFilterSelect');
-        if (dbSelect) dbSelect.value = '';
-        const scSelect = document.getElementById('schemaFilterSelect');
-        if (scSelect) scSelect.value = '';
-        setStatusFilter('all', document.querySelector('.rm-pill-btn[data-status="all"]'));
+        document.getElementById('tableSearchInput').value = '';
+        document.getElementById('dbFilterSelect').value = '';
+        document.getElementById('schemaFilterSelect').value = '';
+        document.getElementById('schemaFilterSelect').innerHTML = '<option value="">{{ __("Semua Schema") }}</option>';
+        setStatusFilter('all', document.querySelector('.rm-seg-btn[data-status="all"]'));
     };
 
-    window.handleDbFilterChange = async function(dbCode) {
-        const schemaSelect = document.getElementById('schemaFilterSelect');
-        schemaSelect.innerHTML = '<option value="">{{ __("Semua Schema") }}</option>';
-        
-        if (dbCode) {
-            try {
-                const db = window.allDatabases.find(d => d.database === dbCode);
-                if (db) {
-                    const response = await fetch(`/admin/databases/${db.id}/schemas`);
-                    const data = await response.json();
-                    (data.schemas || []).forEach(s => {
-                        const opt = document.createElement('option');
-                        opt.value = s;
-                        opt.textContent = s;
-                        schemaSelect.appendChild(opt);
-                    });
-                }
-            } catch (e) { console.error(e); }
-        }
-        
-        applyFilters();
-    };
-
-    /* ══════════════════════════════════════════════════════════
-       ACCORDION HELPERS & BATCH SELECTION
-    ══════════════════════════════════════════════════════════ */
     window.toggleDbAccordion = function(dbCode) {
-        const card = document.getElementById('db-card-' + dbCode);
-        if (card) card.classList.toggle('collapsed');
+        const el = document.getElementById('db-card-' + dbCode);
+        if (el) el.classList.toggle('collapsed');
     };
 
     window.toggleAllAccordions = function(expand) {
-        document.querySelectorAll('.rm-db-card').forEach(card => {
-            if (expand) card.classList.remove('collapsed');
-            else card.classList.add('collapsed');
+        document.querySelectorAll('.rm-db-section').forEach(el => {
+            if (expand) el.classList.remove('collapsed');
+            else el.classList.add('collapsed');
         });
-    };
-
-    window.toggleDatabaseAll = function(dbCode, selectAll) {
-        allTables.forEach(t => {
-            if (t.database_code === dbCode) {
-                const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
-                if (selectAll) selectedTables.add(key);
-                else selectedTables.delete(key);
-            }
-        });
-        setHasChanges(checkIfChanged());
-        applyFilters();
-    };
-
-    window.toggleSchemaAll = function(dbCode, schemaName, selectAll) {
-        allTables.forEach(t => {
-            if (t.database_code === dbCode && t.schema_name === schemaName) {
-                const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
-                if (selectAll) selectedTables.add(key);
-                else selectedTables.delete(key);
-            }
-        });
-        setHasChanges(checkIfChanged());
-        applyFilters();
-    };
-
-    window.bulkAction = function(action) {
-        const filtered = getFilteredTables();
-        filtered.forEach(t => {
-            const key = `${t.database_code}|${t.schema_name}|${t.table_name}`;
-            if (action === 'select') selectedTables.add(key);
-            else selectedTables.delete(key);
-        });
-        setHasChanges(checkIfChanged());
-        applyFilters();
     };
 
     /* ══════════════════════════════════════════════════════════
-       ROLE SEARCH ON SIDEBAR
+       MEMBERS TAB RENDERING
     ══════════════════════════════════════════════════════════ */
-    window.filterRoleList = function(query) {
-        const q = (query || '').toLowerCase().trim();
-        const clearBtn = document.getElementById('clearRoleSearch');
-        if (clearBtn) clearBtn.style.display = q ? 'inline' : 'none';
-
-        let count = 0;
-        document.querySelectorAll('.rm-role-card').forEach(card => {
-            const name = card.dataset.roleName || '';
-            const match = !q || name.includes(q);
-            card.style.display = match ? 'flex' : 'none';
-            if (match) count++;
-        });
-
-        const badge = document.getElementById('roleCountBadge');
-        if (badge) badge.textContent = count;
-    };
-
-    window.clearRoleSearchInput = function() {
-        const input = document.getElementById('searchRoleInput');
-        if (input) {
-            input.value = '';
-            filterRoleList('');
-            input.focus();
-        }
-    };
-
-    /* ══════════════════════════════════════════════════════════
-       TABS SWITCHING (Permissions vs Members)
-    ══════════════════════════════════════════════════════════ */
-    window.switchMainTab = function(tab) {
-        currentActiveTab = tab;
-        const btnPerm = document.getElementById('tabBtnPermissions');
-        const btnMemb = document.getElementById('tabBtnMembers');
-        const cntPerm = document.getElementById('tabContentPermissions');
-        const cntMemb = document.getElementById('tabContentMembers');
-
-        if (tab === 'permissions') {
-            btnPerm.classList.add('active');
-            btnMemb.classList.remove('active');
-            cntPerm.style.display = 'block';
-            cntMemb.style.display = 'none';
-        } else {
-            btnPerm.classList.remove('active');
-            btnMemb.classList.add('active');
-            cntPerm.style.display = 'none';
-            cntMemb.style.display = 'block';
-        }
-    };
-
     function renderMembersTab(users) {
         const grid = document.getElementById('membersGrid');
-        const empty = document.getElementById('membersEmptyState');
+        const emptyState = document.getElementById('membersEmptyState');
         grid.innerHTML = '';
 
         if (!users || users.length === 0) {
-            empty.style.display = 'block';
+            emptyState.style.display = 'block';
             return;
         }
-        empty.style.display = 'none';
+        emptyState.style.display = 'none';
 
         users.forEach(u => {
-            const initials = (u.name || 'U').substring(0, 2).toUpperCase();
             const card = document.createElement('div');
             card.className = 'rm-user-card';
-
+            const initials = (u.name || 'U').substring(0, 2).toUpperCase();
             card.innerHTML = `
-                <div class="rm-user-avatar">${initials}</div>
-                <div class="rm-user-info">
-                    <div class="rm-user-name">${escHtml(u.name)}</div>
-                    <div class="rm-user-email">${escHtml(u.email || '-')}</div>
+                <div class="rm-user-card-avatar">${escHtml(initials)}</div>
+                <div class="rm-user-card-info">
+                    <h5>${escHtml(u.name)}</h5>
+                    <span>${escHtml(u.email || '-')}</span>
                 </div>
             `;
             grid.appendChild(card);
         });
     }
 
-    /* ══════════════════════════════════════════════════════════
-       SAVE PERMISSIONS (AJAX)
-    ══════════════════════════════════════════════════════════ */
-    window.savePermissions = function() {
-        if (!currentRoleId) return;
-        const tables = Array.from(selectedTables);
+    window.switchMainTab = function(tabName) {
+        const tabPermissions = document.getElementById('tabContentPermissions');
+        const tabMembers     = document.getElementById('tabContentMembers');
+        const btnPermissions = document.getElementById('tabBtnPermissions');
+        const btnMembers     = document.getElementById('tabBtnMembers');
 
-        Swal.fire({
-            title: "{{ __('Simpan Hak Akses?') }}",
-            text: `{{ __('Anda akan menyimpan hak akses untuk') }} ${tables.length} {{ __('tabel pada role ini.') }}`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#6366f1',
-            confirmButtonText: "{{ __('Ya, Simpan!') }}",
-            cancelButtonText: "{{ __('Batal') }}"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.showLoading();
-                fetch(`/admin/roles/${currentRoleId}/permissions`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({ tables })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const role = allRoles.find(r => r.id == currentRoleId);
-                        if (role) {
-                            role.permissions = tables.map(t => {
-                                const parts = t.split('|');
-                                return { database_code: parts[0], schema_name: parts[1], table_name: parts[2] };
-                            });
-                        }
-                        originalSelectedTables = new Set(selectedTables);
-                        setHasChanges(false);
-                        Swal.fire({
-                            icon: 'success',
-                            title: "{{ __('Berhasil!') }}",
-                            text: "{{ __('Hak akses tabel berhasil diperbarui.') }}",
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                    } else {
-                        Swal.fire("{{ __('Gagal') }}", data.message || "{{ __('Gagal menyimpan hak akses.') }}", 'error');
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    Swal.fire("{{ __('Error') }}", "{{ __('Terjadi kesalahan koneksi ke server.') }}", 'error');
-                });
+        if (tabName === 'permissions') {
+            tabPermissions.style.display = 'block';
+            tabMembers.style.display = 'none';
+            btnPermissions.classList.add('active');
+            btnMembers.classList.remove('active');
+        } else {
+            tabPermissions.style.display = 'none';
+            tabMembers.style.display = 'block';
+            btnPermissions.classList.remove('active');
+            btnMembers.classList.add('active');
+        }
+    };
+
+    /* ══════════════════════════════════════════════════════════
+       SIDEBAR ROLE LIST SEARCH
+    ══════════════════════════════════════════════════════════ */
+    window.filterRoleList = function(q) {
+        q = (q || '').toLowerCase().trim();
+        document.getElementById('clearRoleSearch').style.display = q ? 'block' : 'none';
+
+        let visibleCount = 0;
+        document.querySelectorAll('.rm-role-card').forEach(card => {
+            const name = card.getAttribute('data-role-name') || '';
+            if (!q || name.includes(q)) {
+                card.style.display = 'flex';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
             }
+        });
+        document.getElementById('roleCountBadge').textContent = visibleCount;
+    };
+
+    window.clearRoleSearchInput = function() {
+        document.getElementById('searchRoleInput').value = '';
+        filterRoleList('');
+    };
+
+    /* ══════════════════════════════════════════════════════════
+       UNSAVED CHANGES & SAVE LOGIC (AJAX)
+    ══════════════════════════════════════════════════════════ */
+    function checkChanges() {
+        let changed = false;
+        if (selectedTables.size !== originalSelectedTables.size) {
+            changed = true;
+        } else {
+            for (let t of selectedTables) {
+                if (!originalSelectedTables.has(t)) {
+                    changed = true; break;
+                }
+            }
+        }
+        setHasChanges(changed);
+    }
+
+    function setHasChanges(state) {
+        hasChanges = state;
+        const dock = document.getElementById('floatingSaveDock');
+        const activeCard = document.getElementById('role-card-' + currentRoleId);
+
+        if (state) {
+            dock.classList.add('show');
+            if (activeCard) activeCard.classList.add('has-changes');
+        } else {
+            dock.classList.remove('show');
+            if (activeCard) activeCard.classList.remove('has-changes');
+        }
+    }
+
+    window.discardChanges = function() {
+        if (!hasChanges) return;
+        selectedTables = new Set(originalSelectedTables);
+        setHasChanges(false);
+        applyFilters();
+        updateCountsAndBadges();
+        Swal.fire({
+            toast: true, position: 'top-end', icon: 'info',
+            title: "{{ __('Perubahan dibatalkan') }}", showConfirmButton: false, timer: 1500
         });
     };
 
-    /* Keyboard Shortcut Ctrl + S / Cmd + S to save */
-    document.addEventListener('keydown', function(e) {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-            e.preventDefault();
-            if (hasChanges) savePermissions();
-        }
-    });
+    window.savePermissions = function() {
+        if (!currentRoleId) return;
+
+        const permissions = Array.from(selectedTables);
+
+        Swal.fire({
+            title: "{{ __('Menyimpan Hak Akses...') }}",
+            text: "{{ __('Mohon tunggu sebentar.') }}",
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        fetch(`/admin/roles/${currentRoleId}/permissions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ permissions: permissions })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                originalSelectedTables = new Set(selectedTables);
+                setHasChanges(false);
+
+                // Update role in allRoles memory
+                const roleObj = allRoles.find(r => r.id == currentRoleId);
+                if (roleObj) {
+                    roleObj.permissions = permissions.map(p => {
+                        const parts = p.split('|');
+                        return { database_code: parts[0], schema_name: parts[1], table_name: parts[2] };
+                    });
+                }
+
+                Swal.fire({
+                    icon: 'success',
+                    title: "{{ __('Berhasil Disimpan!') }}",
+                    text: data.message || "{{ __('Hak akses role berhasil diperbarui.') }}",
+                    timer: 1800, showConfirmButton: false
+                });
+            } else {
+                throw new Error(data.message || 'Failed to save');
+            }
+        })
+        .catch(err => {
+            Swal.fire({
+                icon: 'error',
+                title: "{{ __('Gagal Menyimpan') }}",
+                text: err.message || "{{ __('Terjadi kesalahan saat menyimpan hak akses.') }}"
+            });
+        });
+    };
 
     /* ══════════════════════════════════════════════════════════
-       ROLE MODALS (Create, Edit, Delete, Clone)
+       ROLE MODAL ACTIONS (CREATE, EDIT, CLONE, DELETE)
     ══════════════════════════════════════════════════════════ */
-    window.showRoleModal = function(type, role = null) {
-        const modal = document.getElementById('roleModal');
-        const form = document.getElementById('roleForm');
-        const method = document.getElementById('roleFormMethod');
+    window.showRoleModal = function(mode, roleData = null) {
+        const form   = document.getElementById('roleForm');
+        const title  = document.getElementById('roleModalTitle');
+        const nameIn = document.getElementById('roleNameInput');
+        const descIn = document.getElementById('roleDescInput');
+        const methIn = document.getElementById('roleFormMethod');
 
-        modal.style.display = 'flex';
-        if (type === 'create') {
-            document.getElementById('roleModalTitle').innerText = "{{ __('Tambah Role Baru') }}";
+        if (mode === 'create') {
+            title.textContent = "{{ __('Tambah Role Baru') }}";
             form.action = "{{ route('admin.roles.store') }}";
-            method.value = 'POST';
-            form.reset();
+            methIn.value = 'POST';
+            nameIn.value = '';
+            descIn.value = '';
         } else {
-            document.getElementById('roleModalTitle').innerText = "{{ __('Edit Info Role') }}";
-            form.action = `/admin/roles/${role.id}`;
-            method.value = 'PUT';
-            document.getElementById('roleNameInput').value = role.name;
-            document.getElementById('roleDescInput').value = role.description || '';
+            title.textContent = "{{ __('Edit Info Role') }}";
+            form.action = `/admin/roles/${roleData.id}`;
+            methIn.value = 'PUT';
+            nameIn.value = roleData.name || '';
+            descIn.value = roleData.description || '';
         }
+        document.getElementById('roleModal').classList.add('open');
+        nameIn.focus();
     };
 
     window.closeRoleModal = function() {
-        document.getElementById('roleModal').style.display = 'none';
+        document.getElementById('roleModal').classList.remove('open');
     };
 
     window.editCurrentRole = function() {
-        const role = allRoles.find(r => r.id == currentRoleId);
-        if (role) showRoleModal('edit', role);
+        const r = allRoles.find(x => x.id == currentRoleId);
+        if (r) showRoleModal('edit', r);
     };
 
-    window.deleteRole = function(roleId) {
-        Swal.fire({
-            title: "{{ __('Hapus Role Ini?') }}",
-            text: "{{ __('Seluruh hak akses tabel terkait role ini akan ikut dihapus permanen.') }}",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: "{{ __('Ya, Hapus') }}",
-            cancelButtonText: "{{ __('Batal') }}"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                fetch(`/admin/roles/${roleId}`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        Swal.fire("{{ __('Gagal') }}", data.message || "{{ __('Gagal menghapus role.') }}", 'error');
-                    }
-                });
-            }
-        });
-    };
-
-    /* ── Clone / Duplicate Role ────────────────────────────── */
     window.duplicateRole = function(roleId) {
-        const role = allRoles.find(r => r.id == roleId);
-        if (!role) return;
+        const r = allRoles.find(x => x.id == roleId);
+        if (!r) return;
 
-        document.getElementById('cloneSourceRoleId').value = role.id;
-        document.getElementById('cloneRoleNameInput').value = role.name + " (Salinan)";
-        document.getElementById('cloneRoleDescInput').value = role.description ? (role.description + " [Salinan]") : '';
-        document.getElementById('cloneModal').style.display = 'flex';
+        document.getElementById('cloneSourceRoleId').value = roleId;
+        document.getElementById('cloneRoleNameInput').value = `${r.name} (Salinan)`;
+        document.getElementById('cloneRoleDescInput').value = r.description || '';
+        document.getElementById('cloneModal').classList.add('open');
+        document.getElementById('cloneRoleNameInput').focus();
     };
 
     window.duplicateCurrentRole = function() {
-        if (currentRoleId) duplicateRole(currentRoleId);
+        duplicateRole(currentRoleId);
     };
 
     window.closeCloneModal = function() {
-        document.getElementById('cloneModal').style.display = 'none';
+        document.getElementById('cloneModal').classList.remove('open');
     };
 
     window.handleCloneSubmit = function(e) {
         e.preventDefault();
-        const sourceRoleId = document.getElementById('cloneSourceRoleId').value;
-        const newName = document.getElementById('cloneRoleNameInput').value;
-        const newDesc = document.getElementById('cloneRoleDescInput').value;
-
-        const sourceRole = allRoles.find(r => r.id == sourceRoleId);
-        if (!sourceRole) return;
+        const sourceId = document.getElementById('cloneSourceRoleId').value;
+        const name     = document.getElementById('cloneRoleNameInput').value;
+        const desc     = document.getElementById('cloneRoleDescInput').value;
 
         const btn = document.getElementById('btnSubmitClone');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Menduplikat...") }}';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> {{ __("Menyalin...") }}';
 
-        // 1. Create new role
-        fetch("{{ route('admin.roles.store') }}", {
+        fetch(`/admin/roles/${sourceId}/clone`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                name: newName,
-                description: newDesc
-            })
+            body: JSON.stringify({ name: name, description: desc })
         })
-        .then(r => r.json().catch(() => ({ success: true })))
-        .then(() => {
-            // Reload page to get fresh IDs & sync
-            location.reload();
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeCloneModal();
+                Swal.fire({
+                    icon: 'success',
+                    title: "{{ __('Role Berhasil Diduplikasi!') }}",
+                    text: "{{ __('Halaman akan disegarkan...') }}",
+                    timer: 1500, showConfirmButton: false
+                }).then(() => window.location.reload());
+            } else {
+                throw new Error(data.message || 'Duplicate failed');
+            }
         })
         .catch(err => {
-            console.error(err);
-            location.reload();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-clone"></i> {{ __("Duplikat & Buat") }}';
+            Swal.fire({ icon: 'error', title: "{{ __('Gagal Menduplikasi') }}", text: err.message });
+        });
+    };
+
+    window.deleteRole = function(roleId) {
+        const role = allRoles.find(r => r.id == roleId);
+        if (!role) return;
+
+        Swal.fire({
+            title: "{{ __('Hapus Role Ini?') }}",
+            html: `<p>{{ __('Apakah Anda yakin ingin menghapus role') }} <strong>${escHtml(role.name)}</strong>?</p><p style="font-size:0.8rem;color:#ef4444;">{{ __('Tindakan ini tidak dapat dibatalkan.') }}</p>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: "{{ __('Ya, Hapus Role') }}",
+            cancelButtonText: "{{ __('Batal') }}"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/roles/${roleId}`;
+                form.innerHTML = `
+                    @csrf
+                    <input type="hidden" name="_method" value="DELETE">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
         });
     };
 
     /* ══════════════════════════════════════════════════════════
-       UTILITIES
+       KEYBOARD SHORTCUTS & UTILITIES
     ══════════════════════════════════════════════════════════ */
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (hasChanges) savePermissions();
+        }
+        if (e.key === 'Escape') {
+            closeRoleModal();
+            closeCloneModal();
+        }
+    });
+
     function escHtml(str) {
-        return String(str || '')
-            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        if (!str) return '';
+        const p = document.createElement('p');
+        p.textContent = str;
+        return p.innerHTML;
     }
 
-    function highlightSearch(text, term) {
-        if (!term) return escHtml(text);
-        const escaped = escHtml(text);
-        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return escaped.replace(regex, '<mark style="background:rgba(245,158,11,0.25);color:inherit;padding:0 2px;border-radius:3px;">$1</mark>');
+    // INITIAL LOAD
+    if (currentRoleId) {
+        loadRolePermissions(currentRoleId);
     }
-
-    init();
 });
 </script>
+@endpush
+
 @endsection
