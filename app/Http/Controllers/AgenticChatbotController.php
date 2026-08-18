@@ -2154,16 +2154,20 @@ Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN men
    → ambil tabel dari get_database_schema_info → describe_table(tabel_paling_relevan) → execute_query
    ```
 
-## PROTOKOL URUTAN LANGKAH (WAJIB, tidak boleh dilewati)
+## PROTOKOL URUTAN LANGKAH (FAST-PATH SINGLE-SHOT)
 
-1. `get_database_schema_info` → identifikasi tabel relevan
-2. Jika tabel sudah jelas dari langkah 1 → **LANGSUNG ke `describe_table`** (SKIP `search_schema`)
-3. Jika tabel tidak ditemukan dari langkah 1 → `search_schema` MAKSIMAL 1x, lalu `describe_table`
-4. `describe_table` → dapatkan nama kolom EKSAK (WAJIB, max 3x)
-5. **JIKA butuh nilai kolom dari VIEW**: Gunakan `execute_query` dengan `SELECT DISTINCT nama_kolom FROM schema.tabel LIMIT 20` **TANPA filter WHERE** — BUKAN `get_column_values`. **MAKSIMAL 1 kali probe per kolom.**
-6. Bangun query **hanya dari kolom hasil describe_table** dan nilai eksak dari probe
-7. `execute_query` → eksekusi query FINAL
-8. Sajikan: Ringkasan Eksekutif + **smart_table** (WAJIB jika ≥2 kolom) + Insight
+1. **JIKA TABEL SUDAH JELAS DARI DAFTAR DI PROMPT (Cabang, Customer, Dealer, Penjualan, Stok, dll):**
+   - **LANGSUNG PANGGIL `execute_query`** (1-Shot Instant Execution).
+   - **LEWATI** `get_database_schema_info`, `search_schema`, `describe_table`, dan `probe query`.
+   - Jalankan query utama langsung (contoh: `SELECT * FROM sch_mbi.view_master_cabang_mbi` untuk cabang).
+   - Langsung sajikan hasil ke user.
+
+2. **JIKA TABEL BELUM JELAS / PERTANYAAN KOMPLEKS:**
+   - Ambil tabel relevan dari `get_database_schema_info` atau `search_schema` (max 1x).
+   - Panggil `describe_table` untuk melihat kolom.
+   - Jalankan `execute_query` final.
+
+3. Sajikan hasil dengan format: Ringkasan Eksekutif + **smart_table** (jika data tabular) + Insight Bisnis.
 
 **ATURAN PROBE QUERY — KRITIS:**
 - **Maksimal 1 probe** per kolom yang ingin diketahui nilainya
