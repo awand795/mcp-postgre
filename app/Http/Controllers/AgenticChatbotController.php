@@ -346,6 +346,7 @@ class AgenticChatbotController extends Controller
                         $textContent = $this->stripThinkingLeakage($textContent);
                         $textContent = $this->processContentForCharts($textContent, $allTurnToolResults);
                         $textContent = $this->synchronizeExecutiveSummaryWithTableData($textContent, $allTurnToolResults);
+                        $textContent = $this->formatRupiahNumbersInText($textContent);
 
                         ApiKeyResolver::autoResetIfNeeded($apiKey);
                         $apiKey->recordUsage((int) ($response['_tokens'] ?? 0));
@@ -612,11 +613,12 @@ class AgenticChatbotController extends Controller
                     $finalContent = "Mohon maaf, sistem tidak memberikan respon. Silakan coba pertanyaan lain.";
                 }
 
-                $finalContent = $this->stripThinkingLeakage($finalContent);
-                $processedContent = $this->processContentForCharts($finalContent, $allTurnToolResults);
+                $processedContent = $this->stripThinkingLeakage($finalContent);
+                $processedContent = $this->processContentForCharts($processedContent, $allTurnToolResults);
                 $processedContent = $this->injectSmartTableDataIntoContent($processedContent, $allTurnToolResults);
                 $processedContent = $this->injectChartDataIntoContent($processedContent, $allTurnToolResults);
                 $processedContent = $this->synchronizeExecutiveSummaryWithTableData($processedContent, $allTurnToolResults);
+                $processedContent = $this->formatRupiahNumbersInText($processedContent);
 
                 if ($chatSessionId) {
                     ChatMessage::create([
@@ -2171,16 +2173,18 @@ Your response MUST follow this exact structure regardless of language. **PENTING
 
 1. **Executive Summary / Ringkasan Eksekutif**: 
    - 1-2 bold sentences summarizing the main answer with key figures.
+   - **WAJIB**: Format seluruh nominal mata uang Rupiah dengan pemisah ribuan titik (contoh: `Rp 4.004.147.475` atau `Rp 4,00 Miliar`). DILARANG menulis angka mentah tanpa titik seperti `Rp 4004147475`.
    - *Example (EN)*: "**The system currently has 341,236 active records registered in the database.**"
-   - *Contoh (ID)*: "**Saat ini total entitas yang terdaftar di database adalah 341.236 data.**"
+   - *Contoh (ID)*: "**Saat ini total entitas yang terdaftar di database adalah 341.236 data dengan nilai sebesar Rp 4.004.147.475.**"
 
 2. **Visualizations / Visualisasi**:
    - `chart` (if trend/comparison data) followed by `smart_table` (if ≥ 2 columns).
 
 3. **Strategic Insights / Insight Strategis**: 
    - At least 3-4 deep analytical points using specific numbers from the data.
+   - **WAJIB**: Format seluruh nominal uang dengan format Rupiah yang rapi (contoh: `Rp 2.460.792.248`, `Rp 45.842.559`).
    - *Example (EN)*: "Customer growth increased by 15% compared to the previous quarter..."
-   - *Contoh (ID)*: "Pertumbuhan pelanggan naik 15% dibandingkan kuartal sebelumnya..."
+   - *Contoh (ID)*: "Pertumbuhan pelanggan naik 15% dibandingkan kuartal sebelumnya dengan nilai peningkatan Rp 250.000.000..."
 
 4. **Further Prompt Recommendations / Rekomendasi Prompt**: 
    - 4 relevant follow-up prompts in quotes.
@@ -2884,6 +2888,21 @@ PROMPT;
         }
 
         return $content;
+    }
+
+    /**
+     * Otomatis format angka rupiah mentah (contoh: Rp 4004147475) menjadi berpemisah ribuan (Rp 4.004.147.475).
+     */
+    private function formatRupiahNumbersInText(string $content): string
+    {
+        return preg_replace_callback('/\b(Rp\.?|IDR)\s*([0-9]{4,})(?:\.([0-9]{1,2}))?\b/i', function ($m) {
+            $prefix = 'Rp ';
+            $integerPart = number_format((float) $m[2], 0, ',', '.');
+            if (!empty($m[3]) && (int)$m[3] > 0) {
+                return $prefix . $integerPart . ',' . $m[3];
+            }
+            return $prefix . $integerPart;
+        }, $content);
     }
 
     private function extractOriginalUserMessage(array $messages): string
