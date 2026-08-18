@@ -3429,6 +3429,8 @@ PROMPT;
         };
         $url = $baseUrl . '/chat/completions';
 
+        Log::info("[Agentic] streamOpenAiCompatibleApi loop={$loopCount} msg_count=" . count($messages) . " messages=" . json_encode(array_map(fn($m) => ['role' => $m['role'], 'name' => $m['name'] ?? null, 'tc' => !empty($m['tool_calls']), 'content_len' => strlen(is_string($m['content'] ?? null) ? $m['content'] : json_encode($m['content'] ?? ''))], $messages)));
+
         $payload = [
             'model' => $model->model_name,
             'messages' => $messages,
@@ -3528,6 +3530,7 @@ PROMPT;
         $toolCallsRaw = [];
         $totalTokens = 0;
 
+        $rawBody = '';
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
@@ -3539,7 +3542,8 @@ PROMPT;
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode) {
+            CURLOPT_WRITEFUNCTION => function ($ch, $data) use (&$fullText, &$sseBuffer, &$toolCallsRaw, $providerCode, &$rawBody) {
+                $rawBody .= $data;
                 $sseBuffer .= $data;
                 while (($pos = strpos($sseBuffer, "\n")) !== false) {
                     $line = substr($sseBuffer, 0, $pos);
@@ -3628,6 +3632,9 @@ PROMPT;
 
         if ($curlError) {
             Log::error("[StreamSSE] curl error ({$providerCode}): {$curlError}");
+        }
+        if ($httpCode >= 400) {
+            Log::error("[StreamSSE] HTTP {$httpCode} ({$providerCode}) Response body: " . substr($rawBody, 0, 1000));
         }
         if ($httpCode === 429) {
             throw new \RuntimeException('__RATE_LIMIT__');
