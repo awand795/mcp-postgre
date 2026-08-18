@@ -1420,8 +1420,10 @@ class AgenticChatbotController extends Controller
 
         $internalFields = ['decoded_data', '_is_live_gemini_response'];
         $cleaned = [];
-        $lastRole = null;
-        $pendingToolCallIds = [];
+
+        // We group tool responses that belong to previous assistant tool calls
+        $assistantToolsPending = [];
+        $postToolUserNotes = [];
 
         foreach ($messages as $m) {
             foreach ($internalFields as $field) {
@@ -1430,35 +1432,52 @@ class AgenticChatbotController extends Controller
 
             $role = $m['role'] ?? '';
 
-            // OpenAI / llm7io strict rule:
-            // 1. role 'system' can only appear at the very beginning (index 0). Mid-conversation system messages must be converted to role 'user'
+            // If system message appears after the first message, treat as user note
             if ($role === 'system') {
-                if (!empty($cleaned)) {
-                    $m['role'] = 'user';
-                    $role = 'user';
-                }
-            }
-
-            // 2. Track tool_calls in assistant messages
-            if ($role === 'assistant') {
-                if (!empty($m['tool_calls'])) {
-                    $pendingToolCallIds = array_column($m['tool_calls'], 'id');
+                if (empty($cleaned)) {
+                    $cleaned[] = $m;
                 } else {
-                    $pendingToolCallIds = [];
+                    $postToolUserNotes[] = [
+                        'role' => 'user',
+                        'content' => (string) ($m['content'] ?? '')
+                    ];
                 }
-            }
-
-            // 3. Tool results must immediately follow the assistant message that requested them.
-            // If a mid-conversation system/user message was injected before tool results, move tool results directly after assistant or keep order valid.
-            if ($role === 'tool') {
-                // Keep tool result
-                $cleaned[] = $m;
-                $lastRole = 'tool';
                 continue;
             }
 
+            if ($role === 'assistant') {
+                // If there were pending user notes before this assistant, flush them
+                if (!empty($postToolUserNotes)) {
+                    foreach ($postToolUserNotes as $note) {
+                        $cleaned[] = $note;
+                    }
+                    $postToolUserNotes = [];
+                }
+
+                $cleaned[] = $m;
+                continue;
+            }
+
+            if ($role === 'tool') {
+                $cleaned[] = $m;
+                continue;
+            }
+
+            // Normal user message
+            if (!empty($postToolUserNotes)) {
+                foreach ($postToolUserNotes as $note) {
+                    $cleaned[] = $note;
+                }
+                $postToolUserNotes = [];
+            }
             $cleaned[] = $m;
-            $lastRole = $role;
+        }
+
+        // Flush any remaining user notes at the end
+        if (!empty($postToolUserNotes)) {
+            foreach ($postToolUserNotes as $note) {
+                $cleaned[] = $note;
+            }
         }
 
         return $cleaned;
