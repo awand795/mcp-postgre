@@ -248,7 +248,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 
     <!-- Client-Side PDF Generation (Deferred to prevent rendering bottlenecks) -->
@@ -6135,6 +6135,12 @@
                         }
                     } catch (e) { /* canvas tainted, skip */ }
                 };
+
+                if (typeof Chart === 'undefined') {
+                    console.warn('[ChartInit] Chart.js is not loaded yet, retrying in 150ms...');
+                    setTimeout(() => initChartWithConfig(canvas, config, container, chartId, currencyColumns), 150);
+                    return;
+                }
 
                 try {
                     new Chart(canvas, config);
