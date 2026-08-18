@@ -351,6 +351,39 @@ html.dark .rm-rc-progress { background: rgba(255,255,255,0.05); }
     box-shadow: 0 4px 10px rgba(100,116,139,0.35) !important;
 }
 
+.rm-btn-cyan {
+    background: #06b6d4 !important; color: white !important; border: 1px solid #0891b2 !important;
+    box-shadow: 0 2px 8px rgba(6,182,212,0.25) !important;
+}
+.rm-btn-cyan:hover {
+    background: #0891b2 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6,182,212,0.35) !important;
+}
+
+.rm-btn-amber {
+    background: #f59e0b !important; color: white !important; border: 1px solid #d97706 !important;
+    box-shadow: 0 2px 8px rgba(245,158,11,0.25) !important;
+}
+.rm-btn-amber:hover {
+    background: #d97706 !important; transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245,158,11,0.35) !important;
+}
+
+.rm-btn-rose-subtle {
+    background: rgba(239,68,68,0.15) !important; color: #f87171 !important; border: 1px solid rgba(239,68,68,0.3) !important;
+}
+.rm-btn-rose-subtle:hover {
+    background: #ef4444 !important; color: white !important;
+}
+
+/* Sidebar action buttons */
+.rm-rc-btn.edit { background: rgba(245,158,11,0.12); color: #d97706; border-color: rgba(245,158,11,0.25); }
+.rm-rc-btn.edit:hover { background: #f59e0b; color: white; }
+.rm-rc-btn.clone { background: rgba(6,182,212,0.12); color: #0891b2; border-color: rgba(6,182,212,0.25); }
+.rm-rc-btn.clone:hover { background: #06b6d4; color: white; }
+.rm-rc-btn.del { background: rgba(239,68,68,0.12); color: #ef4444; border-color: rgba(239,68,68,0.25); }
+.rm-rc-btn.del:hover { background: #ef4444; color: white; }
+
 /* ── Tabs Navigation ─────────────────────────────────── */
 .rm-tabs {
     display: flex; gap: 8px; border-bottom: 1px solid var(--rm-border);
@@ -855,13 +888,13 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 </div>
             </div>
             <div class="rm-hero-actions">
-                <button type="button" class="rm-btn rm-btn-secondary" onclick="duplicateCurrentRole()">
+                <button type="button" class="rm-btn rm-btn-cyan" onclick="duplicateCurrentRole()">
                     <i class="fas fa-copy"></i> {{ __('Duplikat Role') }}
                 </button>
-                <button type="button" class="rm-btn rm-btn-secondary" onclick="editCurrentRole()">
+                <button type="button" class="rm-btn rm-btn-amber" onclick="editCurrentRole()">
                     <i class="fas fa-edit"></i> {{ __('Edit Info') }}
                 </button>
-                <button type="button" class="rm-btn rm-btn-primary" onclick="savePermissions()">
+                <button type="button" class="rm-btn rm-btn-emerald" onclick="savePermissions()">
                     <i class="fas fa-save"></i> <span>{{ __('Simpan Akses') }}</span>
                 </button>
             </div>
@@ -952,7 +985,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <i class="fas fa-search"></i>
                 <h4>{{ __('Tidak Ada Tabel yang Cocok') }}</h4>
                 <p>{{ __('Coba sesuaikan kata kunci pencarian atau filter database/schema Anda.') }}</p>
-                <button type="button" class="rm-btn rm-btn-secondary rm-btn-sm" onclick="resetAllTableFilters()">
+                <button type="button" class="rm-btn rm-btn-indigo rm-btn-sm" onclick="resetAllTableFilters()">
                     <i class="fas fa-undo"></i> {{ __('Reset Filter') }}
                 </button>
             </div>
@@ -983,8 +1016,8 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
         <span>{{ __('Ada perubahan hak akses yang belum disimpan') }}</span>
     </div>
     <div class="rm-dock-actions">
-        <button type="button" class="rm-dock-btn-cancel" onclick="discardChanges()">
-            {{ __('Batalkan') }}
+        <button type="button" class="rm-dock-btn-cancel rm-btn-rose-subtle" onclick="discardChanges()">
+            <i class="fas fa-undo"></i> {{ __('Batalkan') }}
         </button>
         <button type="button" class="rm-dock-btn-save" onclick="savePermissions()">
             <i class="fas fa-save"></i> {{ __('Simpan Perubahan') }}
@@ -1011,7 +1044,7 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <textarea name="description" id="roleDescInput" rows="3" placeholder="{{ __('Deskripsi singkat mengenai wewenang role ini...') }}"></textarea>
             </div>
             <div class="rm-modal-foot">
-                <button type="button" class="rm-btn rm-btn-secondary" onclick="closeRoleModal()">{{ __('Batal') }}</button>
+                <button type="button" class="rm-btn rm-btn-slate" onclick="closeRoleModal()">{{ __('Batal') }}</button>
                 <button type="submit" class="rm-btn rm-btn-primary">{{ __('Simpan Role') }}</button>
             </div>
         </form>
@@ -1040,8 +1073,8 @@ html.dark .rm-schema-group { background: rgba(255,255,255,0.02); }
                 <textarea id="cloneRoleDescInput" rows="3" placeholder="{{ __('Deskripsi untuk role baru...') }}"></textarea>
             </div>
             <div class="rm-modal-foot">
-                <button type="button" class="rm-btn rm-btn-secondary" onclick="closeCloneModal()">{{ __('Batal') }}</button>
-                <button type="submit" class="rm-btn rm-btn-primary" id="btnSubmitClone">
+                <button type="button" class="rm-btn rm-btn-slate" onclick="closeCloneModal()">{{ __('Batal') }}</button>
+                <button type="submit" class="rm-btn rm-btn-cyan" id="btnSubmitClone">
                     <i class="fas fa-clone"></i> {{ __('Duplikat & Buat') }}
                 </button>
             </div>
