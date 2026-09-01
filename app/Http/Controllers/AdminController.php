@@ -434,6 +434,13 @@ class AdminController extends Controller
         $databases = $databasesQuery->get();
         $allowedDbCodes = $databases->pluck('database')->toArray();
 
+        // Sinkronisasi otomatis:
+        // 1. Hapus tabel terfilter dari SEMUA role
+        // 2. Auto-grant tabel baru / penambahan ulang HANYA ke role Super Admin
+        foreach ($databases as $db) {
+            $db->syncRolePermissions();
+        }
+
         $rolesQuery = Role::with(['permissions' => function($q) use ($allowedDbCodes) {
             $q->whereIn('database_code', $allowedDbCodes);
         }, 'addedBy', 'users' => function($q) {
@@ -652,6 +659,9 @@ class AdminController extends Controller
         // Auto test connection
         $testResult = $db->testConnection();
 
+        // Auto-grant all tables to Super Admin
+        $db->syncRolePermissions();
+
         // Clear table cache so new database tables appear in role management
         $this->clearTableCache();
 
@@ -756,6 +766,9 @@ class AdminController extends Controller
 
         $database->update($validated);
 
+        // Sinkronisasi hak akses tabel setelah update konfigurasi
+        $database->syncRolePermissions();
+
         // Clear table cache in case connection params changed
         $this->clearTableCache();
 
@@ -771,6 +784,10 @@ class AdminController extends Controller
         $database->update([
             'table_filters' => $validated['table_filters'],
         ]);
+
+        // Sinkronisasi hak akses tabel (tabel terfilter dihapus dari semua role,
+        // tabel yang dibuka/ditambah ulang otomatis masuk ke Super Admin saja)
+        $database->syncRolePermissions();
 
         $this->clearTableCache();
 

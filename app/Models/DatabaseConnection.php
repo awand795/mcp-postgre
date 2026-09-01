@@ -65,6 +65,12 @@ class DatabaseConnection extends Model
 
     protected static function booted()
     {
+        static::saved(function ($db) {
+            if ($db->is_active) {
+                $db->syncRolePermissions();
+            }
+        });
+
         static::deleting(function ($db) {
             // Hapus semua hak akses tabel (role_permissions) yang terkait database ini
             $dbCodes = array_filter(array_unique([$db->database, $db->code, $db->name]));
@@ -75,6 +81,68 @@ class DatabaseConnection extends Model
             // Hapus semua user table filter yang terkait database ini
             UserTableFilter::where('database_connection_id', $db->id)->delete();
         });
+    }
+
+    /**
+     * Sinkronisasi izin tabel database dengan role:
+     * 1. Hapus dari SEMUA role untuk tabel-tabel yang sekarang terfilter (tidak lagi valid).
+     * 2. Auto-izinkan ke role Super Admin untuk semua tabel yang valid (baru / ditambahkan ulang).
+     * 3. Role selain Super Admin TIDAK ditambah otomatis (menunggu dicentang manual oleh admin).
+     */
+    public function syncRolePermissions(): void
+    {
+        if (!$this->is_active) {
+            return;
+        }
+
+        try {
+            $validTables = $this->getTables();
+            $dbCode = $this->database;
+
+            $validKeys = [];
+            foreach ($validTables as $t) {
+                $validKeys[] = "{$dbCode}|{$t['schema_name']}|{$t['table_name']}";
+            }
+
+            // 1. Hapus dari SEMUA role untuk tabel yang terfilter atau tidak lagi ada
+            $existingPerms = RolePermission::where('database_code', $dbCode)->get();
+            foreach ($existingPerms as $perm) {
+                $key = "{$perm->database_code}|{$perm->schema_name}|{$perm->table_name}";
+                if (!in_array($key, $validKeys)) {
+                    $perm->delete();
+                }
+            }
+
+            // 2. Cari semua role Super Admin (berdasarkan ID 3, nama 'Super Admin', atau superadmin)
+            $superAdminRoles = Role::where(function ($q) {
+                $q->whereRaw('LOWER(name) = ?', ['super admin'])
+                  ->orWhereRaw('LOWER(name) = ?', ['superadmin'])
+                  ->orWhere('id', 3);
+            })->get();
+
+            // 3. Tambahkan tabel valid HANYA ke role Super Admin (auto-grant)
+            foreach ($superAdminRoles as $role) {
+                $existingRoleKeys = RolePermission::where('role_id', $role->id)
+                    ->where('database_code', $dbCode)
+                    ->get()
+                    ->map(fn($p) => "{$p->database_code}|{$p->schema_name}|{$p->table_name}")
+                    ->toArray();
+
+                foreach ($validTables as $t) {
+                    $k = "{$dbCode}|{$t['schema_name']}|{$t['table_name']}";
+                    if (!in_array($k, $existingRoleKeys)) {
+                        RolePermission::create([
+                            'role_id'       => $role->id,
+                            'database_code' => $dbCode,
+                            'schema_name'   => $t['schema_name'],
+                            'table_name'    => $t['table_name'],
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("syncRolePermissions failed for DB {$this->name}: " . $e->getMessage());
+        }
     }
 
     public function addedBy()
