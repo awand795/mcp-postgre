@@ -432,8 +432,14 @@ class QueryService extends BaseService
         // UNLIMITED TIMEOUT = kombinasi:
         //   1. `set_time_limit(0)` di controller (PHP script tidak die)
         //   2. `statement_timeout = 0` di PostgreSQL (server tidak cancel query)
-        //   3. Koneksi keep-alive (tidak ada re-connect yang bisa trigger timeout)
-        //   4. `Http::timeout(600)` di AI API call (sudah ada di controller)
+        // Pastikan alokasi memory limit minimal 512M saat mengeksekusi query database
+        if (function_exists('ini_get') && function_exists('ini_set')) {
+            $currentMem = ini_get('memory_limit');
+            if ($currentMem !== '-1' && intval($currentMem) < 512 && !str_contains($currentMem, 'G')) {
+                @ini_set('memory_limit', '512M');
+            }
+        }
+
         $connName = "persistent_conn_{$databaseCode}";
         try {
             if (!$dbModel) {
@@ -558,8 +564,12 @@ class QueryService extends BaseService
             $forbidden = $this->getForbiddenColumns($databaseCode, $allowedDbs);
         }
 
-        $data = array_map(function ($row) use ($forbidden) {
-            $r = (array) $row;
+        // ── OPTIMASI MEMORI: In-place transformation tanpa menduplikasi array ──
+        $returned = count($rows);
+        $columns = [];
+
+        for ($i = 0; $i < $returned; $i++) {
+            $r = (array) $rows[$i];
 
             if (!empty($forbidden)) {
                 foreach ($forbidden as $col) {
@@ -570,7 +580,7 @@ class QueryService extends BaseService
             }
 
             foreach ($r as $k => $v) {
-                if (is_string($v) && preg_match('/^-?\d+\.\d+$/', $v)) {
+                if (is_string($v) && is_numeric($v) && str_contains($v, '.')) {
                     if (preg_match('/\.0+$/', $v)) {
                         $r[$k] = (int) $v;
                     } else {
@@ -578,21 +588,25 @@ class QueryService extends BaseService
                     }
                 }
             }
-            return $r;
-        }, $rows);
 
-        $returned = count($data);
+            if ($i === 0) {
+                $columns = array_keys($r);
+            }
+
+            // Timpa elemen secara in-place agar memori array tidak terduplikasi
+            $rows[$i] = $r;
+        }
 
         // ── CURRENCY COLUMNS: AI hint + server-side fallback ─────────────────
-        $detectedCurrencyCols = $this->sanitizeCurrencyColumns($currencyColumns, array_keys($data[0] ?? []), $data);
+        $detectedCurrencyCols = $this->sanitizeCurrencyColumns($currencyColumns, $columns, $rows);
 
         $result = [
             'label' => $label,
             'rows_returned' => $returned,
             'execution_time_seconds' => $executionTime ?? 0,
-            'columns' => array_keys($data[0]),
+            'columns' => $columns,
             'currency_columns' => $detectedCurrencyCols,
-            'rows' => $data,
+            'rows' => &$rows, // Gunakan reference untuk mencegah alokasi memori tambahan
         ];
 
         // ── PERFORMANCE WARNING: Inform AI if query is slow ──────────────────
@@ -601,11 +615,13 @@ class QueryService extends BaseService
         }
 
         // ── LAYER 7: Business Validation Note (Common Sense Check) ───────────
+        // Validasi dilakukan pada sampel data teratas (max 50 baris) agar tidak looping jutaan baris di memori
         $validationNotes = [];
         $monetaryCols = ['total_netto', 'total_dpp', 'harga', 'gpn', 'hpp', 'nominal'];
+        $checkLimit = min(50, $returned);
 
-        foreach ($data as $row) {
-            foreach ($row as $col => $val) {
+        for ($i = 0; $i < $checkLimit; $i++) {
+            foreach ($rows[$i] as $col => $val) {
                 if (in_array(strtolower($col), $monetaryCols) && is_numeric($val) && (float) $val < 0) {
                     $validationNotes[] = "Warning: Found negative value in monetary column '{$col}'. Please verify if this is expected (e.g., returns or cancellations).";
                     break 2;
@@ -618,6 +634,12 @@ class QueryService extends BaseService
         }
 
         $resultJson = $this->safeJsonEncode($result);
+
+        // Bersihkan variabel array mentah dari memori dan picu garbage collection
+        unset($result, $rows);
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
 
         // Cache dengan TTL berbeda: probe query di-cache lebih lama.
         // Gunakan definisi yang sama dengan isProbeForKey di atas.

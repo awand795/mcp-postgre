@@ -1914,10 +1914,10 @@
     </style>
 </head>
 
-<body class="flex items-center justify-center p-2 md:p-4">
+<body class="w-full h-full min-h-screen overflow-hidden m-0 p-0 bg-[#f8fafc] dark:bg-[#070b14] text-gray-900 dark:text-slate-100 flex">
 
-    <!-- Main Container -->
-    <div class="flex w-full max-w-6xl h-[95vh] glass-panel rounded-3xl overflow-hidden relative">
+    <!-- Main Container: Full-Screen Viewport Edge-to-Edge -->
+    <div class="flex w-full h-screen overflow-hidden relative bg-white/70 dark:bg-[#0b1120]/80 backdrop-blur-2xl">
 
         <!-- Sidebar (Pushes content, not overlay) -->
         <aside id="chat-sidebar"
@@ -1969,6 +1969,22 @@
                 <div class="flex items-center justify-center h-full text-[#A1A09A] text-xs opacity-50">{{ __('Memuat riwayat...') }}
                 </div>
             </div>
+
+            <!-- Sidebar User Profile Footer -->
+            <div class="p-3 border-t border-gray-200 dark:border-white/10 flex items-center justify-between flex-shrink-0 bg-black/[0.02] dark:bg-white/[0.02]" style="min-width: 288px;">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-[#f53003] to-[#ff6b4a] text-white flex items-center justify-center text-xs font-bold shadow-sm flex-shrink-0">
+                        {{ strtoupper(substr(auth()->user()?->name ?? 'U', 0, 1)) }}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-xs font-bold text-gray-800 dark:text-white truncate">{{ auth()->user()?->name ?? 'User' }}</div>
+                        <div class="text-[10px] text-gray-400 dark:text-gray-500 truncate">{{ auth()->user()?->role?->name ?? 'Member' }}</div>
+                    </div>
+                </div>
+                @if(auth()->check() && (auth()->user()?->is_admin || auth()->user()?->is_super_admin))
+                    <span class="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 text-[10px] font-bold border border-indigo-500/20 flex-shrink-0">Admin</span>
+                @endif
+            </div>
         </aside>
 
         <!-- Overlay (hanya untuk mobile/backdrop click) -->
@@ -2014,7 +2030,7 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-2 header-actions flex-shrink-0">
-                    @if(auth()->user()->is_admin || auth()->user()->is_super_admin)
+                    @if(auth()->check() && (auth()->user()?->is_admin || auth()->user()?->is_super_admin))
                         <a href="{{ route('admin.dashboard') }}" title="Admin Dashboard"
                             class="flex items-center gap-1.5 px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 text-xs border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 transition-all shadow-sm shadow-indigo-500/5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"
@@ -2085,65 +2101,100 @@
             </div>
 
             <!-- Chat Area -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 custom-scrollbar relative">
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 custom-scrollbar relative flex flex-col">
                 <!-- Status Bar -->
                 <div id="status-bar" class="status-bar">
                     <div class="status-bar-progress"></div>
                 </div>
 
                 <!-- Initial content will be cleared if history is loaded, otherwise defaults to welcome message -->
-                <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
-                    <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                        <p>{!! __('Halo! Saya <strong>darkotech AI</strong> 👋') !!}</p>
-                        <p style="margin-top:6px">{{ __('Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?') }}</p>
+                <div id="welcome-hero" class="flex flex-col items-center justify-center my-auto py-2 md:py-4 px-4 text-center max-w-2xl mx-auto w-full select-none">
+                    <div class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-tr from-[#f53003] to-[#ff5733] flex items-center justify-center shadow-lg shadow-red-500/20 mb-2.5 p-2.5 md:p-3 border border-white/20">
+                        <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI" class="w-full h-full object-contain filter drop-shadow">
+                    </div>
+                    <h2 class="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-1">
+                        {{ __('Apa yang ingin Anda analisa hari ini?') }}
+                    </h2>
+                    <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-3 md:mb-5 leading-relaxed">
+                        {{ __('Tanyakan informasi transaksi bisnis, periksa kondisi stok gudang, atau pantau tren penjualan produk terlaris secara instan.') }}
+                    </p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left">
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan ringkasan data omset dan penjualan terbaru') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-chart-line"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Ringkasan Penjualan') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Tampilkan omset & transaksi') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Cek daftar inventaris dan stok barang yang menipis') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-boxes-stacked"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Pemeriksaan Stok') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Cek stok di bawah minimum') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan daftar produk terlaris dengan volume penjualan tertinggi') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-fire"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Produk Terlaris') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Lihat barang paling laku') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan 10 pelanggan teratas dengan akumulasi nilai transaksi tertinggi') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-500 dark:text-purple-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-users"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Top Pelanggan') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('10 pelanggan paling aktif') }}</div>
+                            </div>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Typing Indicator (now integrated in input area) -->
+            <!-- Input Area -->
+            <div class="px-3 py-2.5 md:px-5 md:py-3.5 border-t border-black/10 dark:border-white/10 flex-shrink-0 bg-white/70 dark:bg-black/30 backdrop-blur-xl relative">
+                <div class="max-w-4xl mx-auto relative">
+                    <!-- Floating Typing Status Indicator -->
+                    <div id="typing-indicator"
+                        class="hidden absolute -top-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap z-20">
+                        <div
+                            class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-900/90 dark:bg-black/90 text-white backdrop-blur-md border border-white/10 shadow-xl">
+                            <svg class="animate-spin h-3.5 w-3.5 text-[#f53003]" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="typing-text" class="text-xs font-medium">{{ __('AI sedang berpikir...') }}</span>
+                        </div>
+                    </div>
 
+                    <div class="relative flex items-end gap-2 bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 rounded-2xl p-1 focus-within:border-[#f53003]/60 focus-within:ring-2 focus-within:ring-[#f53003]/15 transition-all shadow-sm">
+                        <textarea id="message-input" rows="1" placeholder="{{ __('Ketik pertanyaan analisis atau instruksi Anda...') }}"
+                            class="w-full bg-transparent border-0 resize-none py-2 px-3.5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-0 text-sm leading-relaxed max-h-32 custom-scrollbar"
+                            style="min-height: 38px; height: 38px;"
+                            autocomplete="off"></textarea>
+                        
+                        <button id="send-btn"
+                            class="w-9 h-9 bg-gradient-to-tr from-[#f53003] to-[#ff471a] hover:brightness-110 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all shadow-md shadow-red-500/20 flex-shrink-0 cursor-pointer mb-0.5">
+                            <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="m12 5 7 7-7 7" />
+                            </svg>
+                            <svg id="loading-icon" class="w-4 h-4 hidden animate-spin" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                            </svg>
+                        </button>
+                    </div>
 
-            <!-- Input -->
-            <div class="p-5 border-t border-black/10 dark:border-white/10 flex-shrink-0 bg-white/50 dark:bg-black/20">
-                <div class="relative">
-                    <input type="text" id="message-input" placeholder="{{ __('Ketik pesan anda di sini...') }}"
-                        class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl py-3.5 pl-5 pr-14 text-gray-900 dark:text-white placeholder-black/25 dark:placeholder-white/25 focus:outline-none focus:ring-2 focus:ring-[#f53003]/40 transition-all text-sm"
-                        autocomplete="off">
-                    <button id="send-btn"
-                        class="absolute right-2 top-1.5 bottom-1.5 w-10 bg-[#f53003] hover:bg-[#ff4433] disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-all shadow-lg shadow-red-500/20">
-                        <svg id="send-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                            stroke-linejoin="round">
-                            <path d="M5 12h14" />
-                            <path d="m12 5 7 7-7 7" />
-                        </svg>
-                        <svg id="loading-icon" class="w-4 h-4 hidden animate-spin" xmlns="http://www.w3.org/2000/svg"
-                            fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Floating Status Indicator -->
-                <div id="typing-indicator"
-                    class="hidden absolute -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-                    <div
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/80 backdrop-blur-sm border border-white/10 shadow-lg">
-                        <svg class="animate-spin h-4 w-4 text-[#f53003]" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-                                fill="none"></circle>
-                            <path class="opacity-75" fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                            </path>
-                        </svg>
-                        <span id="typing-text" class="text-xs text-white font-medium">{{ __('AI sedang berpikir...') }}</span>
+                    <div class="flex items-center justify-between mt-1.5 px-1 text-[10px] md:text-[11px] text-gray-400 dark:text-gray-500">
+                        <span><kbd class="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-[9px] md:text-[10px]">Enter</kbd> {{ __('kirim') }} &bull; <kbd class="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono text-[9px] md:text-[10px]">Shift+Enter</kbd> {{ __('baris baru') }}</span>
+                        <span>Powered by <strong>darkotech AI</strong></span>
                     </div>
                 </div>
-
-                <p class="text-[10px] text-center text-[#706f6c] mt-3 uppercase tracking-widest leading-relaxed">
-                    Powered by darkotech<br />
-                </p>
             </div>
 
         </div> <!-- End Main Content -->
@@ -2408,27 +2459,48 @@
             if (btnClear) btnClear.addEventListener('click', handleClear);
             if (btnClearMobile) btnClearMobile.addEventListener('click', handleClear);
 
-            // Message input handlers
-            messageInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
-                    e.preventDefault();
-                    submitMessage();
-                }
-            });
+            // Message input handlers (Auto-expanding Textarea & Enter to Send)
+            function adjustTextareaHeight() {
+                if (!messageInput) return;
+                messageInput.style.height = '42px';
+                const newHeight = Math.min(messageInput.scrollHeight, 160);
+                messageInput.style.height = (newHeight > 42 ? newHeight : 42) + 'px';
+            }
+
+            if (messageInput) {
+                messageInput.addEventListener('input', adjustTextareaHeight);
+                messageInput.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+                        e.preventDefault();
+                        submitMessage();
+                    }
+                });
+            }
+
+            window.fillAndSendPrompt = function(promptText) {
+                if (!messageInput || isLoading) return;
+                messageInput.value = promptText;
+                adjustTextareaHeight();
+                submitMessage();
+            };
+
             sendBtn.addEventListener('click', () => {
                 if (!isLoading) {
                     submitMessage();
                 }
             });
 
-
             // ── Submit ─────────────────────────────────────────────────────────────
             async function submitMessage() {
                 const message = messageInput.value.trim();
                 if (!message || isLoading) return;
 
+                const welcomeHero = document.getElementById('welcome-hero');
+                if (welcomeHero) welcomeHero.remove();
+
                 addMessage(message, 'user');
                 messageInput.value = '';
+                adjustTextareaHeight();
                 setLoading(true);
                 typingText.textContent = "{{ __('AI sedang berpikir...') }}";
                 chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -3591,12 +3663,48 @@
 
             function addWelcomeMessage() {
                 chatMessages.innerHTML = `
-            <div class="flex flex-col items-start gap-1.5 max-w-[90%] md:max-w-[85%]">
-                <div class="chat-bubble-ai p-4 rounded-2xl text-sm shadow-sm markdown-body">
-                    <p>{!! __('Halo! Saya <strong>darkotech AI</strong> 👋') !!}</p>
-                    <p style="margin-top:6px">{{ __('Apa yang bisa saya bantu untuk mempermudah urusan Anda hari ini?') }}</p>
-                </div>
-            </div>`;
+                <div id="welcome-hero" class="flex flex-col items-center justify-center my-auto py-2 md:py-4 px-4 text-center max-w-2xl mx-auto w-full select-none">
+                    <div class="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-tr from-[#f53003] to-[#ff5733] flex items-center justify-center shadow-lg shadow-red-500/20 mb-2.5 p-2.5 md:p-3 border border-white/20">
+                        <img src="{{ asset('logo_dmi.png') }}" alt="darkotech AI" class="w-full h-full object-contain filter drop-shadow">
+                    </div>
+                    <h2 class="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-1">
+                        {{ __('Apa yang ingin Anda analisa hari ini?') }}
+                    </h2>
+                    <p class="text-xs md:text-sm text-gray-500 dark:text-gray-400 max-w-lg mb-3 md:mb-5 leading-relaxed">
+                        {{ __('Tanyakan informasi transaksi bisnis, periksa kondisi stok gudang, atau pantau tren penjualan produk terlaris secara instan.') }}
+                    </p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full text-left">
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan ringkasan data omset dan penjualan terbaru') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 dark:text-blue-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-chart-line"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Ringkasan Penjualan') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Tampilkan omset & transaksi') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Cek daftar inventaris dan stok barang yang menipis') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-boxes-stacked"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Pemeriksaan Stok') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Cek stok di bawah minimum') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan daftar produk terlaris dengan volume penjualan tertinggi') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-fire"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Produk Terlaris') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('Lihat barang paling laku') }}</div>
+                            </div>
+                        </button>
+                        <button type="button" class="group p-2.5 md:p-3 rounded-xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/[0.04] hover:border-[#f53003]/40 dark:hover:border-[#f53003]/50 hover:bg-white dark:hover:bg-white/[0.08] transition-all shadow-sm cursor-pointer flex items-center gap-3" onclick="fillAndSendPrompt('{{ __('Tampilkan 10 pelanggan teratas dengan akumulasi nilai transaksi tertinggi') }}')">
+                            <span class="w-9 h-9 rounded-lg bg-purple-500/10 text-purple-500 dark:text-purple-400 flex items-center justify-center text-xs md:text-sm flex-shrink-0"><i class="fas fa-users"></i></span>
+                            <div class="min-w-0">
+                                <div class="text-xs font-bold text-gray-800 dark:text-white group-hover:text-[#f53003] transition-colors truncate">{{ __('Top Pelanggan') }}</div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 truncate">{{ __('10 pelanggan paling aktif') }}</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>`;
             }
 
             function startNewChat() {

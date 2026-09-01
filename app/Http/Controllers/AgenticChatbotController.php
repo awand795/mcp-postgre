@@ -858,7 +858,6 @@ class AgenticChatbotController extends Controller
                     'tool_call_id' => $toolCallId,
                     'name' => $toolName,
                     'content' => $aiContent,
-                    'decoded_data' => $decodedRes,
                     '_is_live_gemini_response' => true,
                 ];
 
@@ -879,48 +878,29 @@ class AgenticChatbotController extends Controller
                         ]),
                     ];
                 }
-            }
 
-            // --- TERMINAL TOOL GUARD & LOOP REDUCTION ---
-            $hasTerminalToolThisTurn = false;
-            foreach ($executedResults as $execItem) {
-                $pc = $execItem['call'];
-                $toolResultString = $execItem['result'];
-                $decodedRes = json_decode($toolResultString, true);
-                
+                // ── TERMINAL TOOL GUARD (Inline — menghindari json_decode berulang) ──
                 $isFailed = is_array($decodedRes) && isset($decodedRes['error']);
-
-                if (!$isFailed && in_array($pc['name'], $terminalTools)) {
-                    $isPcProbe = false;
-                    if ($pc['name'] === 'execute_query') {
-                        $pcSql = $pc['arguments']['sql'] ?? '';
-                        $hasDistinct = stripos($pcSql, 'SELECT DISTINCT') !== false;
-                        $hasGroupBy = stripos($pcSql, 'GROUP BY') !== false;
-                        $hasAggregate = (bool) preg_match('/\b(SUM|COUNT|AVG|MIN|MAX)\s*\(/i', $pcSql);
-                        
-                        $selectPart = '';
-                        if (preg_match('/SELECT\s+(.*?)\s+FROM/is', $pcSql, $m)) {
-                            $selectPart = trim($m[1]);
-                        }
-                        $isSingleColumn = (strpos($selectPart, ',') === false) && !empty($selectPart) && stripos($selectPart, '*') === false;
-
-                        $isPcProbe = ($hasDistinct && !$hasGroupBy) || ($isSingleColumn && !$hasAggregate && !$hasGroupBy);
-                    }
-
-                    if (!$isPcProbe) {
+                if (!$isFailed && in_array($toolName, $terminalTools)) {
+                    if (!$currentIsProbe) {
                         $hasTerminalToolThisTurn = true;
-                        $tName = $pc['name'];
-                        $terminalToolCallsCount[$tName] = ($terminalToolCallsCount[$tName] ?? 0) + 1;
+                        $terminalToolCallsCount[$toolName] = ($terminalToolCallsCount[$toolName] ?? 0) + 1;
 
                         // Bedakan limit antara ERP (statis) dan Query (analitis)
-                        $limit = str_contains($tName, 'erp') ? 3 : 8;
+                        $limit = str_contains($toolName, 'erp') ? 3 : 8;
 
-                        if ($terminalToolCallsCount[$tName] >= $limit) {
-                            Log::warning("[Agentic] Terminal tool '{$tName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
+                        if ($terminalToolCallsCount[$toolName] >= $limit) {
+                            Log::warning("[Agentic] Terminal tool '{$toolName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
                             $loopCount = $this->maxToolLoops; // Break on next iteration check
                         }
                     }
                 }
+            }
+
+            // Bersihkan variabel hasil eksekusi dari memori untuk mencegah memory bloat
+            unset($executedResults);
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
             }
 
             if ($hasTerminalToolThisTurn && $loopCount < $this->maxToolLoops) {
