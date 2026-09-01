@@ -1094,12 +1094,16 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedTables.clear();
         originalSelectedTables.clear();
 
+        const validTableKeys = new Set(allTables.map(t => `${t.database_code}|${t.schema_name}|${t.table_name}`));
+
         (role.permissions || []).forEach(p => {
             const key = (p.database_code && p.schema_name)
                 ? `${p.database_code}|${p.schema_name}|${p.table_name}`
                 : p.table_name;
-            selectedTables.add(key);
-            originalSelectedTables.add(key);
+            if (validTableKeys.has(key)) {
+                selectedTables.add(key);
+                originalSelectedTables.add(key);
+            }
         });
 
         // Update Header Details
@@ -1694,7 +1698,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ permissions: permissions })
+            body: JSON.stringify({ permissions: permissions, tables: permissions })
         })
         .then(res => res.json())
         .then(data => {

@@ -427,43 +427,30 @@ class AdminController extends Controller
         
         $user = auth()->user();
         
-        $rolesQuery = Role::with(['permissions', 'addedBy', 'users' => function($q) {
+        $databasesQuery = DatabaseConnection::active();
+        if (!$user->is_super_admin) {
+            $databasesQuery->where('added_by', $user->id);
+        }
+        $databases = $databasesQuery->get();
+        $allowedDbCodes = $databases->pluck('database')->toArray();
+
+        $rolesQuery = Role::with(['permissions' => function($q) use ($allowedDbCodes) {
+            $q->whereIn('database_code', $allowedDbCodes);
+        }, 'addedBy', 'users' => function($q) {
             $q->select('id', 'name', 'email', 'role', 'is_admin', 'is_super_admin');
         }])->withCount('users');
-        $databasesQuery = DatabaseConnection::active();
-        
+
         if (!$user->is_super_admin) {
             $rolesQuery->where('added_by', $user->id);
-            $databasesQuery->where('added_by', $user->id);
         }
         
         $roles = $rolesQuery->get();
-        $databases = $databasesQuery->get();
-        
-        $allowedDbCodes = $databases->pluck('database')->toArray();
         $allTables = $this->getAllTables();
         
-        // Filter tables to only those from allowed databases
-        if (!$user->is_super_admin) {
-            $allTables = array_values(array_filter($allTables, function($table) use ($allowedDbCodes) {
-                return in_array($table['database_code'], $allowedDbCodes);
-            }));
-        }
-
-        // Temporary debug
-        // Detailed debug logging
-        $dbCounts = [];
-        foreach ($databases as $db) {
-            $dbTables = array_filter($allTables, fn($t) => $t['database_code'] === $db->database);
-            $dbCounts[$db->database] = count($dbTables);
-        }
-
-        \Log::info('Role Management Debug', [
-            'total_tables_count' => count($allTables),
-            'counts_by_db' => $dbCounts,
-            'sample_tables' => array_slice($allTables, 0, 5),
-            'databases_count' => $databases->count(),
-        ]);
+        // Filter tables to only those from allowed active databases
+        $allTables = array_values(array_filter($allTables, function($table) use ($allowedDbCodes) {
+            return in_array($table['database_code'], $allowedDbCodes);
+        }));
 
         return view('admin.roles', compact('roles', 'allTables', 'databases'));
     }
@@ -504,15 +491,23 @@ class AdminController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
-        $tables = $request->input('tables', []);
+        $tables = $request->input('tables', $request->input('permissions', []));
 
         // New format: each table is "database_code|schema_name|table_name"
         RolePermission::where('role_id', $role->id)->delete();
+
+        $activeDbs = DatabaseConnection::active()->get();
+        $activeDbCodes = $activeDbs->pluck('database')->toArray();
 
         foreach ($tables as $tableStr) {
             $parts = explode('|', $tableStr);
             
             if (count($parts) === 3) {
+                // Ensure table belongs to an active database
+                if (!in_array($parts[0], $activeDbCodes)) {
+                    continue;
+                }
+
                 // New multi-database format
                 RolePermission::create([
                     'role_id' => $role->id,
@@ -522,7 +517,7 @@ class AdminController extends Controller
                 ]);
             } else {
                 // Legacy format - use defaults from first active database
-                $defaultDb = DatabaseConnection::active()->first();
+                $defaultDb = $activeDbs->first();
                 if ($defaultDb) {
                     $defaultDbCode = $defaultDb->database; // use 'database' field, consistent with role_permissions.database_code
                     $defaultSchema = $defaultDb->schema ?? match ($defaultDb->driver) {
@@ -796,12 +791,21 @@ class AdminController extends Controller
         // Stop SSH tunnel
         SshTunnelManager::stop($database);
 
+        // Hapus semua hak akses tabel (role_permissions) yang terkait database ini
+        $dbCodes = array_filter(array_unique([$database->database, $database->code, $database->name]));
+        if (!empty($dbCodes)) {
+            RolePermission::whereIn('database_code', $dbCodes)->delete();
+        }
+
+        // Hapus user table filter yang terkait
+        UserTableFilter::where('database_connection_id', $database->id)->delete();
+
         $database->delete();
 
         // Clear table cache
         $this->clearTableCache();
 
-        return back()->with('success', __('Database berhasil dihapus.'));
+        return back()->with('success', __('Database berhasil dihapus beserta hak akses perannya.'));
     }
 
     public function databaseTest(DatabaseConnection $database)

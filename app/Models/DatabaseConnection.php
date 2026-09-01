@@ -63,6 +63,20 @@ class DatabaseConnection extends Model
         'ssh_password',
     ];
 
+    protected static function booted()
+    {
+        static::deleting(function ($db) {
+            // Hapus semua hak akses tabel (role_permissions) yang terkait database ini
+            $dbCodes = array_filter(array_unique([$db->database, $db->code, $db->name]));
+            if (!empty($dbCodes)) {
+                RolePermission::whereIn('database_code', $dbCodes)->delete();
+            }
+
+            // Hapus semua user table filter yang terkait database ini
+            UserTableFilter::where('database_connection_id', $db->id)->delete();
+        });
+    }
+
     public function addedBy()
     {
         return $this->belongsTo(User::class, 'added_by');
