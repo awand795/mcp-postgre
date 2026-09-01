@@ -715,6 +715,7 @@ class AgenticChatbotController extends Controller
                 ];
             }
 
+            $hasTerminalToolThisTurn = false;
             foreach ($executedResults as $execItem) {
                 $call = $execItem['call'];
                 $toolCallId = $call['id'];
