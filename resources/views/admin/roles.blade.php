@@ -1225,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <button type="button" class="rm-btn ${isFullDb ? 'rm-btn-rose' : 'rm-btn-emerald'} rm-btn-sm"
                                     data-action="toggle-db-all" data-db="${dbCode}" data-select="${!isFullDb}">
                                 <i class="fas ${isFullDb ? 'fa-square' : 'fa-check-square'}"></i>
-                                ${isFullDb ? '{{ __("Hapus DB") }}' : '{{ __("Pilih Semua DB") }}'}
+                                ${isFullDb ? '{{ __("Hapus Semua Tabel") }}' : '{{ __("Pilih Semua Tabel") }}'}
                             </button>
                             <i class="fas fa-chevron-down rm-db-toggle-ico"></i>
                         </div>
