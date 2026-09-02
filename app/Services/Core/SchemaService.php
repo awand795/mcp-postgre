@@ -509,14 +509,19 @@ class SchemaService extends BaseService
         $isRestricted = !$hasWildcard && !empty($allowedTableNames);
 
         if ($isRestricted && empty($results)) {
-            $tablesList = implode(', ', $allowedTableNames);
+            $businessTerms = array_map(function ($t) {
+                return \App\Http\Controllers\AgenticChatbotController::formatTableToBusinessTerm($t);
+            }, $allowedTableNames);
+            $businessTerms = array_values(array_unique($businessTerms));
+            $termsList = implode(', ', $businessTerms);
+
             return $this->safeJsonEncode([
                 'keyword' => $keyword,
                 'matches' => [],
                 'count' => 0,
                 'access_restricted' => true,
-                'allowed_tables' => $allowedTableNames,
-                'instruction' => "PERHATIAN HAK AKSES (RBAC): Tidak ditemukan tabel yang cocok dengan keyword '{$keyword}'. Akun pengguna ini HANYA diizinkan mengakses tabel berikut: [{$tablesList}]. TIDAK ADA tabel lain yang dapat diakses. DILARANG memanggil search_schema berulang-ulang dengan kata kunci atau sinonim lain! Hentikan pemanggilan tool sekarang dan segera jelaskan kepada user bahwa akun mereka hanya berhak mengakses data [{$tablesList}] dan tidak memiliki izin akses untuk data '{$keyword}'."
+                'allowed_business_data' => $businessTerms,
+                'instruction' => "PERHATIAN HAK AKSES (RBAC): Tidak ditemukan data yang cocok dengan keyword '{$keyword}'. Akun pengguna ini HANYA diizinkan mengakses: {$termsList}. TIDAK ADA data lain yang dapat diakses. DILARANG memanggil search_schema berulang-ulang! Hentikan pemanggilan tool sekarang dan segera jelaskan kepada user secara sopan dalam BAHASA BISNIS (DILARANG menyebutkan nama teknis tabel atau database) bahwa akun mereka hanya berhak mengakses {$termsList} dan belum memiliki izin akses untuk data '{$keyword}'."
             ]);
         }
 

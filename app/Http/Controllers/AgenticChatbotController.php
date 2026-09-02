@@ -1685,16 +1685,22 @@ class AgenticChatbotController extends Controller
         }
 
         if ($isRestrictedRbac) {
-            $tablesFormatted = !empty($allUserTableNames) ? implode(', ', $allUserTableNames) : 'tidak ada tabel';
+            $businessTerms = array_map(fn($t) => self::formatTableToBusinessTerm($t), $allUserTableNames);
+            $businessTerms = array_values(array_unique($businessTerms));
+            $tablesFormatted = !empty($businessTerms) ? implode(', ', $businessTerms) : 'tidak ada data';
+
             $tableHintText = "## 🔒 HAK AKSES DATA TERBATAS (USER RBAC):\n"
-                . "Peran akun pengguna ini memiliki izin akses yang DIBATASI dan HANYA dapat mengakses tabel:\n"
+                . "Peran akun pengguna ini memiliki izin akses yang DIBATASI dan HANYA dapat mengakses data:\n"
                 . implode("\n", $mainTablesHint)
                 . "\n\n**ATURAN HAK AKSES MUTLAK (WAJIB DIIKUTI):**\n"
-                . "1. Daftar tabel di atas adalah SATU-SATUNYA data yang diizinkan untuk diakses oleh akun pengguna ini. TIDAK ADA tabel lain di database yang boleh diakses.\n"
+                . "1. Data di atas adalah SATU-SATUNYA data yang diizinkan untuk diakses oleh akun pengguna ini. TIDAK ADA data lain di database yang boleh diakses.\n"
                 . "2. DILARANG memanggil tool `search_schema` atau `get_database_schema_info` untuk mencari tabel lain di database.\n"
-                . "3. Jika pengguna menanyakan data, entitas, atau topik yang tabelnya TIDAK ADA dalam daftar di atas (misalnya pengguna menanyakan data pelanggan, transaksi, penjualan, produk, stok, keuangan, piutang, dsb padahal akun hanya memiliki akses ke cabang):\n"
+                . "3. Jika pengguna menanyakan data, entitas, atau topik yang TIDAK ADA dalam daftar di atas (misalnya pengguna menanyakan data pelanggan, transaksi, penjualan, produk, stok, keuangan, piutang, dsb padahal akun hanya memiliki akses ke cabang):\n"
                 . "   - ❌ **JANGAN MEMANGGIL TOOL APAPUN (DILARANG panggil search_schema ataupun execute_query).**\n"
-                . "   - ✅ **SEGERA BERIKAN JAWABAN NARATIF SECARA LANGSUNG:** Jelaskan dengan sopan bahwa sesuai dengan hak akses akun saat ini, pengguna hanya memiliki izin untuk mengakses data [{$tablesFormatted}], dan tidak memiliki kewenangan/izin akses untuk data yang diminta (misal: data transaksi dan pelanggan). Sarankan pengguna untuk menghubungi Administrator Sistem jika memerlukan akses tambahan.";
+                . "   - ✅ **SEGERA BERIKAN JAWABAN NARATIF SECARA LANGSUNG MENGGUNAKAN BAHASA BISNIS:**\n"
+                . "     - **DILARANG KERAS MENYEBUTKAN NAMA TEKNIS TABEL ATAU DATABASE (seperti `v_ms_cabang`, `dw_erp`, dll).**\n"
+                . "     - Selalu gunakan istilah bahasa bisnis yang ramah: sebut sebagai **\"{$tablesFormatted}\"**.\n"
+                . "     - Sampaikan secara sopan dan formal: Jelaskan bahwa berdasarkan hak akses akun yang dimiliki saat ini, Bapak/Ibu hanya memiliki izin untuk mengakses **{$tablesFormatted}**, dan belum memiliki kewenangan/izin akses untuk data yang diminta (misalnya data pelanggan atau transaksi penjualan). Sarankan pengguna untuk menghubungi Administrator Sistem apabila memerlukan izin akses data tersebut.";
         } else {
             $tableHintText = !empty($mainTablesHint)
                 ? implode("\n", $mainTablesHint)
@@ -1808,6 +1814,15 @@ If user is using English:
 2. **DILARANG KERAS** menuliskan proses berpikir internal, self-audit, self-check, checklist evaluasi diri (seperti pertanyaan "Apakah Anda sudah...", "Apakah Ringkasan Eksekutif...", "Sudahkah...", dll), catatan pengingat, atau verifikasi aturan di awal, tengah, atau akhir respon akhir Anda kepada user.
 3. Seluruh proses audit, pemeriksaan format, dan checklist harus dilakukan **100% secara internal di dalam pikiran Anda saja** (atau dalam tag thinking jika didukung oleh model), dan **TIDAK BOLEH** dituliskan satu baris pun ke dalam teks jawaban akhir.
 4. Untuk pertanyaan data bisnis dari database: jawaban harus langsung dimulai dengan **Ringkasan Eksekutif** (Executive Summary). Untuk pertanyaan umum/non-database (hanya berlaku pada mode cakupan bebas): jawab secara natural dan langsung tanpa format Ringkasan Eksekutif.
+5. **DILARANG KERAS MENYEBUTKAN NAMA TEKNIS DATABASE, TABEL, SKEMA, ATAU QUERY SQL KEPADA USER**:
+   - JANGAN PERNAH menampilkan nama teknis tabel seperti `v_ms_cabang`, `ms_cabang`, `trm_faktur_merek`, `sch_mbi.view_master_cabang_mbi`, dsb.
+   - JANGAN PERNAH menampilkan nama database/skema (seperti `dw_erp`, `public`, `sch_mbi`) atau klausa SQL.
+   - **WAJIB SELALU gunakan istilah bahasa bisnis yang ramah**:
+     * Gunakan **"Data Cabang"** (BUKAN `v_ms_cabang` atau `ms_cabang`).
+     * Gunakan **"Data Pelanggan"** (BUKAN `view_master_langganan` atau `ms_pelanggan`).
+     * Gunakan **"Data Penjualan"** (BUKAN `trm_faktur_merek`).
+     * Gunakan **"Data Produk"** (BUKAN `view_master_barang`).
+   - Saat menginformasikan hak akses kepada user, sebutkan entitas bisnisnya (misal: *"Akun Anda saat ini hanya memiliki izin untuk mengakses Data Cabang"*), BUKAN nama tabel teknis database.
 
 ## 🔴 CRITICAL PRIORITY: LANGUAGE MATCHING RULE
 1. **AUTOMATICALLY detect user's language and ALWAYS reply in the SAME language.**
@@ -4315,5 +4330,53 @@ PROMPT;
         }
 
         return $enScore > $idScore ? 'en' : 'id';
+    }
+
+    /**
+     * Konversi nama teknis tabel database ke istilah bisnis yang ramah dan mudah dipahami user.
+     */
+    public static function formatTableToBusinessTerm(string $tableName): string
+    {
+        // Bersihkan prefix teknis database umum
+        $clean = preg_replace('/^(view_master_|v_ms_|v_|ms_|master_|trm_|mhd_|tb_|tbl_|cdc_|mv_)/i', '', $tableName);
+        $clean = str_replace('_', ' ', $clean);
+        $clean = preg_replace('/\b(mbi)\b/i', '', $clean);
+        $clean = trim(preg_replace('/\s+/', ' ', $clean));
+
+        $map = [
+            'cabang' => 'Data Cabang',
+            'pelanggan' => 'Data Pelanggan',
+            'langganan' => 'Data Pelanggan',
+            'customer' => 'Data Pelanggan',
+            'barang' => 'Data Produk / Barang',
+            'produk' => 'Data Produk',
+            'item' => 'Data Barang',
+            'pegawai' => 'Data Karyawan',
+            'karyawan' => 'Data Karyawan',
+            'perusahaan' => 'Data Perusahaan',
+            'penjualan' => 'Data Penjualan',
+            'pembelian' => 'Data Pembelian',
+            'faktur' => 'Data Faktur Penjualan',
+            'piutang' => 'Data Piutang',
+            'hutang' => 'Data Hutang',
+            'stok' => 'Data Stok / Inventaris',
+            'dealer' => 'Data Dealer',
+            'sales' => 'Data Tim Sales',
+            'salesman' => 'Data Salesman',
+            'lookup' => 'Data Referensi Master',
+        ];
+
+        $lower = strtolower($clean);
+        if (isset($map[$lower])) {
+            return $map[$lower];
+        }
+
+        foreach ($map as $key => $label) {
+            if (str_contains($lower, $key)) {
+                return $label;
+            }
+        }
+
+        return 'Data ' . ucwords($clean);
     }
 }
