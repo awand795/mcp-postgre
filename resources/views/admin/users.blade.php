@@ -1644,8 +1644,11 @@
 
         // Load columns for dropdown
         _tfColumns = [];
+        const container = document.getElementById('tfRulesContainer');
+        container.innerHTML = '<div style="padding:1.5rem; text-align:center; color:var(--text-muted); font-size:0.8rem;"><i class="fas fa-spinner fa-spin"></i> {{ __('Memuat kolom...') }}</div>';
+
         try {
-            const res = await fetch(`/admin/users/table-columns?db_id=${table.db_id}&table_name=${table.table_name}&schema=${table.schema || 'public'}`);
+            const res = await fetch(`/admin/users/table-columns?db_id=${table.db_id}&table_name=${encodeURIComponent(table.table_name)}&schema=${encodeURIComponent(table.schema || '')}`);
             const data = await res.json();
             _tfColumns = data.columns || [];
         } catch(e) { /* silent */ }
@@ -1709,9 +1712,12 @@
 
     function appendRuleRow(column, operator, value) {
         const container = document.getElementById('tfRulesContainer');
-        const colOptions = _tfColumns.map(c =>
-            `<option value="${c.name}" ${c.name === column ? 'selected' : ''}>${c.name} (${c.type})</option>`
-        ).join('');
+        const placeholder = `<option value="" disabled ${!column ? 'selected' : ''}>-- {{ __('-- Pilih Kolom --') }} --</option>`;
+        const colOptions = _tfColumns.length
+            ? placeholder + _tfColumns.map(c =>
+                `<option value="${c.name}" ${c.name === column ? 'selected' : ''}>${c.name} (${c.type})</option>`
+              ).join('')
+            : `<option value="${column}">${column || '{{ __('-- Pilih Kolom --') }}'}</option>`;
 
         const ops = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'ILIKE', 'IN', 'NOT IN'];
         const opOptions = ops.map(o =>
@@ -1721,7 +1727,7 @@
         const row = document.createElement('div');
         row.className = 'tf-rule-row';
         row.innerHTML = `
-            <select class="tf-rule-col">${colOptions.length ? colOptions : `<option value="${column}">${column || '{{ __('-- Pilih Kolom --') }}'}</option>`}</select>
+            <select class="tf-rule-col">${colOptions}</select>
             <select class="tf-rule-op">${opOptions}</select>
             <input class="tf-rule-val" type="text" placeholder="{{ __('Nilai (misal: B282)') }}" value="${value || ''}">
             <button class="tf-rule-del" onclick="removeRuleRow(this)" title="{{ __('Hapus kondisi') }}"><i class="fas fa-trash-alt"></i></button>

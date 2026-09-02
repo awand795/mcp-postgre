@@ -1142,41 +1142,45 @@ class AdminController extends Controller
             return response()->json(['columns' => []], 403);
         }
 
-        $tempConn = 'temp_cols_' . $conn->code;
-        try {
-            DB::purge($tempConn);
-            config(["database.connections.{$tempConn}" => $conn->getConnectionConfig()]);
+        $cacheKey = "table_cols_{$conn->id}_{$schema}_{$tableName}";
+        $columns = cache()->remember($cacheKey, 300, function () use ($conn, $schema, $tableName) {
+            $tempConn = 'temp_cols_' . $conn->code . '_' . uniqid();
+            try {
+                $config = $conn->getConnectionConfig();
+                $config['connection_timeout'] = 5;
+                if (isset($config['options']) && is_array($config['options'])) {
+                    $config['options'][\PDO::ATTR_TIMEOUT] = 5;
+                } else {
+                    $config['options'] = [\PDO::ATTR_TIMEOUT => 5];
+                }
 
-            $driver = $conn->driver;
-            if ($driver === 'pgsql') {
-                $columns = DB::connection($tempConn)->select(
-                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
-                    [$schema, $tableName]
-                );
-            } elseif ($driver === 'mysql' || $driver === 'mariadb') {
-                $columns = DB::connection($tempConn)->select(
-                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position",
-                    [$conn->database, $tableName]
-                );
-            } else {
-                $columns = DB::connection($tempConn)->select(
-                    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
-                    [$tableName]
-                );
+                $adapter = $conn->getAdapter();
+                DB::purge($tempConn);
+                config(["database.connections.{$tempConn}" => $config]);
+
+                $query = $adapter->describeTableQuery();
+                $params = $adapter->usesSchema()
+                    ? [$tableName, $schema ?: $conn->schema ?: 'public']
+                    : [$tableName, $conn->database];
+
+                $results = $adapter->executeSelect($tempConn, $query, $params);
+                DB::purge($tempConn);
+
+                return array_map(function ($c) {
+                    $c = (object) $c;
+                    return [
+                        'name' => $c->column_name ?? $c->name ?? '',
+                        'type' => $c->data_type ?? $c->type ?? ''
+                    ];
+                }, $results);
+            } catch (\Exception $e) {
+                \Log::error("Failed to get table columns for DB {$conn->name}, table {$tableName}: " . $e->getMessage());
+                DB::purge($tempConn);
+                return [];
             }
+        });
 
-            DB::purge($tempConn);
-
-            return response()->json([
-                'columns' => array_map(fn($c) => [
-                    'name' => $c->column_name,
-                    'type' => $c->data_type
-                ], $columns)
-            ]);
-        } catch (\Exception $e) {
-            DB::purge($tempConn);
-            return response()->json(['columns' => [], 'error' => $e->getMessage()]);
-        }
+        return response()->json(['columns' => $columns]);
     }
 
     /**
