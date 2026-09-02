@@ -312,6 +312,12 @@ class DatabaseConnection extends Model
     {
         try {
             $config = $this->getConnectionConfig();
+            $config['connection_timeout'] = 5;
+            if (isset($config['options']) && is_array($config['options'])) {
+                $config['options'][\PDO::ATTR_TIMEOUT] = 5;
+            } else {
+                $config['options'] = [\PDO::ATTR_TIMEOUT => 5];
+            }
             $adapter = $this->getAdapter();
 
             // Create temporary connection
@@ -355,88 +361,96 @@ class DatabaseConnection extends Model
      */
     public function getTables(): array
     {
-        $tempConn = 'temp_conn_' . $this->code;
+        return cache()->remember("db_tables_{$this->id}", 300, function () {
+            $tempConn = 'temp_conn_' . $this->code;
 
-        try {
-            $config = $this->getConnectionConfig();
-            $adapter = $this->getAdapter();
-
-            DB::purge($tempConn);
-            config(["database.connections.{$tempConn}" => $config]);
-
-            $query = $adapter->listTablesQuery();
-
-            if ($this->driver === 'clickhouse') {
-                // ClickHouse HTTP driver (bavix/laravel-clickhouse) IGNORES the $bindings parameter.
-                // The select() method signature is: select($query, $bindings = [], $tables = [])
-                // and it passes $tables (3rd param) to readOne(), not $bindings (2nd param).
-                // So we must inline the database name directly into the SQL query.
-                // Escape single quotes dengan cara SQL standar (double single-quote)
-                $escapedDb = str_replace("'", "''", $this->database);
-                $query = str_replace('?', "'{$escapedDb}'", $query);
-                $tables = DB::connection($tempConn)->select($query);
-            } elseif ($this->driver === 'mysql' || $this->driver === 'mariadb') {
-                // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
-                // (lebih reliable daripada DATABASE() pada dynamic connections)
-                $tables = DB::connection($tempConn)->select($query, [$this->database]);
-            } else {
-                // SQLite uses PRAGMA which can't be parameterized
-                $tables = DB::connection($tempConn)->select($query);
-            }
-
-            \Log::info("DatabaseConnection: Loaded tables for {$this->name} ({$this->driver})", [
-                'count' => count($tables),
-                'database' => $this->database
-            ]);
-
-            DB::purge($tempConn);
-
-            if (empty($tables)) {
-                \Log::warning("No tables or views found in database: {$this->name}");
-            }
-
-            $mappedTables = array_map(function($table) {
-                // Handle both stdClass objects (PDO drivers) and arrays (ClickHouse HTTP driver)
-                if (is_array($table)) {
-                    $table = (object) $table;
+            try {
+                $config = $this->getConnectionConfig();
+                $config['connection_timeout'] = 5;
+                if (isset($config['options']) && is_array($config['options'])) {
+                    $config['options'][\PDO::ATTR_TIMEOUT] = 5;
+                } else {
+                    $config['options'] = [\PDO::ATTR_TIMEOUT => 5];
                 }
-                $isView = isset($table->table_type) && stripos($table->table_type, 'view') !== false;
-                return [
-                    'table_name' => $table->table_name,
-                    'schema_name' => $table->table_schema ?? $this->schema ?? '',
-                    'description' => $table->description ?? '',
-                    'table_type' => $isView ? $table->table_type : 'table',
-                ];
-            }, $tables);
+                $adapter = $this->getAdapter();
 
-            if (!empty($this->table_filters)) {
-                $filters = array_filter(array_map('trim', explode("\n", $this->table_filters)));
-                if (!empty($filters)) {
-                    $mappedTables = array_filter($mappedTables, function($item) use ($filters) {
-                        foreach ($filters as $filter) {
-                            $pattern = '/' . str_replace('/', '\/', $filter) . '/i';
-                            if (@preg_match($pattern, $item['table_name'])) {
-                                return false; // exclude
+                DB::purge($tempConn);
+                config(["database.connections.{$tempConn}" => $config]);
+
+                $query = $adapter->listTablesQuery();
+
+                if ($this->driver === 'clickhouse') {
+                    // ClickHouse HTTP driver (bavix/laravel-clickhouse) IGNORES the $bindings parameter.
+                    // The select() method signature is: select($query, $bindings = [], $tables = [])
+                    // and it passes $tables (3rd param) to readOne(), not $bindings (2nd param).
+                    // So we must inline the database name directly into the SQL query.
+                    // Escape single quotes dengan cara SQL standar (double single-quote)
+                    $escapedDb = str_replace("'", "''", $this->database);
+                    $query = str_replace('?', "'{$escapedDb}'", $query);
+                    $tables = DB::connection($tempConn)->select($query);
+                } elseif ($this->driver === 'mysql' || $this->driver === 'mariadb') {
+                    // MySQL/MariaDB: bind database name karena query pakai placeholder '?'
+                    // (lebih reliable daripada DATABASE() pada dynamic connections)
+                    $tables = DB::connection($tempConn)->select($query, [$this->database]);
+                } else {
+                    // SQLite uses PRAGMA which can't be parameterized
+                    $tables = DB::connection($tempConn)->select($query);
+                }
+
+                \Log::info("DatabaseConnection: Loaded tables for {$this->name} ({$this->driver})", [
+                    'count' => count($tables),
+                    'database' => $this->database
+                ]);
+
+                DB::purge($tempConn);
+
+                if (empty($tables)) {
+                    \Log::warning("No tables or views found in database: {$this->name}");
+                }
+
+                $mappedTables = array_map(function($table) {
+                    // Handle both stdClass objects (PDO drivers) and arrays (ClickHouse HTTP driver)
+                    if (is_array($table)) {
+                        $table = (object) $table;
+                    }
+                    $isView = isset($table->table_type) && stripos($table->table_type, 'view') !== false;
+                    return [
+                        'table_name' => $table->table_name,
+                        'schema_name' => $table->table_schema ?? $this->schema ?? '',
+                        'description' => $table->description ?? '',
+                        'table_type' => $isView ? $table->table_type : 'table',
+                    ];
+                }, $tables);
+
+                if (!empty($this->table_filters)) {
+                    $filters = array_filter(array_map('trim', explode("\n", $this->table_filters)));
+                    if (!empty($filters)) {
+                        $mappedTables = array_filter($mappedTables, function($item) use ($filters) {
+                            foreach ($filters as $filter) {
+                                $pattern = '/' . str_replace('/', '\/', $filter) . '/i';
+                                if (@preg_match($pattern, $item['table_name'])) {
+                                    return false; // exclude
+                                }
                             }
-                        }
-                        return true;
-                    });
-                    $mappedTables = array_values($mappedTables);
+                            return true;
+                        });
+                        $mappedTables = array_values($mappedTables);
+                    }
                 }
-            }
 
-            return $mappedTables;
-        } catch (\Exception $e) {
-            \Log::error("Failed to get tables from database: {$this->name}", [
-                'driver'   => $this->driver,
-                'host'     => $this->host,
-                'port'     => $this->port,
-                'database' => $this->database,
-                'error'    => $e->getMessage(),
-            ]);
-            DB::purge($tempConn);
-            return [];
-        }
+                return $mappedTables;
+            } catch (\Exception $e) {
+                \Log::error("Failed to get tables from database: {$this->name}", [
+                    'driver'   => $this->driver,
+                    'host'     => $this->host,
+                    'port'     => $this->port,
+                    'database' => $this->database,
+                    'error'    => $e->getMessage(),
+                ]);
+                DB::purge($tempConn);
+                return [];
+            }
+        });
     }
 
     /**

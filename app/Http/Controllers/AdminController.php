@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\DatabaseConnection;
+use App\Models\UserTableFilter;
 use App\Services\Database\SshTunnelManager;
 use App\Imports\UserImport;
 use App\Exports\UsersExport;
@@ -422,9 +423,6 @@ class AdminController extends Controller
 
     public function roles()
     {
-        // Paksa bersihkan cache agar tabel database yang baru ditambah langsung muncul
-        $this->clearTableCache();
-        
         $user = auth()->user();
         
         $databasesQuery = DatabaseConnection::active();
@@ -433,13 +431,6 @@ class AdminController extends Controller
         }
         $databases = $databasesQuery->get();
         $allowedDbCodes = $databases->pluck('database')->toArray();
-
-        // Sinkronisasi otomatis:
-        // 1. Hapus tabel terfilter dari SEMUA role
-        // 2. Auto-grant tabel baru / penambahan ulang HANYA ke role Super Admin
-        foreach ($databases as $db) {
-            $db->syncRolePermissions();
-        }
 
         $rolesQuery = Role::with(['permissions' => function($q) use ($allowedDbCodes) {
             $q->whereIn('database_code', $allowedDbCodes);
@@ -815,7 +806,7 @@ class AdminController extends Controller
         }
 
         // Hapus user table filter yang terkait
-        UserTableFilter::where('database_connection_id', $database->id)->delete();
+        \App\Models\UserTableFilter::where('database_connection_id', $database->id)->delete();
 
         $database->delete();
 
@@ -1476,6 +1467,10 @@ class AdminController extends Controller
             cache()->forget("agentic_allowed_dbs_role_v2_{$role->id}");
             cache()->forget("agentic_allowed_tables_role_{$role->id}");
             cache()->forget("allowed_tables_role_{$role->id}");
+        });
+
+        DatabaseConnection::all()->each(function($db) {
+            cache()->forget("db_tables_{$db->id}");
         });
     }
 
