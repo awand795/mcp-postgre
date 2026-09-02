@@ -290,6 +290,8 @@ class AgenticChatbotController extends Controller
 
         $probeQueryCount = 0;
         $maxProbeQueries = 2;
+        $searchSchemaCallsCount = 0;
+        $maxSearchSchemaCalls = 2;
 
         while ($loopCount < $this->maxToolLoops) {
             $loopCount++;
@@ -495,7 +497,37 @@ class AgenticChatbotController extends Controller
                     }
                 }
 
-                if ($isOutOfDomain && $scopeLimited) {
+                $isAccessDeniedPhrase = (
+                    stripos($textContent, 'hak akses') !== false ||
+                    stripos($textContent, 'tidak memiliki akses') !== false ||
+                    stripos($textContent, 'tidak memiliki izin') !== false ||
+                    stripos($textContent, 'izin akses') !== false ||
+                    stripos($textContent, 'kewenangan') !== false ||
+                    stripos($textContent, 'dibatasi') !== false ||
+                    stripos($textContent, 'access denied') !== false ||
+                    stripos($textContent, 'not authorized') !== false
+                );
+
+                // Cek apakah user memiliki hak akses terbatas (RBAC)
+                $hasWildcard = false;
+                foreach ($allowedDatabases as $dbCode => $schemas) {
+                    if ($dbCode === '*') { $hasWildcard = true; break; }
+                    foreach ($schemas as $s => $tbls) {
+                        if ($s === '*') {
+                            foreach ($tbls as $t) {
+                                $n = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                                if ($n === '*') { $hasWildcard = true; break 2; }
+                            }
+                        }
+                        foreach ($tbls as $t) {
+                            $n = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                            if ($n === '*') { $hasWildcard = true; break 2; }
+                        }
+                    }
+                }
+                $isRestrictedUser = !$hasWildcard && !empty($allowedDatabases);
+
+                if ($isOutOfDomain && $scopeLimited && !$isAccessDeniedPhrase && !$isRestrictedUser) {
                     Log::warning("[Agentic] FIX#3 — False 'out-of-domain' detected at loop #{$loopCount} before any successful tool call. Injecting schema recovery.");
 
                     $schemaHints = [];
@@ -687,9 +719,25 @@ class AgenticChatbotController extends Controller
                 Log::info("[Agentic] Parallel tool execution: {$toolCallCount} tools");
                 $fibers = [];
                 foreach ($processedCalls as $call) {
-                    Log::info("[Agentic] Starting Fiber for tool: {$call['name']}");
                     $tName = $call['name'];
                     $tArgs = $call['arguments'];
+                    if ($tName === 'search_schema') {
+                        $searchSchemaCallsCount++;
+                        if ($searchSchemaCallsCount > $maxSearchSchemaCalls) {
+                            Log::warning("[Agentic] search_schema circuit breaker tripped (>{$maxSearchSchemaCalls} calls). Returning early stop.");
+                            $executedResults[] = [
+                                'call' => $call,
+                                'result' => json_encode([
+                                    'keyword' => $tArgs['keyword'] ?? '',
+                                    'matches' => [],
+                                    'count' => 0,
+                                    'instruction' => 'BATAS MAKSIMAL PENCARIAN SKEMA TERCAPAI. Tidak ditemukan tabel yang cocok. DILARANG memanggil search_schema lagi. Segera hentikan pemanggilan tool dan jelaskan bahwa data tidak ditemukan atau tidak termasuk dalam hak akses akun user.'
+                                ])
+                            ];
+                            continue;
+                        }
+                    }
+                    Log::info("[Agentic] Starting Fiber for tool: {$call['name']}");
                     $fiber = new \Fiber(function () use ($tName, $tArgs): string {
                         return $this->mcpClient->callTool($tName, $tArgs);
                     });
@@ -708,11 +756,33 @@ class AgenticChatbotController extends Controller
                 }
             } else {
                 $call = $processedCalls[0];
-                Log::info("[Agentic] Executing Tool: {$call['name']}");
-                $executedResults[] = [
-                    'call' => $call,
-                    'result' => $this->mcpClient->callTool($call['name'], $call['arguments']),
-                ];
+                if ($call['name'] === 'search_schema') {
+                    $searchSchemaCallsCount++;
+                    if ($searchSchemaCallsCount > $maxSearchSchemaCalls) {
+                        Log::warning("[Agentic] search_schema circuit breaker tripped (>{$maxSearchSchemaCalls} calls). Returning early stop.");
+                        $executedResults[] = [
+                            'call' => $call,
+                            'result' => json_encode([
+                                'keyword' => $call['arguments']['keyword'] ?? '',
+                                'matches' => [],
+                                'count' => 0,
+                                'instruction' => 'BATAS MAKSIMAL PENCARIAN SKEMA TERCAPAI. Tidak ditemukan tabel yang cocok. DILARANG memanggil search_schema lagi. Segera hentikan pemanggilan tool dan jelaskan bahwa data tidak ditemukan atau tidak termasuk dalam hak akses akun user.'
+                            ])
+                        ];
+                    } else {
+                        Log::info("[Agentic] Executing Tool: {$call['name']}");
+                        $executedResults[] = [
+                            'call' => $call,
+                            'result' => $this->mcpClient->callTool($call['name'], $call['arguments']),
+                        ];
+                    }
+                } else {
+                    Log::info("[Agentic] Executing Tool: {$call['name']}");
+                    $executedResults[] = [
+                        'call' => $call,
+                        'result' => $this->mcpClient->callTool($call['name'], $call['arguments']),
+                    ];
+                }
             }
 
             $hasTerminalToolThisTurn = false;
@@ -1542,15 +1612,38 @@ class AgenticChatbotController extends Controller
         $dbSummaryText = implode(PHP_EOL, $dbSummaries);
 
         $mainTablesHint = [];
+        $allUserTableNames = [];
+        $isRestrictedRbac = false;
         try {
-            // Gunakan allowedDatabases (RBAC) untuk menyusun hint tabel, BUKAN
-            // fetch semua tabel dari semua koneksi — agar AI hanya melihat tabel
-            // yang memang diizinkan untuk role user yang login.
-            // HEMAT INPUT TOKEN: daftar tabel di-dedupe dan dibatasi. Tabel ber-
-            // prefix "mv_" (materialized view mirror) dan "cdc_" (copy per-
-            // perusahaan) TIDAK didaftarkan — jumlahnya sangat banyak, namanya
-            // panjang, dan isinya dobel/hampir identik dengan tabel lain. Model
-            // tetap bisa menemukannya lewat tool get_database_schema_info / search_schema.
+            // Gunakan allowedDatabases (RBAC) untuk menyusun hint tabel.
+            // Cek apakah user memiliki hak akses terbatas (bukan super admin dan bukan wildcard *)
+            $hasWildcard = false;
+            foreach ($allowedDatabases as $dbCode => $schemas) {
+                if ($dbCode === '*') {
+                    $hasWildcard = true;
+                    break;
+                }
+                foreach ($schemas as $schema => $tables) {
+                    if ($schema === '*') {
+                        foreach ($tables as $t) {
+                            $name = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                            if ($name === '*') {
+                                $hasWildcard = true;
+                                break 2;
+                            }
+                        }
+                    }
+                    foreach ($tables as $t) {
+                        $name = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                        if ($name === '*') {
+                            $hasWildcard = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+            $isRestrictedRbac = !$hasWildcard && !empty($allowedDatabases);
+
             foreach ($allowedDatabases as $dbCode => $schemas) {
                 $tableNames = [];
                 foreach ($schemas as $schema => $tables) {
@@ -1563,6 +1656,7 @@ class AgenticChatbotController extends Controller
                             continue;
                         }
                         $tableNames[] = $name;
+                        $allUserTableNames[] = $name;
                     }
                 }
                 $tableNames = array_values(array_unique($tableNames));
@@ -1585,13 +1679,28 @@ class AgenticChatbotController extends Controller
                     $mainTablesHint[] = "Database [{$dbCode}]: " . implode(', ', $tableNames);
                 }
             }
+            $allUserTableNames = array_values(array_unique($allUserTableNames));
         } catch (\Exception $e) {
             Log::warning("[Agentic] Failed to fetch table hints for prompt: " . $e->getMessage());
         }
-        $tableHintText = !empty($mainTablesHint)
-            ? implode("\n", $mainTablesHint)
-                . "\n\n**Catatan: daftar di atas hanyalah SEBAGIAN dari seluruh tabel yang tersedia.** Untuk nama persis tabel lain (termasuk tabel per-perusahaan `cdc_*` dan materialized view `mv_*`), gunakan tool `get_database_schema_info` atau `search_schema` sebelum menulis query."
-            : "Panggil get_database_schema_info untuk melihat daftar tabel.";
+
+        if ($isRestrictedRbac) {
+            $tablesFormatted = !empty($allUserTableNames) ? implode(', ', $allUserTableNames) : 'tidak ada tabel';
+            $tableHintText = "## 🔒 HAK AKSES DATA TERBATAS (USER RBAC):\n"
+                . "Peran akun pengguna ini memiliki izin akses yang DIBATASI dan HANYA dapat mengakses tabel:\n"
+                . implode("\n", $mainTablesHint)
+                . "\n\n**ATURAN HAK AKSES MUTLAK (WAJIB DIIKUTI):**\n"
+                . "1. Daftar tabel di atas adalah SATU-SATUNYA data yang diizinkan untuk diakses oleh akun pengguna ini. TIDAK ADA tabel lain di database yang boleh diakses.\n"
+                . "2. DILARANG memanggil tool `search_schema` atau `get_database_schema_info` untuk mencari tabel lain di database.\n"
+                . "3. Jika pengguna menanyakan data, entitas, atau topik yang tabelnya TIDAK ADA dalam daftar di atas (misalnya pengguna menanyakan data pelanggan, transaksi, penjualan, produk, stok, keuangan, piutang, dsb padahal akun hanya memiliki akses ke cabang):\n"
+                . "   - ❌ **JANGAN MEMANGGIL TOOL APAPUN (DILARANG panggil search_schema ataupun execute_query).**\n"
+                . "   - ✅ **SEGERA BERIKAN JAWABAN NARATIF SECARA LANGSUNG:** Jelaskan dengan sopan bahwa sesuai dengan hak akses akun saat ini, pengguna hanya memiliki izin untuk mengakses data [{$tablesFormatted}], dan tidak memiliki kewenangan/izin akses untuk data yang diminta (misal: data transaksi dan pelanggan). Sarankan pengguna untuk menghubungi Administrator Sistem jika memerlukan akses tambahan.";
+        } else {
+            $tableHintText = !empty($mainTablesHint)
+                ? implode("\n", $mainTablesHint)
+                    . "\n\n**Catatan: daftar di atas hanyalah SEBAGIAN dari seluruh tabel yang tersedia.** Untuk nama persis tabel lain (termasuk tabel per-perusahaan `cdc_*` dan materialized view `mv_*`), gunakan tool `get_database_schema_info` atau `search_schema` sebelum menulis query."
+                : "Panggil get_database_schema_info untuk melihat daftar tabel.";
+        }
 
         // Tanggal saja (tanpa jam:menit) agar teks system prompt identik sepanjang hari
         // → provider dapat mengaktifkan context caching (prefix prompt di-cache),
@@ -1744,6 +1853,7 @@ HANYA panggil `get_database_schema_info` jika tabel yang Anda butuhkan tidak ada
 - Semua pertanyaan singkat berisi angka, kuantitas, atau nama entitas bisnis
 
 **ATURAN EMAS: JANGAN PERNAH TOLAK PERTANYAAN TANPA MENCOBA TOOL TERLEBIH DAHULU.**
+*(PENGECUALIAN MUTLAK: Aturan ini TIDAK BERLAKU jika akun user memiliki hak akses terbatas (RBAC) dan menanyakan topik/data di luar tabel yang diizinkan di atas. Jika data yang diminta berada di luar hak akses, LANGSUNG tolak secara sopan tanpa memanggil tool.)*
 
 Jika Anda tidak yakin apakah pertanyaan berkaitan dengan bisnis → PANGGIL TOOL DULU, baru putuskan.
 Jika Anda mendapat error database → JANGAN TOLAK, cari tabel yang benar dengan `search_schema`.

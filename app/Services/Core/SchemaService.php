@@ -485,6 +485,41 @@ class SchemaService extends BaseService
             }
         }
 
+        $allowedTableNames = [];
+        $hasWildcard = false;
+        foreach ($allowedDbs as $db => $schemas) {
+            if ($db === '*') {
+                $hasWildcard = true;
+            }
+            foreach ($schemas as $s => $tbls) {
+                if ($s === '*') {
+                    $hasWildcard = true;
+                }
+                foreach ($tbls as $t) {
+                    $name = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                    if ($name === '*') {
+                        $hasWildcard = true;
+                    } elseif (!empty($name)) {
+                        $allowedTableNames[] = $name;
+                    }
+                }
+            }
+        }
+        $allowedTableNames = array_values(array_unique($allowedTableNames));
+        $isRestricted = !$hasWildcard && !empty($allowedTableNames);
+
+        if ($isRestricted && empty($results)) {
+            $tablesList = implode(', ', $allowedTableNames);
+            return $this->safeJsonEncode([
+                'keyword' => $keyword,
+                'matches' => [],
+                'count' => 0,
+                'access_restricted' => true,
+                'allowed_tables' => $allowedTableNames,
+                'instruction' => "PERHATIAN HAK AKSES (RBAC): Tidak ditemukan tabel yang cocok dengan keyword '{$keyword}'. Akun pengguna ini HANYA diizinkan mengakses tabel berikut: [{$tablesList}]. TIDAK ADA tabel lain yang dapat diakses. DILARANG memanggil search_schema berulang-ulang dengan kata kunci atau sinonim lain! Hentikan pemanggilan tool sekarang dan segera jelaskan kepada user bahwa akun mereka hanya berhak mengakses data [{$tablesList}] dan tidak memiliki izin akses untuk data '{$keyword}'."
+            ]);
+        }
+
         return $this->safeJsonEncode([
             'keyword' => $keyword,
             'matches' => $results,
