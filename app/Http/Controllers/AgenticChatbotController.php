@@ -20,7 +20,7 @@ use Exception;
 class AgenticChatbotController extends Controller
 {
     private int $maxToolLoops = 20;
-    private $maxHistory = 15;
+    private $maxHistory = 8;
 
     // Batas jumlah nama tabel yang didaftarkan di system prompt per database.
     // Nilai ini menjaga input token tetap kecil — tabel lain tetap bisa ditemukan
@@ -839,14 +839,14 @@ class AgenticChatbotController extends Controller
                 $aiContent = $toolResult;
                 if (is_array($decodedRes) && isset($decodedRes['rows'])) {
                     $rowCount = count($decodedRes['rows']);
-                    if ($rowCount > 500) {
+                    if ($rowCount > 15) {
                         $aiContent = json_encode([
                             'rows_returned' => $rowCount,
                             'columns' => $decodedRes['columns'] ?? [],
                             'currency_columns' => $decodedRes['currency_columns'] ?? [],
-                            'rows' => array_slice($decodedRes['rows'], 0, 500),
-                            'instruction' => "ANALYST NOTE: Hasil ditampilkan terbatas (500 baris) untuk efisiensi, namun sistem sudah memproses total " . $rowCount . " baris. Gunakan data ini untuk menyusun ringkasan dan 'smart_table'. Tidak perlu melakukan query tambahan untuk baris sisanya karena data tersebut sudah tertangani oleh sistem frontend. Gunakan contoh data ini sebagai referensi struktur kolom Anda."
-                        ]);
+                            'rows' => array_slice($decodedRes['rows'], 0, 15),
+                            'instruction' => "ANALYST NOTE: Menampilkan sampel 15 baris pertama dari total " . $rowCount . " baris data yang berhasil diproses database. Sistem frontend sudah memiliki dan akan menampilkan seluruh " . $rowCount . " baris data secara utuh di smart_table. Gunakan 15 baris sampel ini sebagai referensi untuk menyusun narasi, ringkasan eksekutif, dan insight bisnis. JANGAN melakukan query tambahan untuk mengambil baris sisanya."
+                        ], JSON_UNESCAPED_UNICODE);
                     } elseif ($rowCount === 0 && $toolName === 'execute_query') {
                         $zeroRowsInstruction = $scopeLimited
                             ? "ANALYST NOTE: Query ini tidak menghasilkan data (0 baris). Jika Anda sedang mencari data untuk periode waktu tertentu, kemungkinan besar data memang belum tersedia di database. Silakan sampaikan temuan ini kepada Bapak/Ibu user secara profesional. Hindari melakukan perulangan query (loop) untuk mencari tanggal alternatif secara otomatis agar tidak terjadi disorientasi konteks waktu."
@@ -1560,27 +1560,35 @@ class AgenticChatbotController extends Controller
                     'tool_calls' => $fakeToolCalls,
                 ];
                 foreach ($toolResults as $index => $res) {
+                    $toolName = $res['tool_name'] ?? 'query';
                     $toolData = $res['data'] ?? '';
-                    $toolContent = is_string($toolData) ? $toolData : json_encode($toolData);
-                    if (strlen($toolContent) > 2000) {
-                        $decoded = is_array($toolData) ? $toolData : (json_decode($toolContent, true) ?? []);
-                        $truncated = [
-                            'rows_returned' => $decoded['rows_returned'] ?? '?',
-                            'columns' => $decoded['columns'] ?? [],
-                            'rows' => array_slice($decoded['rows'] ?? [], 0, 5),
-                            '_truncated' => true,
-                            '_message' => 'History truncated. Re-query if needed.',
-                        ];
-                        $toolContent = json_encode($truncated);
+                    if (is_string($toolData)) {
+                        $toolData = json_decode($toolData, true) ?: $toolData;
                     }
+
+                    if ($toolName === 'execute_query' && is_array($toolData)) {
+                        $summary = [
+                            'tool' => 'execute_query',
+                            'label' => $res['label'] ?? ($toolData['label'] ?? 'Query Data'),
+                            'rows_returned' => $toolData['rows_returned'] ?? count($toolData['rows'] ?? []),
+                            'columns' => $toolData['columns'] ?? [],
+                            '_note' => 'Data riwayat masa lalu telah diringkas untuk efisiensi token. Lakukan query baru jika memerlukan data detail terkini.',
+                        ];
+                        $toolContent = json_encode($summary, JSON_UNESCAPED_UNICODE);
+                    } else {
+                        $toolContent = is_string($toolData) ? $toolData : json_encode($toolData, JSON_UNESCAPED_UNICODE);
+                        if (strlen($toolContent) > 1000) {
+                            $toolContent = mb_substr($toolContent, 0, 1000) . '... [truncated]';
+                        }
+                    }
+
                     $messages[] = [
                         'role' => 'tool',
                         'tool_call_id' => $fakeToolCalls[$index]['id'] ?? ('hist_' . uniqid()),
-                        'name' => $res['tool_name'] ?? 'query',
+                        'name' => $toolName,
                         'content' => $toolContent,
-                        'decoded_data' => isset($truncated) ? $truncated : $toolData,
+                        'decoded_data' => is_array($toolData) ? $toolData : null,
                     ];
-                    unset($truncated);
                 }
             } else {
                 $messages[] = ['role' => $msg['role'] ?? 'user', 'content' => $msg['content'] ?? ''];
