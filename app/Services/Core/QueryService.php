@@ -363,19 +363,27 @@ class QueryService extends BaseService
                         if (empty($cond)) continue;
 
                         // Strategi: Bungkus tabel dengan subquery yang sudah difilter
-                        
+                        // Mendukung schema prefix opsional dan alias tabel (baik "AS c" maupun "c").
+                        // Menggunakan negative lookahead agar klausa SQL tidak disalahartikan sebagai alias.
+                        $sqlClausePattern = 'WHERE|ON|JOIN|INNER|LEFT|RIGHT|FULL|CROSS|NATURAL|GROUP|ORDER|HAVING|LIMIT|UNION|WINDOW';
+                        $cleanTbl = trim($tbl, '"');
+
                         // 1. Handle FROM
-                        $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
-                        $trimmedSql = preg_replace_callback($fromPattern, function($m) use ($tbl, $cond) {
+                        $fromPattern = '/\bFROM\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($cleanTbl, '/') . '|"' . preg_quote($cleanTbl, '/') . '")(?:\s+(?!' . $sqlClausePattern . '\b)(?:AS\s+)?("[^"]+"|[a-zA-Z0-9_]+))?/i';
+                        $trimmedSql = preg_replace_callback($fromPattern, function($m) use ($cleanTbl, $cond) {
                             $schema = !empty($m[1]) ? $m[1] . "." : "";
-                            return "FROM (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                            $matchedTbl = !empty($m[2]) ? $m[2] : $cleanTbl;
+                            $alias = !empty($m[3]) ? $m[3] : $cleanTbl;
+                            return "FROM (SELECT * FROM {$schema}{$matchedTbl} WHERE {$cond}) AS {$alias}";
                         }, $trimmedSql);
 
                         // 2. Handle JOIN
-                        $joinPattern = '/\bJOIN\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($tbl, '/') . '|"' . preg_quote($tbl, '/') . '")\b/i';
-                        $trimmedSql = preg_replace_callback($joinPattern, function($m) use ($tbl, $cond) {
+                        $joinPattern = '/\bJOIN\s+(?:("[^"]+"|[a-zA-Z0-9_]+)\s*\.\s*)?(' . preg_quote($cleanTbl, '/') . '|"' . preg_quote($cleanTbl, '/') . '")(?:\s+(?!' . $sqlClausePattern . '\b)(?:AS\s+)?("[^"]+"|[a-zA-Z0-9_]+))?/i';
+                        $trimmedSql = preg_replace_callback($joinPattern, function($m) use ($cleanTbl, $cond) {
                             $schema = !empty($m[1]) ? $m[1] . "." : "";
-                            return "JOIN (SELECT * FROM {$schema}{$tbl} WHERE {$cond}) AS {$tbl}";
+                            $matchedTbl = !empty($m[2]) ? $m[2] : $cleanTbl;
+                            $alias = !empty($m[3]) ? $m[3] : $cleanTbl;
+                            return "JOIN (SELECT * FROM {$schema}{$matchedTbl} WHERE {$cond}) AS {$alias}";
                         }, $trimmedSql);
 
                         Log::info("[QueryService] RLS filter injected for user {$user->id} on table {$tbl}: {$cond}");
