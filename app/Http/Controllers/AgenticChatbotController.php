@@ -281,6 +281,7 @@ class AgenticChatbotController extends Controller
             'get_erp_menu_navigation',
             'fetch_erp_guidance_from_web',
             'web_search',
+            'save_learned_rule',
         ];
 
         $terminalToolCallsCount = []; // Track calls to terminal tools
@@ -2003,138 +2004,47 @@ AI wajib generate sendiri sinonim dari kata yang user sebut:
 PRODUCT;
         }
 
-        $metricSection = "";
-        if ($isMetricQuery) {
-            $metricSection = <<<'METRIC'
-## 🔴 PROTOKOL PENEMUAN & PEMETAAN DINAMIS (SEMANTIC MAPPING METRIK BISNIS)
-### **1. Protokol Penemuan & Pemetaan Dinamis (Dynamic Discovery & Semantic Mapping Protocol)**
-
-Saat user meminta metrik bisnis tertentu (seperti HPP, Total HPP, Netto, Total Netto, Diskon, Profit), Anda **WAJIB** mengikuti langkah-langkah berikut secara berurutan untuk memetakan istilah bisnis ke kolom database nyata secara dinamis tanpa melakukan hardcoding nama kolom:
-
-1. **Panggil `describe_table` (WAJIB)**: Dapatkan daftar kolom beserta tipenya secara eksak untuk tabel yang sedang dianalisis.
-2. **Pecahkan secara Semantik**: Jangan berasumsi nama kolom. Cocokkan istilah bisnis dengan kata kunci yang ada pada nama kolom fisik dari tabel:
-   - **Harga Pokok / HPP / COGS**: Cari kolom fisik yang mengandung kata kunci `hpp`, `pokok`, `cogs`, `cost`, `purchase`, `price_cost`.
-   - **Netto / Selling Price**: Cari kolom fisik yang mengandung kata kunci `netto`, `net`, `jual`, `price`, `selling`.
-   - **Discount / Potongan (Total)**: Cari kolom fisik yang mengandung kata kunci `disc`, `potongan`, `discount`, `rabat`, `pot`.
-   - **Qty / Kuantitas**: Cari kolom fisik yang mengandung kata kunci `qty`, `jumlah`, `kuantitas`, `quantity`, `jual_qty`.
-3. **Panggil `get_table_preview` (WAJIB)**: Lihat 5 baris data sampel untuk memahami skala dan format kolom (apakah kolom moneter bersifat satuan atau total).
-   - Cara membedakan satuan vs total: Jika `nilai_kolom * qty` mendekati nilai total penjualan, maka kolom tersebut adalah **satuan**. Jika nilainya sudah mencerminkan nilai total, maka kolom tersebut sudah **total**.
-4. **Prioritaskan Kolom Fisik**: Jika ada kolom fisik di database yang secara langsung menyimpan nilai metrik tersebut (misal: terdapat kolom bernama `total_hpp` atau `profit` atau `laba`), gunakan kolom fisik tersebut secara langsung dalam query.
-5. **Formulasikan secara Dinamis jika Kolom Fisik Tidak Ada**: Jika kolom fisik tidak tersedia secara langsung, gunakan kolom-kolom yang berhasil Anda temukan untuk merumuskan perhitungan secara akurat:
-   - **Dalam Kueri Detail (Tanpa `GROUP BY`)**:
-     - **HPP / COGS**: Gunakan kolom satuan harga pokok yang ditemukan.
-     - **Total HPP / Total COGS**: Jika tidak ada kolom fisik total HPP, hitung menggunakan rumus: `kolom_satuan_hpp * kolom_qty`.
-     - **Profit**: Hitung menggunakan rumus: `kolom_total_netto - (kolom_satuan_hpp * kolom_qty)` atau `kolom_total_netto - kolom_total_hpp`. (Sapaan labelnya tetap "Profit", tidak ada pemisahan "Total Profit").
-   - **Dalam Kueri Agregasi (Dengan `GROUP BY`)**:
-      - **HPP (COGS) DAN Total HPP (Total COGS) sekaligus (PENTING/MANDATORI)**: Jika user meminta KEDUA-DUANYA ("HPP" dan "Total HPP" atau "COGS" dan "Total COGS"), Anda **WAJIB** menyertakan KEDUA kolom tersebut di dalam SELECT secara berdampingan. Hitung HPP (atau COGS) = `SUM(kolom_satuan_hpp)` DAN Total HPP (atau Total COGS) = `SUM(kolom_satuan_hpp * kolom_qty)` (atau `SUM(kolom_total_hpp)`). Kedua nilai ini tidak sama karena HPP adalah total dari unit cost price, sedangkan Total HPP adalah total dari cost price dikali kuantitas. DILARANG MENGGABUNGKAN ATAU MENGHILANGKAN SALAH SATU KOLOM DARI SELECT LIST DENGAN ALIAS YANG SESUAI!
-      - **HPP (COGS)**: Hitung total dari unit cost price: `SUM(kolom_satuan_hpp)`. **DILARANG KERAS** menghitung rata-rata, weighted average, atau menggunakan perkalian kuantitas (seperti `SUM(kolom_satuan_hpp * kolom_qty)`) karena HPP di sini berdiri sendiri sebagai jumlah harga pokok satuan.
-      - **Total HPP (Total COGS)**: Hitung menggunakan rumus total perkalian kuantitas: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
-      - **Profit**: Hitung menggunakan rumus: `SUM(kolom_total_netto) - SUM(kolom_satuan_hpp * kolom_qty)` (yang merupakan `Total Netto - Total HPP`). Label alias kolom di SQL wajib ditulis sebagai `"Profit"`.
-
-### **2. Aturan Perbedaan Istilah Berpasangan & Istilah Tunggal**
-
-Saat menyusun kolom SELECT, pastikan Anda mematuhi aturan berikut agar visualisasinya tepat dan tidak redundan:
-- **Netto vs Total Netto**:
-  - **Netto**: Nilai total penjualan kotor sebelum dikurangi diskon. Hitung sebagai: `SUM(kolom_satuan_harga_jual)`. **DILARANG KERAS** menghitung rata-rata, weighted average, atau mengalikan dengan kuantitas.
-  - **Total Netto**: Nilai total penjualan bersih setelah dikurangi diskon. Hitung sebagai: `SUM(kolom_total_netto)` (atau `SUM(kolom_satuan_harga_jual * kolom_qty - kolom_total_diskon)`).
-  - Tampilkan sebagai dua kolom terpisah jika user meminta keduanya.
-- **HPP vs Total HPP (atau COGS vs Total COGS)**:
-  - **HPP (atau COGS)**: Nilai total harga pokok satuan. Hitung sebagai: `SUM(kolom_satuan_hpp)`. **DILARANG KERAS** menghitung rata-rata atau mengalikan dengan kuantitas.
-  - **Total HPP (atau Total COGS)**: Nilai total harga pokok keseluruhan. Hitung sebagai: `SUM(kolom_satuan_hpp * kolom_qty)` atau `SUM(kolom_total_hpp)`.
-  - **WAJIB**: Tampilkan sebagai dua kolom terpisah jika user meminta keduanya. Keduanya **tidak bernilai sama** karena HPP adalah sum dari harga pokok satuan (`SUM(kolom_satuan_hpp)`), sedangkan Total HPP adalah sum dari total harga pokok perkalian kuantitas. DILARANG KERAS memaksa nilainya sama atau menghilangkan salah satunya.
-- **Profit**:
-  - Hanya ada istilah **Profit** (mewakili total keuntungan). Tidak ada "Total Profit" atau "Profit Satuan".
-  - Cara hitungnya: `Total Netto - Total HPP` (atau `total_netto - total_hpp`).
-  - Harus selalu ditampilkan sebagai kolom `"Profit"` jika diminta oleh user.
-
-### **3. Aturan Eksekusi & Output**
-- **Wajib Tampil**: Semua metrik yang diminta user **HARUS** ada di tabel hasil, baik berasal dari kolom asli maupun hasil kalkulasi.
-- **Identifikasi Sumber**: Jika data pendukung tidak ada di tabel utama, lakukan `JOIN` ke tabel master yang relevan secara mandiri.
-- **Format Profesional**: Sajikan data dalam format horizontal yang bersih. Gunakan alias kolom yang mencerminkan istilah bisnis yang diminta user (bukan nama kolom teknis).
-- **FORMAT TABEL LEBAR (WIDE TABLE)**: Anda **WAJIB** menghasilkan data dalam format horizontal (1 baris banyak kolom). Letakkan dimensi (Nama Cabang/Kategori/dll) di kolom pertama, lalu metrik-metrik di kolom-kolom berikutnya. **DILARANG KERAS** memutar (pivot) hasil menjadi format vertikal/baris kecuali diminta per-barang/per-tanggal.
-
-## 🔴 ATURAN TERPENTING #2 — AGREGASI WAJIB (GROUP BY)
-
-Jika user menyebut istilah bisnis (HPP, Netto, Diskon, Profit, Omzet, Qty) **tanpa kata "detail" atau "per transaksi"**, Anda WAJIB:
-
-1. Gunakan `SUM(nama_kolom_dari_describe_table)` — BUKAN nama kolom mentah
-2. GROUP BY HANYA kolom dimensi/identitas (nama_cabang, nama_dealer, dll)
-3. DILARANG memasukkan kolom moneter ke GROUP BY
-
-**Contoh Pola Query (semua nama kolom adalah PLACEHOLDER — wajib diganti dengan hasil describe_table):**
-```sql
--- User: "Berapa profit per cabang?"
--- Setelah describe_table & get_table_preview: tentukan sendiri kolom dan ekspresi yang tepat
-SELECT [kolom_identitas]          AS "Cabang",
-       [ekspresi_total_netto]      AS "Total Netto",
-       [ekspresi_total_hpp]        AS "Total HPP",
-       [ekspresi_total_netto] - [ekspresi_total_hpp] AS "Profit"
-FROM [schema].[table]
-GROUP BY [kolom_identitas]
-```
-
-## 🔴 ATURAN TERPENTING #1B — SATU ISTILAH USER = SATU ALIAS KOLOM SQL
-
-**WAJIB DIBACA**: Jika user menyebut beberapa istilah bisnis sekaligus, **SETIAP istilah harus muncul sebagai kolom tersendiri** dalam SELECT dengan alias yang PERSIS sama dengan istilah user.
-
-**Contoh — User minta: "tampilkan Netto, Total Netto, HPP, Total HPP, Diskon, dan Profit":**
-
-Ini berarti query WAJIB menghasilkan **6 kolom terpisah**. Tentukan sendiri rumus tiap kolom berdasarkan hasil `describe_table` dan `get_table_preview` — jangan terpaku pada contoh di bawah:
-```sql
--- Setelah describe_table & get_table_preview: tentukan sendiri kolom dan rumus yang tepat
-SELECT [kolom_identitas_dari_describe_table]  AS "Cabang",
-       [ekspresi_netto_dari_describe_table]    AS "Netto",
-       [ekspresi_total_netto]                  AS "Total Netto",
-       [ekspresi_hpp]                          AS "HPP",
-       [ekspresi_total_hpp]                    AS "Total HPP",
-       [ekspresi_diskon]                       AS "Diskon",
-       [ekspresi_profit]                       AS "Profit"
-FROM [schema].[table]
-WHERE ...
-GROUP BY [kolom_identitas_dari_describe_table]
-```
-
-**ATURAN KRITIS ALIAS:**
-- Alias kolom di SELECT WAJIB identik dengan istilah yang user minta (misal user minta "Total Netto" → alias harus `AS "Total Netto"`, bukan `AS "Netto"` atau `AS "netto"`).
-- Jika user minta "Netto" DAN "Total Netto" sebagai dua hal terpisah → buat DUA kolom berbeda di SELECT.
-- Jangan pernah menggabungkan dua istilah user menjadi satu kolom.
-- Jangan pernah menghilangkan satu pun istilah yang user minta dari SELECT.
-- Jika ada istilah yang tidak dapat dipenuhi dari data (kolom tidak ada), nyatakan dengan jelas di narasi — JANGAN diam-diam menghilangkan kolom tersebut.
-
-**DEFINISI PERBEDAAN ISTILAH BERPASANGAN (KRITIS — JANGAN SAMAKAN):**
-
-Saat user meminta istilah yang tampak mirip secara berpasangan, keduanya HARUS muncul sebagai kolom terpisah di tabel:
-
-| Istilah User | Makna Bisnis |
-|---|---|
-| **Netto** | Nilai total penjualan kotor — total harga jual sebelum dikurangi diskon (SUM(harga_jual * qty)) |
-| **Total Netto** | Nilai total penjualan bersih — total penjualan setelah dikurangi diskon (SUM(total_netto)) |
-| **HPP** | Jumlah total harga pokok SATUAN — dihitung sebagai SUM(kolom_satuan_hpp). **BERBEDA** dari Total HPP. DILARANG mengalikan dengan qty. |
-| **Total HPP** | Total harga pokok keseluruhan — dihitung sebagai SUM(kolom_satuan_hpp * kolom_qty) atau SUM(kolom_total_hpp). **BERBEDA** dari HPP. |
-| **Profit** | Keuntungan bersih keseluruhan — dihitung sebagai (Total Netto - Total HPP). Tidak ada pemisahan "Total Profit" atau "Profit Satuan" |
-
-**Prinsip utama: Jika user minta N kolom, tampilkan N kolom.** Jangan kurangi, jangan gabung. Jika setelah query dijalankan dua kolom ternyata bernilai sama, itu adalah hasil data yang valid — bukan alasan untuk menghapus salah satunya. Tentukan rumus tiap kolom sendiri berdasarkan hasil `describe_table` dan `get_table_preview`.
-
-### **1C. SISTEM REMINDER PENGHITUNGAN DINAMIS (INTERNAL REMINDER - JANGAN PERNAH TAMPILKAN KE USER)**
-
-**PENTING: Protokol ini dirancang agar Anda berpikir secara akurat di balik layar untuk menghitung metrik bisnis, tanpa membocorkan formula teknis atau nama kolom asli ke user.**
-
-Saat menyusun query, ikuti alur berpikir internal berikut:
-1. **Lihat Hasil `describe_table`**:
-   - Cari tahu apakah ada kolom fisik yang langsung mewakili metrik yang diminta (misalnya, kolom bernama `total_hpp`, `hpp_total`, `laba`, `profit`, dll).
-2. **Kondisi A: Kolom Fisik Tersedia**:
-   - Jika kolom fisik untuk metrik tersebut ada, **AMBIL LANGSUNG dari kolom tersebut**. Contoh: Jika ada kolom `profit`, gunakan `SUM(profit) AS "Profit"`.
-3. **Kondisi B: Kolom Fisik TIDAK Tersedia**:
-   - Jika kolom fisik untuk metrik tersebut tidak ada, **Anda wajib merumuskan perhitungannya secara logis dan matematis** berdasarkan kolom lain yang tersedia.
-   - **Total HPP**: Cari kolom HPP satuan (misal `cogs`, `harga_pokok`, `unit_cost`) dan kolom qty (misal `qty`, `qty_jual`). Hitung `SUM(harga_pokok_satuan * qty) AS "Total HPP"`.
-   - **Profit**: Cari total bersih penjualan (misal `total_netto`, `net_sales`) dan hitung `SUM(total_netto) - SUM(harga_pokok_satuan * qty) AS "Profit"`.
-4. **Keamanan & Kerahasiaan (JANGAN TAMPILKAN KE USER)**:
-   - Proses penalaran, pemetaan kolom, dan formula matematika ini **hanya boleh terjadi di pikiran internal Anda (pikiran asisten sebelum memutuskan query)**.
-   - **DILARANG KERAS** menjelaskan di chat bahwa Anda memetakan kolom A ke B, atau menuliskan "Karena kolom profit tidak ada, saya menghitungnya dengan rumus...". Cukup jalankan SQL yang benar, lalu tampilkan data dengan label alias bahasa bisnis yang bersih.
-
-METRIC;
+        // ── SELF-LEARNING RULES MEMORY (CARA 2) ──────────────────────────────
+        $matchedRules = [];
+        try {
+            $matchedRules = \App\Models\AiLearnedRule::findMatchingRules($userMessage);
+        } catch (\Throwable $e) {
+            $matchedRules = [];
         }
 
+        $learnedRulesPrompt = "";
+        if (!empty($matchedRules)) {
+            $learnedRulesPrompt = "## 🧠 MEMORI ATURAN BISNIS PERUSAHAAN (DIPELAJARI DARI USER)\n"
+                . "Berikut adalah aturan khusus yang telah ditetapkan oleh manajemen perusahaan terkait pertanyaan Anda saat ini:\n";
+            foreach ($matchedRules as $mr) {
+                $learnedRulesPrompt .= "- **{$mr->rule_description}**";
+                if (!empty($mr->sql_hint)) {
+                    $learnedRulesPrompt .= " (Formula SQL: `{$mr->sql_hint}`)";
+                }
+                $learnedRulesPrompt .= "\n";
+            }
+            $learnedRulesPrompt .= "Patuhi aturan di atas secara mutlak saat menyusun query SQL.\n\n";
+        }
+
+        // ── AUTO-REVERSE ENGINEERING DARI SAMPEL DATA (CARA 1) ───────────────
+        $autoInspectionSection = "";
+        if ($isMetricQuery) {
+            $autoInspectionSection = <<<'AUTOINSPECT'
+## 🧠 PROTOKOL OTONOM: AUTO-INSPEKSI FORMULA DARI SAMPEL DATA (CARA 1)
+1. **Intip Sampel Data Sebelum Agregasi**:
+   - Jika pertanyaan memerlukan perhitungan bisnis (seperti DPP, PPN, HPP vs Total HPP, Laba/Profit, Margin, Diskon) dan nama kolom fisik atau relasi matematikanya belum pasti:
+   - Jalankan kueri intip 1-2 baris data terlebih dahulu: `SELECT [kolom_relevan] FROM [tabel_transaksi] LIMIT 2;`.
+2. **Deduksi Logika Matematis dari Angka Nyata**:
+   - Analisis relasi angka pada baris sampel tersebut secara mandiri:
+     * Contoh: `harga = 100.000`, `qty = 2`, `total = 200.000` → AI menyimpulkan formula: `total = harga * qty`.
+     * Contoh: `total_netto = 1.110.000`, `ppn = 110.000` → Nilai DPP sebelum pajak adalah `total_netto - ppn` atau `ROUND(total_netto / 1.11, 0)`.
+3. **Agregasi Wajib (GROUP BY & SUM)**:
+   - Gunakan formula yang telah terbukti dari baris sampel tersebut untuk mengeksekusi `execute_query` agregasi final dengan `SUM(...)` dan Title Case Alias (misal `AS "Total Netto"`).
+4. **Pembelajaran Dinamis (Cara 2)**:
+   - Jika user memberikan koreksi atau aturan bisnis baru di chat (seperti *"Ingat ya, rumus DPP itu..."* atau *"Koreksi: di perusahaan kita..."*), Anda **WAJIB memanggil tool `save_learned_rule`** untuk menyimpannya ke memori permanen sistem, lalu sampaikan konfirmasi sopan bahwa Anda telah mengingat aturan tersebut.
+
+AUTOINSPECT;
+        }
         return <<<PROMPT
 {$botIdentityLine}
 
@@ -2254,7 +2164,7 @@ Sebelum `execute_query`, **WAJIB** panggil `describe_table` untuk mendapatkan na
 
 {$regionalSection}
 
-{$metricSection}
+{$learnedRulesPrompt}{$autoInspectionSection}
 
 
 ## 🔴 FORMAT PENYAJIAN DATA (CALL #1 GUIDELINE)

@@ -199,6 +199,33 @@ class ToolCallExecutor
                     'required' => ['query'],
                 ],
             ],
+            [
+                'type' => 'function',
+                'name' => 'save_learned_rule',
+                'description' => 'Menyimpan aturan bisnis, konvensi penamaan kolom, atau formula perhitungan baru ke memori permanen sistem ketika user memberikan instruksi/koreksi bisnis di percakapan (contoh: "Ingat ya kalau DPP itu...", "Koreksi: di sistem kita HPP itu..."). Gunakan tool ini agar sistem mengingat aturan tersebut selamanya.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'category' => [
+                            'type' => 'string',
+                            'description' => 'Kategori aturan (contoh: finance, tax, sales, product, branch).',
+                        ],
+                        'trigger_keywords' => [
+                            'type' => 'string',
+                            'description' => 'Kata kunci pemicu yang dipisahkan koma (contoh: "dpp, pajak, ppn").',
+                        ],
+                        'rule_description' => [
+                            'type' => 'string',
+                            'description' => 'Penjelasan aturan bisnis atau cara perhitungan secara jelas.',
+                        ],
+                        'sql_hint' => [
+                            'type' => 'string',
+                            'description' => 'Contoh sintaks/formula SQL singkat jika ada (contoh: "ROUND(SUM(total_netto / 1.11), 0)").',
+                        ],
+                    ],
+                    'required' => ['category', 'trigger_keywords', 'rule_description'],
+                ],
+            ],
         ];
     }
 
@@ -231,6 +258,14 @@ class ToolCallExecutor
                 // Web Search Tool
                 'web_search' => $this->webSearchService->search($arguments['query'] ?? ''),
 
+                // Self-Learning Tool (Cara 2)
+                'save_learned_rule' => $this->saveLearnedRule(
+                    $arguments['category'] ?? 'finance',
+                    $arguments['trigger_keywords'] ?? '',
+                    $arguments['rule_description'] ?? '',
+                    $arguments['sql_hint'] ?? ''
+                ),
+
                 default => json_encode(['error' => "Unknown tool: {$toolName}"]),
             };
         } catch (\Throwable $e) {
@@ -262,6 +297,33 @@ class ToolCallExecutor
         }
 
         return (array) $value;
+    }
+
+    /**
+     * Menyimpan aturan bisnis baru ke tabel ai_learned_rules (Cara 2: Self-Learning).
+     */
+    private function saveLearnedRule(string $category, string $keywords, string $description, string $sqlHint = ''): string
+    {
+        try {
+            $rule = \App\Models\AiLearnedRule::create([
+                'category' => trim($category) ?: 'finance',
+                'trigger_keywords' => trim($keywords),
+                'rule_description' => trim($description),
+                'sql_hint' => trim($sqlHint) ?: null,
+                'is_active' => true,
+                'learned_from' => 'user_chat',
+            ]);
+
+            return json_encode([
+                'status' => 'success',
+                'message' => 'Aturan bisnis berhasil disimpan ke memori permanen sistem.',
+                'rule_id' => $rule->id,
+                'rule' => $rule->rule_description,
+                'sql_hint' => $rule->sql_hint,
+            ], JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $e) {
+            return json_encode(['error' => 'Gagal menyimpan aturan: ' . $e->getMessage()]);
+        }
     }
 
 
