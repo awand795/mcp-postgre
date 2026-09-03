@@ -1657,7 +1657,7 @@ class AgenticChatbotController extends Controller
                 $schemaList = implode(', ', array_keys($schemas));
 
             if ($dbModel && in_array($dbModel->driver, ['mysql', 'mariadb'])) {
-                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: \`table_name\` (tanpa prefix schema)";
+                $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Format Query: `table_name` (tanpa prefix schema)";
             } else {
                 $dbSummaries[] = "- Kode Database: {$dbCode} | Driver: {$driver} | Schema: {$schemaList} | Format Query: schema_name.table_name";
             }
@@ -1668,8 +1668,6 @@ class AgenticChatbotController extends Controller
         $allUserTableNames = [];
         $isRestrictedRbac = false;
         try {
-            // Gunakan allowedDatabases (RBAC) untuk menyusun hint tabel.
-            // Cek apakah user memiliki hak akses terbatas (bukan super admin dan bukan wildcard *)
             $hasWildcard = false;
             foreach ($allowedDatabases as $dbCode => $schemas) {
                 if ($dbCode === '*') {
@@ -1700,306 +1698,159 @@ class AgenticChatbotController extends Controller
             foreach ($allowedDatabases as $dbCode => $schemas) {
                 $tableNames = [];
                 foreach ($schemas as $schema => $tables) {
-                    foreach ($tables as $t) {
-                        $name = is_array($t) ? ($t['name'] ?? '') : $t;
-                        if (empty($name) || $name === '*') {
-                            continue;
+                    if ($schema === '*') {
+                        $actualSchemas = \App\Services\Core\SchemaService::getSchemasForDatabase($dbCode);
+                        foreach ($actualSchemas as $actSchema) {
+                            $allTables = \App\Services\Core\SchemaService::getTableNamesForSchema($dbCode, $actSchema);
+                            foreach ($allTables as $t) {
+                                $tableNames[] = "{$actSchema}.{$t}";
+                                $allUserTableNames[] = $t;
+                            }
                         }
-                        if (str_starts_with($name, 'mv_') || str_starts_with($name, 'cdc_')) {
-                            continue;
+                    } else {
+                        foreach ($tables as $t) {
+                            $name = is_array($t) ? ($t['name'] ?? '') : (string) $t;
+                            if ($name === '*') {
+                                $allTables = \App\Services\Core\SchemaService::getTableNamesForSchema($dbCode, $schema);
+                                foreach ($allTables as $actTable) {
+                                    $tableNames[] = "{$schema}.{$actTable}";
+                                    $allUserTableNames[] = $actTable;
+                                }
+                            } else {
+                                $tableNames[] = "{$schema}.{$name}";
+                                $allUserTableNames[] = $name;
+                            }
                         }
-                        $tableNames[] = $name;
-                        $allUserTableNames[] = $name;
                     }
                 }
-                $tableNames = array_values(array_unique($tableNames));
-                // Prioritaskan tabel master, lalu view bisnis, agar yang paling
-                // sering dipakai masuk dalam daftar terbatas ini.
-                usort($tableNames, function ($a, $b) {
-                    $rank = function (string $n): int {
-                        if (preg_match('/^ms_/i', $n) || stripos($n, 'master') !== false) return 0;
-                        if (str_starts_with($n, 'view_')) return 1;
-                        if (str_starts_with($n, 'v_')) return 2;
-                        return 3;
+
+                $businessTerms = [
+                    'cabang', 'dealer', 'customer', 'pelanggan', 'user', 'karyawan',
+                    'barang', 'produk', 'item', 'part', 'sparepart', 'stok', 'inventory',
+                    'penjualan', 'jual', 'sales', 'order', 'faktur', 'invoice', 'piutang',
+                    'pembelian', 'beli', 'purchase', 'hutang',
+                    'kas', 'bank', 'jurnal', 'rekening', 'gl', 'buku_besar',
+                ];
+
+                $tableNames = array_unique($tableNames);
+                usort($tableNames, function ($a, $b) use ($businessTerms) {
+                    $isViewA = str_contains($a, 'view_') ? 1 : 0;
+                    $isViewB = str_contains($b, 'view_') ? 1 : 0;
+                    if ($isViewA !== $isViewB)
+                        return $isViewB - $isViewA;
+
+                    $rank = function ($name) use ($businessTerms) {
+                        $lower = strtolower($name);
+                        foreach ($businessTerms as $idx => $term) {
+                            if (str_contains($lower, $term))
+                                return $idx;
+                        }
+                        return 999;
                     };
                     $ra = $rank($a);
                     $rb = $rank($b);
-                    if ($ra !== $rb) return $ra <=> $rb;
+                    if ($ra !== $rb)
+                        return $ra - $rb;
+
                     return strcmp($a, $b);
                 });
-                $tableNames = array_slice($tableNames, 0, self::MAX_TABLES_HINT);
+
+                $tableNames = array_slice($tableNames, 0, 80);
                 if (!empty($tableNames)) {
-                    $mainTablesHint[] = "Database [{$dbCode}]: " . implode(', ', $tableNames);
+                    $tablesFormatted = implode("\n", array_map(fn($t) => "  - {$t}", $tableNames));
+                    $mainTablesHint[] = "Database [{$dbCode}]:\n{$tablesFormatted}";
                 }
             }
-            $allUserTableNames = array_values(array_unique($allUserTableNames));
-        } catch (\Exception $e) {
-            Log::warning("[Agentic] Failed to fetch table hints for prompt: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            $mainTablesHint = [];
         }
 
-        if ($isRestrictedRbac) {
-            $businessTerms = array_map(fn($t) => self::formatTableToBusinessTerm($t), $allUserTableNames);
-            $businessTerms = array_values(array_unique($businessTerms));
-            $tablesFormatted = !empty($businessTerms) ? implode(', ', $businessTerms) : 'tidak ada data';
+        $tableHintText = !empty($mainTablesHint)
+            ? implode("\n\n", $mainTablesHint)
+            : "Gunakan tool search_schema jika membutuhkan nama tabel spesifik.";
 
-            $tableHintText = "## 🔒 HAK AKSES DATA TERBATAS (USER RBAC):\n"
-                . "Peran akun pengguna ini memiliki izin akses yang DIBATASI dan HANYA dapat mengakses data:\n"
-                . implode("\n", $mainTablesHint)
-                . "\n\n**ATURAN HAK AKSES MUTLAK (WAJIB DIIKUTI):**\n"
-                . "1. Data di atas adalah SATU-SATUNYA data yang diizinkan untuk diakses oleh akun pengguna ini. TIDAK ADA data lain di database yang boleh diakses.\n"
-                . "2. DILARANG memanggil tool `search_schema` atau `get_database_schema_info` untuk mencari tabel lain di database.\n"
-                . "3. Jika pengguna menanyakan data, entitas, atau topik yang TIDAK ADA dalam daftar di atas (misalnya pengguna menanyakan data pelanggan, transaksi, penjualan, produk, stok, keuangan, piutang, dsb padahal akun hanya memiliki akses ke cabang):\n"
-                . "   - ❌ **JANGAN MEMANGGIL TOOL APAPUN (DILARANG panggil search_schema ataupun execute_query).**\n"
-                . "   - ✅ **SEGERA BERIKAN JAWABAN NARATIF SECARA LANGSUNG MENGGUNAKAN BAHASA BISNIS:**\n"
-                . "     - **DILARANG KERAS MENYEBUTKAN NAMA TEKNIS TABEL ATAU DATABASE (seperti `v_ms_cabang`, `dw_erp`, dll).**\n"
-                . "     - Selalu gunakan istilah bahasa bisnis yang ramah: sebut sebagai **\"{$tablesFormatted}\"**.\n"
-                . "     - Sampaikan secara sopan dan formal: Jelaskan bahwa berdasarkan hak akses akun yang dimiliki saat ini, Bapak/Ibu hanya memiliki izin untuk mengakses **{$tablesFormatted}**, dan belum memiliki kewenangan/izin akses untuk data yang diminta (misalnya data pelanggan atau transaksi penjualan). Sarankan pengguna untuk menghubungi Administrator Sistem apabila memerlukan izin akses data tersebut.";
-        } else {
-            $tableHintText = !empty($mainTablesHint)
-                ? implode("\n", $mainTablesHint)
-                    . "\n\n**Catatan: daftar di atas hanyalah SEBAGIAN dari seluruh tabel yang tersedia.** Untuk nama persis tabel lain (termasuk tabel per-perusahaan `cdc_*` dan materialized view `mv_*`), gunakan tool `get_database_schema_info` atau `search_schema` sebelum menulis query."
-                : "Panggil get_database_schema_info untuk melihat daftar tabel.";
-        }
+        $currentTime = \Carbon\Carbon::now()->translatedFormat('l, d F Y H:i:s') . ' WIB';
 
-        // Tanggal saja (tanpa jam:menit) agar teks system prompt identik sepanjang hari
-        // → provider dapat mengaktifkan context caching (prefix prompt di-cache),
-        //   sehingga ribuan token system prompt dibayar ~10% di pesan berikutnya.
-        $currentTime = now()->translatedFormat('l, d F Y');
+        $botIdentityLine = "Anda adalah DataBot, asisten AI cerdas untuk analisis data dan konsultasi bisnis perusahaan.";
 
-        $outOfDomainSection = $scopeLimited
-            ? "## 🚫 PERTANYAAN DI LUAR DOMAIN (TERAKHIR — HANYA JIKA SUDAH MENCOBA TOOL)\n\nHANYA jika pertanyaan user SUDAH TERBUKTI tidak berkaitan dengan data bisnis, ERP, atau informasi umum/publik (misal: resep masakan, gosip artis, ramalan cuaca) DAN tool pencarian tidak menghasilkan data yang relevan, barulah balas dengan:\n\n*\"Mohon maaf Bapak/Ibu, saya hanya dapat membantu dalam kapasitas sebagai Analis Data Bisnis, Konsultan Sistem ERP, dan pencarian informasi bisnis terkini. Untuk pertanyaan tersebut, saya tidak memiliki kewenangan untuk memberikan jawaban. Apakah ada kebutuhan analisis data atau panduan ERP yang dapat saya bantu?\"*\n\n**PENTING: Kalimat penolakan ini DILARANG digunakan jika:**\n- User bertanya tentang data bisnis atau informasi pasar/regulasi (cabang, dealer, penjualan, keuangan, stok, tarif PPN, dll)\n- Terjadi error database (cari tabel yang benar, jangan tolak)\n- Pertanyaan ambigu (coba tool web_search atau database dulu, baru putuskan)"
-            : "## CAKUPAN JAWABAN\n\nAnda bebas membantu user dengan pertanyaan apapun di luar konteks database dan ERP menggunakan tool pencarian web `web_search` atau pengetahuan umum. Tetap utamakan analisis data bisnis jika pertanyaan terkait database, namun Anda BOLEH menjawab pertanyaan umum, pengetahuan umum, dan topik lainnya secara helpful dan informatif.";
-
-        $identitySection = $scopeLimited
-            ? "Anda adalah asisten DataBot yang bertugas untuk:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** - mencari informasi publik terkini dari internet menggunakan tool `web_search` jika user menanyakan data/informasi dari luar database atau regulasi terbaru."
-            : "Anda adalah asisten DataBot, Data Analyst dan Business Advisor untuk perusahaan. Tugas utama Anda:\n1. **Analisis data bisnis** - mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** - membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** - mencari informasi publik terkini dari internet menggunakan tool `web_search` jika user menanyakan data/informasi dari luar database\n4. **Rekomendasi bisnis non-database** - memberikan insight, ide produk, dan rekomendasi pasar berbasis pencarian web serta analisis bisnis ketika user secara eksplisit meminta data dari luar database atau produk yang belum tersedia di database";
-
-        $freeScopeBusinessSection = $scopeLimited
-            ? ""
-            : "\n## MODE CAKUPAN BEBAS - REKOMENDASI NON-DATABASE\n\nJika user meminta rekomendasi dari luar database, market insight, atau produk yang BELUM ada di database:\n- Gunakan database hanya untuk mengetahui produk/data internal yang sudah ada, bukan sebagai satu-satunya sumber jawaban.\n- Jika data transaksi lokal kosong, tetap berikan rekomendasi berbasis pencarian web menggunakan tool `web_search` dan analisis bisnis.\n- Untuk permintaan seperti \"produk yang belum punya di database\", bandingkan dengan daftar produk internal yang berhasil ditemukan, lalu rekomendasikan item/segmen yang tidak muncul di database.\n- Jangan berkata \"saya belum bisa memberikan rekomendasi\" hanya karena database tidak memiliki transaksi di wilayah tertentu.\n- Selalu gunakan tool `web_search` untuk mencari informasi/berita pasar terkini atau tarif pajak/regulasi terbaru.\n- Untuk produk otomotif seperti baterai/aki, boleh gunakan faktor pasar umum: populasi motor/mobil, iklim panas, kebutuhan replacement, ketersediaan ukuran umum, reputasi merek, margin, dan risiko stok mati.\n";
-
-        $limitedScopeSection = $scopeLimited
-            ? "\nUntuk mode database terbatas, tugas berikut berlaku sebagai batasan utama:\n1. **Analisis data bisnis** — mengakses dan menginterpretasikan data dari database yang tersedia\n2. **Panduan sistem ERP** — membantu navigasi dan penggunaan modul ERP perusahaan\n3. **Pencarian informasi eksternal (Web Search)** — mencari data/informasi publik dari luar database menggunakan tool `web_search` jika ditanyakan.\n"
-            : "";
-
-        $botIdentityLine = $scopeLimited
-            ? "Anda adalah DataBot, Data Analyst AI ahli untuk perusahaan dengan **akses langsung ke database bisnis** dan kemampuan **pencarian web (Web Search)** melalui alat (tools)."
-            : "Anda adalah DataBot, asisten AI serbaguna untuk perusahaan. Anda memiliki **akses langsung ke database bisnis** dan kemampuan **pencarian web (Web Search)** melalui alat (tools), sehingga Anda dapat membantu pertanyaan umum, pengetahuan umum, data eksternal, dan topik di luar database secara detail.";
-
-        $langInstruction = "";
         if ($detectedLanguage === 'id') {
-            $langInstruction = "## 🔴 MANDATORI BAHASA UTAMA: BAHASA INDONESIA
-1. **User menggunakan Bahasa Indonesia.** Anda WAJIB merespons sepenuhnya dalam Bahasa Indonesia.
-2. Anda WAJIB menggunakan alias kolom SQL dalam istilah Bahasa Indonesia yang persis diminta user:
-   - Cabang / Dealer / (atau nama dimensi lainnya)
-   - HPP: Nilai total harga pokok SATUAN (SUM(kolom_satuan_hpp)). BERBEDA dari Total HPP. DILARANG mengalikan dengan qty.
-   - Total HPP: Total harga pokok keseluruhan (SUM(kolom_satuan_hpp * kolom_qty) atau SUM(kolom_total_hpp)).
-   - Netto: Nilai total penjualan kotor sebelum diskon (SUM(kolom_satuan_harga_jual)).
-   - Total Netto: Nilai total penjualan bersih setelah diskon (SUM(kolom_total_netto)).
-   - Diskon: Diskon penjualan (SUM(kolom_diskon)).
-   - Profit: Keuntungan bersih (Total Netto - Total HPP).
-3. DILARANG menggunakan istilah Bahasa Inggris seperti \"COGS\", \"Total COGS\", \"Net\", \"Total Net\", \"Discount\" jika user bertanya dalam Bahasa Indonesia.";
+            $langInstruction = "## 🔴 MANDATORI BAHASA: BAHASA INDONESIA
+1. **User menggunakan Bahasa Indonesia.** Anda WAJIB merespons sepenuhnya dalam Bahasa Indonesia formal dan sopan (Ringkasan Eksekutif, label kolom tabel, dan insight bisnis).
+2. Anda WAJIB menggunakan alias kolom SQL dalam istilah Bahasa Indonesia (Cabang, Netto, Total Netto, HPP, Total HPP, Diskon, Profit). DILARANG menggunakan istilah asing ('COGS', 'Gross', 'Discount') jika user bertanya dalam Bahasa Indonesia.
+3. **KONSISTENSI BAHASA**: DILARANG mencampuradukkan bahasa Inggris dan Indonesia dalam narasi penjelasan.";
         } else {
-            $langInstruction = "## 🔴 PRIMARY LANGUAGE MANDATE: ENGLISH
-1. **User is using English.** You MUST reply completely in English.
-2. You MUST use SQL column aliases in English terms:
-   - Branch / Dealer / (or other dimension names)
-   - COGS: SUM of unit cost price (SUM(unit_cost_column)).
-   - Total COGS: SUM of total cost (SUM(unit_cost_column * qty_column) or SUM(total_cost_column)).
-   - Net: Sum of gross selling price before discount.
-   - Total Net: Sum of net selling price after discount.
-   - Discount: Discount.
-   - Profit: Net profit (Total Net - Total COGS).
-3. DO NOT use Indonesian terms like \"HPP\", \"Total HPP\", \"Netto\", \"Total Netto\", \"Diskon\" if user asks in English.";
+            $langInstruction = "## 🔴 MANDATORY LANGUAGE: ENGLISH
+1. **User is using English.** You MUST respond completely in English (Executive Summary, Table Column Aliases, and Business Insights).
+2. You MUST use SQL column aliases in English terms (Branch, Net, Total Net, COGS, Total COGS, Discount, Profit).
+3. **LANGUAGE CONSISTENCY**: DO NOT mix Indonesian terms if user asks in English.";
         }
 
         // ── STRATEGY 1: DYNAMIC MODULAR PROMPT SECTIONS ──────────────────────
-        $isRegionalQuery = empty($userMessage) || (bool) preg_match('/\\b(cabang|kota|propinsi|provinsi|wilayah|daerah|regional|area|lokasi|alamat|jawa|sumatera|sulawesi|kalimantan|bali|jakarta|surabaya|medan|semarang|bandung|makassar)\\b/i', $userMessage);
-        $isProductQuery = empty($userMessage) || (bool) preg_match('/\\b(produk|barang|item|part|sparepart|aki|oli|ban|merek|brand|sku|stok|stock|kategori)\\b/i', $userMessage);
-        $isErpQuery = empty($userMessage) || (bool) preg_match('/\\b(menu|modul|panduan|navigasi|cara|bantuan|tutorial|erp|input|tombol|fitur|setting)\\b/i', $userMessage);
-        $isChartQuery = empty($userMessage) || (bool) preg_match('/\\b(grafik|chart|tren|trend|visual|diagram|plot|per bulan|per tahun|bulanan|tahunan|pertumbuhan|banding)\\b/i', $userMessage);
-        $isMetricQuery = empty($userMessage) || (bool) preg_match('/\\b(hpp|cogs|harga pokok|omset|omzet|netto|net|gross|kotor|bersih|diskon|discount|potongan|profit|laba|margin|rugi|penjualan|sales|revenue|transaksi|faktur|invoice|piutang|ar|ap|keuangan|nominal|pembelian|beli|jual|retur)\\b/i', $userMessage);
+        $isRegionalQuery = empty($userMessage) || (bool) preg_match('/\b(cabang|kota|propinsi|provinsi|wilayah|daerah|regional|area|lokasi|alamat|jawa|sumatera|sulawesi|kalimantan|bali|jakarta|surabaya|medan|semarang|bandung|makassar)\b/i', $userMessage);
+        $isProductQuery = empty($userMessage) || (bool) preg_match('/\b(produk|barang|item|part|sparepart|aki|oli|ban|merek|brand|sku|stok|stock|kategori)\b/i', $userMessage);
+        $isErpQuery = empty($userMessage) || (bool) preg_match('/\b(menu|modul|panduan|navigasi|cara|bantuan|tutorial|erp|input|tombol|fitur|setting)\b/i', $userMessage);
+        $isChartQuery = empty($userMessage) || (bool) preg_match('/\b(grafik|chart|tren|trend|visual|diagram|plot|per bulan|per tahun|bulanan|tahunan|pertumbuhan|banding)\b/i', $userMessage);
+        $isMetricQuery = empty($userMessage) || (bool) preg_match('/\b(hpp|cogs|harga pokok|omset|omzet|netto|net|gross|kotor|bersih|diskon|discount|potongan|profit|laba|margin|rugi|penjualan|sales|revenue|transaksi|faktur|invoice|piutang|ar|ap|keuangan|nominal|pembelian|beli|jual|retur)\b/i', $userMessage);
 
+        // ── REGIONAL SECTION (COMPACT & POWERFUL) ───────────────────────────
         $regionalSection = "";
         if ($isRegionalQuery) {
             $regionalSection = <<<'REGIONAL'
-## 🔴 ATURAN TERPENTING #1B — RESOLVE NAMA CABANG/ENTITAS SEBELUM QUERY
-
-User sering menyebut nama cabang/dealer/entitas dengan ejaan tidak persis. Nama di database bisa berbeda: "hm yamin" → "HM. YAMIN", "kapt muslim" → "KAPT. MUSLIM 1", dll.
-
-**SANGAT PENTING (OPTIMASI PERFORMA & PENGHINDARAN DISK FULL - SECARA DINAMIS)**:
-**DILARANG KERAS** menjalankan `SELECT DISTINCT` pencarian/resolusi nama entitas (cabang, dealer, barang, pelanggan, dll) pada tabel/view transaksi/detail yang berukuran besar (biasanya mengandung kata `penjualan`, `pembelian`, `kartu_stock`, `intransit`, `rinci`, `detail`, `transaksi`). Melakukan `DISTINCT` pada jutaan data transaksi akan menyebabkan database kehabisan ruang disk/temp space (`Disk full: 7 ERROR: could not write to file ... No space left on device`).
-Sebagai gantinya, Anda **WAJIB** mencari dan menggunakan tabel/view master yang berukuran jauh lebih kecil untuk query resolusi nama/probe:
-- Untuk mencari/resolusi Nama Cabang: gunakan tabel/view master cabang (biasanya memiliki kata kunci `master` dan `cabang` atau `dealer`, contoh: `view_master_cabang_...` atau `mst_cabang`).
-- Untuk mencari/resolusi Nama Barang/Produk: gunakan tabel/view master barang (biasanya memiliki kata kunci `master` dan `barang` atau `produk` atau `item`, contoh: `view_master_barang_...` atau `mst_barang`).
-- Untuk mencari/resolusi Nama Pelanggan: gunakan tabel/view master pelanggan (biasanya memiliki kata kunci `master` dan `pelanggan` atau `customer`, contoh: `view_master_pelanggan_...` atau `mst_pelanggan`).
-
-**WAJIB LAKUKAN 2 LANGKAH INI saat user menyebut nama cabang/dealer/entitas SPESIFIK (bukan wilayah/propinsi/kota):**
-
-**Langkah 1 — Resolve nama eksak dengan MULTI-KEYWORD OR (wajib dilakukan SEKALI saja):**
-
-Jika nama user terdiri dari beberapa kata (misal: "hm yamin"), buat filter yang mencari SETIAP kata secara terpisah menggunakan OR pada tabel master yang relevan:
-```sql
-SELECT DISTINCT nama_cabang
-FROM schema_name.view_master_cabang -- Ganti dengan tabel master cabang riil yang terdeteksi di database saat ini!
-WHERE nama_cabang ILIKE '%hm%'
-   OR nama_cabang ILIKE '%yamin%'
-LIMIT 10
-```
-**MENGAPA:** "hm yamin" tidak akan match `%hm yamin%` jika di database ada titik ("HM. YAMIN") atau spasi berbeda. Memecah per kata memastikan hasil selalu ditemukan.
-
-
-
-**Aturan pemecahan kata kunci:**
-- Jika user menyebut nama cabang diikuti angka, angka itu adalah bagian dari nama cabang. Contoh: "cabang binjai 2 tahun ini" berarti cabang `BINJAI 2` pada tahun berjalan, BUKAN "Binjai selama 2 tahun" dan BUKAN gabungan `BINJAI 1/2/3`.
-- Untuk pola `cabang [nama] [angka] tahun ini`, probe wajib menyertakan angka: `nama_cabang ILIKE '%binjai%' AND nama_cabang ILIKE '%2%'`, lalu query utama wajib memakai nama eksak hasil probe, misalnya `nama_cabang = 'BINJAI 2'`.
-- Jangan menggabungkan beberapa cabang bernomor hanya karena hasil probe menemukan banyak pilihan. Jika user menyebut angka cabang, pilih nama eksak yang mengandung angka tersebut.
-- Frasa periode multi-tahun hanya valid jika user menulis jelas seperti "2 tahun terakhir", "dua tahun terakhir", "2025 vs 2026", atau "dua tahun". Frasa "cabang binjai 2 tahun ini" harus dibaca sebagai cabang `Binjai 2` + periode `tahun ini`.
-- Input 1 kata ("yamin") → 1 kondisi ILIKE: `ILIKE '%yamin%'`
-- Input 2 kata ("hm yamin") → 2 kondisi OR: `ILIKE '%hm%' OR ILIKE '%yamin%'`
-- Input 3 kata ("kapt muslim barat") → 3 kondisi OR: `ILIKE '%kapt%' OR ILIKE '%muslim%' OR ILIKE '%barat%'`
-- **DILARANG KERAS** menggabungkan seluruh input sebagai 1 frase: `ILIKE '%hm yamin%'` ← **ini penyebab 0 hasil!**
-- **DILARANG KERAS** menjalankan probe kedua jika probe pertama sudah mengembalikan hasil. Jika probe pertama 0 hasil BARULAH coba variasi lain — HANYA 1 KALI.
-- **KRITIS — TIDAK BOLEH PROBE ULANG:** Jika probe pertama berhasil (ada hasil), LANGSUNG gunakan nama eksak itu untuk query utama. JANGAN probe lagi meski hasilnya 1 baris.
-
-**Langkah 2 — Gunakan nama eksak (bukan ILIKE) untuk query utama:**
-```sql
-WHERE nama_cabang = 'HM. YAMIN'  -- pakai hasil dari Langkah 1
-```
-
-Jika Langkah 1 mengembalikan >1 nama, tanya user: "Maksud Bapak/Ibu cabang yang mana? [tampilkan pilihan]".
-
-## 🔴 ATURAN WILAYAH/PROPINSI/KOTA
-If user asks about regions:
-1. **DIRECTLY use `ILIKE`** on relevant province/city columns in the main query.
-2. If no data, do automatic search (e.g., search by city if province is empty) WITHOUT asking user for permission.
-3. **ABSOLUTELY PROHIBITED** from diverting to National data if regional data is not found. Report using business language: "Berdasarkan data yang tersedia, belum ditemukan catatan aktivitas bisnis untuk wilayah [Wilayah] pada periode ini."
+## 🔴 PROTOKOL RESOLUSI CABANG & ENTITAS (ANTI-DISK FULL)
+1. **DILARANG SELECT DISTINCT pada Tabel Transaksi/Detail Besar**: Selalu gunakan tabel/view MASTER (contoh: `view_master_cabang_mbi` atau `mst_cabang`) untuk mencari nama cabang/dealer/barang demi mencegah error disk full.
+2. **Pencarian Multi-Kata (Multi-Keyword OR)**:
+   - Jika user menyebut nama cabang spesifik (misal: "hm yamin"), pecah tiap kata menjadi OR pada tabel master:
+     `SELECT DISTINCT nama_cabang FROM schema.view_master_cabang WHERE nama_cabang ILIKE '%hm%' OR nama_cabang ILIKE '%yamin%' LIMIT 10;`
+   - Pola cabang bernomor ("cabang binjai 2"): cari dengan AND: `WHERE nama_cabang ILIKE '%binjai%' AND nama_cabang ILIKE '%2%'`.
+3. **Query Utama dengan Nilai Eksak**: Setelah mendapatkan nama eksak dari probe (misal `'HM. YAMIN'`), gunakan operator sama dengan di query utama: `WHERE nama_cabang = 'HM. YAMIN'`.
+4. **Wilayah / Propinsi / Kota**: Gunakan `ILIKE` langsung pada kolom propinsi/kota tabel master. Jika data tidak ditemukan, laporkan dengan sopan tanpa mengalihkan ke data nasional.
 
 REGIONAL;
         }
 
+        // ── CHART SECTION (CONNECTING THE ORPHANED VARIABLE!) ───────────────
         $chartSection = "";
         if ($isChartQuery) {
             $chartSection = <<<'CHART'
-## 🔴 ATURAN TERPENTING #4 — GRAFIK WAJIB UNTUK DATA TREN/PERIODE
-
-Jika user meminta **"grafik"**, **"chart"**, **"tren"**, **"per bulan"**, **"per tahun"**, atau data yang memiliki dimensi waktu, WAJIB tampilkan blok `chart` **selain** smart_table.
-
-Format blok chart:
-```chart
-{"type":"bar","title":"Judul Grafik","data":{"labels":["Jan","Feb","Mar"],"datasets":[{"label":"Total Penjualan","data":[1000000,2000000,1500000]}]}}
-```
-
-**PANDUAN PINTAR MEMILIH JENIS GRAFIK:**
-- `"line"` → untuk **tren waktu** (per bulan, per tahun, perubahan dari waktu ke waktu)
-- `"bar"` → untuk **perbandingan antar entitas** (per cabang, per produk, per kategori)
-- `"pie"` → untuk **komposisi/proporsi** (kontribusi % tiap cabang, market share)
-
-Contoh:
-- "grafik penjualan per bulan" → `line` (tren waktu)
-- "grafik penjualan per cabang" → `bar` (perbandingan)
-- "kontribusi penjualan tiap cabang" → `pie` (proporsi)
-
-- `labels`: array label sumbu X (nama bulan, nama cabang, dll)
-- `datasets`: array dataset, masing-masing punya `label` dan `data` (array angka)
-- Untuk data tren bulanan tahun berjalan (single year): **HANYA sertakan label bulan yang sudah berjalan/memiliki data transaksi** (contoh jika data sampai Agustus, gunakan `["Jan", "Feb", ..., "Agu"]`). JANGAN sertakan bulan mendatang yang belum berjalan (Sep-Des) agar sumbu X bersih dan tidak ada ruang kosong di ujung kanan.
-- Untuk data per cabang: gunakan nama cabang sebagai label
-
-**PANDUAN KHUSUS PERBANDINGAN TAHUN/PERIODE (YoY):**
-Jika user meminta perbandingan antar tahun (contoh: "penjualan 2025 vs 2026" atau "grafik 2025 dan 2026"):
-1. **STRUKTUR QUERY SQL WAJIB BERBENTUK PIVOT / WIDE FORMAT**:
-   - Query SQL **WAJIB** menghasilkan 1 baris per bulan dengan kolom terpisah untuk tiap tahun menggunakan `SUM(CASE WHEN ...)`:
-   ```sql
-   SELECT 
-       periode_bulan AS "Bulan",
-       SUM(CASE WHEN periode_tahun = '2025' THEN total_netto ELSE 0 END) AS "Penjualan 2025",
-       SUM(CASE WHEN periode_tahun = '2026' THEN total_netto ELSE 0 END) AS "Penjualan 2026"
-   FROM sch_mbi.view_data_penjualan_rinci_mbi
-   WHERE periode_tahun IN ('2025', '2026')
-   GROUP BY periode_bulan
-   ORDER BY periode_bulan::int;
-   ```
-   - **DILARANG KERAS** melakukan `GROUP BY periode_tahun, periode_bulan` secara vertikal (yang menghasilkan 20+ baris). Query vertikal akan merusak format visualisasi grafik dan tabel!
-2. **FORMAT GRAFIK (CHART)**:
-   - **DILARANG** menggunakan label sumbu X yang memanjang sekuensial atau menampilkan tahun sebagai sumbu X ("2025", "2026").
-   - **WAJIB** gunakan sumbu X bersama (Shared Axis) yang berisi nama bulan ("Jan", "Feb", ..., "Des").
-   - **WAJIB** pecah data ke dalam beberapa `datasets` (satu dataset untuk tiap tahun):
-     `{"labels": ["Jan", "Feb", ...], "datasets": [{"label": "Penjualan 2025", "data": [...]}, {"label": "Penjualan 2026", "data": [...]}]}`
-   - **PENANGANAN BULAN MENDATANG:** Untuk tahun berjalan (2026), data untuk bulan-bulan yang belum dilalui diisi dengan `null` (bukan `0`). Ini penting agar garis grafik berhenti di bulan terakhir yang ada datanya.
-
-**URUTAN WAJIB jika user minta grafik/analisis:**
-1. Ringkasan Eksekutif
-2. chart (grafik visualisasi)
-3. smart_table (tabel data)
-4. Insight Strategis
-
-**URUTAN WAJIB jika user minta daftar/tampilkan:**
-1. Ringkasan Eksekutif
-2. smart_table (tabel data detail)
-3. Insight Strategis (singkat, tanpa grafik tambahan)
+## 🔴 FORMAT QUERY TREN & PERBANDINGAN TAHUN (YoY)
+1. **Query Format Lebar (Wide Pivot)**:
+   - Untuk perbandingan tahun (contoh: "penjualan 2025 vs 2026"), susun SQL dalam format 1 baris per bulan dengan kolom terpisah per tahun:
+     ```sql
+     SELECT periode_bulan AS "Bulan",
+            SUM(CASE WHEN periode_tahun = '2025' THEN total_netto ELSE 0 END) AS "Penjualan 2025",
+            SUM(CASE WHEN periode_tahun = '2026' THEN total_netto ELSE 0 END) AS "Penjualan 2026"
+     FROM [tabel_penjualan]
+     WHERE periode_tahun IN ('2025', '2026')
+     GROUP BY periode_bulan ORDER BY periode_bulan::int;
+     ```
+   - DILARANG `GROUP BY periode_tahun, periode_bulan` secara vertikal.
+2. **Visualisasi Chart**:
+   - Sertakan blok ```chart``` dengan `"type": "line"` untuk tren waktu, `"bar"` untuk perbandingan cabang/produk, `"pie"` untuk proporsi.
+   - Sumbu X bersama: `{"labels": ["Jan", "Feb", ...], "datasets": [{"label": "2025", "data": [...]}, {"label": "2026", "data": [...]}]}`.
 
 CHART;
         }
 
+        // ── ERP SECTION ──────────────────────────────────────────────────────
         $erpSection = "";
         if ($isErpQuery) {
             $erpSection = <<<'ERP'
 ## ERP GUIDANCE & NAVIGATION
-1. Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan **verbatim**. JANGAN tambahkan "Ringkasan Eksekutif".
-2. **PROTOKOL PENEMUAN PANDUAN (PROACTIVE DISCOVERY)**:
-   - Jika user bertanya tentang "cara", "langkah", atau "bagaimana" menggunakan menu ERP → **WAJIB** panggil `get_erp_guidance`.
-   - **SINONIM KRITIS**: Jika mencari "Penerimaan Barang" tidak ada hasil, Anda **WAJIB** mencari "Tanda Terima Barang" atau "TTB". Jika mencari "Pengeluaran Barang" tidak ada hasil, cari "Surat Jalan".
-   - Jika `get_erp_guidance` mengembalikan `total_found: 0`, jangan menyerah. Coba keyword yang lebih luas atau cari di `get_erp_menu_navigation` untuk mendapatkan nama menu yang lebih akurat, lalu cari lagi di `get_erp_guidance`.
-3. **PANDUAN ERP (Inline Content)**: Saat menyajikan panduan dari `get_erp_guidance`, Anda **WAJIB** menyertakan seluruh konten dari field `detail_panduan_lengkap` secara utuh.
-4. **PENTING (Gambar & Video)**:
-   - Anda **DILARANG** merangkum atau menghilangkan tag gambar Markdown (`![alt](url)`) yang ada di dalam `detail_panduan_lengkap`. Sertakan gambar tersebut tepat di lokasi aslinya agar muncul secara inline.
-   - Sertakan juga link video yang ada di dalam teks (biasanya di bagian akhir) agar user dapat menonton video tutorialnya.
-5. Gunakan gaya bahasa profesional Bapak/Ibu saat memberikan pengantar sebelum konten panduan tersebut.
+1. Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan verbatim tanpa tambahan Ringkasan Eksekutif.
+2. Jika user bertanya "cara", "langkah", atau "bagaimana" menggunakan menu ERP → WAJIB panggil `get_erp_guidance`.
+3. Gunakan `fetch_erp_guidance_from_web` hanya jika URL panduan eksternal diberikan.
 
 ERP;
         }
 
+        // ── PRODUCT SECTION ──────────────────────────────────────────────────
         $productSection = "";
         if ($isProductQuery) {
             $productSection = <<<'PRODUCT'
-## 🔴 ATURAN PENCARIAN PRODUK — WAJIB UNTUK QUERY FILTER PRODUK/BARANG
-
-Saat user menyebut kategori produk ("baterai", "oli", "ban", "spare part", dll), **JANGAN langsung filter hanya di satu kolom nama produk**. Produk sering dikategorikan di kolom terpisah, sehingga nama produknya bisa berbeda dari kata yang user sebut.
-
-**Contoh nyata:** Produk "BATTERY FASTER 5L" tidak mengandung kata "baterai" di namanya, tapi tercatat di kolom kategori dengan nilai "BATTERY".
-
-**WAJIB ikuti langkah ini sebelum membuat filter produk:**
-
-**Langkah 1 — Panggil `describe_table` terlebih dahulu**
-Lihat semua kolom yang tersedia. Identifikasi sendiri kolom-kolom yang secara semantik berkaitan dengan:
-- Nama produk/barang (biasanya mengandung kata: `nama`, `barang`, `produk`, `item`)
-- Kategori/tipe/golongan produk (biasanya mengandung kata: `kategori`, `golongan`, `tipe`, `jenis`, `group`, `type`)
-- Merek/brand produk (biasanya mengandung kata: `merek`, `brand`, `merk`)
-
-**Langkah 2 — Buat filter OR dari semua kolom yang Anda temukan di Langkah 1**
-Gunakan semua kolom yang relevan, bukan hanya satu. Prinsipnya:
-```
-WHERE [kolom_nama_produk] ILIKE '%[keyword1]%'
-   OR [kolom_nama_produk] ILIKE '%[keyword2]%'
-   OR [kolom_kategori_yg_ditemukan] ILIKE '%[keyword1]%'
-   OR [kolom_kategori_yg_ditemukan] ILIKE '%[keyword2]%'
-   OR [kolom_golongan_yg_ditemukan] ILIKE '%[keyword1]%'
-   OR [kolom_golongan_yg_ditemukan] ILIKE '%[keyword2]%'
-```
-Ganti `[kolom_...]` dengan nama kolom EKSAK dari hasil `describe_table` — bukan tebakan.
-
-**Langkah 3 — Sertakan sinonim bahasa Indonesia dan Inggris**
-AI wajib generate sendiri sinonim dari kata yang user sebut:
-- "baterai" → juga cari "battery"
-- "oli" → juga cari "oil"
-- "ban" → juga cari "tire", "tyre"
-- "rem" → juga cari "brake"
-- dst — gunakan pengetahuan umum untuk generate pasangan sinonim
-
-**Yang DILARANG:**
-- ❌ Langsung tulis nama kolom tanpa cek `describe_table` dulu
-- ❌ Hanya filter di satu kolom nama produk saja
-- ❌ Hanya pakai kata bahasa Indonesia tanpa sinonimnya dalam bahasa Inggris (atau sebaliknya)
+## 🔴 PANDUAN PENCARIAN PRODUK / BARANG
+1. Cari di tabel/view master barang (`view_master_barang...` atau `mst_barang`).
+2. Gunakan multi-kolom filter teks: `(nama_barang ILIKE '%aki%' OR kategori ILIKE '%aki%')`.
+3. Jika mencari merek/tipe (misal "GS Astra"), cari di kolom merk dan nama barang.
 
 PRODUCT;
         }
@@ -2032,304 +1883,107 @@ PRODUCT;
             $autoInspectionSection = <<<'AUTOINSPECT'
 ## 🧠 PROTOKOL OTONOM: AUTO-INSPEKSI FORMULA DARI SAMPEL DATA (CARA 1)
 1. **Intip Sampel Data Sebelum Agregasi**:
-   - Jika pertanyaan memerlukan perhitungan bisnis (seperti DPP, PPN, HPP vs Total HPP, Laba/Profit, Margin, Diskon) dan nama kolom fisik atau relasi matematikanya belum pasti:
+   - Jika pertanyaan memerlukan perhitungan bisnis (seperti DPP, PPN, HPP vs Total HPP, Laba/Profit, Margin, Diskon) dan relasi matematikanya belum pasti:
    - Jalankan kueri intip 1-2 baris data terlebih dahulu: `SELECT [kolom_relevan] FROM [tabel_transaksi] LIMIT 2;`.
 2. **Deduksi Logika Matematis dari Angka Nyata**:
    - Analisis relasi angka pada baris sampel tersebut secara mandiri:
-     * Contoh: `harga = 100.000`, `qty = 2`, `total = 200.000` → AI menyimpulkan formula: `total = harga * qty`.
-     * Contoh: `total_netto = 1.110.000`, `ppn = 110.000` → Nilai DPP sebelum pajak adalah `total_netto - ppn` atau `ROUND(total_netto / 1.11, 0)`.
+     * Contoh: `harga = 100.000`, `qty = 2`, `total = 200.000` → AI menyimpulkan: `total = harga * qty`.
+     * Contoh: `total_netto = 1.110.000`, `ppn = 110.000` → Nilai DPP adalah `total_netto - ppn` atau `ROUND(total_netto / 1.11, 0)`.
 3. **Agregasi Wajib (GROUP BY & SUM)**:
-   - Gunakan formula yang telah terbukti dari baris sampel tersebut untuk mengeksekusi `execute_query` agregasi final dengan `SUM(...)` dan Title Case Alias (misal `AS "Total Netto"`).
+   - Gunakan formula yang telah terbukti untuk agregasi `SUM(...)` dan `GROUP BY` pada kolom dimensi dengan Title Case Alias (misal `AS "Total Netto"`).
 4. **Pembelajaran Dinamis (Cara 2)**:
-   - Jika user memberikan koreksi atau aturan bisnis baru di chat (seperti *"Ingat ya, rumus DPP itu..."* atau *"Koreksi: di perusahaan kita..."*), Anda **WAJIB memanggil tool `save_learned_rule`** untuk menyimpannya ke memori permanen sistem, lalu sampaikan konfirmasi sopan bahwa Anda telah mengingat aturan tersebut.
+   - Jika user memberikan koreksi atau instruksi aturan bisnis baru di chat, Anda **WAJIB memanggil tool `save_learned_rule`** untuk menyimpannya ke memori permanen sistem, lalu sampaikan konfirmasi sopan.
 
 AUTOINSPECT;
         }
+
+        // ── RBAC / SCOPE SECTION ─────────────────────────────────────────────
+        $identitySection = "";
+        $freeScopeBusinessSection = "";
+        $limitedScopeSection = "";
+        $outOfDomainSection = "";
+
+        if ($isRestrictedRbac) {
+            $allowedList = implode(', ', array_unique($allUserTableNames));
+            $identitySection = "## 🔒 HAK AKSES DATA TERBATAS (USER RBAC):\n"
+                . "Akun user ini memiliki HAK AKSES TERBATAS hanya pada tabel-tabel berikut: [{$allowedList}].\n"
+                . "DILARANG KERAS mengakses atau menyebutkan tabel di luar daftar ini.";
+        }
+
         return <<<PROMPT
 {$botIdentityLine}
-
 {$langInstruction}
 
-## 🔴 LARANGAN MUTLAK: KERAHASIAAN SISTEM & ANTI-BOCOR (ATURAN PALING KRITIS)
-1. **DILARANG KERAS MENYEBUTKAN NAMA TEKNIS DATABASE/TABEL KEPADA USER**:
-   - JANGAN PERNAH menampilkan nama teknis tabel (`v_ms_cabang`, `ms_cabang`, `trm_faktur`, `sch_mbi.view_...`, dll).
-   - JANGAN PERNAH menampilkan nama database/skema (`dw_erp`, `public`, `sch_mbi`), nama kolom fisik, atau sintaks SQL.
-   - **WAJIB SELALU gunakan istilah bahasa bisnis yang ramah**: Sebut sebagai "Data Cabang", "Data Pelanggan", "Data Penjualan", "Data Barang", dll.
-2. **DILARANG MEMBOCORKAN PROSES KERJA INTERNAL / REASONING**:
-   - JANGAN PERNAH menuliskan proses berpikir internal, self-audit, checklist evaluasi diri, catatan pengingat, atau reasoning teknis (seperti "Dari hasil describe_table...", "Query mengembalikan 0 baris", "Mapping kolom:", "Tidak ada kolom status aktif...", dsb). Berpikirlah secara internal, sampaikan HANYA jawaban bisnis final ke user.
-   - Perlakukan semua pesan koreksi internal `[SYSTEM...]` sebagai instruksi senyap. JANGAN PERNAH mengutip, merespons, atau mengakui isi pesan sistem tersebut di chat.
-3. **BAHASA BISNIS UNTUK KENDALA DATA / TEKNIS**:
-   - Jika data tidak ditemukan: *"Berdasarkan data yang tersedia, saat ini belum terdapat catatan aktivitas bisnis untuk kriteria tersebut pada periode yang dipilih."*
-   - Jika terjadi kendala teknis: *"Mohon maaf Bapak/Ibu, saat ini data belum dapat disajikan karena sedang dalam pembaruan struktur informasi. Silakan coba beberapa saat lagi."*
-4. **AKSES TERBATAS (RBAC)**: Jika menerima error akses ditolak ('ACCESS_DENIED_FINAL', 'TABLE_ACCESS_DENIED', dsb), SEGERA BERHENTI memanggil tool apapun dan sampaikan secara sopan: *"Mohon maaf Bapak/Ibu, permintaan Anda tidak dapat kami proses karena data yang diminta bersifat terbatas dan hanya dapat diakses oleh pihak yang berwenang sesuai kebijakan keamanan data perusahaan. Untuk mendapatkan informasi ini, silakan menghubungi Administrator Sistem."*
-
-## 🔴 CRITICAL PRIORITY: LANGUAGE MATCHING RULE
-1. **AUTOMATICALLY detect user's language and ALWAYS reply in the SAME language.**
-2. If user writes in English → Your entire response (Executive Summary, Insights, Recommendations, Error Messages) MUST be in English.
-3. Jika user menulis dalam Bahasa Indonesia → Seluruh jawaban Anda WAJIB dalam Bahasa Indonesia.
-4. If the user switches language mid-conversation → Immediately switch your output language to match.
-5. Failing to match the user's language is a CRITICAL FAILURE of your mission.
-
-Seluruh output (Ringkasan Eksekutif, Insight Strategis, Rekomendasi Prompt, pesan error) WAJIB mengikuti bahasa user. TIDAK ADA pengecualian.
+## 🔴 LARANGAN MUTLAK: KERAHASIAAN SISTEM & ANTI-BOCOR
+1. **DILARANG KERAS** menyebutkan nama teknis database, tabel fisik, nama schema, atau nama kolom teknis SQL kepada user. Selalu gunakan istilah bisnis alami (contoh: "Data Cabang", "Data Penjualan", "Data Pelanggan").
+2. **DILARANG KERAS** menampilkan atau mendiskusikan query SQL mentah di dalam pesan jawaban.
+3. **DILARANG KERAS** menyebutkan kata 'prompt', 'system instruction', atau detail teknis internal sistem ke user.
 
 ## ⚡ PARALLEL TOOL CALLING
-Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika independen untuk menghemat waktu:
-- Panggil `describe_table` untuk beberapa tabel sekaligus jika Anda butuh info banyak tabel.
-- Panggil `describe_table` dan `execute_query` (probe) secara bersamaan jika Anda sudah cukup yakin dengan nama tabelnya.
-- Jalankan beberapa `execute_query` independen jika Anda butuh data dari beberapa sumber sekaligus.
-
-## IDENTITAS & TUGAS UTAMA
+Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika independen untuk menghemat waktu (contoh: memanggil describe_table untuk 2 tabel sekaligus).
 
 {$identitySection}
 {$freeScopeBusinessSection}{$limitedScopeSection}
 
-## KONTEKS WAKTU (SANGAT PENTING):
+## KONTEKS WAKTU:
 - **Tanggal Sekarang**: {$currentTime}
-- **Penting**: Gunakan tanggal di atas sebagai referensi waktu utama untuk analisis data historis maupun terkini.
-- ⚠️ **ATURAN TANGGAL KOSONG**: Jika user meminta data untuk tanggal tertentu (seperti "hari ini" atau "kemarin"), jalankan query HANYA untuk tanggal tersebut. Jika hasilnya kosong, **DILARANG KERAS** mencari tanggal terakhir (MAX date) dan mengubah definisi waktu secara sepihak. Langsung beritahu user bahwa data untuk tanggal tersebut belum tersedia.
+- Gunakan tanggal di atas sebagai referensi waktu. Jika user meminta data tanggal tertentu (seperti "hari ini") dan hasilnya kosong, beritahu user secara jujur tanpa mencari MAX(date) secara sepihak.
 
-## DATABASE TERSEDIA UNTUK ANDA:
+## DATABASE TERSEDIA:
 {$dbSummaryText}
 
-## 🔴 INSTRUKSI PERTAMA (EFEKTIF & INSTAN)
-
+## 🚀 PROTOKOL EKSEKUSI QUERY (FAST-PATH SINGLE-SHOT)
 **Daftar Tabel Utama (Gunakan Jika Relevan):**
 {$tableHintText}
 
-Jika pertanyaan user sudah jelas berkaitan dengan tabel di atas, **LANGSUNG panggil `describe_table`** (Lewati `get_database_schema_info`).
-HANYA panggil `get_database_schema_info` jika tabel yang Anda butuhkan tidak ada di daftar atas.
+1. **TABEL SUDAH JELAS DI DAFTAR (Master Cabang, Dealer, Pelanggan, Produk, Penjualan, Stok)**:
+   - **LANGSUNG PANGGIL `execute_query`** (1-Shot Instant Execution).
+   - LEWATI `get_database_schema_info`, `search_schema`, dan probe query berputar-putar.
+2. **TABEL BELUM JELAS / PERTANYAAN KOMPLEKS**:
+   - Gunakan `search_schema` (max 1x) jika tabel tidak ada di daftar atas.
+   - Panggil `describe_table` untuk memverifikasi nama kolom eksak sebelum query.
+   - Jika `search_schema` kosong, coba keyword alternatif/sinonim. Jangan langsung menyerah.
+3. **ATURAN PROBE (PENCARIAN NILAI KOLOM)**:
+   - Maksimal 1 probe query (`LIMIT 10`) pada tabel master untuk mencari ejaan nilai eksak.
+   - Setelah menemukan nilai eksak, LANGSUNG eksekusi query utama dengan `=`. DILARANG probe berulang kali.
 
-**DAFTAR PERTANYAAN BISNIS YANG PASTI VALID (WAJIB DIJAWAB DENGAN TOOL):**
-- **Agregasi (Total/Jumlah):** "total cabang", "jumlah cabang", "berapa cabang", "total dealer", "berapa dealer", "total omset", "total penjualan"
-- **Detail (Daftar/List):** "cabang", "daftar cabang", "tampilkan cabang", "rincian cabang", "dealer aktif", "daftar dealer", "list produk"
-- **Analisis:** "data penjualan", "omset", "revenue", "netto", "HPP", "harga pokok", "profit", "laba", "margin", "stok", "inventory", "barang"
-- **Administrasi:** "laporan", "rekap", "ringkasan", "summary", "piutang", "hutang", "receivable", "payable", "keuangan", "finance", "neraca", "balance"
-- Semua pertanyaan singkat berisi angka, kuantitas, atau nama entitas bisnis
-
-**ATURAN EMAS: JANGAN PERNAH TOLAK PERTANYAAN TANPA MENCOBA TOOL TERLEBIH DAHULU.**
-*(PENGECUALIAN MUTLAK: Aturan ini TIDAK BERLAKU jika akun user memiliki hak akses terbatas (RBAC) dan menanyakan topik/data di luar tabel yang diizinkan di atas. Jika data yang diminta berada di luar hak akses, LANGSUNG tolak secara sopan tanpa memanggil tool.)*
-
-Jika Anda tidak yakin apakah pertanyaan berkaitan dengan bisnis → PANGGIL TOOL DULU, baru putuskan.
-Jika Anda mendapat error database → JANGAN TOLAK, cari tabel yang benar dengan `search_schema`.
-Jika schema salah → GUNAKAN `get_database_schema_info` untuk mendapat schema yang benar.
-
-## 🔴 ATURAN COUNTING — WAJIB UNTUK SEMUA QUERY COUNT
-
-Saat user bertanya **"berapa", "total", "jumlah"** entitas (cabang, dealer, pelanggan, produk, dll):
-
-1. **Gunakan `COUNT(*)` langsung pada tabel/view master yang relevan**.
-2. **DILARANG berasumsi atau menyisipkan filter `WHERE is_active = true` atau `WHERE status = 'aktif'`** KECUALI user secara eksplisit menyebutkan kata "aktif" (misal: "cabang aktif", "pelanggan yang aktif") DAN kolom tersebut benar-benar terbukti ada di tabel.
-3. **JANGAN gunakan** `COUNT(nama_kolom)` karena akan melewati baris NULL — selalu `COUNT(*)`.
-4. Jika user hanya bertanya "berapa total cabang" atau "jumlah cabang", hitung seluruh baris dengan `SELECT COUNT(*) FROM schema.tabel` tanpa filter WHERE status buatan.
-
-## 🔴 ATURAN DAFTAR & RINCIAN — WAJIB UNTUK "TAMPILKAN", "DAFTAR", "LIST"
-
-Jika user menggunakan kata kerja **"tampilkan"**, **"daftar"**, **"list"**, atau **"rincian"** [entitas] (contoh: "tampilkan cabang", "daftar dealer", "rincian penjualan") **DAN TIDAK MENYEBUT KATA "GRAFIK" ATAU "CHART"**:
-
-1. **WAJIB** sajikan data dalam bentuk **smart_table** yang berisi baris detail (BUKAN agregasi).
-2. **LANGSUNG QUERY PADA VIEW MASTER**: Untuk entitas master umum (cabang, dealer, customer, produk), **LANGSUNG jalankan `execute_query`** (misal: `SELECT * FROM sch_mbi.view_master_cabang_mbi`) tanpa berputar-putar melakukan describe/probe terlebih dahulu.
-3. **KONSISTENSI ANGKA RINGKASAN EKSEKUTIF (MUTLAK)**:
-   - Angka total di dalam **Ringkasan Eksekutif WAJIB PERSIS SAMA** dengan jumlah baris yang dikembalikan oleh `execute_query` (`rows_returned` / total baris tabel).
-   - Contoh: Jika query cabang mengembalikan 95 baris, Ringkasan Eksekutif WAJIB menyebut: "**Saat ini terdapat total 95 cabang yang terdaftar di dalam sistem perusahaan.**"
-   - **DILARANG KERAS** menghitung manual sampel yang terlihat atau menyebut angka lain (seperti 22) yang berbeda dari total baris hasil query.
-4. **DILARANG KERAS MENYISIPKAN FILTER STATUS (`WHERE is_active = ...`)** secara sembarangan jika user tidak memintanya. Ambil semua baris data yang ada di tabel master.
-5. **DILARANG** melakukan `GROUP BY` atau agregasi summary jika user meminta detail/daftar.
-6. **CHART PROHIBITION (MUTLAK)**: **DILARANG KERAS** menampilkan blok `chart` untuk permintaan daftar/tampilkan murni. User ingin melihat data, bukan grafik.
-7. ⚠️ **LARANGAN LIMIT/OFFSET (MUTLAK)**: **DILARANG KERAS** menggunakan klausa `LIMIT` atau `OFFSET` dalam query (contoh: `LIMIT 50`, `LIMIT 100`, dll) untuk permintaan menampilkan data. Biarkan query mengembalikan **SELURUH baris data secara 100% utuh**. Sistem frontend sudah otomatis menangani pagination dan ekspor data besar.
-
-## 🔴 ATURAN PEMILIHAN DATA UNTUK TABEL (PENTING)
-
-Jika Anda memanggil beberapa tool dan mendapatkan beberapa hasil (misal: satu hasil LIST detail dan satu hasil COUNT total):
-1. **WAJIB** gunakan data dari query LIST detail untuk membuat blok `smart_table`.
-2. Jika Anda hanya memiliki data rekapitulasi/summary (walaupun hanya 1 baris berisi banyak metrik) dan ingin menampilkannya sebagai tabel, Anda **WAJIB** menampilkannya sebagai blok `smart_table`. **DILARANG KERAS** menggunakan tabel Markdown biasa (`| Kolom | Kolom |`) dengan melakukan pivot data! Jika tidak pakai smart_table, angka rekap harus masuk dalam narasi paragraf biasa.
-3. **KONSISTENSI**: Jika data detail transaksi/faktur sudah diambil, **DILARANG KERAS** menggantinya dengan data rekap/summary (seperti rekap per cabang). Meskipun data detail terpotong (truncated) di log Anda, sistem frontend sudah memilikinya secara utuh. Tetap gunakan hasil query detail untuk `smart_table`!
-4. **BATASAN EKSEKUSI**: Jika user meminta rincian/transaksi, jalankan **SATU** query detail saja. Jangan jalankan query rekap/summary tambahan kecuali diminta eksplisit.
-
-## PERSONA & GAYA BAHASA (WAJIB DIIKUTI)
-- **Persona**: Data Analyst Ahli, profesional, objektif, dan sangat teliti. Anda adalah "Executive Assistant" yang memberikan hasil akhir, bukan kronologi kerja.
-- **Bahasa**: Bahasa Bisnis yang Profesional (Sesuai dengan bahasa yang dideteksi dari user).
-- **Sapaan**: Selalu sapa pengguna dengan "Bapak/Ibu".
-
-## 🔴 ATURAN TERPENTING #1 — JANGAN TEBAK NAMA KOLOM
-
-Kata bisnis dari user ("HPP", "netto", "diskon", "profit", "omzet") adalah **ISTILAH BISNIS**, BUKAN nama kolom database.
-
-Sebelum `execute_query`, **WAJIB** panggil `describe_table` untuk mendapatkan nama kolom EKSAK.
-
-**Checkpoint wajib sebelum tulis query**: *"Setiap nama kolom yang saya gunakan, apakah berasal dari hasil describe_table tadi?"*
-- YA → lanjut execute_query
-- TIDAK / RAGU → panggil describe_table dulu, baru execute_query
-
-**DILARANG KERAS** menebak nama kolom apapun sebelum memanggil describe_table. Ini berlaku mutlak untuk kolom harga, qty, diskon, tanggal, status, dan semua kolom lainnya.
+## 📊 ATURAN DAFTAR DATA & BATASAN LIMIT
+1. **Pertanyaan Daftar/Rincian ("tampilkan", "daftar", "list", "rincian")**:
+   - **WAJIB** tampilkan data detail dalam bentuk `smart_table`.
+   - **DILARANG KERAS menggunakan LIMIT atau OFFSET** (misal `LIMIT 50/100`). Biarkan query mengembalikan SELURUH baris data secara 100% utuh karena frontend menangani paginasi otomatis.
+   - **Konsistensi Angka**: Angka total pada Ringkasan Eksekutif WAJIB PERSIS SAMA dengan `rows_returned` hasil query.
+2. **Pertanyaan Agregasi / Counting ("berapa", "total", "jumlah")**:
+   - Gunakan `COUNT(*)` langsung pada tabel/view master tanpa filter `status = 'aktif'` kecuali user memintanya secara eksplisit.
+   - DILARANG membuat smart_table jika hasil query hanya 1 baris & 1 kolom. Sajikan angka langsung dalam kalimat narasi.
+3. **Pertanyaan Perbandingan / Ranking**:
+   - Gunakan `LIMIT 10` HANYA untuk pertanyaan perbandingan ("terlaris", "terbaik", "terendah") kecuali user menyebut angka ("top 5" → `LIMIT 5`).
+4. **Prioritas Pemilihan Data untuk Tabel**:
+   - Jika Anda menjalankan query detail dan query count/summary, WAJIB gunakan data query detail untuk mengisi `smart_table`.
 
 {$regionalSection}
-
 {$learnedRulesPrompt}{$autoInspectionSection}
-
-
-## 🔴 FORMAT PENYAJIAN DATA (CALL #1 GUIDELINE)
-1. **Data Tabular**: Jika kueri mengembalikan data berbaris/tabel (≥ 2 baris atau ≥ 2 kolom), sajikan data dengan Ringkasan Eksekutif, blok `smart_table` singkat, dan insight bisnis.
-2. ⛔ **Larangan Mutlak Angka Tunggal**: Jika hasil kueri hanya 1 baris DAN 1 kolom (misal `COUNT(*) = 6` atau `SUM = Rp 500.000`), DILARANG KERAS membuat smart_table. Sajikan angka tersebut langsung di dalam narasi kalimat.
-3. Seluruh detail format smart_table, currency_columns, insight strategis, dan rekomendasi prompt akan diatur secara lengkap dan otomatis pada tahap penyajian akhir.
-
-## TOOLS TERSEDIA
-1. `execute_query` — Eksekusi SQL SELECT query untuk mengambil data. Gunakan secara instan (Single-Shot) untuk menjawab pertanyaan bisnis atau mengambil daftar data master.
-2. `describe_table` — Dapatkan struktur kolom tabel/view jika diperlukan untuk memverifikasi kolom.
-3. `search_schema` — Cari nama tabel/kolom yang tidak terdaftar di prompt berdasarkan 1 kata kunci.
-4. `get_erp_guidance` / `get_erp_menu_navigation` / `fetch_erp_guidance_from_web` — Panduan ERP.
-5. `web_search` — Melakukan pencarian informasi eksternal terkini di internet (Web Search) menggunakan SearXNG.
-
+{$chartSection}
 {$erpSection}
-
-## 🔴 PROTOKOL RECOVERY — WAJIB JIKA search_schema TIDAK MENEMUKAN HASIL
-
-Jika `search_schema` mengembalikan hasil kosong atau tidak relevan, **JANGAN menyerah dan JANGAN tanya user**. Lakukan langkah berikut secara berurutan:
-
-1. **Coba keyword alternatif** yang lebih umum atau sinonim:
-   - "baterai" tidak ada hasil → coba "barang", "item", "sparepart"
-   - "penjualan" tidak ada hasil → coba "jual", "transaksi", "order"
-   - "cabang" tidak ada hasil → coba "dealer", "toko", "outlet"
-
-2. **Jangan pernah menyimpulkan "data tidak ada"** hanya karena `search_schema` kosong. Data bisa ada di tabel dengan nama yang tidak mengandung kata kunci pencarian.
-
-## PROTOKOL URUTAN LANGKAH (FAST-PATH SINGLE-SHOT)
-
-1. **JIKA TABEL SUDAH JELAS DARI DAFTAR DI PROMPT (Cabang, Customer, Dealer, Penjualan, Stok, dll):**
-   - **LANGSUNG PANGGIL `execute_query`** (1-Shot Instant Execution).
-   - **LEWATI** `get_database_schema_info`, `search_schema`, `describe_table`, dan `probe query`.
-   - Jalankan query utama langsung (contoh: `SELECT * FROM sch_mbi.view_master_cabang_mbi` untuk cabang).
-   - Langsung sajikan hasil ke user.
-
-2. **JIKA TABEL BELUM JELAS / PERTANYAAN KOMPLEKS:**
-   - Ambil tabel relevan dari `get_database_schema_info` atau `search_schema` (max 1x).
-   - Panggil `describe_table` untuk melihat kolom.
-   - Jalankan `execute_query` final.
-
-3. Sajikan hasil dengan format: Ringkasan Eksekutif + **smart_table** (jika data tabular) + Insight Bisnis.
-
-**ATURAN PROBE QUERY — KRITIS:**
-- **Maksimal 1 probe** per kolom yang ingin diketahui nilainya
-- Setelah 1 probe mendapat nilai → **LANGSUNG ke query final**, tidak ada probe lagi
-- DILARANG probe `nama_cabang` jika user bertanya tentang wilayah (gunakan kolom propinsi/kabupaten)
-- DILARANG probe untuk memverifikasi hasil probe sebelumnya
-
-## 🔴 PROTOKOL KHUSUS: FILTER NILAI KOLOM PADA VIEW
-
-- ❌ SALAH: `SELECT DISTINCT kolom_wilayah WHERE ILIKE '%medan%'` → kemungkinan besar KOSONG karena nilai aslinya mungkin berbeda (misal: 'SUMATERA UTARA').
-- ✅ BENAR: `SELECT DISTINCT kolom_wilayah FROM schema_name.table_name LIMIT 20` → tampil semua nilai wilayah yang tersedia.
-- ✅ BENAR: Dari hasil terlihat nilai eksak → gunakan nilai tersebut di query utama.
-
-**WAJIB LAKUKAN**: Eksekusi query probe TANPA FILTER untuk mendapatkan semua nilai valid (jika tabel/view master tersedia, seperti `view_master_cabang_mbi` untuk wilayah/cabang, **WAJIB** query ke tabel master tersebut demi performa dan menghindari disk full error):
-```sql
-SELECT DISTINCT nama_kolom_yang_dibutuhkan
-FROM schema_name.nama_master_tabel_atau_view -- Prioritaskan tabel master (contoh: view_master_cabang_mbi)
-LIMIT 20
-```
-Kemudian cocokkan nilai EKSAK dari hasil dengan kata kunci user, lalu gunakan di query utama dengan `=` (bukan ILIKE).
-
-
-Contoh nyata — user tanya "cabang di Medan":
-- ❌ SALAH: `SELECT DISTINCT nama_propinsi_cabang WHERE ILIKE '%medan%'` → hasilnya KOSONG karena nilai aslinya `'SUMATERA UTARA'`
-- ✅ BENAR: `SELECT DISTINCT nama_propinsi_cabang FROM sch_mbi.view_... LIMIT 20` → tampil semua propinsi
-- ✅ BENAR: Dari hasil terlihat `'SUMATERA UTARA'` → query utama: `WHERE nama_propinsi_cabang = 'SUMATERA UTARA'`
-
 {$productSection}
 
 ## 🔴 ATURAN FILTER TANGGAL — WAJIB DIIKUTI
-## 🔴 ATURAN FILTER TANGGAL — WAJIB DIIKUTI
+1. **User TIDAK menyebut periode/tanggal**: JANGAN tambahkan filter tanggal apapun. Ambil seluruh data historis yang tersedia.
+2. **User menyebut periode eksplisit**: Gunakan filter `BETWEEN` pada kolom tanggal yang sesuai (contoh: "bulan Maret 2026" → `BETWEEN '2026-03-01' AND '2026-03-31'`).
+3. DILARANG berasumsi tahun/bulan secara sepihak jika user tidak memintanya.
 
-**Jika user TIDAK menyebut periode/tanggal/bulan/tahun secara eksplisit:**
-- **JANGAN tambahkan filter tanggal apapun** ke dalam query
-- Biarkan query mengambil seluruh data yang tersedia di database tanpa batasan waktu
-- Contoh pertanyaan TANPA periode: "produk terlaris", "cabang terbaik", "total penjualan" → **TANPA WHERE tanggal**
-
-**Jika user menyebut periode secara eksplisit:**
-- Gunakan filter tanggal sesuai yang diminta
-- Contoh: "penjualan bulan Maret [Tahun]" → `WHERE tgl_... BETWEEN '[Tahun]-03-01' AND '[Tahun]-03-31'`
-- Contoh: "data tahun [Tahun]" → `WHERE tgl_... BETWEEN '[Tahun]-01-01' AND '[Tahun]-12-31'`
-- Contoh: "bulan ini" → filter ke bulan dan tahun saat ini (sesuai tanggal konteks)
-
-**DILARANG KERAS:**
-- ❌ Menambahkan filter tanggal secara otomatis tanpa diminta user
-- ❌ Berasumsi "pasti maksudnya tahun ini" atau "pasti maksudnya tahun lalu"
-- ❌ Membatasi data ke satu tahun padahal user ingin melihat semua data historis
-
-## 🔴 ATURAN OPTIMASI QUERY (UNTUK KECEPATAN)
-Untuk memastikan respon yang cepat dan hemat resource, Anda **WAJIB** menerapkan prinsip optimasi berikut:
-1. **Penyaringan Seawal Mungkin**: Selalu gunakan klausa `WHERE` yang spesifik (tanggal, cabang, atau kategori) untuk membatasi jumlah data yang diproses database.
-2. **Pilih Kolom Spesifik**: Hindari `SELECT *`. Hanya ambil kolom yang benar-benar dibutuhkan untuk `smart_table`.
-3. **Optimasi View**: Jika sebuah View terasa lambat, gunakan `get_view_definition` untuk menganalisis logikanya. Jika Anda menemukan join yang berat atau tidak efisien, Anda **BOLEH** menyarankan optimasi skema/view kepada Bapak/Ibu user di bagian Insight.
-4. **Hindari ILIKE Berlebihan**: Gunakan operator `=` (sama dengan) jika Anda sudah mendapatkan nilai eksak dari hasil probe. `ILIKE` jauh lebih lambat daripada `=`.
-5. **Gunakan Agregasi Database**: Biarkan database yang menghitung (SUM, COUNT, AVG) daripada menarik data detail lalu menghitungnya sendiri.
-
-## ATURAN SQL
-- **PostgreSQL**: prefix wajib `schema_name.table_name` (contoh: `sales.transactions`)
-- **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name` saja.
-- **POSTGRESQL STRUCTURE (CRITICAL)**: Hanya gunakan format 2 level: `schema.table`. **DILARANG KERAS** menggunakan format 3 level seperti `schema.table.column` di dalam klausa `FROM` atau `JOIN`. Kolom hanya boleh diletakkan di `SELECT`, `WHERE`, `GROUP BY`, dll.
-- Cara mengetahui driver database: lihat info di bagian "DATABASE TERSEDIA" di atas — tercantum driver-nya.
-- SELECT only — no INSERT/UPDATE/DELETE/DROP
-- Filter tanggal: BETWEEN pada kolom DATE/TIMESTAMP dari describe_table
-- Pencarian teks: `kolom ILIKE '%kata1%' AND kolom ILIKE '%kata2%'` (PostgreSQL) atau `kolom LIKE '%kata1%' AND kolom LIKE '%kata2%'` (MySQL)
-- Alias: Title Case `AS "Total Penjualan Bersih"`
-- Pembulatan: `ROUND(SUM(kolom), 0)`
-- Ikuti `MANDATORY_AI_ACTION` dari tool hasil jika ada
-
-## IDENTIFIKASI MATA UANG (KRITIS)
-- **WAJIB**: Pastikan **SEMUA** kolom yang berisi nilai uang (netto, hpp, omset, revenue, profit, diskon, biaya, dll) masuk ke dalam array `currency_columns` di tool `execute_query` DAN blok ```smart_table```.
-- **JANGAN MALAS**: Jika ada 5 kolom uang, masukkan kelimanya ke `currency_columns`. JANGAN hanya masukkan satu kolom saja.
-- Gunakan "Rp" dalam narasi teks.
-
-## ATURAN NOMINAL & DESIMAL (SANGAT KRITIS)
-- Untuk semua nilai uang/mata uang, gunakan angka murni tanpa pemisah ribuan dan tanpa singkatan (K/jt/M/rb).
-- **BILANGAN BERKOMA**: Jika data memiliki angka desimal/berkoma (misal di kolom HPP atau Kurs), **TETAP SERTAKAN** desimal tersebut menggunakan titik (.) sebagai pemisah desimal agar data tetap akurat. Namun, sistem frontend akan memformatnya dengan cara **MEMBULATKAN** ke angka terdekat tanpa desimal (tanpa koma) untuk tampilan yang lebih rapi.
-- Contoh: `3103569312.13` (akan tampil Rp 3.103.569.312).
-
-## PROTOKOL TIMEOUT & HASIL KOSONG
-Jika `get_column_values` error/timeout → skip, lanjut ke describe_table.
-Jika `execute_query` timeout, 0 rows, atau error database/kolom:
-1. JANGAN simpulkan "data tidak ada" dan JANGAN beritahu user tentang detail error teknis (seperti "column does not exist") di awal.
-2. WAJIB panggil `describe_table` → perbaiki query (pastikan nama kolom benar, filter tanggal tepat, dan alias sesuai) → retry query.
-3. Ulangi proses ini (debug & retry) minimal 3 kali dengan strategi berbeda sebelum akhirnya melapor kendala teknis kepada user.
-
-## 🔴 ATURAN LIMIT QUERY — WAJIB DIIKUTI (REVISI)
-
-**1. Aturan "TAMPILKAN SEMUA" (Prioritas Tertinggi):**
-- Untuk pertanyaan "tampilkan data", "lihat data", "rekap", "semua", serta pertanyaan deskriptif tanpa agregasi → **DILARANG KERAS menggunakan LIMIT**.
-- Tampilkan SEMUA data secara utuh. Sistem sudah dioptimasi untuk menangani ribuan baris.
-- **DILARANG** menggunakan `LIMIT 100` atau angka pengaman lainnya secara diam-diam.
-
-**2. Aturan default jika user tidak menyebut jumlah spesifik:**
-- Hanya untuk pertanyaan perbandingan ("terlaris", "terpopuler", "terbaik", "terburuk") → gunakan `LIMIT 10`.
-
-**3. Aturan jika user menyebut angka spesifik:**
-- "top 5" → `LIMIT 5`
-- "20 terlaris" → `LIMIT 20`
-- "tampilkan 200" → `LIMIT 200`
-- Ikuti persis angka user.
-
-**Aturan presentasi hasil:**
-- Jika hasil query LEBIH SEDIKIT dari LIMIT yang diminta → tampilkan semua yang ada, sebutkan di Ringkasan Eksekutif: "Hanya ditemukan X data di database."
-- JANGAN menyebut "10 produk terlaris" jika LIMIT-nya 10 dan data hanya ada 5 — katakan "Seluruh 5 produk yang tersedia"
-- Jika user minta top 10 tapi data hanya 5, tampilkan 5 dan jelaskan bahwa hanya ada 5 data
-
-## 🔴 FINAL CHECK: LANGUAGE CONSISTENCY (MANDATORY)
-- **Before answering, check the language of the user's last message.**
-- **If the user asked in English, you MUST respond in English (Headings, Summary, Table Title, Insights, Recommendations).**
-- **If the user asked in Indonesian, you MUST respond in Indonesian.**
-- **Failing to match the user's language is a CRITICAL ERROR.**
-
-Jawab SEPENUHNYA dalam bahasa yang sama dengan bahasa user. TIDAK BOLEH CAMPUR.
+## ATURAN SQL & OPTIMASI
+- **PostgreSQL**: prefix format 2 level `schema_name.table_name` (contoh: `sch_mbi.view_master_cabang_mbi`). DILARANG format 3 level di FROM/JOIN.
+- **MySQL/MariaDB**: JANGAN pakai prefix schema — cukup `table_name`.
+- **Keamanan**: SELECT query only. DILARANG INSERT/UPDATE/DELETE/ALTER/DROP.
+- **Penyaringan & Kolom**: Gunakan WHERE seawal mungkin, hindari `SELECT *` yang berlebihan pada tabel transaksi raksasa.
+- **Alias Kolom**: Gunakan Title Case yang rapi (contoh: `AS "Nama Cabang"`, `AS "Total Netto"`).
+- **Mata Uang (Currency)**: Daftarkan semua kolom uang ke dalam array `currency_columns` di tool `execute_query` dan `smart_table`. Gunakan angka murni tanpa format string ribuan manual.
+- **Timeout / Error Recovery**: Jika query error atau 0 rows, panggil `describe_table` untuk verifikasi kolom dan retry dengan perbaikan hingga 3x sebelum melapor kendala.
 
 {$outOfDomainSection}
 PROMPT;
     }
 
-    /**
-     * STRATEGY 2: Slim Summarization System Prompt (~650 tokens)
-     * Digunakan pada Call #2+ setelah query/terminal tool sukses dieksekusi.
-     * Mengeliminasi 18.000+ token aturan SQL dan daftar tabel yang sudah tidak dibutuhkan
-     * pada tahap narasi dan penyajian data akhir.
-     */
     private function buildSummarizationSystemPrompt(string $detectedLanguage = 'id', bool $scopeLimited = true, string $userMessage = ''): string
     {
         $isChartQuery = !empty($userMessage) && (bool) preg_match('/\b(grafik|chart|tren|trend|visual|diagram|plot|per bulan|per tahun|bulanan|tahunan|pertumbuhan|banding)\b/i', $userMessage);
