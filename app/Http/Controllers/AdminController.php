@@ -21,25 +21,31 @@ class AdminController extends Controller
     public function index()
     {
         $user = auth()->user();
-        $allTables = $this->getAllTables();
-        $activeDbs = DatabaseConnection::active()->get();
-
         if ($user->is_super_admin) {
             $stats = [
                 'users_count' => User::count(),
                 'roles_count' => Role::count(),
-                'databases_count' => $activeDbs->count(),
-                'tables_count' => count($allTables),
+                'databases_count' => DatabaseConnection::active()->count(),
+                'tables_count' => count($this->getAllTables()),
             ];
         } else {
+            $allowedDbCodes = DatabaseConnection::active()
+                ->where('added_by', $user->id)
+                ->pluck('database')
+                ->toArray();
+            $allTables = $this->getAllTables();
+            $tablesCount = count(array_filter($allTables, function($table) use ($allowedDbCodes) {
+                return in_array($table['database_code'], $allowedDbCodes);
+            }));
+
             $stats = [
                 'users_count' => User::where(function($q) use ($user) {
                     $q->where('added_by', $user->id)
                       ->orWhereHas('managers', fn($q2) => $q2->where('admin_id', $user->id));
                 })->count(),
-                'roles_count' => Role::count(),
-                'databases_count' => $activeDbs->count(),
-                'tables_count' => count($allTables),
+                'roles_count' => Role::where('added_by', $user->id)->count(),
+                'databases_count' => count($allowedDbCodes),
+                'tables_count' => $tablesCount,
             ];
         }
 
@@ -447,7 +453,11 @@ class AdminController extends Controller
     {
         $user = auth()->user();
         
-        $databases = DatabaseConnection::active()->get();
+        $databasesQuery = DatabaseConnection::active();
+        if (!$user->is_super_admin) {
+            $databasesQuery->where('added_by', $user->id);
+        }
+        $databases = $databasesQuery->get();
         $allowedDbCodes = $databases->pluck('database')->toArray();
 
         $rolesQuery = Role::with(['permissions' => function($q) use ($allowedDbCodes) {
@@ -455,6 +465,10 @@ class AdminController extends Controller
         }, 'addedBy', 'users' => function($q) {
             $q->select('id', 'name', 'email', 'role', 'is_admin', 'is_super_admin');
         }])->withCount('users');
+
+        if (!$user->is_super_admin) {
+            $rolesQuery->where('added_by', $user->id);
+        }
         
         $roles = $rolesQuery->get();
         $allTables = $this->getAllTables();
@@ -478,11 +492,7 @@ class AdminController extends Controller
 
     public function roleUpdate(Request $request, Role $role)
     {
-        if ($role->name === 'Super Admin' && !auth()->user()->is_super_admin) {
-            abort(403, 'Role Super Admin hanya dapat diedit oleh Super Admin.');
-        }
-
-        if (!auth()->user()->is_super_admin && $role->added_by && $role->added_by !== auth()->id()) {
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -493,12 +503,8 @@ class AdminController extends Controller
 
     public function roleDelete(Role $role)
     {
-        if ($role->name === 'Super Admin') {
-            return response()->json(['success' => false, 'message' => 'Role Super Admin tidak dapat dihapus.'], 403);
-        }
-
-        if (!auth()->user()->is_super_admin && ($role->added_by === null || $role->added_by !== auth()->id())) {
-            return response()->json(['success' => false, 'message' => 'Role sistem atau role admin lain tidak dapat dihapus.'], 403);
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
         $role->delete();
@@ -507,11 +513,7 @@ class AdminController extends Controller
 
     public function updatePermissions(Request $request, Role $role)
     {
-        if ($role->name === 'Super Admin' && !auth()->user()->is_super_admin) {
-            return response()->json(['success' => false, 'message' => 'Hak akses Super Admin hanya dapat diubah oleh Super Admin.'], 403);
-        }
-
-        if (!auth()->user()->is_super_admin && $role->added_by && $role->added_by !== auth()->id()) {
+        if (!auth()->user()->is_super_admin && $role->added_by !== auth()->id()) {
             return response()->json(['success' => false, 'message' => 'Unauthorized action.'], 403);
         }
 
@@ -520,7 +522,11 @@ class AdminController extends Controller
         // New format: each table is "database_code|schema_name|table_name"
         RolePermission::where('role_id', $role->id)->delete();
 
-        $activeDbs = DatabaseConnection::active()->get();
+        $activeDbsQuery = DatabaseConnection::active();
+        if (!auth()->user()->is_super_admin) {
+            $activeDbsQuery->where('added_by', auth()->id());
+        }
+        $activeDbs = $activeDbsQuery->get();
         $activeDbCodes = $activeDbs->pluck('database')->toArray();
 
         foreach ($tables as $tableStr) {

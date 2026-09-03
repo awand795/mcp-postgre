@@ -791,7 +791,7 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
 
         {{-- Role Cards List --}}
         <div class="rm-role-list" id="roleList">
-            @foreach($roles as $role)
+            @forelse($roles as $role)
             @php
                 $userCount = $role->users_count ?? ($role->users ? $role->users->count() : 0);
                 $permCount = $role->permissions ? $role->permissions->count() : 0;
@@ -834,7 +834,16 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
                     <i class="fas fa-user-edit"></i> {{ $role->addedBy->name ?? 'System' }} &bull; {{ $role->created_at ? $role->created_at->format('d M Y') : '-' }}
                 </div>
             </div>
-            @endforeach
+            @empty
+            <div style="text-align: center; padding: 2rem 1rem; color: var(--rm-text-muted);">
+                <i class="fas fa-user-shield" style="font-size: 2rem; opacity: 0.3; margin-bottom: 0.5rem; display: block;"></i>
+                <div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.25rem;">{{ __('Belum Ada Role') }}</div>
+                <p style="font-size: 0.75rem; margin: 0 0 0.75rem 0;">{{ __('Klik tombol di bawah untuk menambahkan role baru.') }}</p>
+                <button type="button" class="rm-btn rm-btn-primary rm-btn-sm" onclick="openCreateRoleModal()">
+                    <i class="fas fa-plus"></i> {{ __('Tambah Role') }}
+                </button>
+            </div>
+            @endforelse
         </div>
     </div>
 
