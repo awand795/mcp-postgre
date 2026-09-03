@@ -848,13 +848,16 @@ html.dark .rm-row-item.allowed .rm-status-badge { color: var(--rm-emerald); }
                     <i class="fas fa-user-shield"></i>
                 </div>
                 <div class="rm-wh-text">
-                    <h2 id="heroRoleName">{{ $roles[0]->name ?? __('Pilih Role') }}</h2>
-                    <p id="heroRoleDesc">{{ $roles[0]->description ?? __('Pilih salah satu role di panel kiri untuk mengatur hak akses.') }}</p>
+                    @php
+                        $firstRole = $roles->first();
+                    @endphp
+                    <h2 id="heroRoleName">{{ $firstRole->name ?? __('Pilih Role') }}</h2>
+                    <p id="heroRoleDesc">{{ $firstRole->description ?? __('Pilih salah satu role di panel kiri untuk mengatur hak akses.') }}</p>
                     <div class="rm-wh-badges">
                         <span class="rm-wh-badge highlight" id="heroPermChip"><i class="fas fa-check-circle"></i> <strong id="heroPermCount">0</strong> {{ __('Tabel Diizinkan') }}</span>
                         <span class="rm-wh-badge" id="heroUserChip"><i class="fas fa-users"></i> <strong id="heroUserCount">0</strong> {{ __('Pengguna') }}</span>
                         <span class="rm-wh-badge" id="heroDbChip"><i class="fas fa-database"></i> <strong id="heroDbCount">0</strong> {{ __('Database') }}</span>
-                        <span class="rm-wh-badge" id="heroCreatorChip"><i class="fas fa-user-edit"></i> <span id="heroCreatedBy">{{ $roles[0]->addedBy->name ?? 'System' }}</span> &bull; <span id="heroCreatedAt">{{ $roles[0]->created_at ? $roles[0]->created_at->format('d M Y') : '-' }}</span></span>
+                        <span class="rm-wh-badge" id="heroCreatorChip"><i class="fas fa-user-edit"></i> <span id="heroCreatedBy">{{ $firstRole?->addedBy->name ?? 'System' }}</span> &bull; <span id="heroCreatedAt">{{ $firstRole?->created_at ? $firstRole->created_at->format('d M Y') : '-' }}</span></span>
                     </div>
                 </div>
             </div>
