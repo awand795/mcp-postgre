@@ -1,20 +1,9 @@
 # =============================================================================
-# Production Image - darkoAI
+# Production Image - darkoAI (Layered Build)
 # =============================================================================
-FROM dunglas/frankenphp:php8.2-alpine
-
-# Install PHP extensions
-RUN install-php-extensions pdo_mysql pdo_pgsql pdo_sqlite mbstring \
-    exif pcntl bcmath gd zip intl redis
+FROM awandadarkotech/darkoai:latest
 
 WORKDIR /app
-
-# Copy Composer binary
-COPY --from=awandadarkotech/darkoai:latest /usr/bin/composer /usr/bin/composer
-
-# Copy vendor & build from existing image
-COPY --from=awandadarkotech/darkoai:latest /app/vendor ./vendor
-COPY --from=awandadarkotech/darkoai:latest /app/public/build ./public/build
 
 # Copy application source code
 COPY app/ app/

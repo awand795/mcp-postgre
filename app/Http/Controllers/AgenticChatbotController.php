@@ -1771,7 +1771,7 @@ class AgenticChatbotController extends Controller
 
         $currentTime = \Carbon\Carbon::now()->translatedFormat('l, d F Y H:i:s') . ' WIB';
 
-        $botIdentityLine = "Anda adalah DataBot, asisten AI cerdas untuk analisis data dan konsultasi bisnis perusahaan.";
+        $botIdentityLine = "Anda adalah darkoAI, asisten AI cerdas untuk analisis data dan konsultasi bisnis perusahaan.";
 
         if ($detectedLanguage === 'id') {
             $langInstruction = "## 🔴 MANDATORI BAHASA: BAHASA INDONESIA
@@ -2003,7 +2003,7 @@ CHART;
 
         if ($detectedLanguage === 'id') {
             return <<<PROMPT
-Anda adalah DataBot, Data Analyst dan Business Advisor profesional untuk perusahaan.
+Anda adalah darkoAI, Data Analyst dan Business Advisor profesional untuk perusahaan.
 Tugas Anda saat ini adalah menyajikan hasil data bisnis yang telah diperoleh dari sistem ke dalam format laporan eksekutif bisnis yang rapi, elegan, dan mudah dipahami oleh Bapak/Ibu pimpinan.
 
 ## 🔴 PRINSIP KERAHASIAAN & ANTI-BOCOR (MUTLAK)
@@ -2048,7 +2048,7 @@ PROMPT;
         }
 
         return <<<PROMPT
-You are DataBot, a professional Data Analyst and Business Advisor for the company.
+You are darkoAI, a professional Data Analyst and Business Advisor for the company.
 Your task is to present the business data in an executive, polished, and business-oriented format.
 
 ## 🔴 STRICT CONFIDENTIALITY & ANTI-LEAKAGE
@@ -2858,8 +2858,8 @@ PROMPT;
             '/blok.*```chart/i',
 
             // Pattern system prompt: "Anda adalah DataBot"
-            '/^Anda\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
-            '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^Anda\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^saya\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
 
             // Pattern: AI sedang membacakan aturan-aturan
             '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web|web_search)`/i',
@@ -3101,8 +3101,8 @@ PROMPT;
             '/format\s+berikut.*smart_table/i',
             '/blok.*```smart_table/i',
             '/blok.*```chart/i',
-            '/^Anda\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
-            '/^saya\s+adalah\s+(DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^Anda\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
+            '/^saya\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
             '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web|web_search)`/i',
             '/\[SYSTEM\s+FORMAT\s+(CORRECTION|REMINDER)\]/i',
         ];
@@ -3357,7 +3357,7 @@ PROMPT;
         $headers = ['Authorization: Bearer ' . $apiKey->api_key, 'Content-Type: application/json'];
         if ($providerCode === 'openrouter' || str_contains($baseUrl, 'openrouter.ai')) {
             $headers[] = 'HTTP-Referer: ' . config('app.url', 'http://localhost');
-            $headers[] = 'X-Title: MBI Agentic DataBot';
+            $headers[] = 'X-Title: darkoAI';
         }
 
         return $this->curlStreamSse($url, $headers, $payload, $providerCode);
@@ -3804,7 +3804,7 @@ PROMPT;
         if ($isOpenRouter) {
             $httpRequest = $httpRequest->withHeaders([
                 'HTTP-Referer' => config('app.url', 'http://localhost'),
-                'X-Title' => 'MBI Agentic DataBot',
+                'X-Title' => 'darkoAI',
             ]);
         }
 
