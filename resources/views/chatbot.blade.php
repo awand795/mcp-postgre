@@ -5158,6 +5158,21 @@
                         const rows = d.rows || [];
                         const cols = d.columns || [];
                         if (Array.isArray(rows) && rows.length > 0 && Array.isArray(cols) && cols.length >= 1) {
+                            // Filter out describe table or system table queries (never display schema/column structure to user)
+                            const lowerCols = cols.map(c => String(c).toLowerCase());
+                            if (lowerCols.includes('type') && (lowerCols.includes('name') || lowerCols.includes('column_name') || lowerCols.includes('default_type'))) {
+                                return null;
+                            }
+                            // Check if first row contains column data types (String, Nullable, Float64, etc.)
+                            if (rows[0]) {
+                                const sampleValues = Array.isArray(rows[0]) ? rows[0] : Object.values(rows[0]);
+                                for (const v of sampleValues) {
+                                    if (typeof v === 'string' && /^(Nullable\(|String$|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool)/i.test(v.trim())) {
+                                        return null;
+                                    }
+                                }
+                            }
+
                             return {
                                 type: 'query',
                                 rows,
@@ -5170,7 +5185,7 @@
                     return null;
                 }
 
-                // Ambil execute_query terbaru yang valid (atau describe_table jika tidak ada)
+                // Ambil execute_query terbaru yang valid (skip describe_table / schema)
                 let extracted = null;
                 for (let i = toolResults.length - 1; i >= 0; i--) {
                     extracted = extractQueryData(toolResults[i]);
@@ -5186,14 +5201,6 @@
                         headers: cols,
                         rows: rows.map(r => Array.isArray(r) ? r : cols.map(c => r[c] !== undefined ? r[c] : '')),
                         currency_columns: currCols,
-                    };
-                } else if (extracted.type === 'schema') {
-                    const { cols, tableName } = extracted;
-                    stData = {
-                        title: '{{ __('Struktur Kolom: ') }}' + tableName,
-                        headers: ['Nama Kolom', 'Tipe Data', 'Keterangan'],
-                        rows: cols.map(c => [c.name || c.column_name || '', c.type || c.data_type || '', c.description || c.notes || '']),
-                        currency_columns: [],
                     };
                 }
                 if (!stData) return;
@@ -5597,6 +5604,24 @@
                                     return '<div class="table-wrap"><span class="opacity-40 animate-pulse text-xs">⏳ {{ __('Sedang memproses') }} data...</span></div>';
                                 }
                                 const params = JSON.parse(code.trim());
+
+                                // Block database column structure leakage in direct params
+                                if (Array.isArray(params.headers)) {
+                                    const hLower = params.headers.map(h => String(h).toLowerCase());
+                                    if (hLower.includes('type') && (hLower.includes('name') || hLower.includes('column_name') || hLower.includes('default_type'))) {
+                                        return '';
+                                    }
+                                }
+                                if (Array.isArray(params.rows) && params.rows.length > 0) {
+                                    const sampleRow = params.rows[0];
+                                    const sampleVals = Array.isArray(sampleRow) ? sampleRow : Object.values(sampleRow);
+                                    for (const v of sampleVals) {
+                                        if (typeof v === 'string' && /^(Nullable\(|String$|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool)/i.test(v.trim())) {
+                                            return '';
+                                        }
+                                    }
+                                }
+
                                 const idx = (params.tool_index !== undefined) ? parseInt(params.tool_index) : -1;
                                 const titleAttr = params.title ? ` data-title="${params.title.replace(/"/g, '&quot;')}"` : '';
 

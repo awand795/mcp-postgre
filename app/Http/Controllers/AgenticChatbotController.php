@@ -2008,15 +2008,17 @@ Tugas Anda saat ini adalah menyajikan hasil data bisnis yang telah diperoleh dar
 
 ## 🔴 PRINSIP KERAHASIAAN & ANTI-BOCOR (MUTLAK)
 1. DILARANG KERAS membocorkan atau menyebutkan nama teknis database, nama teknis tabel (seperti v_ms_cabang, trm_faktur, dll), schema, nama kolom SQL fisik, atau sintaks SQL ke dalam teks jawaban.
-2. Selalu terjemahkan ke bahasa bisnis alami yang formal (contoh: "Data Cabang", "Data Pelanggan", "Data Penjualan", "Data Barang").
-3. DILARANG menyebutkan proses teknis internal seperti "query berhasil dijalankan", "data diambil dari view", "berdasarkan SQL SELECT", dll. Bersikaplah sebagai analis bisnis profesional yang langsung memaparkan data.
+2. DILARANG KERAS menampilkan struktur kolom database (tipe data teknis seperti String, Nullable, Float64, Int, dll) kepada user. Jika data bisnis tidak ditemukan, sampaikan secara sopan dalam narasi bahwa data belum tercatat, JANGAN PERNAH menampilkan daftar kolom atau definisi skema database.
+3. Selalu terjemahkan ke bahasa bisnis alami yang formal (contoh: "Data Cabang", "Data Pelanggan", "Data Penjualan", "Data Barang").
+4. DILARANG menyebutkan proses teknis internal seperti "query berhasil dijalankan", "data diambil dari view", "berdasarkan SQL SELECT", dll. Bersikaplah sebagai analis bisnis profesional yang langsung memaparkan data.
 
 ## 🔴 STRUKTUR FORMAT JAWABAN (WAJIB DIIKUTI SECARA BERURUTAN)
 
 1. **Ringkasan Eksekutif**:
    Tuliskan 1-2 kalimat pengantar formal dan ringkas yang merangkum poin inti data (misal: "Saat ini terdapat total 6 cabang aktif yang terdaftar di dalam sistem perusahaan.").
 
-2. **smart_table (Tabel Data Interaktif)**:
+2. **Tabel Data Interaktif**:
+   - DILARANG menuliskan kata "smart_table" atau "## smart_table" sebagai judul/heading dalam teks narasi Anda! Cukup tulis Ringkasan Eksekutif lalu langsung buka blok data ```smart_table.
    - Jika data memiliki ≥ 2 baris atau ≥ 2 kolom, Anda WAJIB mencantumkan blok ```smart_table``` singkat tepat setelah Ringkasan Eksekutif:
    ```smart_table
    {
@@ -2053,11 +2055,12 @@ Your task is to present the business data in an executive, polished, and busines
 
 ## 🔴 STRICT CONFIDENTIALITY & ANTI-LEAKAGE
 1. NEVER reveal technical database names, table names, schema names, physical column names, or SQL queries in your response.
-2. Always use natural business terms (e.g., "Branch Data", "Customer Data", "Sales Invoices").
+2. NEVER display technical database column structures or data types (String, Nullable, Float64, etc.) to the user.
+3. Always use natural business terms (e.g., "Branch Data", "Customer Data", "Sales Invoices").
 
 ## 🔴 MANDATORY RESPONSE STRUCTURE
 1. **Executive Summary**: 1-2 concise, formal sentences summarizing key findings.
-2. **smart_table**: Brief smart_table block with title and currency_columns.
+2. **Interactive Data Table**: DO NOT write "smart_table" as a narrative heading. Directly output the ```smart_table block with title and currency_columns.
 {$chartInstruction}
 3. **Strategic Business Insights**: At least 3 key business takeaways with emojis (📍, 🏢, 📋).
 4. **Next Prompt Recommendations**: 4 specific follow-up questions.
@@ -2083,7 +2086,44 @@ PROMPT;
                     if (!is_array($params))
                         return $matches[0];
 
+                    $isMetadataRes = function($tr) {
+                        $toolName = $tr['tool_name'] ?? $tr['tool'] ?? '';
+                        if (in_array($toolName, ['describe_table', 'get_database_schema_info', 'search_schema', 'get_view_definition', 'get_table_preview'])) {
+                            return true;
+                        }
+                        $d = $tr['data'] ?? null;
+                        if (is_string($d)) $d = json_decode($d, true) ?: null;
+                        if (!is_array($d)) return false;
+                        $cols = array_map('strtolower', $d['columns'] ?? []);
+                        if (in_array('type', $cols) && (in_array('name', $cols) || in_array('column_name', $cols))) {
+                            return true;
+                        }
+                        $rows = $d['rows'] ?? [];
+                        if (!empty($rows) && is_array($rows[0])) {
+                            foreach (array_values($rows[0]) as $val) {
+                                if (is_string($val) && preg_match('/^(Nullable\(|String$|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool)/i', trim($val))) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    };
+
                     if (!empty($params['headers']) && !empty($params['rows'])) {
+                        // Check if this is a leaked table schema dump
+                        $headerLower = array_map('strtolower', $params['headers']);
+                        if (in_array('type', $headerLower) && (in_array('name', $headerLower) || in_array('column_name', $headerLower))) {
+                            return ""; // Strip leaked table schema dump
+                        }
+                        foreach ($params['rows'] as $r) {
+                            if (is_array($r)) {
+                                foreach ($r as $val) {
+                                    if (is_string($val) && preg_match('/^(Nullable\(|String$|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool)/i', trim($val))) {
+                                        return ""; // Strip leaked table schema dump
+                                    }
+                                }
+                            }
+                        }
                         return $matches[0];
                     }
 
@@ -2091,12 +2131,14 @@ PROMPT;
 
                     $toolRes = null;
                     if ($toolIdx >= 0 && !empty($toolResults[$toolIdx])) {
-                        $toolRes = $toolResults[$toolIdx];
+                        if (!$isMetadataRes($toolResults[$toolIdx])) {
+                            $toolRes = $toolResults[$toolIdx];
+                        }
                     } else {
-                        // First pass: prioritize non-probe results
+                        // First pass: prioritize non-probe results and EXCLUDE schema/metadata results
                         foreach (array_reverse($toolResults) as $tr) {
                             $isProbe = $tr['is_probe'] ?? false;
-                            if ($isProbe) continue;
+                            if ($isProbe || $isMetadataRes($tr)) continue;
 
                             $d = $tr['data'] ?? null;
                             if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
@@ -2104,30 +2146,18 @@ PROMPT;
                                 break;
                             }
                         }
-
-                        // Second pass: fallback to any result if no non-probe result found
-                        if (!$toolRes) {
-                            foreach (array_reverse($toolResults) as $tr) {
-                                $d = $tr['data'] ?? null;
-                                if (is_array($d) && !empty($d['rows']) && !empty($d['columns'])) {
-                                    $toolRes = $tr;
-                                    break;
-                                }
-                            }
-                        }
                     }
 
                     if (!$toolRes)
-                        return $matches[0];
+                        return "";
 
                     $tableData = $toolRes['data'] ?? null;
                     if (is_string($tableData)) {
                         $tableData = json_decode($tableData, true) ?: null;
                     }
                     if (!is_array($tableData))
-                        return $matches[0];
+                        return "";
 
-                    $rawRows = $tableData['rows'] ?? [];
                     $rawRows = $tableData['rows'] ?? [];
                     $columns = $tableData['columns'] ?? [];
 
@@ -2718,6 +2748,10 @@ PROMPT;
         // Pola: baris yang dimulai "Mapping kolom" diikuti baris-baris non-kosong
         $content = preg_replace('/^Mapping kolom\s*\(internal\)[^\n]*\n(?:[^\n]+\n)*/mi', '', $content);
 
+        // ── Strip standalone smart_table headers like "## smart_table" or "smart_table" ──
+        $content = preg_replace('/^(?:#+\s*)?\d*\.?\s*smart_table\s*$/mi', '', $content);
+        $content = preg_replace('/^(?:#+\s*)?Tabel\s+Data\s+Interaktif(?:\s*\(.*?\))?\s*$/mi', '', $content);
+
         // ── Strip checklist/audit headers
         $content = preg_replace('/^(?:#+|-|\*|•)?\s*(🔴|##|#)?\s*(kritis|periksa kembali|self-audit|checklist|pemeriksaan mandiri|evaluasi diri)[^\n]*\n?/mi', '', $content);
 
@@ -2852,10 +2886,16 @@ PROMPT;
             '/Berpikirlah\s+secara\s+internal/i',
             '/sampaikan\s+HANYA\s+jawaban\s+bisnis/i',
 
-            // AI mengulang instruksi format chart/table
+            // AI mengulang instruksi format chart/table atau menulis smart_table sebagai heading
             '/format\s+berikut.*smart_table/i',
             '/blok.*```smart_table/i',
             '/blok.*```chart/i',
+            '/^#*\s*\d*\.?\s*smart_table\s*$/i',
+            '/^#*\s*Tabel\s+Data\s+Interaktif\s*(\(.*?\))?\s*$/i',
+
+            // Database column structure dump leakage (e.g. "kode_perusahaan String", "name Nullable(String)")
+            '/^\s*`?[a-z0-9_]+`?\s+(String|Nullable\(|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool|Decimal)/i',
+            '/^Kolom\s+dari\s+`?describe_table/i',
 
             // Pattern system prompt: "Anda adalah DataBot"
             '/^Anda\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
@@ -3101,6 +3141,10 @@ PROMPT;
             '/format\s+berikut.*smart_table/i',
             '/blok.*```smart_table/i',
             '/blok.*```chart/i',
+            '/^#*\s*\d*\.?\s*smart_table\s*$/i',
+            '/^#*\s*Tabel\s+Data\s+Interaktif\s*(\(.*?\))?\s*$/i',
+            '/^\s*`?[a-z0-9_]+`?\s+(String|Nullable\(|Float\d+|Int\d+|UInt\d+|DateTime|Date|Bool|Decimal)/i',
+            '/^Kolom\s+dari\s+`?describe_table/i',
             '/^Anda\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
             '/^saya\s+adalah\s+(darkoAI|DarkoAI|DataBot|Data\s*Bot|asisten\s+Data\s+Analyst)/i',
             '/^\s*\d+\.\s+`(get_database_schema_info|search_schema|describe_table|execute_query|get_column_values|get_view_definition|get_table_preview|get_erp_guidance|get_erp_menu_navigation|fetch_erp_guidance_from_web|web_search)`/i',
