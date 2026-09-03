@@ -2748,6 +2748,15 @@ PROMPT;
         // Pola: baris yang dimulai "Mapping kolom" diikuti baris-baris non-kosong
         $content = preg_replace('/^Mapping kolom\s*\(internal\)[^\n]*\n(?:[^\n]+\n)*/mi', '', $content);
 
+        // ── Strip XML Tool Call tags (<tool_call>, <function>, <parameter>, etc.) ──
+        $content = preg_replace('/<tool_call>[\s\S]*?<\/tool_call>/i', '', $content);
+        $content = preg_replace('/<tool_call>[\s\S]*$/i', '', $content); // in case unclosed
+        $content = preg_replace('/<function=[^>]*>[\s\S]*?<\/function>/i', '', $content);
+        $content = preg_replace('/<parameter=[^>]*>[\s\S]*?<\/parameter>/i', '', $content);
+        $content = preg_replace('/<tool_response>[\s\S]*?<\/tool_response>/i', '', $content);
+        $content = preg_replace('/\[TOOL_CALLS?\][\s\S]*?\[\/TOOL_CALLS?\]/i', '', $content);
+        $content = preg_replace('/<\/?(tool_call|tool_response)>/i', '', $content);
+
         // ── Strip standalone smart_table headers like "## smart_table" or "smart_table" ──
         $content = preg_replace('/^(?:#+\s*)?\d*\.?\s*smart_table\s*$/mi', '', $content);
         $content = preg_replace('/^(?:#+\s*)?Tabel\s+Data\s+Interaktif(?:\s*\(.*?\))?\s*$/mi', '', $content);
@@ -2986,9 +2995,12 @@ PROMPT;
             preg_match('/\bMANDATORY(_|\s)+(AI_ACTION|NEXT_STEP|SCHEMA_USAGE|ACTION|RESPONSE|INSIGHT|FORMAT)\b/i', $trimmed) ||
             preg_match('/\bANALYST\s+NOTE\b/i', $trimmed) ||
             preg_match('/\bINTERNAL\s+ANALYST\s+NOTE\b/i', $trimmed) ||
-            preg_match('/\bPERFORMANCE_NOTE\b/i', $trimmed)
+            preg_match('/\bPERFORMANCE_NOTE\b/i', $trimmed) ||
+            preg_match('/<\/?(tool_call|tool_response)\b/i', $trimmed) ||
+            preg_match('/<(function|parameter)=/i', $trimmed) ||
+            preg_match('/<\/(function|parameter)>/i', $trimmed)
         ) {
-            Log::info('[StreamFilter][NUCLEAR] Blocked system tag line: ' . substr($trimmed, 0, 100));
+            Log::info('[StreamFilter][NUCLEAR] Blocked system/tool tag line: ' . substr($trimmed, 0, 100));
             return true;
         }
 

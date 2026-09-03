@@ -5707,10 +5707,24 @@
 
             function renderMarkdown(text) {
                 if (!text) return '';
+                // Strip XML tool calls leaking into text
+                let cleanText = text
+                    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+                    .replace(/<tool_call>[\s\S]*$/gi, '')
+                    .replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, '')
+                    .replace(/<parameter=[^>]*>[\s\S]*?<\/parameter>/gi, '')
+                    .replace(/<tool_response>[\s\S]*?<\/tool_response>/gi, '')
+                    .replace(/\[TOOL_CALLS?\][\s\S]*?\[\/TOOL_CALLS?\]/gi, '')
+                    .replace(/<\/?(tool_call|tool_response)>/gi, '')
+                    .replace(/^(?:#+\s*)?\d*\.?\s*smart_table\s*$/gmi, '')
+                    .replace(/^(?:#+\s*)?Tabel\s+Data\s+Interaktif(?:\s*\(.*?\))?\s*$/gmi, '')
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\r/g, '\n');
+
                 try {
-                    return marked.parse(text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+                    return marked.parse(cleanText);
                 } catch (e) {
-                    return `<pre style="white-space:pre-wrap;font-size:12px">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
+                    return `<pre style="white-space:pre-wrap;font-size:12px">${cleanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
                 }
             }
 
