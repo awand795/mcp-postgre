@@ -10,6 +10,7 @@
         <p class="page-subtitle" style="color:var(--text-muted); margin:0.3rem 0 0 3.5rem; font-size:0.9rem;">{{ __('Kelola pengguna, role, dan hak akses sistem') }}</p>
     </div>
     <div class="header-actions" style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <a href="{{ route('admin.users', request()->query()) }}" class="btn btn-secondary" title="{{ __('Muat Ulang Data') }}" style="background:var(--input-bg); color:var(--text-main); border:1px solid var(--glass-border); padding:0.6rem 1rem; border-radius:10px; cursor:pointer; display:inline-flex; align-items:center; gap:0.5rem; text-decoration:none;"><i class="fas fa-sync-alt"></i> <span>{{ __('Refresh') }}</span></a>
         <button class="btn btn-success" onclick="downloadTemplate()" style="background:#10b981; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-download"></i> <span>{{ __('Template') }}</span></button>
         <button class="btn btn-info" onclick="showModal('import')" style="background:#0ea5e9; color:white; border:none; padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-import"></i> <span>{{ __('Import') }}</span></button>
         <button class="btn btn-secondary" onclick="exportUsers()" style="background:var(--input-bg); color:var(--text-main); border:1px solid var(--glass-border); padding:0.6rem 1rem; border-radius:10px; cursor:pointer;"><i class="fas fa-file-export"></i> <span>{{ __('Export') }}</span></button>
@@ -17,8 +18,40 @@
     </div>
 </div>
 
+<!-- User Presence & Status Stats Cards -->
+<div style="display:flex; gap:1rem; margin-bottom:1.5rem; flex-wrap:wrap;">
+    <a href="{{ route('admin.users', array_merge(request()->except(['status_filter', 'page']), ['status_filter' => ''])) }}" class="glass-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; text-decoration:none; color:inherit; border:{{ !request('status_filter') ? '2px solid var(--primary)' : '1px solid var(--glass-border)' }}; border-radius:14px; transition:transform 0.2s;">
+        <div style="width:42px; height:42px; border-radius:10px; background:rgba(99,102,241,0.12); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+            <i class="fas fa-users"></i>
+        </div>
+        <div>
+            <div style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">{{ __('Total Pengguna') }}</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text-main);">{{ $totalUserCount ?? count($users) }}</div>
+        </div>
+    </a>
 
-<!-- Filter & Search -->
+    <a href="{{ route('admin.users', array_merge(request()->except(['status_filter', 'page']), ['status_filter' => 'online'])) }}" class="glass-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; text-decoration:none; color:inherit; border:{{ request('status_filter') === 'online' ? '2px solid #10b981' : '1px solid var(--glass-border)' }}; border-radius:14px; transition:transform 0.2s;">
+        <div style="width:42px; height:42px; border-radius:10px; background:rgba(16,185,129,0.12); color:#10b981; display:flex; align-items:center; justify-content:center; font-size:1.2rem; position:relative;">
+            <i class="fas fa-user-check"></i>
+            <span style="position:absolute; top:8px; right:8px; width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981;"></span>
+        </div>
+        <div>
+            <div style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">{{ __('User Online') }}</div>
+            <div style="font-size:1.4rem; font-weight:700; color:#10b981;">{{ $onlineUserCount ?? 0 }}</div>
+        </div>
+    </a>
+
+    <a href="{{ route('admin.users', array_merge(request()->except(['status_filter', 'page']), ['status_filter' => 'offline'])) }}" class="glass-card" style="flex:1; min-width:180px; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; text-decoration:none; color:inherit; border:{{ request('status_filter') === 'offline' ? '2px solid #94a3b8' : '1px solid var(--glass-border)' }}; border-radius:14px; transition:transform 0.2s;">
+        <div style="width:42px; height:42px; border-radius:10px; background:rgba(148,163,184,0.12); color:#64748b; display:flex; align-items:center; justify-content:center; font-size:1.2rem;">
+            <i class="fas fa-user-clock"></i>
+        </div>
+        <div>
+            <div style="font-size:0.8rem; color:var(--text-muted); font-weight:500;">{{ __('User Offline') }}</div>
+            <div style="font-size:1.4rem; font-weight:700; color:var(--text-muted);">{{ $offlineUserCount ?? 0 }}</div>
+        </div>
+    </a>
+</div>
+
 <!-- Filter & Search -->
 <div class="glass-card filter-card">
     <form action="{{ route('admin.users') }}" method="GET" class="filter-form">
@@ -33,6 +66,14 @@
                 @foreach($roles as $role)
                     <option value="{{ $role->id }}" {{ request('role_filter') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                 @endforeach
+            </select>
+        </div>
+        <div class="filter-group">
+            <label><i class="fas fa-signal"></i> {{ __('Status Online') }}</label>
+            <select name="status_filter">
+                <option value="">{{ __('Semua Status') }}</option>
+                <option value="online" {{ request('status_filter') === 'online' ? 'selected' : '' }}>🟢 {{ __('Online') }}</option>
+                <option value="offline" {{ request('status_filter') === 'offline' ? 'selected' : '' }}>⚪ {{ __('Offline') }}</option>
             </select>
         </div>
         <div class="filter-actions">
@@ -50,6 +91,7 @@
                 <tr>
                     <th>{{ __('Nama') }}</th>
                     <th>{{ __('Email') }}</th>
+                    <th>{{ __('Status') }}</th>
                     <th>{{ __('Role') }}</th>
                     <th>{{ __('Hak Akses') }}</th>
                     <th>{{ __('AI Models') }}</th>
@@ -66,6 +108,22 @@
                         <div style="font-weight: 600; color: var(--text-main);">{{ $user->name }}</div>
                     </td>
                     <td class="td-email" title="{{ $user->email }}">{{ $user->email }}</td>
+                    <td>
+                        @if($user->isOnline())
+                            <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(16, 185, 129, 0.12); color:#10b981; border:1px solid rgba(16, 185, 129, 0.25); padding:4px 10px; border-radius:20px; font-size:0.78rem; font-weight:600;">
+                                <span style="width:8px; height:8px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981;"></span>
+                                {{ __('Online') }}
+                            </span>
+                        @else
+                            @php
+                                $lastSeen = $user->lastSeen();
+                            @endphp
+                            <span style="display:inline-flex; align-items:center; gap:6px; background:rgba(148, 163, 184, 0.12); color:#64748b; border:1px solid rgba(148, 163, 184, 0.25); padding:4px 10px; border-radius:20px; font-size:0.78rem; font-weight:500;" title="{{ $lastSeen ? \Carbon\Carbon::parse($lastSeen)->translatedFormat('d M Y H:i') : '' }}">
+                                <span style="width:8px; height:8px; background:#94a3b8; border-radius:50%;"></span>
+                                {{ $lastSeen ? \Carbon\Carbon::parse($lastSeen)->diffForHumans() : __('Offline') }}
+                            </span>
+                        @endif
+                    </td>
                     <td>
                         <span class="role-badge">
                             <i class="fas fa-user-tag"></i>

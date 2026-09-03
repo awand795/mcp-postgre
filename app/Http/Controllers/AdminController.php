@@ -77,9 +77,7 @@ class AdminController extends Controller
             $query->where('role', $request->role_filter);
         }
         
-        $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
-        
-        // For copy filter modal, we need all users the admin can see (unpaginated)
+        // For copy filter modal and stats, we need all users the admin can see (unpaginated)
         $allUsersQuery = User::orderBy('name');
         if (!auth()->user()->is_super_admin) {
             $allUsersQuery->where(function($q) {
@@ -90,6 +88,23 @@ class AdminController extends Controller
             });
         }
         $allUsers = $allUsersQuery->get();
+
+        // Hitung statistik User Online dan Offline
+        $totalUserCount = $allUsers->count();
+        $onlineUserIds = $allUsers->filter(fn($u) => $u->isOnline())->pluck('id')->toArray();
+        $onlineUserCount = count($onlineUserIds);
+        $offlineUserCount = $totalUserCount - $onlineUserCount;
+
+        // Filter by Status (Online / Offline)
+        if ($request->filled('status_filter')) {
+            if ($request->status_filter === 'online') {
+                $query->whereIn('id', $onlineUserIds);
+            } elseif ($request->status_filter === 'offline') {
+                $query->whereNotIn('id', $onlineUserIds);
+            }
+        }
+        
+        $users = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
         $roles = Role::with('addedBy')->get();
         $aiModels = \App\Models\AiModel::with('provider')->where('is_active', true)->get();
@@ -103,7 +118,17 @@ class AdminController extends Controller
             $q->where('is_admin', true)->orWhere('is_super_admin', true);
         })->orderBy('name')->get();
         
-        return view('admin.users', compact('users', 'roles', 'aiModels', 'aiKeys', 'allUsers', 'admins'));
+        return view('admin.users', compact(
+            'users',
+            'roles',
+            'aiModels',
+            'aiKeys',
+            'allUsers',
+            'admins',
+            'totalUserCount',
+            'onlineUserCount',
+            'offlineUserCount'
+        ));
     }
 
     public function userStore(Request $request)

@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\SetLocaleMiddleware::class,
+            \App\Http\Middleware\TrackUserOnline::class,
         ], replace: [
             \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class => \App\Http\Middleware\CustomValidateCsrfToken::class,
         ]);

@@ -93,4 +93,20 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(User::class, 'user_managers', 'user_id', 'admin_id');
     }
+
+    /**
+     * Cek apakah user sedang online (aktif dalam 5 menit terakhir).
+     */
+    public function isOnline(): bool
+    {
+        return \Illuminate\Support\Facades\Cache::has('user-is-online-' . $this->id);
+    }
+
+    /**
+     * Ambil riwayat waktu terakhir user terlihat aktif.
+     */
+    public function lastSeen()
+    {
+        return \Illuminate\Support\Facades\Cache::get('user-last-seen-' . $this->id);
+    }
 }
