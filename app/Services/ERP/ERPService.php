@@ -325,10 +325,12 @@ class ERPService extends BaseService
                 $gKeys = array_map('strtolower', $guide['keywords']);
             }
 
-            // Category Bonus (Replaced hard filter with priority boost)
+            // Category / Section Bonus (Priority boost for target category or section)
             if (!empty($categoryLower)) {
                 $gCat = strtolower($guide['category'] ?? '');
-                if (strpos($gCat, $categoryLower) !== false) {
+                $gSec = strtolower($guide['section'] ?? '');
+                $gFullCat = strtolower($guide['full_category'] ?? '');
+                if (strpos($gCat, $categoryLower) !== false || strpos($gSec, $categoryLower) !== false || strpos($gFullCat, $categoryLower) !== false) {
                     $score += 200; // Priority boost for target category
                 }
             }
@@ -463,8 +465,20 @@ class ERPService extends BaseService
             return $this->errorResponse('URL wajib diisi.');
         }
 
-        if (!str_contains($url, 'erp-guidance.online')) {
-            return $this->errorResponse('Hanya URL dari erp-guidance.online yang diizinkan.');
+        $baseUrl = rtrim(env('ERP_GUIDANCE_URL', 'http://94.237.69.119:4000'), '/');
+        $allowedHosts = [parse_url($baseUrl, PHP_URL_HOST), '94.237.69.119', '74.48.112.31', '127.0.0.1', 'localhost', 'erp-guidance.online'];
+        $urlHost = parse_url($url, PHP_URL_HOST);
+
+        $hostAllowed = false;
+        foreach ($allowedHosts as $allowed) {
+            if ($allowed && ($urlHost === $allowed || str_contains($urlHost ?? '', $allowed))) {
+                $hostAllowed = true;
+                break;
+            }
+        }
+
+        if (!$hostAllowed) {
+            return $this->errorResponse("Hanya URL dari {$baseUrl} yang diizinkan.");
         }
 
         try {
@@ -506,24 +520,64 @@ class ERPService extends BaseService
             throw new \Exception("Kredensial ERP Guidance belum dikonfigurasi di .env");
         }
 
-        $loginUrl = 'https://erp-guidance.online/wp-login.php';
+        $baseUrl = rtrim(env('ERP_GUIDANCE_URL', 'http://94.237.69.119:4000'), '/');
+        $loginUrl = "{$baseUrl}/login/";
         $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
 
-        // Step 1: Login
-        Http::asForm()->withOptions([
-            'cookies' => $cookieJar,
-            'allow_redirects' => true
-        ])->post($loginUrl, [
+        // Step 1: Get Nonce
+        $nonce = null;
+        try {
+            $loginPage = Http::withOptions([
+                'cookies' => $cookieJar,
+                'verify' => false,
+                'timeout' => 15,
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                ]
+            ])->get($loginUrl);
+
+            if ($loginPage->successful()) {
+                $crawler = new Crawler($loginPage->body());
+                $nonce = $crawler->filter('input[name="erpgl_login_nonce"]')->count()
+                    ? $crawler->filter('input[name="erpgl_login_nonce"]')->attr('value')
+                    : null;
+            }
+        } catch (\Exception $e) {
+            Log::warning("[ToolCallExecutor] Could not fetch login nonce: " . $e->getMessage());
+        }
+
+        // Step 2: Login POST
+        $postData = [
             'log' => $email,
             'pwd' => $password,
             'wp-submit' => 'Log In',
+            'rememberme' => 'forever',
             'testcookie' => 1
-        ]);
+        ];
+        if ($nonce) {
+            $postData['erpgl_login_nonce'] = $nonce;
+            $postData['_wp_http_referer'] = '/login/';
+        }
 
-        // Step 2: Fetch the actual URL with the same cookies
+        Http::asForm()->withOptions([
+            'cookies' => $cookieJar,
+            'allow_redirects' => true,
+            'verify' => false,
+            'timeout' => 20,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ]
+        ])->post($loginUrl, $postData);
+
+        // Step 3: Fetch Target URL
         return Http::withOptions([
             'cookies' => $cookieJar,
-            'allow_redirects' => true
+            'allow_redirects' => true,
+            'verify' => false,
+            'timeout' => 25,
+            'headers' => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ]
         ])->get($url);
     }
 
@@ -650,7 +704,7 @@ class ERPService extends BaseService
         }
 
         $existingData['last_updated'] = now()->toISOString();
-        $existingData['source'] = 'erp-guidance.online';
+        $existingData['source'] = rtrim(env('ERP_GUIDANCE_URL', 'http://94.237.69.119:4000'), '/') . '/docs/ (DarkoGuide)';
 
         file_put_contents($path, json_encode($existingData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }
