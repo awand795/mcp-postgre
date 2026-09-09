@@ -1136,15 +1136,87 @@
             max-width: 100%;
             height: auto;
             border-radius: 12px;
-            margin: 16px 0;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            margin: 12px 0;
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
             border: 1px solid rgba(0, 0, 0, 0.08);
             display: block;
+            cursor: zoom-in;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .markdown-body img:hover {
+            transform: scale(1.015);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.18), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
         html.dark .markdown-body img {
-            border-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.6);
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        html.dark .markdown-body img:hover {
+            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.8);
+        }
+
+        .markdown-body video {
+            max-width: 100%;
+            border-radius: 12px;
+            margin: 12px 0;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            background: #000;
+        }
+
+        .guide-image-card {
+            margin: 16px 0;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: rgba(248, 250, 252, 0.9);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.25s ease-in-out;
+        }
+
+        html.dark .guide-image-card {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(15, 23, 42, 0.7);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .guide-image-card:hover {
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12);
+            border-color: rgba(249, 115, 22, 0.35);
+        }
+
+        html.dark .guide-image-card:hover {
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+            border-color: rgba(249, 115, 22, 0.45);
+        }
+
+        .guide-video-card {
+            margin: 18px 0;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: #090d16;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        html.dark .guide-video-card {
+            border-color: rgba(255, 255, 255, 0.14);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
+        }
+
+        .guide-video-card video {
+            width: 100%;
+            max-height: 480px;
+            background: #000;
+            display: block;
+            outline: none;
+            margin: 0;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
         }
 
         /* Chart Container */
@@ -5698,6 +5770,70 @@
 
                         const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         return `<pre><code class="language-${langClean || 'plaintext'}">${escaped}</code></pre>`;
+                    },
+                    image(hrefOrToken, title, text) {
+                        let href = hrefOrToken;
+                        let imgTitle = title;
+                        let alt = text;
+                        if (typeof hrefOrToken === 'object' && hrefOrToken !== null) {
+                            href = hrefOrToken.href;
+                            imgTitle = hrefOrToken.title;
+                            alt = hrefOrToken.text;
+                        }
+                        const cleanHref = (href || '').trim();
+                        const altText = (alt || 'Tangkapan Layar Panduan').replace(/"/g, '&quot;');
+                        const titleAttr = imgTitle ? ` title="${String(imgTitle).replace(/"/g, '&quot;')}"` : '';
+                        const safeHref = cleanHref.replace(/"/g, '&quot;');
+
+                        return `<div class="guide-image-card">
+                            <div class="relative overflow-hidden cursor-zoom-in erp-guide-img" onclick="openImageLightbox('${safeHref}', '${altText.replace(/'/g, "\\'")}')">
+                                <img src="${safeHref}" alt="${altText}" ${titleAttr} loading="lazy" class="w-full h-auto object-contain max-h-[520px] mx-auto block transition-transform duration-300 hover:scale-[1.01]" />
+                                <div class="absolute inset-0 bg-black/25 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                    <span class="bg-black/80 text-white text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-sm border border-white/20">
+                                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                                        <span>Klik untuk memperbesar</span>
+                                    </span>
+                                </div>
+                            </div>
+                            ${altText && altText !== 'Langkah Panduan' ? `<div class="px-3 py-1.5 text-xs text-center text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-white/5 bg-slate-100/70 dark:bg-slate-900/40">${altText}</div>` : ''}
+                        </div>`;
+                    },
+                    link(hrefOrToken, title, text) {
+                        let href = hrefOrToken;
+                        let linkTitle = title;
+                        let linkText = text;
+                        if (typeof hrefOrToken === 'object' && hrefOrToken !== null) {
+                            href = hrefOrToken.href;
+                            linkTitle = hrefOrToken.title;
+                            linkText = hrefOrToken.text;
+                        }
+                        const cleanHref = (href || '').trim();
+                        const isVideo = /\.mp4(\?.*)?$/i.test(cleanHref);
+                        const displayTitle = linkText || cleanHref;
+
+                        if (isVideo) {
+                            return `<div class="guide-video-card">
+                                <div class="px-4 py-2.5 bg-slate-900 border-b border-white/10 flex items-center justify-between text-xs text-slate-200">
+                                    <span class="flex items-center gap-2 font-medium">
+                                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                                        <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm11.5 5.5l-6 3.5a.5.5 0 01-.75-.433v-7a.5.5 0 01.75-.433l6 3.5a.5.5 0 010 .866z"/></svg>
+                                        <span>${displayTitle && displayTitle.toLowerCase().includes('video') ? displayTitle : 'Video Tutorial Panduan'}</span>
+                                    </span>
+                                    <a href="${cleanHref}" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1 font-mono">
+                                        <span>Buka Video</span> &nearr;
+                                    </a>
+                                </div>
+                                <div class="relative bg-black flex items-center justify-center">
+                                    <video controls preload="metadata" class="w-full max-h-[500px]">
+                                        <source src="${cleanHref}" type="video/mp4">
+                                        Browser Anda tidak mendukung pemutar video. <a href="${cleanHref}" target="_blank" class="text-orange-400 underline">Unduh video di sini</a>.
+                                    </video>
+                                </div>
+                            </div>`;
+                        }
+
+                        const titleAttr = linkTitle ? ` title="${String(linkTitle).replace(/"/g, '&quot;')}"` : '';
+                        return `<a href="${cleanHref}" target="_blank" rel="noopener noreferrer"${titleAttr} class="text-orange-500 hover:text-orange-600 underline font-medium">${displayTitle}</a>`;
                     }
                 },
                 gfm: true,
@@ -5718,6 +5854,7 @@
                     .replace(/<\/?(tool_call|tool_response)>/gi, '')
                     .replace(/^(?:#+\s*)?\d*\.?\s*smart_table\s*$/gmi, '')
                     .replace(/^(?:#+\s*)?Tabel\s+Data\s+Interaktif(?:\s*\(.*?\))?\s*$/gmi, '')
+                    .replace(/(^|[^(\[])(https?:\/\/[^\s\)]+?\.(?:mp4)(?:\?[^\s\)]*)?)(?![^<]*>)/gmi, '$1[Klik di sini untuk menonton video]($2)')
                     .replace(/\r\n/g, '\n')
                     .replace(/\r/g, '\n');
 
@@ -5727,6 +5864,45 @@
                     return `<pre style="white-space:pre-wrap;font-size:12px">${cleanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`;
                 }
             }
+
+            // ── Lightbox preview untuk tangkapan layar panduan ERP & chat ─────────
+            window.openImageLightbox = function(src, alt) {
+                if (!src) return;
+                if (typeof Swal !== 'undefined') {
+                    const cleanAlt = alt && alt !== 'Langkah Panduan' ? alt : 'Tangkapan Layar Panduan DarkoGuide';
+                    Swal.fire({
+                        imageUrl: src,
+                        imageAlt: cleanAlt,
+                        title: `<div class="text-sm font-medium text-slate-200">${cleanAlt}</div>`,
+                        width: '92vw',
+                        background: '#0b132b',
+                        color: '#f8fafc',
+                        showConfirmButton: false,
+                        showCloseButton: true,
+                        closeButtonHtml: '&times;',
+                        backdrop: 'rgba(0, 0, 0, 0.85)',
+                        customClass: {
+                            popup: 'rounded-2xl border border-white/15 shadow-2xl p-3 max-w-6xl overflow-hidden',
+                            image: 'rounded-xl max-h-[82vh] w-auto mx-auto object-contain shadow-md',
+                            closeButton: 'text-slate-400 hover:text-white focus:outline-none text-3xl font-light'
+                        }
+                    });
+                } else {
+                    window.open(src, '_blank');
+                }
+            };
+
+            // Global delegation: Klik gambar manapun pada pesan AI membuka lightbox
+            document.addEventListener('click', function(e) {
+                const img = e.target.closest('.markdown-body img');
+                if (img && !img.closest('.avatar') && !img.closest('button')) {
+                    const src = img.getAttribute('src');
+                    const alt = img.getAttribute('alt') || '';
+                    if (src) {
+                        window.openImageLightbox(src, alt);
+                    }
+                }
+            });
 
             // ── Label notifikasi bisnis ───────────────────────────────────────────
             const toolIcons = { list_tables: '📊', describe_table: '🔎', execute_query: '📈', get_schema_info: '🗂️' };

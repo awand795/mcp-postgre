@@ -314,8 +314,16 @@ class AgenticChatbotController extends Controller
             // Gunakan Summarization Prompt ramping (~650 token) dan kosongkan tools (~1.060 token)
             // untuk memangkas ~18.000 token input secara drastis!
             if ($loopCount > 1 && $hasExecutedTerminalTool) {
-                Log::info("[Agentic] Loop #{$loopCount} - Switching to Slim Summarization Prompt (~650 tokens) for final response.");
-                $activeSystemPrompt = $this->buildSummarizationSystemPrompt($detectedLanguage, $scopeLimited, $originalUserMessage);
+                $hasExecutedErpGuidance = !empty($terminalToolCallsCount['get_erp_guidance'])
+                    || !empty($terminalToolCallsCount['fetch_erp_guidance_from_web']);
+
+                if ($hasExecutedErpGuidance) {
+                    Log::info("[Agentic] Loop #{$loopCount} - Switching to ERP Guidance Summarization Prompt for final response.");
+                    $activeSystemPrompt = $this->buildErpGuidanceSummarizationSystemPrompt($detectedLanguage, $originalUserMessage);
+                } else {
+                    Log::info("[Agentic] Loop #{$loopCount} - Switching to Slim Summarization Prompt (~650 tokens) for final response.");
+                    $activeSystemPrompt = $this->buildSummarizationSystemPrompt($detectedLanguage, $scopeLimited, $originalUserMessage);
+                }
                 if (isset($messages[0]) && $messages[0]['role'] === 'system') {
                     $messages[0]['content'] = $activeSystemPrompt;
                 }
@@ -625,7 +633,10 @@ class AgenticChatbotController extends Controller
                         }
                     }
 
-                    if (!$isSingleValue && strlen(trim($textContent)) < 250) {
+                    $isErpGuidance = !empty($terminalToolCallsCount['get_erp_guidance'])
+                        || !empty($terminalToolCallsCount['fetch_erp_guidance_from_web']);
+
+                    if (!$isSingleValue && !$isErpGuidance && strlen(trim($textContent)) < 250) {
                         Log::warning('[Agentic] OpenRouter short response (' . strlen(trim($textContent)) . ' chars) — injecting format reminder.');
 
                         $toolSummary = '';
@@ -999,9 +1010,18 @@ class AgenticChatbotController extends Controller
 
             if ($hasTerminalToolThisTurn && $loopCount < $this->maxToolLoops) {
                 Log::info("[Agentic] Terminal tool detected. Injecting final response reminder.");
-                $finalResponseReminder = $scopeLimited
-                    ? "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'."
-                    : "[SYSTEM REMINDER]: Anda baru saja memperoleh konteks penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user. Jika data database kosong tetapi user meminta rekomendasi eksternal, market insight, atau produk yang belum ada di database, lanjutkan dengan rekomendasi berbasis pengetahuan umum/analisis bisnis dan sebutkan batasannya secara singkat. Jika data adalah tabel, gunakan format 'smart_table'.";
+                $isErpTurn = !empty($terminalToolCallsCount['get_erp_guidance'])
+                    || !empty($terminalToolCallsCount['fetch_erp_guidance_from_web']);
+
+                if ($isErpTurn) {
+                    $finalResponseReminder = "[SYSTEM REMINDER]: Anda baru saja memperoleh data panduan tutorial ERP/POS resmi dari DarkoGuide. Segera sajikan panduan langkah-demi-langkah yang lengkap, berurutan, dan jelas kepada user.
+WAJIB: Tampilkan SELURUH gambar tangkapan layar markdown `![Langkah Panduan](url)` dan tautan video inline persis di bawah langkah yang bersangkutan, sesuai susunan aslinya.
+DILARANG KERAS: Menghapus gambar atau video, menggunakan smart_table, atau membuat ringkasan insight bisnis statistik.";
+                } elseif ($scopeLimited) {
+                    $finalResponseReminder = "[SYSTEM REMINDER]: Anda baru saja memperoleh data penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user menggunakan data tersebut. Jika data adalah tabel, gunakan format 'smart_table'.";
+                } else {
+                    $finalResponseReminder = "[SYSTEM REMINDER]: Anda baru saja memperoleh konteks penting dari tool terminal. JANGAN melakukan tool call lagi untuk tujuan yang sama. Segera berikan jawaban akhir yang komprehensif, profesional, dan sopan kepada Bapak/Ibu user. Jika data database kosong tetapi user meminta rekomendasi eksternal, market insight, atau produk yang belum ada di database, lanjutkan dengan rekomendasi berbasis pengetahuan umum/analisis bisnis dan sebutkan batasannya secara singkat. Jika data adalah tabel, gunakan format 'smart_table'.";
+                }
                 $messages[] = [
                     'role' => 'system',
                     'content' => $finalResponseReminder,
@@ -1788,7 +1808,7 @@ class AgenticChatbotController extends Controller
         // ── STRATEGY 1: DYNAMIC MODULAR PROMPT SECTIONS ──────────────────────
         $isRegionalQuery = empty($userMessage) || (bool) preg_match('/\b(cabang|kota|propinsi|provinsi|wilayah|daerah|regional|area|lokasi|alamat|jawa|sumatera|sulawesi|kalimantan|bali|jakarta|surabaya|medan|semarang|bandung|makassar)\b/i', $userMessage);
         $isProductQuery = empty($userMessage) || (bool) preg_match('/\b(produk|barang|item|part|sparepart|aki|oli|ban|merek|brand|sku|stok|stock|kategori)\b/i', $userMessage);
-        $isErpQuery = empty($userMessage) || (bool) preg_match('/\b(menu|modul|panduan|navigasi|cara|bantuan|tutorial|erp|input|tombol|fitur|setting)\b/i', $userMessage);
+        $isErpQuery = empty($userMessage) || (bool) preg_match('/\b(menu|modul|panduan|navigasi|cara|bagaimana|langkah|bantuan|tutorial|erp|pos|input|update|tambah|edit|tombol|fitur|setting|alur|flow|petunjuk|beli|order|supplier|stock|stok|faktur|invoice)\b/i', $userMessage);
         $isChartQuery = empty($userMessage) || (bool) preg_match('/\b(grafik|chart|tren|trend|visual|diagram|plot|per bulan|per tahun|bulanan|tahunan|pertumbuhan|banding)\b/i', $userMessage);
         $isMetricQuery = empty($userMessage) || (bool) preg_match('/\b(hpp|cogs|harga pokok|omset|omzet|netto|net|gross|kotor|bersih|diskon|discount|potongan|profit|laba|margin|rugi|penjualan|sales|revenue|transaksi|faktur|invoice|piutang|ar|ap|keuangan|nominal|pembelian|beli|jual|retur)\b/i', $userMessage);
 
@@ -1831,14 +1851,21 @@ REGIONAL;
 CHART;
         }
 
-        // ── ERP SECTION ──────────────────────────────────────────────────────
+        // ── ERP & POS GUIDANCE SECTION ───────────────────────────────────────
         $erpSection = "";
         if ($isErpQuery) {
             $erpSection = <<<'ERP'
-## ERP GUIDANCE & NAVIGATION
-1. Saat `get_erp_menu_navigation` mengembalikan `display_text`, tampilkan verbatim tanpa tambahan Ringkasan Eksekutif.
-2. Jika user bertanya "cara", "langkah", atau "bagaimana" menggunakan menu ERP → WAJIB panggil `get_erp_guidance`.
-3. Gunakan `fetch_erp_guidance_from_web` hanya jika URL panduan eksternal diberikan.
+## 🔴 PROTOKOL PANDUAN PENGGUNAAN ERP & POS (DARKOGUIDE)
+1. **Pemicu Panduan ERP / POS**:
+   - Jika user bertanya tentang tata cara, langkah-langkah, tutorial, atau bagaimana cara menginput/mengupdate/memproses fitur pada sistem ERP atau POS (contoh: "cara", "bagaimana", "langkah", "panduan", "tutorial", "input", "update", "approval", "tambah", "batal") → **PRIORITAS UTAMA WAJIB panggil tool `get_erp_guidance`**.
+   - DILARANG menjalankan query SQL (`execute_query`) jika pertanyaan user adalah panduan tata cara atau tutorial penggunaan sistem.
+   - Panggil `get_erp_guidance` dengan parameter `keyword` yang relevan (misal: "order pembelian", "update massal stock excel", "penawaran supplier", "point of sale").
+2. **Navigasi Letak Menu**:
+   - Jika user bertanya posisi atau letak menu di aplikasi ERP (misal "di mana letak menu PO?"), panggil `get_erp_menu_navigation`.
+3. **Penyajian Panduan**:
+   - Saat menyajikan jawaban panduan, Anda WAJIB menyertakan SELURUH gambar tangkapan layar markdown `![Langkah Panduan](url)` dan video inline tepat di bawah langkah instruksi yang bersangkutan.
+   - DILARANG menggunakan blok `smart_table` atau analisis statistik bisnis untuk pertanyaan panduan ERP.
+4. Gunakan `fetch_erp_guidance_from_web` hanya jika URL panduan eksternal spesifik diberikan.
 
 ERP;
         }
@@ -2064,6 +2091,75 @@ Your task is to present the business data in an executive, polished, and busines
 {$chartInstruction}
 3. **Strategic Business Insights**: At least 3 key business takeaways with emojis (📍, 🏢, 📋).
 4. **Next Prompt Recommendations**: 4 specific follow-up questions.
+PROMPT;
+    }
+
+    private function buildErpGuidanceSummarizationSystemPrompt(string $detectedLanguage = 'id', string $userMessage = ''): string
+    {
+        if ($detectedLanguage === 'id') {
+            return <<<PROMPT
+Anda adalah darkoAI, Konsultan Ahli ERP & Sistem Operasional Perusahaan.
+Tugas Anda adalah menyajikan panduan tutorial operasional sistem ERP / POS (DarkoGuide) secara lengkap, runtut, profesional, dan mudah dipraktikkan langsung oleh user.
+
+## 🔴 INTEGRITAS GAMBAR & VIDEO TUTORIAL (WAJIB & MUTLAK)
+1. **GAMBAR SCREENSHOT WAJIB TAMPIL INLINE**:
+   - Anda WAJIB mempertahankan SELURUH gambar panduan markdown `![Deskripsi](URL)` persis di bawah langkah/paragraf instruksi yang bersangkutan!
+   - DILARANG KERAS menghapus, membuang, menyederhanakan tanpa menyertakan gambar, atau memindahkan gambar ke bagian akhir teks!
+   - Susunan gambar dan teks WAJIB mengikuti alur asli dari panduan DarkoGuide agar user dapat melihat visual formulir, tombol navigasi, dan letak field yang dimaksud.
+2. **VIDEO TUTORIAL INLINE**:
+   - Jika panduan memuat tautan video (contoh: `[Klik di sini untuk menonton video](http://...mp4?_=1)` atau URL file `.mp4`), Anda WAJIB menyertakannya secara inline sesuai posisinya di panduan asli.
+
+## 🔴 STRUKTUR SUSUNAN JAWABAN PANDUAN ERP
+Sajikan jawaban secara teratur dan menarik dengan urutan berikut:
+
+1. **Judul & Gambaran Umum**:
+   - Tulis judul panduan: `# [Nama Panduan/Fitur]`
+   - Tuliskan 1-2 kalimat pengantar mengenai fungsi atau manfaat utama fitur ini.
+
+2. **Persyaratan Data (Prasyarat)**:
+   - Jika panduan memiliki persyaratan data (misal: master cabang, gudang, supplier, atau dokumen transaksi approval sebelumnya), cantumkan sebagai daftar poin dengan jelas.
+
+3. **Petunjuk Pemakaian / Langkah-langkah Lengkap (Step-by-Step)**:
+   - Sajikan langkah instruksi secara runut dan detail (mulai dari cara membuka menu/modul, tombol navigasi seperti Tambah/Browse, pengisian formulir, hingga proses Simpan/Approval).
+   - Letakkan setiap gambar tangkapan layar `![...](...)` tepat di bawah penjelasan langkah yang relevan.
+
+4. **Catatan Penting / Tips Tambahan**:
+   - Cantumkan catatan penting, batasan, atau peringatan operasional jika tersedia pada panduan asli.
+
+5. **Rekomendasi Pertanyaan Selanjutnya**:
+   - Di bagian akhir, berikan 3-4 pilihan pertanyaan lanjutan yang relevan mengenai fitur ERP tersebut:
+   💡 **Rekomendasi Pertanyaan Selanjutnya:**
+   1. "[Pertanyaan bantuan operasional lanjutan 1]"
+   2. "[Pertanyaan bantuan operasional lanjutan 2]"
+   3. "[Pertanyaan bantuan operasional lanjutan 3]"
+
+## 🔴 LARANGAN MUTLAK
+- DILARANG menggunakan blok ```smart_table```! Panduan ERP adalah alur tutorial antarmuka sistem, BUKAN hasil query tabel database.
+- DILARANG mencantumkan format laporan eksekutif SQL seperti "Sebaran Wilayah", "Kontributor Utama", atau "Rekomendasi Operasional".
+PROMPT;
+        }
+
+        return <<<PROMPT
+You are darkoAI, an expert ERP & Enterprise Systems Consultant.
+Your task is to present the ERP / POS guidance tutorial (from DarkoGuide) clearly, comprehensively, and step-by-step for the user.
+
+## 🔴 STRICT MEDIA INTEGRITY
+1. **MANDATORY INLINE IMAGES**:
+   - You MUST retain ALL screenshot markdown images `![Alt](URL)` directly below the relevant step instruction.
+   - NEVER strip, discard, or move images into a disconnected gallery.
+2. **MANDATORY INLINE VIDEOS**:
+   - You MUST retain all video links or `.mp4` URLs inline as they appear in the original guide.
+
+## 🔴 FORMAT & STRUCTURE
+1. **Title & Purpose**: `# [Feature Title]` followed by a brief overview.
+2. **Prerequisites**: Master data or prerequisites required.
+3. **Step-by-Step Instructions**: Sequential steps with inline screenshot images immediately after the relevant step.
+4. **Important Notes / Tips**: Critical constraints or operational tips.
+5. **Next Follow-up Questions**: 3-4 recommended follow-up questions.
+
+## 🔴 STRICT PROHIBITIONS
+- NEVER output ```smart_table``` blocks for ERP tutorials.
+- NEVER output generic SQL executive summary sections.
 PROMPT;
     }
 
@@ -2829,7 +2925,7 @@ PROMPT;
             '/gunakan\s+contoh\s+data\s+ini/i',
             '/jika\s+describe_table\s+sudah/i',
             '/jika\s+ada\s+kolom\s+status\s+aktif/i',
-            '/langkah\s+(wajib|berikutnya)/i',
+            '/^(?:berikut\s+adalah\s+)?langkah\s+(?:wajib|berikutnya)\s*(?:saya|untuk\s+menjalankan\s+query|analisis\s+internal)/i',
             '/waJib\s+dibaca/i',
             // Baris berisi pemetaan kolom: "Netto = hrg_jual" atau "* Netto = `hrg_jual`"
             '/^\s*(netto|hpp|total\s+netto|total\s+hpp|diskon|profit)\s*=\s*[a-z_]+/i',
@@ -2927,6 +3023,16 @@ PROMPT;
             $trimmed = trim($line);
             $isThinkingLine = false;
 
+            // Media markdown & links are NEVER thinking lines!
+            if (
+                strpos($trimmed, '![') !== false ||
+                preg_match('/\.mp4(\?.*)?\)/i', $trimmed) ||
+                preg_match('/\.(png|jpg|jpeg|gif|webp|svg)/i', $trimmed)
+            ) {
+                $cleanLines[] = $line;
+                continue;
+            }
+
             // Checklist question: bullet + 'apakah/sudahkah' anywhere + system keyword + ends with '?'
             // Syarat '?' wajib: checklist selalu berupa pertanyaan, tapi insight bisnis biasanya tidak.
             // Contoh BENAR diblokir: "- Untuk data historis, apakah Anda sudah menggunakan tanggal...?"
@@ -3002,6 +3108,15 @@ PROMPT;
         ) {
             Log::info('[StreamFilter][NUCLEAR] Blocked system/tool tag line: ' . substr($trimmed, 0, 100));
             return true;
+        }
+
+        // Media markdown & links are NEVER thinking leakage!
+        if (
+            strpos($trimmed, '![') !== false ||
+            preg_match('/\.mp4(\?.*)?\)/i', $trimmed) ||
+            preg_match('/\.(png|jpg|jpeg|gif|webp|svg)/i', $trimmed)
+        ) {
+            return false;
         }
 
         // 1. Block checklist headers, system alerts/notes, critical self-audit markers
@@ -3102,7 +3217,7 @@ PROMPT;
             '/gunakan\s+contoh\s+data\s+ini/i',
             '/jika\s+describe_table\s+sudah/i',
             '/jika\s+ada\s+kolom\s+status\s+aktif/i',
-            '/langkah\s+(wajib|berikutnya)/i',
+            '/^(?:berikut\s+adalah\s+)?langkah\s+(?:wajib|berikutnya)\s*(?:saya|untuk\s+menjalankan\s+query|analisis\s+internal)/i',
             '/waJib\s+dibaca/i',
             '/^saya akan menggunakan\s+(jumlah|count)/i',
             '/^kolom yang tersedia/i',
