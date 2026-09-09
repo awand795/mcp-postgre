@@ -1133,11 +1133,13 @@
         }
 
         .markdown-body img {
-            max-width: 100%;
+            max-width: min(100%, 460px);
+            max-height: 240px;
+            object-fit: contain;
             height: auto;
             border-radius: 12px;
-            margin: 12px 0;
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+            margin: 10px 0;
+            box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
             border: 1px solid rgba(0, 0, 0, 0.08);
             display: block;
             cursor: zoom-in;
@@ -1145,22 +1147,22 @@
         }
 
         .markdown-body img:hover {
-            transform: scale(1.015);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.18), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: scale(1.02);
+            box-shadow: 0 10px 22px -3px rgba(0, 0, 0, 0.16);
         }
 
         html.dark .markdown-body img {
             border-color: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.6);
-            background: rgba(15, 23, 42, 0.6);
+            box-shadow: 0 6px 20px -3px rgba(0, 0, 0, 0.5);
+            background: rgba(15, 23, 42, 0.5);
         }
 
         html.dark .markdown-body img:hover {
-            box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 12px 28px -3px rgba(0, 0, 0, 0.7);
         }
 
         .markdown-body video {
-            max-width: 100%;
+            max-width: min(100%, 540px);
             border-radius: 12px;
             margin: 12px 0;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
@@ -1168,8 +1170,9 @@
         }
 
         .guide-image-card {
-            margin: 16px 0;
-            border-radius: 14px;
+            max-width: min(100%, 460px);
+            margin: 14px 0;
+            border-radius: 12px;
             overflow: hidden;
             border: 1px solid rgba(226, 232, 240, 0.9);
             background: rgba(248, 250, 252, 0.9);
@@ -1180,36 +1183,37 @@
         html.dark .guide-image-card {
             border-color: rgba(255, 255, 255, 0.12);
             background: rgba(15, 23, 42, 0.7);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
         }
 
         .guide-image-card:hover {
-            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12);
-            border-color: rgba(249, 115, 22, 0.35);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+            border-color: rgba(249, 115, 22, 0.4);
         }
 
         html.dark .guide-image-card:hover {
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65);
+            box-shadow: 0 12px 26px rgba(0, 0, 0, 0.6);
             border-color: rgba(249, 115, 22, 0.45);
         }
 
         .guide-video-card {
-            margin: 18px 0;
-            border-radius: 14px;
+            max-width: min(100%, 540px);
+            margin: 16px 0;
+            border-radius: 12px;
             overflow: hidden;
             border: 1px solid rgba(226, 232, 240, 0.9);
             background: #090d16;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
 
         html.dark .guide-video-card {
             border-color: rgba(255, 255, 255, 0.14);
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
         }
 
         .guide-video-card video {
             width: 100%;
-            max-height: 480px;
+            max-height: 380px;
             background: #000;
             display: block;
             outline: none;
@@ -5786,16 +5790,22 @@
                         const safeHref = cleanHref.replace(/"/g, '&quot;');
 
                         return `<div class="guide-image-card">
-                            <div class="relative overflow-hidden cursor-zoom-in erp-guide-img" onclick="openImageLightbox('${safeHref}', '${altText.replace(/'/g, "\\'")}')">
-                                <img src="${safeHref}" alt="${altText}" ${titleAttr} loading="lazy" class="w-full h-auto object-contain max-h-[520px] mx-auto block transition-transform duration-300 hover:scale-[1.01]" />
-                                <div class="absolute inset-0 bg-black/25 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                    <span class="bg-black/80 text-white text-xs px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-sm border border-white/20">
-                                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
+                            <div class="relative overflow-hidden cursor-zoom-in erp-guide-img bg-slate-900/10 dark:bg-black/30 flex items-center justify-center p-2 min-h-[120px] max-h-[250px] group" onclick="openImageLightbox('${safeHref}', '${altText.replace(/'/g, "\\'")}')">
+                                <img src="${safeHref}" alt="${altText}" ${titleAttr} loading="lazy" class="max-h-[230px] w-auto max-w-full object-contain mx-auto block rounded-lg transition-transform duration-300 group-hover:scale-[1.02]" />
+                                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                    <span class="bg-black/85 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg backdrop-blur-md border border-white/20 font-medium transform translate-y-1 group-hover:translate-y-0 transition-transform">
+                                        <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path></svg>
                                         <span>Klik untuk memperbesar</span>
                                     </span>
                                 </div>
                             </div>
-                            ${altText && altText !== 'Langkah Panduan' ? `<div class="px-3 py-1.5 text-xs text-center text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-white/5 bg-slate-100/70 dark:bg-slate-900/40">${altText}</div>` : ''}
+                            <div class="px-3 py-1.5 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-white/5 bg-slate-100/80 dark:bg-slate-900/60 flex items-center justify-between cursor-pointer hover:bg-slate-200/70 dark:hover:bg-slate-800/80 transition-colors" onclick="openImageLightbox('${safeHref}', '${altText.replace(/'/g, "\\'")}')">
+                                <span class="truncate pr-2 font-medium">${altText && altText !== 'Langkah Panduan' ? altText : 'Tangkapan Layar Panduan'}</span>
+                                <span class="text-[11px] text-orange-500 dark:text-orange-400 font-medium flex items-center gap-1 shrink-0">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4h-4"></path></svg>
+                                    Perbesar
+                                </span>
+                            </div>
                         </div>`;
                     },
                     link(hrefOrToken, title, text) {
@@ -5871,20 +5881,38 @@
                 if (typeof Swal !== 'undefined') {
                     const cleanAlt = alt && alt !== 'Langkah Panduan' ? alt : 'Tangkapan Layar Panduan DarkoGuide';
                     Swal.fire({
-                        imageUrl: src,
-                        imageAlt: cleanAlt,
-                        title: `<div class="text-sm font-medium text-slate-200">${cleanAlt}</div>`,
-                        width: '92vw',
+                        html: `
+                            <div class="relative flex flex-col text-left">
+                                <div class="w-full flex items-center justify-between pb-2.5 mb-2.5 border-b border-white/10">
+                                    <div class="text-sm font-semibold text-slate-200 flex items-center gap-2 truncate pr-4">
+                                        <span class="text-orange-400">📷</span>
+                                        <span class="truncate">${cleanAlt}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1 font-medium bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-lg border border-white/10">
+                                            <span>Buka Ukuran Asli</span> &nearr;
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="w-full max-h-[82vh] overflow-auto rounded-xl flex items-center justify-center bg-black/50 p-2 border border-white/5">
+                                    <img src="${src}" alt="${cleanAlt}" class="max-h-[78vh] w-auto max-w-full object-contain rounded-lg shadow-2xl mx-auto block cursor-zoom-out" onclick="Swal.close()" />
+                                </div>
+                                <div class="w-full pt-2 flex items-center justify-between text-[11px] text-slate-400">
+                                    <span>Klik gambar atau tombol silang untuk menutup</span>
+                                    <span class="text-slate-500">Tekan ESC untuk keluar</span>
+                                </div>
+                            </div>
+                        `,
+                        width: 'auto',
                         background: '#0b132b',
                         color: '#f8fafc',
                         showConfirmButton: false,
                         showCloseButton: true,
                         closeButtonHtml: '&times;',
-                        backdrop: 'rgba(0, 0, 0, 0.85)',
+                        backdrop: 'rgba(0, 0, 0, 0.88)',
                         customClass: {
-                            popup: 'rounded-2xl border border-white/15 shadow-2xl p-3 max-w-6xl overflow-hidden',
-                            image: 'rounded-xl max-h-[82vh] w-auto mx-auto object-contain shadow-md',
-                            closeButton: 'text-slate-400 hover:text-white focus:outline-none text-3xl font-light'
+                            popup: 'rounded-2xl border border-white/15 shadow-2xl p-4 max-w-6xl overflow-hidden',
+                            closeButton: 'text-slate-400 hover:text-white focus:outline-none text-2xl font-light top-3 right-3'
                         }
                     });
                 } else {
