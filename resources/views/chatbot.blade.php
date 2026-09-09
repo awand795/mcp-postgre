@@ -2735,18 +2735,21 @@
                         toolArea.style.display = 'none';
                     }
 
-                    // Check for ERP guidance video and add video player after streaming completes
-                    const videoUrl = extractErpGuidanceVideo(currentToolResults);
-                    if (videoUrl) {
-                        const videoContainer = renderVideoPlayer(videoUrl);
-                        // Insert video after the bubble wrapper
-                        const wrapper = bubble.closest('.flex.flex-col.gap-1\\.5');
-                        if (wrapper) {
-                            const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
-                            if (timeEl) {
-                                wrapper.insertBefore(videoContainer, timeEl);
-                            } else {
-                                wrapper.appendChild(videoContainer);
+                    // Check for ERP guidance video: hanya tambahkan jika belum ter-render inline di dalam bubble
+                    const hasInlineVideo = bubble.querySelector('.guide-video-card') || bubble.querySelector('video');
+                    if (!hasInlineVideo) {
+                        const videoUrl = extractErpGuidanceVideo(currentToolResults);
+                        if (videoUrl) {
+                            const videoContainer = renderVideoPlayer(videoUrl);
+                            // Insert video after the bubble wrapper
+                            const wrapper = bubble.closest('.flex.flex-col.gap-1\\.5');
+                            if (wrapper) {
+                                const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
+                                if (timeEl) {
+                                    wrapper.insertBefore(videoContainer, timeEl);
+                                } else {
+                                    wrapper.appendChild(videoContainer);
+                                }
                             }
                         }
                     }
@@ -3057,21 +3060,21 @@
                         autoInjectSmartTableFromToolResults(bubble, toolResultsForInit);
                     }, 50);
 
-                    // Check for ERP guidance video and add video player below
-                    const videoUrl = extractErpGuidanceVideo(toolResultsForMsg);
-                    if (videoUrl) {
-                        const videoContainer = renderVideoPlayer(videoUrl);
-                        wrap.appendChild(videoContainer);
-                    }
+                    // Masukkan bubble utama ke dalam wrapper terlebih dahulu agar susunan panduan teks & gambar inline tetap di posisi utama
+                    wrap.appendChild(bubble);
 
-                    // Check for ERP guidance images and add gallery
-                    const guidanceImages = extractErpGuidanceImages(toolResultsForMsg);
-                    if (guidanceImages && guidanceImages.length > 0) {
-                        const galleryContainer = renderImageGallery(guidanceImages);
-                        wrap.appendChild(galleryContainer);
+                    // Fallback video: HANYA tambahkan video player jika di dalam bubble belum ada video inline
+                    const hasInlineVideo = bubble.querySelector('.guide-video-card') || bubble.querySelector('video');
+                    if (!hasInlineVideo) {
+                        const videoUrl = extractErpGuidanceVideo(toolResultsForMsg);
+                        if (videoUrl) {
+                            const videoContainer = renderVideoPlayer(videoUrl);
+                            wrap.appendChild(videoContainer);
+                        }
                     }
                 } else {
                     bubble.textContent = msg.content;
+                    wrap.appendChild(bubble);
                 }
 
                 const timeEl = document.createElement('span');
@@ -3087,7 +3090,6 @@
                     timeEl.textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
                 }
 
-                wrap.appendChild(bubble);
                 wrap.appendChild(timeEl);
 
                 if (prepend) {
@@ -3144,32 +3146,27 @@
 
             // Helper: Render ERP guidance video player
             function renderVideoPlayer(videoUrl) {
+                const cleanHref = (videoUrl || '').trim();
                 const container = document.createElement('div');
-                container.className = 'flex flex-col gap-2 items-start max-w-[95%] erp-video-container';
-
-                const videoLabel = document.createElement('div');
-                videoLabel.className = 'flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-lg';
-                videoLabel.innerHTML = `
-                <svg class="w-4 h-4 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <span class="text-xs font-medium text-orange-400">{{ __('Video Panduan ERP') }}</span>
-            `;
-
-                const videoWrap = document.createElement('div');
-                videoWrap.className = 'relative w-full max-w-2xl rounded-xl overflow-hidden bg-black shadow-lg border border-white/10';
-
-                const video = document.createElement('video');
-                video.className = 'w-full rounded-xl';
-                video.controls = true;
-                video.preload = 'metadata';
-                video.poster = '';
-                video.innerHTML = `<source src="${videoUrl}" type="video/mp4">Browser Anda tidak mendukung pemutaran video.`;
-
-                videoWrap.appendChild(video);
-                container.appendChild(videoLabel);
-                container.appendChild(videoWrap);
-
+                container.className = 'guide-video-card erp-video-container my-3 w-full';
+                container.innerHTML = `
+                    <div class="px-4 py-2.5 bg-slate-900 border-b border-white/10 flex items-center justify-between text-xs text-slate-200">
+                        <span class="flex items-center gap-2 font-medium">
+                            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+                            <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm11.5 5.5l-6 3.5a.5.5 0 01-.75-.433v-7a.5.5 0 01.75-.433l6 3.5a.5.5 0 010 .866z"/></svg>
+                            <span>{{ __('Video Panduan ERP') }}</span>
+                        </span>
+                        <a href="${cleanHref}" target="_blank" rel="noopener noreferrer" class="text-orange-400 hover:text-orange-300 transition-colors flex items-center gap-1 font-mono">
+                            <span>{{ __('Buka Video') }}</span> &nearr;
+                        </a>
+                    </div>
+                    <div class="relative bg-black flex items-center justify-center">
+                        <video controls preload="metadata" class="w-full max-h-[500px]">
+                            <source src="${cleanHref}" type="video/mp4">
+                            Browser Anda tidak mendukung pemutar video. <a href="${cleanHref}" target="_blank" class="text-orange-400 underline">Unduh video di sini</a>.
+                        </video>
+                    </div>
+                `;
                 return container;
             }
 
@@ -5818,7 +5815,7 @@
                             linkText = hrefOrToken.text;
                         }
                         const cleanHref = (href || '').trim();
-                        const isVideo = /\.mp4(\?.*)?$/i.test(cleanHref);
+                        const isVideo = /\.(mp4|webm|ogg|mov)([?#].*)?$/i.test(cleanHref);
                         const displayTitle = linkText || cleanHref;
 
                         if (isVideo) {
@@ -6160,15 +6157,18 @@
 
                     if (toolArea.children.length === 0) toolArea.style.display = 'none';
 
-                    // Check for ERP guidance video and add video player after streaming completes
-                    const videoUrl = extractErpGuidanceVideo(currentToolResults);
-                    if (videoUrl) {
-                        const videoContainer = renderVideoPlayer(videoUrl);
-                        const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
-                        if (timeEl) {
-                            wrapper.insertBefore(videoContainer, timeEl);
-                        } else {
-                            wrapper.appendChild(videoContainer);
+                    // Check for ERP guidance video: hanya tambahkan jika belum ter-render inline di dalam bubble
+                    const hasInlineVideo = bubble.querySelector('.guide-video-card') || bubble.querySelector('video');
+                    if (!hasInlineVideo) {
+                        const videoUrl = extractErpGuidanceVideo(currentToolResults);
+                        if (videoUrl) {
+                            const videoContainer = renderVideoPlayer(videoUrl);
+                            const timeEl = wrapper.querySelector('span.text-\\[10px\\]');
+                            if (timeEl) {
+                                wrapper.insertBefore(videoContainer, timeEl);
+                            } else {
+                                wrapper.appendChild(videoContainer);
+                            }
                         }
                     }
 
