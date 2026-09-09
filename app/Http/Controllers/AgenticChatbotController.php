@@ -986,14 +986,6 @@ class AgenticChatbotController extends Controller
                     if (!$currentIsProbe) {
                         $hasTerminalToolThisTurn = true;
                         $terminalToolCallsCount[$toolName] = ($terminalToolCallsCount[$toolName] ?? 0) + 1;
-
-                        // Bedakan limit antara ERP (statis) dan Query (analitis)
-                        $limit = str_contains($toolName, 'erp') ? 3 : 8;
-
-                        if ($terminalToolCallsCount[$toolName] >= $limit) {
-                            Log::warning("[Agentic] Terminal tool '{$toolName}' reached limit ({$limit}x). Forcing loop termination at loop #{$loopCount}.");
-                            $loopCount = $this->maxToolLoops; // Break on next iteration check
-                        }
                     }
                 }
             }
@@ -1032,6 +1024,22 @@ DILARANG KERAS: Menghapus gambar atau video, menggunakan smart_table, atau membu
                 ob_flush();
             flush();
         }
+
+        // Fallback keamanan jika loop selesai tanpa menghasilkan final response (mencegah gelembung kosong)
+        $fallbackMsg = "Mohon maaf, sistem tidak dapat memproses jawaban secara lengkap saat ini. Silakan coba ajukan kembali pertanyaan Anda.";
+        if ($chatSessionId) {
+            ChatMessage::create([
+                'chat_session_id' => $chatSessionId,
+                'role' => 'assistant',
+                'content' => $fallbackMsg,
+                'tool_results' => !empty($allTurnToolResults) ? $allTurnToolResults : null
+            ]);
+        }
+        $this->streamText($fallbackMsg);
+        echo "data: [DONE]\n\n";
+        if (ob_get_level() > 0)
+            ob_flush();
+        flush();
     }
 
     public function getSessions(Request $request)
