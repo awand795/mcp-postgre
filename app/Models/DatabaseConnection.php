@@ -66,7 +66,20 @@ class DatabaseConnection extends Model
     protected static function booted()
     {
         static::saved(function ($db) {
-            if ($db->is_active) {
+            if (!$db->is_active) {
+                return;
+            }
+
+            // Hanya sinkronisasi tabel & role permissions jika kolom konfigurasi koneksi atau filter berubah.
+            // JANGAN sinkronisasi jika yang berubah hanya ssh_pid, test_status, last_tested_at, dsb,
+            // untuk mencegah infinite recursion loop saat SshTunnelManager atau testConnection mengupdate state.
+            $schemaAttributes = [
+                'host', 'port', 'database', 'username', 'password',
+                'schema', 'driver', 'table_filters', 'is_active',
+                'use_ssh', 'ssh_host', 'ssh_port', 'ssh_username', 'ssh_password', 'ssh_private_key', 'ssh_auth_type'
+            ];
+
+            if ($db->wasRecentlyCreated || $db->wasChanged($schemaAttributes)) {
                 $db->syncRolePermissions();
             }
         });
@@ -332,7 +345,7 @@ class DatabaseConnection extends Model
 
             DB::purge('test_connection');
 
-            $this->update([
+            $this->updateQuietly([
                 'test_status' => 'success',
                 'last_tested_at' => now(),
             ]);
@@ -344,7 +357,7 @@ class DatabaseConnection extends Model
         } catch (\Exception $e) {
             DB::purge('test_connection');
 
-            $this->update([
+            $this->updateQuietly([
                 'test_status' => 'failed',
                 'last_tested_at' => now(),
             ]);

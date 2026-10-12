@@ -21,19 +21,25 @@ class AdminController extends Controller
     public function index()
     {
         $user = auth()->user();
+        try {
+            $allTables = $this->getAllTables() ?: [];
+        } catch (\Throwable $e) {
+            \Log::error("AdminController::index failed to load all tables: " . $e->getMessage());
+            $allTables = [];
+        }
+
         if ($user->is_super_admin) {
             $stats = [
                 'users_count' => User::count(),
                 'roles_count' => Role::count(),
                 'databases_count' => DatabaseConnection::active()->count(),
-                'tables_count' => count($this->getAllTables()),
+                'tables_count' => count($allTables),
             ];
         } else {
             $allowedDbCodes = DatabaseConnection::active()
                 ->where('added_by', $user->id)
                 ->pluck('database')
                 ->toArray();
-            $allTables = $this->getAllTables();
             $tablesCount = count(array_filter($allTables, function($table) use ($allowedDbCodes) {
                 return in_array($table['database_code'], $allowedDbCodes);
             }));
@@ -1030,7 +1036,7 @@ class AdminController extends Controller
                             'table_type'    => $table['table_type'] ?? 'table',
                         ];
                     }
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     \Log::error("Failed to load tables for DB {$db->name}: " . $e->getMessage());
                 }
             }

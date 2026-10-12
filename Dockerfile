@@ -18,7 +18,8 @@ COPY storage/ storage/
 COPY artisan .
 COPY composer.json composer.lock ./
 
-RUN composer dump-autoload --optimize && \
+RUN apk add --no-cache openssh-client sshpass && \
+    composer dump-autoload --optimize && \
     php artisan octane:install --server=frankenphp && \
     rm -rf /app/bootstrap/cache/*.php && \
     chmod -R 777 /app/storage /app/bootstrap/cache

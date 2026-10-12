@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Log;
 class SshTunnelManager
 {
     /**
+     * Cache DB IDs that failed to connect via SSH during current request to prevent retry storms.
+     */
+    private static array $failedTunnels = [];
+
+    /**
      * Start the SSH tunnel if it's not already running.
      * Returns the local port to connect to.
      */
@@ -21,20 +26,24 @@ class SshTunnelManager
         $dbId = $db->id ?: 'temp_' . uniqid();
         $localPort = $db->id ? (50000 + $db->id) : self::findFreePort(50000, 60000);
 
+        if (isset(self::$failedTunnels[$dbId])) {
+            throw new \Exception("SSH tunnel gagal sebelumnya pada request ini: " . self::$failedTunnels[$dbId]);
+        }
+
         // Check if tunnel is already active on this port
         if (self::isPortOpen('127.0.0.1', $localPort)) {
             Log::info("SSH Tunnel for DB {$db->name} is already active on port {$localPort}");
             return $localPort;
         }
 
-        // Write private key file if key auth is used
+        // 1. Stop any orphan processes first BEFORE writing the new key file
+        self::stop($db);
+
+        // 2. Write private key file if key auth is used
         $keyFile = null;
         if ($db->ssh_auth_type === 'key') {
             $keyFile = self::writeKeyFile($db, $dbId);
         }
-
-        // Stop any orphan processes first
-        self::stop($db);
 
         // Build SSH command parameters
         $sshHost = $db->ssh_host;
@@ -44,6 +53,10 @@ class SshTunnelManager
         $dbPort = $db->port;
 
         $isWindows = DIRECTORY_SEPARATOR === '\\';
+        $sshLog = storage_path("app/ssh_keys/ssh_{$dbId}.log");
+        if (file_exists($sshLog)) {
+            @unlink($sshLog);
+        }
 
         if ($db->ssh_auth_type === 'key') {
             if (!$keyFile) {
@@ -67,10 +80,10 @@ class SshTunnelManager
                 $argString = implode(' ', array_map(fn($a) => '"' . str_replace('"', '""', $a) . '"', $args));
                 $cmd = "powershell -Command \"Start-Process ssh -ArgumentList {$argString} -WindowStyle Hidden -PassThru | Select-Object -ExpandProperty Id\"";
             } else {
-                // Linux command using nohup
+                // Linux command using nohup with output logging
                 $cmd = sprintf(
-                    "nohup ssh -N -L %d:%s:%d -i %s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes %s@%s > /dev/null 2>&1 & echo \$!",
-                    $localPort, $dbHost, $dbPort, escapeshellarg($keyFile), $sshPort, escapeshellarg($sshUser), escapeshellarg($sshHost)
+                    "nohup ssh -N -L %d:%s:%d -i %s -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes %s@%s > %s 2>&1 & echo \$!",
+                    $localPort, $dbHost, $dbPort, escapeshellarg($keyFile), $sshPort, escapeshellarg($sshUser), escapeshellarg($sshHost), escapeshellarg($sshLog)
                 );
             }
         } else {
@@ -83,8 +96,8 @@ class SshTunnelManager
             } else {
                 // Linux with sshpass
                 $cmd = sprintf(
-                    "nohup sshpass -p %s ssh -N -L %d:%s:%d -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes %s@%s > /dev/null 2>&1 & echo \$!",
-                    escapeshellarg($sshPassword), $localPort, $dbHost, $dbPort, $sshPort, escapeshellarg($sshUser), escapeshellarg($sshHost)
+                    "nohup sshpass -p %s ssh -N -L %d:%s:%d -p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ExitOnForwardFailure=yes %s@%s > %s 2>&1 & echo \$!",
+                    escapeshellarg($sshPassword), $localPort, $dbHost, $dbPort, $sshPort, escapeshellarg($sshUser), escapeshellarg($sshHost), escapeshellarg($sshLog)
                 );
             }
         }
@@ -102,7 +115,7 @@ class SshTunnelManager
             if (is_numeric($pid)) {
                 $pidVal = (int)$pid;
                 if ($db->id) {
-                    $db->update(['ssh_pid' => $pidVal]);
+                    $db->updateQuietly(['ssh_pid' => $pidVal]);
                 } else {
                     // Store temp pid in request session or static tracking for cleanup
                     $tempPids = session('temp_ssh_pids', []);
@@ -125,15 +138,26 @@ class SshTunnelManager
         }
 
         if (!$portOpened) {
+            $sshError = file_exists($sshLog) ? trim(file_get_contents($sshLog)) : '';
+            @unlink($sshLog);
+
             // Check if process died immediately
             if ($pid && !self::isProcessRunning((int)$pid)) {
                 if ($db->id) {
-                    $db->update(['ssh_pid' => null]);
+                    $db->updateQuietly(['ssh_pid' => null]);
                 }
-                throw new \Exception("Proses SSH langsung keluar. Silakan periksa kredensial SSH atau ketersediaan port local.");
+                $detail = $sshError ? ": {$sshError}" : ". Silakan periksa kredensial SSH atau ketersediaan port local.";
+                $errMsg = "Proses SSH langsung keluar{$detail}";
+                self::$failedTunnels[$dbId] = $errMsg;
+                throw new \Exception($errMsg);
             }
-            throw new \Exception("Gagal membuka SSH tunnel di port lokal {$localPort}. Batas waktu habis.");
+            $detail = $sshError ? ": {$sshError}" : ". Batas waktu habis.";
+            $errMsg = "Gagal membuka SSH tunnel di port lokal {$localPort}{$detail}";
+            self::$failedTunnels[$dbId] = $errMsg;
+            throw new \Exception($errMsg);
         }
+
+        @unlink($sshLog);
 
         // For temporary connections, register a shutdown function to clean it up at end of request
         if (!$db->id) {
@@ -185,7 +209,7 @@ class SshTunnelManager
             exec("kill -9 {$pid} > /dev/null 2>&1");
         }
 
-        $db->update(['ssh_pid' => null]);
+        $db->updateQuietly(['ssh_pid' => null]);
 
         // Delete temporary key file if exists
         $keyFile = storage_path("app/ssh_keys/key_{$db->id}");
@@ -218,10 +242,17 @@ class SshTunnelManager
             exec("tasklist /FI \"PID eq {$pid}\" 2>NUL", $output);
             return count(array_filter($output, fn($line) => str_contains($line, (string)$pid))) > 0;
         } else {
+            if (!file_exists("/proc/{$pid}")) {
+                return false;
+            }
+            $status = @file_get_contents("/proc/{$pid}/status");
+            if ($status && preg_match('/State:\s+Z/i', $status)) {
+                return false; // zombie process is dead
+            }
             if (function_exists('posix_kill')) {
                 return posix_kill($pid, 0);
             }
-            return file_exists("/proc/{$pid}");
+            return true;
         }
     }
 
