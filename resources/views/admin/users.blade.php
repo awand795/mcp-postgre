@@ -141,7 +141,7 @@
                     </td>
                     <td>
                         @php
-                            $enabledModels = $user->aiModels->where('pivot.is_enabled', true)->values();
+                            $enabledModels = $user->aiModels->where('is_active', true)->where('pivot.is_enabled', true)->values();
                             $visibleModels = $enabledModels->take(2);
                             $extraModels   = $enabledModels->slice(2);
                         @endphp
@@ -163,7 +163,7 @@
                     </td>
                     <td>
                         @php
-                            $enabledKeys = $user->aiKeys->where('pivot.is_enabled', true)->values();
+                            $enabledKeys = $user->aiKeys->where('is_active', true)->where('pivot.is_enabled', true)->values();
                             $visibleKeys = $enabledKeys->take(2);
                             $extraKeys   = $enabledKeys->slice(2);
                         @endphp
