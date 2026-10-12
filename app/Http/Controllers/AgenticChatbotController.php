@@ -299,7 +299,8 @@ class AgenticChatbotController extends Controller
             $loopCount++;
             $providerCode = strtolower($apiKey->provider->code ?? '');
             $isGroq = $providerCode === 'groq' || str_contains($apiKey->provider->base_url ?? '', 'groq.com');
-            Log::info("[Agentic] Loop #{$loopCount} - Model: " . $model->model_name);
+            $effectiveModelName = $this->resolveEffectiveModelName($model, $providerCode);
+            Log::info("[Agentic] Loop #{$loopCount} - Model: {$effectiveModelName}" . ($effectiveModelName !== $model->model_name ? " (aliased from {$model->model_name})" : ''));
 
             $isProbeQuery = $executeQueryCount > 0
                 && stripos($lastExecutedSql, 'SELECT DISTINCT') !== false
@@ -3519,7 +3520,7 @@ PROMPT;
         Log::info("[Agentic] streamOpenAiCompatibleApi loop={$loopCount} msg_count=" . count($messages) . " messages=" . json_encode(array_map(fn($m) => ['role' => $m['role'], 'name' => $m['name'] ?? null, 'tc' => !empty($m['tool_calls']), 'content_len' => strlen(is_string($m['content'] ?? null) ? $m['content'] : json_encode($m['content'] ?? ''))], $messages)));
 
         $payload = [
-            'model' => $model->model_name,
+            'model' => $this->resolveEffectiveModelName($model, $providerCode),
             'messages' => $messages,
             'max_tokens' => $maxTokens,
             'temperature' => 0.3,
@@ -3963,7 +3964,7 @@ PROMPT;
         }
 
         $payload = [
-            'model' => $model->model_name,
+            'model' => $this->resolveEffectiveModelName($model, $providerCode),
             'messages' => $messages,
             'max_tokens' => (int) $maxTokens,
             'temperature' => 0.3,
@@ -4098,5 +4099,24 @@ PROMPT;
         }
 
         return 'Data ' . ucwords($clean);
+    }
+
+    /**
+     * Resolve effective model name for providers with custom deployment aliases (e.g. Alibaba Cloud / MaaS).
+     */
+    private function resolveEffectiveModelName($model, string $providerCode = ''): string
+    {
+        $name = is_string($model) ? $model : ($model->model_name ?? '');
+
+        if ($providerCode === 'qwen' || str_contains($providerCode, 'alibaba')) {
+            if ($name === 'deepseek-v4-flash') {
+                return 'deepseek-v4-flash-0731';
+            }
+            if ($name === 'deepseek-v4-pro') {
+                return 'deepseek-v4-pro-0813';
+            }
+        }
+
+        return $name;
     }
 }
