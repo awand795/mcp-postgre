@@ -290,7 +290,7 @@ class AgenticChatbotController extends Controller
         $lastExecutedSql = '';
 
         $probeQueryCount = 0;
-        $maxProbeQueries = 2;
+        $maxProbeQueries = 5;
         $searchSchemaCallsCount = 0;
         $maxSearchSchemaCalls = 2;
         $hasExecutedTerminalTool = false;
@@ -904,7 +904,19 @@ class AgenticChatbotController extends Controller
                     }
                     $isSingleColumn = (strpos($selectPart, ',') === false) && !empty($selectPart) && stripos($selectPart, '*') === false;
 
-                    $currentIsProbe = ($hasDistinct && !$hasGroupBy) || ($isSingleColumn && !$hasAggregate && !$hasGroupBy);
+                    // Query diklasifikasikan sebagai probe jika:
+                    // 1) SELECT DISTINCT tanpa GROUP BY
+                    // 2) Kolom tunggal tanpa agregat dan tanpa GROUP BY
+                    // 3) Tanpa GROUP BY & tanpa agregat dengan LIMIT kecil (<= 15) atau tanpa WHERE (misal: SELECT * FROM table LIMIT 5)
+                    $hasSmallLimit = false;
+                    if (preg_match('/\bLIMIT\s+(\d+)\b/i', $sqlToCheck, $limitMatch)) {
+                        $hasSmallLimit = ((int) $limitMatch[1]) <= 15;
+                    }
+                    $hasNoWhere = stripos($sqlToCheck, 'WHERE') === false;
+
+                    $currentIsProbe = ($hasDistinct && !$hasGroupBy)
+                        || ($isSingleColumn && !$hasAggregate && !$hasGroupBy)
+                        || (!$hasGroupBy && !$hasAggregate && ($hasSmallLimit || $hasNoWhere));
                 }
 
                 $frontendResult = [
@@ -1979,9 +1991,11 @@ Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika in
    - Gunakan `search_schema` (max 1x) jika tabel tidak ada di daftar atas.
    - Panggil `describe_table` untuk memverifikasi nama kolom eksak sebelum query.
    - Jika `search_schema` kosong, coba keyword alternatif/sinonim. Jangan langsung menyerah.
-3. **ATURAN PROBE (PENCARIAN NILAI KOLOM)**:
-   - Maksimal 1 probe query (`LIMIT 10`) pada tabel master untuk mencari ejaan nilai eksak.
-   - Setelah menemukan nilai eksak, LANGSUNG eksekusi query utama dengan `=`. DILARANG probe berulang kali.
+3. **ATURAN PROBE & QUERY AGREGASI (MUTLAK)**:
+   - Query sampel (`LIMIT 5`, `LIMIT 10`, `SELECT *`) HANYA untuk mengintip nama kolom dan contoh nilai.
+   - **DILARANG KERAS menyimpulkan bahwa data kosong/nihil hanya berdasarkan query sampel (`LIMIT 3/5/10`)!**
+   - Untuk pertanyaan penjualan atau agregasi ("berapa", "total penjualan", "seluruh jasa"), Anda **WAJIB menjalankan query agregasi matematis dengan `SUM(...)` atau `COUNT(*)` dan `GROUP BY`** (contoh: `SELECT nama_cabang, SUM(total_netto) FROM ... WHERE lower(nama_bentuk_barang) = 'jasa' AND periode_tahun = '2026' AND periode_bulan = '10' GROUP BY nama_cabang`).
+   - DILARANG probe berulang kali. Setelah menemukan struktur kolom, LANGSUNG eksekusi query agregasi utama.
 
 ## 📊 ATURAN DAFTAR DATA & BATASAN LIMIT
 1. **Pertanyaan Daftar/Rincian ("tampilkan", "daftar", "list", "rincian")**:
@@ -2015,6 +2029,7 @@ Anda didorong untuk memanggil beberapa tool sekaligus dalam satu giliran jika in
 - **Alias Kolom**: Gunakan Title Case yang rapi (contoh: `AS "Nama Cabang"`, `AS "Total Netto"`).
 - **Mata Uang (Currency)**: Daftarkan semua kolom uang ke dalam array `currency_columns` di tool `execute_query` dan `smart_table`. Gunakan angka murni tanpa format string ribuan manual.
 - **Timeout / Error Recovery**: Jika query error atau 0 rows, panggil `describe_table` untuk verifikasi kolom dan retry dengan perbaikan hingga 3x sebelum melapor kendala.
+- **Bentuk Barang & Jasa (Masterban)**: Pembeda antara barang fisik dan layanan jasa di database Masterban adalah kolom `nama_bentuk_barang` (berisi `'BARANG'` atau `'JASA'`). Jika user menanyakan "jasa" atau "penjualan jasa", filter dengan `lower(nama_bentuk_barang) = 'jasa'`. Kata "masterban" adalah nama perusahaan/sistem, BUKAN nama produk/jasa!
 
 {$outOfDomainSection}
 PROMPT;
